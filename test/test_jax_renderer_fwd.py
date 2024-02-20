@@ -11,17 +11,9 @@ from jax_gl_renderer import JaxGLRenderer, projection_matrix_from_intrinsics, ge
 import viser
 server = viser.ViserServer()
 
-w = 100
-h = 100
-intrinsics = jnp.array(
-    [w,h, 200.0, 200.0, 50.0, 50.0, 0.001, 16.0]   
-)
 
-projection_matrix = projection_matrix_from_intrinsics(
-    intrinsics
-)
-
-jax_renderer = JaxGLRenderer(w,h)
+w,h, fx,fy, cx,cy, near, far = 200, 100, 200.0, 200.0, 100.0, 50.0, 0.001, 16.0
+jax_renderer = JaxGLRenderer(w,h, fx,fy, cx,cy, near, far)
 
 meshes = []
 
@@ -48,14 +40,10 @@ vertices = jnp.concatenate(all_vertices, axis=0)
 vertices = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
 faces = jnp.concatenate([faces + vertices_lens_cumsum[i] for (i,faces) in enumerate(all_faces)])
 
-
-w,h = intrinsics[:2]
-resolution = jnp.array([h,w]).astype(jnp.int32)
-
 object_indices = jnp.array([1, 0])
 ranges = jnp.hstack([faces_lens_cumsum[object_indices].reshape(-1,1), faces_lens[object_indices].reshape(-1,1)])
 
-poses = jnp.tile(jnp.eye(4).reshape(1,4,4), (8000,1,1))
+poses = jnp.tile(jnp.eye(4).reshape(1,4,4), (4000,1,1))
 poses = poses.at[:, 2,3].set(5.0)
 
 poses = poses.at[:, 1,3].set(jnp.linspace(-0.2, 0.5, len(poses)))
@@ -69,8 +57,6 @@ image = render_jit(
     vertices,
     faces,
     ranges,
-    projection_matrix,
-    resolution
 )
 
 server.reset_scene()

@@ -19,8 +19,7 @@ def get_assets_dir():
         os.path.dirname(os.path.dirname(__file__)), "assets"
     )
 
-def projection_matrix_from_intrinsics(intrinsics):
-    w, h, fx, fy, cx, cy, near, far = intrinsics
+def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
     view = jnp.eye(4)
     view = view.at[1:3].set(view[1:3] * -1)
@@ -67,7 +66,7 @@ def interpolate_(uv, triangle_id, poses, object_id, vertices, faces, ranges):
 
 
 class JaxGLRenderer(object):
-    def __init__(self, width, height, num_layers=1024):
+    def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
         """A renderer for rendering meshes.
 
         Args:
@@ -75,6 +74,8 @@ class JaxGLRenderer(object):
             num_layers (int, optional): The number of scenes to render in parallel. Defaults to 1024.
         """
         self.width, self.height = width, height
+        self.resolution = jnp.array([height, width]).astype(jnp.int32)
+        self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
         self.rasterize = jax.tree_util.Partial(self._rasterize, self)
 
@@ -100,14 +101,14 @@ class JaxGLRenderer(object):
 
     _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
 
-    def render(self, poses, vertices, faces, ranges, projection_matrix, resolution):
+    def render(self, poses, vertices, faces, ranges):
         rast_out, rast_out_aux = self.rasterize(
             poses,
             vertices,
             faces,
             ranges,
-            projection_matrix,
-            resolution
+            self.projection_matrix,
+            self.resolution
         )
         uvs = rast_out[...,:2]
         object_ids = rast_out_aux[...,0]

@@ -37,7 +37,6 @@ faces_lens = jnp.array([len(faces) for faces in all_faces])
 faces_lens_cumsum = jnp.pad(jnp.cumsum(faces_lens),(1,0))
 
 vertices = jnp.concatenate(all_vertices, axis=0)
-vertices = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
 faces = jnp.concatenate([faces + vertices_lens_cumsum[i] for (i,faces) in enumerate(all_faces)])
 
 object_indices = jnp.array([1, 0])
@@ -50,14 +49,24 @@ poses = poses.at[:, 1,3].set(jnp.linspace(-0.2, 0.5, len(poses)))
 poses2 = poses.at[:, 1,3].set(jnp.linspace(-0.0, 1.5, len(poses)))
 poses = jnp.stack([poses, poses2], axis=1)
 
-render_jit = jax.jit(jax_renderer.render)
 
-image = render_jit(
+uvs, object_ids, triangle_ids = jax_renderer.render_to_barycentrics_many(
     poses,
     vertices,
     faces,
     ranges,
 )
+
+render_attribute_vmap = jax.vmap(jax_renderer.render_attribute, in_axes=(0, None, None, None, None))
+image2 = render_attribute_vmap(
+    poses,
+    vertices,
+    faces,
+    ranges,
+    jnp.ones_like(vertices)
+)
+
+jnp.allclose(image, image2)
 
 server.reset_scene()
 

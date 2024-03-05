@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import core, dtypes
 from jax.core import ShapedArray
-from jax.interpreters import mlir, xla
+from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import functools
@@ -56,7 +56,7 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
         6,
     ),
 )
-def interpolate_(uv, triangle_id, poses, object_id, vertices, faces, ranges):
+def interpolate_depth(uv, triangle_id, poses, object_id, vertices, faces, ranges):
     relevant_vertices = vertices[faces[triangle_id-1]]
     pose_of_object = poses[object_id-1]
     relevant_vertices_transformed = relevant_vertices @ pose_of_object.T
@@ -64,6 +64,20 @@ def interpolate_(uv, triangle_id, poses, object_id, vertices, faces, ranges):
     interpolated_value = (relevant_vertices_transformed[:,:3] * barycentric.reshape(3,1)).sum(0)
     return interpolated_value
 
+@staticmethod
+@functools.partial(
+    jnp.vectorize,
+    signature="(2),()->(k)",
+    excluded=(
+        2,
+        3,
+    ),
+)
+def interpolate_attribute(uv, triangle_id, faces, attributes):
+    relevant_attributes = attributes[faces[triangle_id-1]]
+    barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
+    interpolated_value = (relevant_attributes[:,:] * barycentric.reshape(3,1)).sum(0)
+    return interpolated_value
 
 class JaxGLRenderer(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
@@ -101,10 +115,26 @@ class JaxGLRenderer(object):
 
     _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
 
-    def render(self, poses, vertices, faces, ranges):
+    def render_to_barycentrics_many(self, poses, vertices, faces, ranges):
+        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
         rast_out, rast_out_aux = self.rasterize(
             poses,
-            vertices,
+            vertices_h,
+            faces,
+            ranges,
+            self.projection_matrix,
+            self.resolution
+        )
+        uvs = rast_out[...,:2]
+        object_ids = rast_out_aux[...,0]
+        triangle_ids = rast_out_aux[...,1]
+        return uvs, object_ids, triangle_ids
+
+    def render_depth_many(self, poses, vertices, faces, ranges):
+        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
+        rast_out, rast_out_aux = self.rasterize(
+            poses,
+            vertices_h,
             faces,
             ranges,
             self.projection_matrix,
@@ -115,10 +145,34 @@ class JaxGLRenderer(object):
         triangle_ids = rast_out_aux[...,1]
         mask = object_ids > 0
 
-        interpolated_values = interpolate_(uvs, triangle_ids, poses[:,None, None,:,:], object_ids, vertices, faces, ranges)
+        interpolated_values = interpolate_depth(uvs, triangle_ids, poses[:,None, None,:,:], object_ids, vertices_h, faces, ranges)
         image = interpolated_values * mask[...,None]
         return image
 
+    def render_depth(self, pose, vertices, faces, ranges):
+        return self.render_depth_many(pose[None,...], vertices, faces, ranges)[0]
+
+    def render_attribute_many(self, poses, vertices, faces, ranges, attributes):
+        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
+        rast_out, rast_out_aux = self.rasterize(
+            poses,
+            vertices_h,
+            faces,
+            ranges,
+            self.projection_matrix,
+            self.resolution
+        )
+        uvs = rast_out[...,:2]
+        object_ids = rast_out_aux[...,0]
+        triangle_ids = rast_out_aux[...,1]
+        mask = object_ids > 0
+
+        interpolated_values = interpolate_attribute(uvs, triangle_ids, faces, attributes)
+        image = interpolated_values * mask[...,None]
+        return image
+    
+    def render_attribute(self, pose, vertices, faces, ranges, attributes):
+        return self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)[0]
 
 # XLA array layout in memory
 def default_layouts(*shapes):
@@ -154,6 +208,10 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
         if len(pos.shape) != 2 or pos.shape[-1] != 4:
             raise ValueError(
                 "Pass in pos aa [num_vertices, 4] sized input"
+            )
+        if len(pose.shape) != 4:
+            raise ValueError(
+                "Pos is not 4 dimensional."
             )
         # if len(pose.shape) != 3 or pose.shape[-1] != 4:
         #     raise ValueError(
@@ -249,6 +307,33 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
             ),
         ).results
 
+    def _render_batch(args, axes):
+        pose, pos, tri, ranges, projMatrix, resolution = args
+        if pose.ndim != 5:
+            raise NotImplementedError("Underlying primitive must operate on 4D poses.")
+
+        original_shape = pose.shape
+        poses = jnp.moveaxis(pose, axes[0], 0)
+        size_1 = poses.shape[0]
+        size_2 = poses.shape[1]
+        num_objects = poses.shape[2]
+        poses = poses.reshape(size_1 * size_2, num_objects, 4, 4)
+
+        # if poses.shape[1] != indices.shape[0]:
+        #     raise ValueError(
+        #         f"Poses Original Shape: {original_shape} Poses Shape:  {poses.shape} Indices Shape: {indices.shape}"
+        #     )
+        # if poses.shape[-2:] != (4, 4):
+        #     raise ValueError(
+        #         f"Poses Original Shape: {original_shape} Poses Shape:  {poses.shape} Indices Shape: {indices.shape}"
+        #     )
+        renders, renders2 = _rasterize_fwd_custom_call(r, poses, pos, tri, ranges, projMatrix, resolution)
+
+        renders = renders.reshape(size_1, size_2, *renders.shape[1:])
+        renders2 = renders2.reshape(size_1, size_2, *renders2.shape[1:])
+        out_axes = 0, 0
+        return (renders, renders2), out_axes
+
     # *********************************************
     # *  REGISTER THE OP WITH JAX  *
     # *********************************************
@@ -259,6 +344,7 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
 
     # # Connect the XLA translation rules for JIT compilation
     mlir.register_lowering(_rasterize_prim, _rasterize_fwd_lowering, platform="gpu")
+    batching.primitive_batchers[_rasterize_prim] = _render_batch
 
     return _rasterize_prim
 

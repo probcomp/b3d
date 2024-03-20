@@ -7,25 +7,18 @@
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
 import os
-
-import nvdiffrast
 import setuptools
+import jax_gl_renderer
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="nvdiffrast",
-    version=nvdiffrast.__version__,
-    author="Samuli Laine",
-    author_email="slaine@nvidia.com",
-    description="nvdiffrast - modular primitives for high-performance differentiable rendering",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/NVlabs/nvdiffrast",
+    name="jax_gl_renderer",
+    version=jax_gl_renderer.__version__,
     packages=setuptools.find_packages(),
     package_data={
-        "nvdiffrast": [
+        "jax_gl_renderer/nvdiffrast": [
             "common/*.h",
             "common/*.inl",
             "common/*.cu",

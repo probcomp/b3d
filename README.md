@@ -2,13 +2,17 @@
 
 ## Installation
 
-Install Pytorch.
+1. Install Pytorch.
+2. Install OpenGL:
 ```
 sudo apt-get install mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
+```
+3. Install `jax_gl_renderer`:
+```
 pip install git+https://github.com/probcomp/jax_gl_renderer.git
 ```
 
-# Usage
+## Usage
 
 Initialize `JaxGLRenderer`:
 ```
@@ -16,7 +20,7 @@ image_width, image_height, fx,fy, cx,cy, near, far = 200, 100, 200.0, 200.0, 100
 jax_renderer = jax_gl_renderer.JaxGLRenderer(w, image_height, fx,fy, cx,cy, near, far)
 ```
 
-### render_to_barycentrics
+#### render_to_barycentrics
 ```
 uvs, object_ids, triangle_ids  = renderer.render_to_barycentrics_many(
     poses, vertices, faces, ranges
@@ -36,7 +40,7 @@ Outputs:
 
 For scene number `S` and pixel at row `i` and column `j`, `uvs[S, i, j]` contains the `u` and `v` barycentric coordinates of the intersection point with triangle index at `triangle_ids[S, i, j]` which is on object index `object_ids[S, i, j] - 1`. If the pixel's ray did not intersect any triangle, the values in corresponding.
 
-### render_attribute
+#### render_attribute
 ```
 image  = renderer.render_attribute_many(
     poses, vertices, faces, ranges, attributes

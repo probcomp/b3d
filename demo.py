@@ -7,7 +7,7 @@ import trimesh
 import jax_gl_renderer
 
 image_width, image_height, fx,fy, cx,cy, near, far = 200, 100, 200.0, 200.0, 100.0, 50.0, 0.001, 16.0
-jax_renderer = jax_gl_renderer.JaxGLRenderer(w, image_height, fx,fy, cx,cy, near, far)
+jax_renderer = jax_gl_renderer.JaxGLRenderer(image_width, image_height, fx,fy, cx,cy, near, far)
 
 box_mesh = trimesh.creation.box()
 vertices = box_mesh.vertices

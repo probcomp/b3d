@@ -41,7 +41,8 @@ setuptools.setup(
     },
     include_package_data=True,
     install_requires=[
-        "numpy"
+        "numpy",
+        "ninja"
     ],  # note: can't require torch here as it will install torch even for a TensorFlow container
     classifiers=[
         "Programming Language :: Python :: 3",

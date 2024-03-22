@@ -7,7 +7,17 @@
 ```
 sudo apt-get install mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
 ```
-3. Install `jax_gl_renderer`:
+3. Install JAX:
+```
+# CUDA 12 installation
+# Note: wheels only available on linux.
+pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+# CUDA 11 installation
+# Note: wheels only available on linux.
+pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+```
+4. Install `jax_gl_renderer`:
 ```
 pip install git+https://github.com/probcomp/jax_gl_renderer.git
 ```

@@ -42,7 +42,7 @@ for t in range(num_frames - 1):
     poses.append(poses[-1] @ delta_pose)
 
 
-all_gt_poses = stack_poses(poses)
+all_gt_poses = Pose.stack_poses(poses)
 print("Number of frames: ", all_gt_poses.shape)
 
 observed_images = renderer.render_depth_many(all_gt_poses.as_matrix()[:,None,...], vertices, faces, ranges)
@@ -62,7 +62,7 @@ rotation_deltas = jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None,
 )
 
 def likelihood_fn(observed_depth, rendered_depth):
-    return (jnp.abs(observed_depth - rendered_depth) < 0.02).sum()
+    return (jnp.abs(observed_depth[...,2] - rendered_depth[...,2]) < 0.02).sum()
 likelihood_fn_parallel = jax.vmap(likelihood_fn, in_axes=(None,0))
 
 def update_pose_estimate(pose_estimate, gt_image):
@@ -73,6 +73,32 @@ def update_pose_estimate(pose_estimate, gt_image):
 
     proposals = pose_estimate @ rotation_deltas
     rendered_images = renderer.render_depth_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
+    weights_new = likelihood_fn_parallel(gt_image, rendered_images)
+    pose_estimate = proposals[jnp.argmax(weights_new)]
+    return pose_estimate, pose_estimate
+
+inference_program = jax.jit(lambda p, x: jax.lax.scan(update_pose_estimate, p, x)[1])
+inferred_poses = inference_program(all_gt_poses[0], observed_images)
+
+import time
+
+start = time.time()
+pose_estimates_over_time = inference_program(poses[0], observed_images)
+end = time.time()
+print("Time elapsed:", end - start)
+print("FPS:", all_gt_poses.shape[0] / (end - start))
+
+
+def update_pose_estimate(pose_estimate, gt_image):
+    proposals = pose_estimate @ translation_deltas
+    _,_,triangle_ids = renderer.render_to_barycentrics_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
+    rendered_images = vertices[faces[triangle_ids-1][...,2]]
+    weights_new = likelihood_fn_parallel(gt_image, rendered_images)
+    pose_estimate = proposals[jnp.argmax(weights_new)]
+
+    proposals = pose_estimate @ rotation_deltas
+    _,_,triangle_ids = renderer.render_to_barycentrics_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
+    rendered_images = vertices[faces[triangle_ids-1][...,2]]
     weights_new = likelihood_fn_parallel(gt_image, rendered_images)
     pose_estimate = proposals[jnp.argmax(weights_new)]
     return pose_estimate, pose_estimate

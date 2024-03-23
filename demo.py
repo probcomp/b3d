@@ -83,7 +83,7 @@ inferred_poses = inference_program(all_gt_poses[0], observed_images)
 import time
 
 start = time.time()
-pose_estimates_over_time = inference_program(poses[0], observed_images)
+pose_estimates_over_time_jax = inference_program(poses[0], observed_images)
 end = time.time()
 print("Time elapsed:", end - start)
 print("FPS:", all_gt_poses.shape[0] / (end - start))
@@ -91,25 +91,87 @@ print("FPS:", all_gt_poses.shape[0] / (end - start))
 
 def update_pose_estimate(pose_estimate, gt_image):
     proposals = pose_estimate @ translation_deltas
-    _,_,triangle_ids = renderer.render_to_barycentrics_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
-    rendered_images = vertices[faces[triangle_ids-1][...,2]]
+    rendered_images = renderer.render_depth_many_cuda(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
     weights_new = likelihood_fn_parallel(gt_image, rendered_images)
     pose_estimate = proposals[jnp.argmax(weights_new)]
 
     proposals = pose_estimate @ rotation_deltas
-    _,_,triangle_ids = renderer.render_to_barycentrics_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
-    rendered_images = vertices[faces[triangle_ids-1][...,2]]
+    rendered_images = renderer.render_depth_many_cuda(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
     weights_new = likelihood_fn_parallel(gt_image, rendered_images)
     pose_estimate = proposals[jnp.argmax(weights_new)]
     return pose_estimate, pose_estimate
 
-inference_program = jax.jit(lambda p, x: jax.lax.scan(update_pose_estimate, p, x)[1])
+inference_program = lambda p, x: jax.lax.scan(update_pose_estimate, p, x)[1]
+inference_program = jax.jit(inference_program)
 inferred_poses = inference_program(all_gt_poses[0], observed_images)
 
 import time
 
 start = time.time()
-pose_estimates_over_time = inference_program(poses[0], observed_images)
+pose_estimates_over_time_cuda = inference_program(poses[0], observed_images)
 end = time.time()
 print("Time elapsed:", end - start)
 print("FPS:", all_gt_poses.shape[0] / (end - start))
+
+
+
+#### hacky viz
+
+from PIL import Image
+import matplotlib.pyplot as plt
+import copy
+cmap  = copy.copy(plt.get_cmap('turbo'))
+cmap.set_bad(color=(1.0, 1.0, 1.0, 1.0))
+
+def get_depth_pil_image(image, min_val=None, max_val=None):
+    """Convert a depth image to a PIL image.
+
+    Args:
+        image (np.ndarray): Depth image. Shape (H, W).
+        min (float): Minimum depth value for colormap.
+        max (float): Maximum depth value for colormap.
+        cmap (matplotlib.colors.Colormap): Colormap to use.
+    Returns:
+        PIL.Image: Depth image visualized as a PIL image.
+    """
+    min_val = image.min() if min_val is None else min_val
+    max_val = image.max() if max_val is None else max_val
+    image = (image - min_val) / (max_val - min_val + 1e-10)
+
+    img = Image.fromarray(
+        np.rint(cmap(image) * 255.0).astype(np.int8), mode="RGBA"
+    ).convert("RGB")
+    return img
+
+def make_gif_from_pil_images(images, filename):
+    """Save a list of PIL images as a GIF.
+
+    Args:
+        images (list): List of PIL images.
+        filename (str): Filename to save GIF to.
+    """
+    images[0].save(
+        fp=filename,
+        format="GIF",
+        append_images=images,
+        save_all=True,
+        duration=100,
+        loop=0,
+    )
+
+rendered_images = renderer.render_depth_many_cuda(pose_estimates_over_time_cuda.as_matrix()[:,None,...], vertices, faces, ranges)
+viz_images_cuda = [get_depth_pil_image(rendered_image[:,:,2]) for rendered_image in rendered_images]
+make_gif_from_pil_images(viz_images_cuda, "demo.gif")
+
+rendered_images_jax = renderer.render_depth_many(pose_estimates_over_time_jax.as_matrix()[:,None,...], vertices, faces, ranges)
+viz_images_jax = [get_depth_pil_image(rendered_image[:,:,2]) for rendered_image in rendered_images_jax]
+make_gif_from_pil_images(viz_images_jax, "demo_jax.gif")
+
+
+
+
+# assert correctness
+assert jnp.allclose(pose_estimates_over_time_jax.as_matrix(), pose_estimates_over_time_cuda.as_matrix())
+
+
+from IPython import embed; embed()

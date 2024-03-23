@@ -92,6 +92,7 @@ class JaxGLRenderer(object):
         self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
         self.rasterize = jax.tree_util.Partial(self._rasterize, self)
+        self.interpolate = jax.tree_util.Partial(self._interpolate, self)
 
     # ------------------
     # Rasterization
@@ -114,7 +115,30 @@ class JaxGLRenderer(object):
         return grads[0], None, None, None, None, None
 
     _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
+    
+    #------------------
+    # Interpolation
+    #------------------
 
+    @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
+    def _interpolate(self, attr, rast, tri):
+        return _interpolate_fwd_custom_call(self, attr, rast, tri)
+
+    def _interpolate_fwd(self, attr, rast, tri):
+        out, out_da = _interpolate_fwd_custom_call(self, attr, rast, tri)
+        saved_tensors = (attr, rast, tri)
+
+        return (out, out_da), saved_tensors
+    
+    def _interpolate_bwd(self, saved_tensors, diffs):
+        attr, rast, tri = saved_tensors
+        dy, _ = diffs 
+        g_attr, g_rast = _interpolate_bwd_custom_call(self, attr, rast, tri, dy)
+        return g_attr, g_rast, None
+    
+    _interpolate.defvjp(_interpolate_fwd, 
+                        _interpolate_bwd)
+    
     def render_to_barycentrics_many(self, poses, vertices, faces, ranges):
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
         rast_out, rast_out_aux = self.rasterize(
@@ -148,7 +172,6 @@ class JaxGLRenderer(object):
         object_ids = rast_out_aux[...,0]
         triangle_ids = rast_out_aux[...,1]
         mask = object_ids > 0
-
         interpolated_values = interpolate_depth(uvs, triangle_ids, poses[:,None, None,:,:], object_ids, vertices_h, faces, ranges)
         image = interpolated_values * mask[...,None]
         return image
@@ -178,7 +201,6 @@ class JaxGLRenderer(object):
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
         return self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)[0]
 
-
     def render_attribute_faces_many(self, poses, vertices, faces, ranges, attributes):
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
         rast_out, rast_out_aux = self.rasterize(
@@ -200,6 +222,38 @@ class JaxGLRenderer(object):
     
     def render_attribute_faces(self, pose, vertices, faces, ranges, attributes):
         return self.render_attribute_faces_many(pose[None,...], vertices, faces, ranges, attributes)[0]
+
+    ###########
+    # adding back cuda interpoalte
+    ###########
+
+    def interpolate_depth_cuda(self, uv, triangle_id, poses, object_id, vertices, faces, ranges):
+        n,h,w,_ = uv.shape
+        attr = jnp.stack([vertices for _ in range(n)])   # n, num_vertices, 4
+        rast = jnp.concatenate([uv, jnp.ones((n,h,w,1)), triangle_id[..., None]], axis=-1)
+
+        return self.interpolate(attr, rast, faces)[0] 
+
+    def render_depth_many_cuda(self, poses, vertices, faces, ranges):
+        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
+        rast_out, rast_out_aux = self.rasterize(
+            poses,
+            vertices_h,
+            faces,
+            ranges,
+            self.projection_matrix,
+            self.resolution
+        )
+        uvs = rast_out[...,:2]
+        object_ids = rast_out_aux[...,0]
+        triangle_ids = rast_out_aux[...,1]
+        mask = object_ids > 0
+        interpolated_values = self.interpolate_depth_cuda(uvs, triangle_ids, poses, object_ids, vertices_h, faces, ranges)
+        
+        image = interpolated_values * mask[...,None]
+        return image
+
+
 
 # XLA array layout in memory
 def default_layouts(*shapes):
@@ -376,6 +430,7 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     return _rasterize_prim
 
 
+
 #### BACKWARD ####
 
 
@@ -472,307 +527,169 @@ def _build_rasterize_bwd_primitive(r: "Renderer"):
 
 #### FORWARD ####
 
+@functools.partial(jax.jit, static_argnums=(0,))
+def _interpolate_fwd_custom_call(r: "Renderer", attr, rast_out, tri):
+    return _build_interpolate_fwd_primitive(r).bind(attr, rast_out, tri)
 
-# # @functools.partial(jax.jit, static_argnums=(0,))
-# def _interpolate_fwd_custom_call(
-#     r: "Renderer", attr, rast_out, tri, rast_db, diff_attrs_all, diff_attrs
-# ):
-#     return _build_interpolate_fwd_primitive(r).bind(
-#         attr, rast_out, tri, rast_db, diff_attrs_all, diff_attrs
-#     )
+@functools.lru_cache(maxsize=None)
+def _build_interpolate_fwd_primitive(r: "Renderer"):
+    _register_custom_calls()
+    # For JIT compilation we need a function to evaluate the shape and dtype of the
+    # outputs of our op for some given inputs
 
+    def _interpolate_fwd_abstract(attr, rast_out, tri):
+        if (len(attr.shape) != 3):
+            raise ValueError(f"Pass in a [num_images, num_vertices, num_attributes] sized first input")
+        num_images, num_vertices, num_attributes = attr.shape
+        _, height, width, _ = rast_out.shape
+        num_tri, _ = tri.shape
 
-# # @functools.lru_cache(maxsize=None)
-# def _build_interpolate_fwd_primitive(r: "Renderer"):
-#     _register_custom_calls()
-#     # For JIT compilation we need a function to evaluate the shape and dtype of the
-#     # outputs of our op for some given inputs
+        dtype = dtypes.canonicalize_dtype(attr.dtype)
 
-#     def _interpolate_fwd_abstract(
-#         attr, rast_out, tri, rast_db, diff_attrs_all, diff_attrs
-#     ):
-#         if len(attr.shape) != 3:
-#             raise ValueError(
-#                 "Pass in a [num_images, num_vertices, num_attributes] sized first input"
-#             )
-#         num_images, num_vertices, num_attributes = attr.shape
-#         _, height, width, _ = rast_out.shape
-#         num_tri, _ = tri.shape
-#         num_diff_attrs = diff_attrs.shape[0]
+        out_abstract = ShapedArray((num_images, height, width, num_attributes), dtype)
+        out_db_abstract = ShapedArray((num_images, height, width, 0), dtype) # empty tensor
+        return [out_abstract, out_db_abstract] 
+        
+    # Provide an MLIR "lowering" of the interpolate primitive.
+    def _interpolate_fwd_lowering(ctx, attr, rast_out, tri):
+        # Extract the numpy type of the inputs
+        attr_aval, rast_out_aval, tri_aval = ctx.avals_in
+        if attr_aval.ndim != 3:
+            raise NotImplementedError(f"Only 3D attribute inputs supported: got {attr_aval.shape}")
+        if rast_out_aval.ndim != 4:
+            raise NotImplementedError(f"Only 4D rast inputs supported: got {rast_out_aval.shape}")
+        if tri_aval.ndim != 2:
+            raise NotImplementedError(f"Only 2D triangle tensors supported: got {tri_aval.shape}")
 
-#         dtype = dtypes.canonicalize_dtype(attr.dtype)
+        np_dtype = np.dtype(attr_aval.dtype)
+        if np_dtype != np.float32:
+            raise NotImplementedError(f"Unsupported attributes dtype {np_dtype}")
+        if np.dtype(tri_aval.dtype) != np.int32:
+            raise NotImplementedError(f"Unsupported triangle dtype {tri_aval.dtype}")
 
-#         out_abstract = ShapedArray((num_images, height, width, num_attributes), dtype)
-#         out_db_abstract = ShapedArray(
-#             (num_images, height, width, 2 * num_diff_attrs), dtype
-#         )  # empty tensor
-#         return [out_abstract, out_db_abstract]
+        num_images, num_vertices, num_attributes = attr_aval.shape
+        depth, height, width = rast_out_aval.shape[:3]
+        num_triangles = tri_aval.shape[0]
 
-#     # Provide an MLIR "lowering" of the interpolate primitive.
-#     def _interpolate_fwd_lowering(
-#         ctx, attr, rast_out, tri, rast_db, diff_attrs_all, diff_attrs
-#     ):
-#         # Extract the numpy type of the inputs
-#         (
-#             attr_aval,
-#             rast_out_aval,
-#             tri_aval,
-#             rast_db_aval,
-#             _,
-#             diff_attr_aval,
-#         ) = ctx.avals_in
+        out_shp_dtype = mlir.ir.RankedTensorType.get(
+            [num_images, height, width, num_attributes],
+            mlir.dtype_to_ir_type(np_dtype))
+        out_db_shp_dtype = mlir.ir.RankedTensorType.get(
+            [num_images, height, width, 0],
+            mlir.dtype_to_ir_type(np_dtype))
 
-#         if attr_aval.ndim != 3:
-#             raise NotImplementedError(
-#                 f"Only 3D attribute inputs supported: got {attr_aval.shape}"
-#             )
-#         if rast_out_aval.ndim != 4:
-#             raise NotImplementedError(
-#                 f"Only 4D rast inputs supported: got {rast_out_aval.shape}"
-#             )
-#         if tri_aval.ndim != 2:
-#             raise NotImplementedError(
-#                 f"Only 2D triangle tensors supported: got {tri_aval.shape}"
-#             )
+        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
+                                                                        [num_images, num_vertices, num_attributes], 
+                                                                        [depth, height, width], 
+                                                                        [num_triangles],
+                                                                        num_attributes
+                                                                        )
 
-#         np_dtype = np.dtype(attr_aval.dtype)
-#         if np_dtype != np.float32:
-#             raise NotImplementedError(f"Unsupported attributes dtype {np_dtype}")
-#         if np.dtype(tri_aval.dtype) != np.int32:
-#             raise NotImplementedError(f"Unsupported triangle dtype {tri_aval.dtype}")
-#         if np.dtype(diff_attr_aval.dtype) != np.int32:
-#             raise NotImplementedError(
-#                 f"Unsupported diff attribute dtype {diff_attr_aval.dtype}"
-#             )
+        op_name = "jax_interpolate_fwd"
 
-#         num_images, num_vertices, num_attributes = attr_aval.shape
-#         depth, height, width = rast_out_aval.shape[:3]
-#         num_triangles = tri_aval.shape[0]
-#         num_diff_attrs = diff_attr_aval.shape[0]
+        return custom_call(
+            op_name,
+            # Output types
+            result_types=[out_shp_dtype, out_db_shp_dtype],
+            # The inputs:
+            operands=[attr, rast_out, tri],
+            backend_config=opaque
+        ).results
 
-#         if num_diff_attrs > 0 and rast_db_aval.shape[-1] < num_diff_attrs:
-#             raise NotImplementedError(
-#                 f"Attempt to propagate bary gradients through {num_diff_attrs} attributes: got {rast_db_aval.shape}"
-#             )
+    # *********************************************
+    # *  REGISTER THE OP WITH JAX  *
+    # *********************************************
+    _interpolate_prim = core.Primitive(f"interpolate_multiple_fwd_{id(r)}")
+    _interpolate_prim.multiple_results = True
+    _interpolate_prim.def_impl(functools.partial(xla.apply_primitive, _interpolate_prim))
+    _interpolate_prim.def_abstract_eval(_interpolate_fwd_abstract)
 
-#         out_shp_dtype = mlir.ir.RankedTensorType.get(
-#             [num_images, height, width, num_attributes], mlir.dtype_to_ir_type(np_dtype)
-#         )
-#         out_db_shp_dtype = mlir.ir.RankedTensorType.get(
-#             [num_images, height, width, 2 * num_diff_attrs],
-#             mlir.dtype_to_ir_type(np_dtype),
-#         )
+    # # Connect the XLA translation rules for JIT compilation
+    mlir.register_lowering(_interpolate_prim, _interpolate_fwd_lowering, platform="gpu")
 
-#         opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
-#             [num_images, num_vertices, num_attributes],
-#             [depth, height, width],
-#             [num_triangles],
-#             num_diff_attrs,  # diff wrt all attributes (TODO)
-#         )
-
-#         op_name = "jax_interpolate_fwd"
-
-#         return custom_call(
-#             op_name,
-#             # Output types
-#             result_types=[out_shp_dtype, out_db_shp_dtype],
-#             # The inputs:
-#             operands=[attr, rast_out, tri, rast_db, diff_attrs],
-#             backend_config=opaque,
-#             operand_layouts=default_layouts(
-#                 attr_aval.shape,
-#                 rast_out_aval.shape,
-#                 tri_aval.shape,
-#                 rast_db_aval.shape,
-#                 diff_attr_aval.shape,
-#             ),
-#             result_layouts=default_layouts(
-#                 (
-#                     num_images,
-#                     height,
-#                     width,
-#                     num_attributes,
-#                 ),
-#                 (
-#                     num_images,
-#                     height,
-#                     width,
-#                     num_attributes,
-#                 ),
-#             ),
-#         ).results
-
-#     # *********************************************
-#     # *  REGISTER THE OP WITH JAX  *
-#     # *********************************************
-#     _interpolate_prim = core.Primitive(f"interpolate_multiple_fwd_{id(r)}")
-#     _interpolate_prim.multiple_results = True
-#     _interpolate_prim.def_impl(
-#         functools.partial(xla.apply_primitive, _interpolate_prim)
-#     )
-#     _interpolate_prim.def_abstract_eval(_interpolate_fwd_abstract)
-
-#     # # Connect the XLA translation rules for JIT compilation
-#     mlir.register_lowering(_interpolate_prim, _interpolate_fwd_lowering, platform="gpu")
-
-#     return _interpolate_prim
+    return _interpolate_prim
 
 
-# #### BACKWARD ####
 
+#### BACKWARD ####
 
-# # @functools.partial(jax.jit, static_argnums=(0,))
-# def _interpolate_bwd_custom_call(
-#     r: "Renderer",
-#     attr,
-#     rast_out,
-#     tri,
-#     dy,
-#     rast_db,
-#     dda,
-#     diff_attrs_all,
-#     diff_attrs_list,
-# ):
-#     return _build_interpolate_bwd_primitive(r).bind(
-#         attr, rast_out, tri, dy, rast_db, dda, diff_attrs_all, diff_attrs_list
-#     )
+@functools.partial(jax.jit, static_argnums=(0,))
+def _interpolate_bwd_custom_call(r: "Renderer", attr, rast_out, tri, dy):
+    return _build_interpolate_bwd_primitive(r).bind(attr, rast_out, tri, dy)
 
+@functools.lru_cache(maxsize=None)
+def _build_interpolate_bwd_primitive(r: "Renderer"):
+    _register_custom_calls()
+    # For JIT compilation we need a function to evaluate the shape and dtype of the
+    # outputs of our op for some given inputs
 
-# # @functools.lru_cache(maxsize=None)
-# def _build_interpolate_bwd_primitive(r: "Renderer"):
-#     _register_custom_calls()
-#     # For JIT compilation we need a function to evaluate the shape and dtype of the
-#     # outputs of our op for some given inputs
+    def _interpolate_bwd_abstract(attr, rast_out, tri, dy):
+        if (len(attr.shape) != 3):
+            raise ValueError(f"Pass in a [num_images, num_vertices, num_attributes] sized first input")
+        num_images, num_vertices, num_attributes = attr.shape
+        depth, height, width, rast_channels = rast_out.shape
 
-#     def _interpolate_bwd_abstract(
-#         attr, rast_out, tri, dy, rast_db, dda, diff_attrs_all, diff_attrs_list
-#     ):
-#         if len(attr.shape) != 3:
-#             raise ValueError(
-#                 "Pass in a [num_images, num_vertices, num_attributes] sized first input"
-#             )
-#         num_images, num_vertices, num_attributes = attr.shape
-#         depth, height, width, rast_channels = rast_out.shape
-#         depth_db, height_db, width_db, rast_channels_db = rast_db.shape
+        dtype = dtypes.canonicalize_dtype(attr.dtype)
 
-#         dtype = dtypes.canonicalize_dtype(attr.dtype)
+        g_attr_abstract = ShapedArray((num_images, num_vertices, num_attributes), dtype)
+        g_rast_abstract = ShapedArray((depth, height, width, rast_channels), dtype)  
+        return [g_attr_abstract, g_rast_abstract] 
+        
+    # Provide an MLIR "lowering" of the interpolate primitive.
+    def _interpolate_bwd_lowering(ctx, attr, rast_out, tri, dy):
+        # Extract the numpy type of the inputs
+        attr_aval, rast_out_aval, tri_aval, dy_aval = ctx.avals_in
+        if attr_aval.ndim != 3:
+            raise NotImplementedError(f"Only 3D attribute inputs supported: got {attr_aval.shape}")
+        if rast_out_aval.ndim != 4:
+            raise NotImplementedError(f"Only 4D rast inputs supported: got {rast_out_aval.shape}")
+        if tri_aval.ndim != 2:
+            raise NotImplementedError(f"Only 2D triangle tensors supported: got {tri_aval.shape}")
 
-#         g_attr_abstract = ShapedArray((num_images, num_vertices, num_attributes), dtype)
-#         g_rast_abstract = ShapedArray((depth, height, width, rast_channels), dtype)
-#         g_rast_db_abstract = ShapedArray(
-#             (depth_db, height_db, width_db, rast_channels_db), dtype
-#         )
-#         return [g_attr_abstract, g_rast_abstract, g_rast_db_abstract]
+        np_dtype = np.dtype(attr_aval.dtype)
+        if np_dtype != np.float32:
+            raise NotImplementedError(f"Unsupported attributes dtype {np_dtype}")
+        if np.dtype(tri_aval.dtype) != np.int32:
+            raise NotImplementedError(f"Unsupported triangle dtype {tri_aval.dtype}")
 
-#     # Provide an MLIR "lowering" of the interpolate primitive.
-#     def _interpolate_bwd_lowering(
-#         ctx, attr, rast_out, tri, dy, rast_db, dda, diff_attrs_all, diff_attrs_list
-#     ):
-#         # Extract the numpy type of the inputs
-#         (
-#             attr_aval,
-#             rast_out_aval,
-#             tri_aval,
-#             dy_aval,
-#             rast_db_aval,
-#             dda_aval,
-#             _,
-#             diff_attr_aval,
-#         ) = ctx.avals_in
+        num_images, num_vertices, num_attributes = attr_aval.shape
+        depth, height, width, rast_channels = rast_out_aval.shape
+        num_triangles = tri_aval.shape[0]
 
-#         if attr_aval.ndim != 3:
-#             raise NotImplementedError(
-#                 f"Only 3D attribute inputs supported: got {attr_aval.shape}"
-#             )
-#         if rast_out_aval.ndim != 4:
-#             raise NotImplementedError(
-#                 f"Only 4D rast inputs supported: got {rast_out_aval.shape}"
-#             )
-#         if tri_aval.ndim != 2:
-#             raise NotImplementedError(
-#                 f"Only 2D triangle tensors supported: got {tri_aval.shape}"
-#             )
+        g_attr_shp_dtype = mlir.ir.RankedTensorType.get(
+            [num_images, num_vertices, num_attributes],
+            mlir.dtype_to_ir_type(np_dtype))
+        g_rast_shp_dtype = mlir.ir.RankedTensorType.get(
+            [depth, height, width, rast_channels],
+            mlir.dtype_to_ir_type(np_dtype))
 
-#         np_dtype = np.dtype(attr_aval.dtype)
-#         if np_dtype != np.float32:
-#             raise NotImplementedError(f"Unsupported attributes dtype {np_dtype}")
-#         if np.dtype(tri_aval.dtype) != np.int32:
-#             raise NotImplementedError(f"Unsupported triangle dtype {tri_aval.dtype}")
+        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
+                                                                        [num_images, num_vertices, num_attributes], 
+                                                                        [depth, height, width], 
+                                                                        [num_triangles],
+                                                                        num_attributes
+                                                                        )
 
-#         num_images, num_vertices, num_attributes = attr_aval.shape
-#         depth, height, width, rast_channels = rast_out_aval.shape
-#         depth_db, height_db, width_db, rast_channels_db = rast_db_aval.shape
-#         num_triangles = tri_aval.shape[0]
-#         num_diff_attrs = diff_attr_aval.shape[0]
+        op_name = "jax_interpolate_bwd"
 
-#         g_attr_shp_dtype = mlir.ir.RankedTensorType.get(
-#             [num_images, num_vertices, num_attributes], mlir.dtype_to_ir_type(np_dtype)
-#         )
-#         g_rast_shp_dtype = mlir.ir.RankedTensorType.get(
-#             [depth, height, width, rast_channels], mlir.dtype_to_ir_type(np_dtype)
-#         )
-#         g_rast_db_shp_dtype = mlir.ir.RankedTensorType.get(
-#             [depth_db, height_db, width_db, rast_channels_db],
-#             mlir.dtype_to_ir_type(np_dtype),
-#         )
+        return custom_call(
+            op_name,
+            # Output types
+            result_types=[g_attr_shp_dtype, g_rast_shp_dtype],
+            # The inputs:
+            operands=[attr, rast_out, tri, dy],
+            backend_config=opaque
+        ).results
 
-#         opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
-#             [num_images, num_vertices, num_attributes],
-#             [depth, height, width],
-#             [num_triangles],
-#             num_diff_attrs,
-#         )
+    # *********************************************
+    # *  REGISTER THE OP WITH JAX  *
+    # *********************************************
+    _interpolate_prim = core.Primitive(f"interpolate_multiple_bwd_{id(r)}")
+    _interpolate_prim.multiple_results = True
+    _interpolate_prim.def_impl(functools.partial(xla.apply_primitive, _interpolate_prim))
+    _interpolate_prim.def_abstract_eval(_interpolate_bwd_abstract)
 
-#         op_name = "jax_interpolate_bwd"
+    # # Connect the XLA translation rules for JIT compilation
+    mlir.register_lowering(_interpolate_prim, _interpolate_bwd_lowering, platform="gpu")
 
-#         return custom_call(
-#             op_name,
-#             # Output types
-#             result_types=[g_attr_shp_dtype, g_rast_shp_dtype, g_rast_db_shp_dtype],
-#             # The inputs:
-#             operands=[attr, rast_out, tri, dy, rast_db, dda, diff_attrs_list],
-#             backend_config=opaque,
-#             operand_layouts=default_layouts(
-#                 attr_aval.shape,
-#                 rast_out_aval.shape,
-#                 tri_aval.shape,
-#                 dy_aval.shape,
-#                 rast_db_aval.shape,
-#                 dda_aval.shape,
-#                 diff_attr_aval.shape,
-#             ),
-#             result_layouts=default_layouts(
-#                 (
-#                     num_images,
-#                     num_vertices,
-#                     num_attributes,
-#                 ),
-#                 (
-#                     depth,
-#                     height,
-#                     width,
-#                     rast_channels,
-#                 ),
-#                 (
-#                     depth_db,
-#                     height_db,
-#                     width_db,
-#                     rast_channels_db,
-#                 ),
-#             ),
-#         ).results
-
-#     # *********************************************
-#     # *  REGISTER THE OP WITH JAX  *
-#     # *********************************************
-#     _interpolate_prim = core.Primitive(f"interpolate_multiple_bwd_{id(r)}")
-#     _interpolate_prim.multiple_results = True
-#     _interpolate_prim.def_impl(
-#         functools.partial(xla.apply_primitive, _interpolate_prim)
-#     )
-#     _interpolate_prim.def_abstract_eval(_interpolate_bwd_abstract)
-
-#     # # Connect the XLA translation rules for JIT compilation
-#     mlir.register_lowering(_interpolate_prim, _interpolate_bwd_lowering, platform="gpu")
-
-#     return _interpolate_prim
+    return _interpolate_prim

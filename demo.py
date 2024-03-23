@@ -5,34 +5,85 @@ import numpy as np
 import os
 import trimesh
 import jax_gl_renderer
+from jax.scipy.spatial.transform import Rotation as Rot
+from jax_gl_renderer import Pose
+# import rerun as rr
 
-image_width, image_height, fx,fy, cx,cy, near, far = 200, 100, 200.0, 200.0, 100.0, 50.0, 0.001, 16.0
-jax_renderer = jax_gl_renderer.JaxGLRenderer(image_width, image_height, fx,fy, cx,cy, near, far)
+# rr.init("demo.py")
+# rr.connect("127.0.0.1:8812")
+
+width=100
+height=100
+fx=50.0
+fy=50.0
+cx=50.0
+cy=50.0
+near=0.001
+far=6.0
+renderer = jax_gl_renderer.JaxGLRenderer(
+    width, height, fx, fy, cx, cy, near, far
+)
 
 box_mesh = trimesh.creation.box()
-vertices = box_mesh.vertices
-faces = box_mesh.faces
-ranges = jnp.array([[0, len(faces)],[0, len(faces)]])
+vertices = jnp.array(box_mesh.vertices) * 2.0
+faces = jnp.array(box_mesh.faces)
+ranges = jnp.array([[0, len(faces)]])
 
-pose = jnp.array([
-    [
-        [1., 0., 0., 0.],
-        [0., 1., 0., 0.],
-        [0., 0., 1., 3.],
-        [0., 0., 0., 1.],
-    ],
-    [
-        [1., 0., 0., 1.],
-        [0., 1., 0., 0.],
-        [0., 0., 1., 4.],
-        [0., 0., 0., 1.],
-    ], 
-])
+num_frames = 60
 
-uvs, object_ids, triangle_ids = jax_renderer.render_to_barycentrics(pose, vertices, faces, ranges)
+poses = [
+    Pose.from_translation(jnp.array([-3.0, 0.0, 3.5]))
+]
+delta_pose = Pose(
+    jnp.array([0.09, 0.05, 0.02]),
+    Rot.from_euler("zyx", [-1.0, 0.1, 2.0], degrees=True).as_quat()
+)
+for t in range(num_frames - 1):
+    poses.append(poses[-1] @ delta_pose)
 
-fig, axs = plt.subplots(1,3)
-axs[0].imshow(uvs[...,0])
-axs[1].imshow(object_ids)
-axs[2].imshow(triangle_ids)
-fig.savefig("demo.png")
+
+all_gt_poses = stack_poses(poses)
+print("Number of frames: ", all_gt_poses.shape)
+
+observed_images = renderer.render_depth_many(all_gt_poses.as_matrix()[:,None,...], vertices, faces, ranges)
+translation_deltas = jax.vmap(lambda p: Pose.from_translation(p))(jnp.stack(
+    jnp.meshgrid(
+        jnp.linspace(-0.2, 0.2, 5),
+        jnp.linspace(-0.2, 0.2, 5),
+        jnp.linspace(-0.2, 0.2, 5),
+    ),
+    axis=-1,
+).reshape(-1, 3))
+
+rotation_deltas = jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
+    jax.random.split(jax.random.PRNGKey(0), 100),
+    Pose.identity(),
+    0.00001, 800.0
+)
+
+def likelihood_fn(observed_depth, rendered_depth):
+    return (jnp.abs(observed_depth - rendered_depth) < 0.02).sum()
+likelihood_fn_parallel = jax.vmap(likelihood_fn, in_axes=(None,0))
+
+def update_pose_estimate(pose_estimate, gt_image):
+    proposals = pose_estimate @ translation_deltas
+    rendered_images = renderer.render_depth_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
+    weights_new = likelihood_fn_parallel(gt_image, rendered_images)
+    pose_estimate = proposals[jnp.argmax(weights_new)]
+
+    proposals = pose_estimate @ rotation_deltas
+    rendered_images = renderer.render_depth_many(proposals.as_matrix()[:,None,...], vertices, faces, ranges)
+    weights_new = likelihood_fn_parallel(gt_image, rendered_images)
+    pose_estimate = proposals[jnp.argmax(weights_new)]
+    return pose_estimate, pose_estimate
+
+inference_program = jax.jit(lambda p, x: jax.lax.scan(update_pose_estimate, p, x)[1])
+inferred_poses = inference_program(all_gt_poses[0], observed_images)
+
+import time
+
+start = time.time()
+pose_estimates_over_time = inference_program(poses[0], observed_images)
+end = time.time()
+print("Time elapsed:", end - start)
+print("FPS:", all_gt_poses.shape[0] / (end - start))

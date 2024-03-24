@@ -117,8 +117,11 @@ class Renderer(object):
     _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
 
 
-    def interpolate(self, attributes, uvs, triangle_ids, faces):
+    def interpolate_many(self, attributes, uvs, triangle_ids, faces):
         return _interpolate_fwd_custom_call(self, attributes, uvs, triangle_ids, faces)[0]
+
+    def interpolate(self, attributes, uvs, triangle_ids, faces):
+        return self.interpolate_many(attributes, uvs[None,...], triangle_ids[None,...], faces)[0]
 
     # def _interpolate_fwd(self, attributes, uvs, triangle_ids, faces):
     #     out = _interpolate_fwd_custom_call(self, attributes, uvs, triangle_ids, faces, )
@@ -172,7 +175,7 @@ class Renderer(object):
         triangle_ids = rast_out_aux[...,1]
         mask = object_ids > 0
 
-        interpolated_values = self.interpolate(
+        interpolated_values = self.interpolate_many(
             attributes,
             uvs, triangle_ids, faces
         )

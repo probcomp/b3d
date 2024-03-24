@@ -18,7 +18,6 @@ Quaternion: TypeAlias = Array
 def multiply_quats(q1, q2):
     return (Rot.from_quat(q1)*Rot.from_quat(q2)).as_quat()
 
-
 def multiply_quat_and_vec(q, vs):
     return Rot.from_quat(q).apply(vs)
 

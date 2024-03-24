@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import trimesh
-import jax_gl_renderer
+import b3d
 from jax.scipy.spatial.transform import Rotation as Rot
-from jax_gl_renderer import Pose
+from b3d import Pose
 import rerun as rr
 
 rr.init("demo2.py")
@@ -20,13 +20,13 @@ cx=50.0
 cy=50.0
 near=0.001
 far=16.0
-renderer = jax_gl_renderer.JaxGLRenderer(
+renderer = b3d.JaxGLRenderer(
     width, height, fx, fy, cx, cy, near, far
 )
 
 ## Render color
 from pathlib import Path
-mesh_path = Path(jax_gl_renderer.__file__).parents[1] / "assets/006_mustard_bottle/textured_simple.obj"
+mesh_path = Path(b3d.__file__).parents[1] / "assets/006_mustard_bottle/textured_simple.obj"
 mesh = trimesh.load(mesh_path)
 
 vertices = jnp.array(mesh.vertices) * 20.0

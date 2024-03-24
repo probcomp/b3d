@@ -8,17 +8,17 @@
 
 import os
 import setuptools
-import jax_gl_renderer
+import b3d
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="jax_gl_renderer",
-    version=jax_gl_renderer.__version__,
+    name="b3d",
+    version=b3d.__version__,
     packages=setuptools.find_packages(),
     package_data={
-        "jax_gl_renderer": [
+        "b3d": [
             "nvdiffrast/common/*.h",
             "nvdiffrast/common/*.inl",
             "nvdiffrast/common/*.cu",

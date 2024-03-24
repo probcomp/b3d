@@ -12,7 +12,8 @@ PORT = 8812
 rr.init("asdf233")
 rr.connect(addr=f'127.0.0.1:{PORT}')
 
-path = os.path.join(b3d.get_assets_path(), "shared_data_bucket/input_data/ramen_case.r3d.video_input.npz")
+path = os.path.join(b3d.get_assets_path(),
+ "shared_data_bucket/input_data/orange_mug_pan_around_and_pickup.r3d.video_input.npz")
 video_input = b3d.VideoInput.load(path)
 
 
@@ -80,10 +81,10 @@ rr.log(
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
 from b3d.model import model_gl_factory
 
-image = renderer.render_attribute(
-    object_pose.as_matrix()[None,...], vertices, faces, jnp.array([[0, len(faces)]]), vertex_colors
-)
-rr.log("/img/rerender", rr.Image(image))
+# image = renderer.render_attribute(
+#     object_pose.as_matrix()[None,...], vertices, faces, jnp.array([[0, len(faces)]]), vertex_colors
+# )
+# rr.log("/img/rerender", rr.Image(image))
 
 
 
@@ -135,8 +136,8 @@ def enumerative_proposal(trace, key):
 
 
 
-color_error, depth_error = (20.0, 0.04)
-inlier_score, outlier_prob = (4.0, 0.0001)
+color_error, depth_error = (30.0, 0.02)
+inlier_score, outlier_prob = (4.0, 0.01)
 color_multiplier, depth_multiplier = (1000.0, 1000.0)
 arguments = (
         vertices, faces, vertex_colors,

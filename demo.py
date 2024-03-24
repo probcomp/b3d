@@ -64,15 +64,15 @@ for t in range(num_frames):
 
 translation_deltas = jax.vmap(lambda p: Pose.from_translation(p))(jnp.stack(
     jnp.meshgrid(
-        jnp.linspace(-0.2, 0.2, 10),
-        jnp.linspace(-0.2, 0.2, 10),
-        jnp.linspace(-0.2, 0.2, 10),
+        jnp.linspace(-0.2, 0.2, 5),
+        jnp.linspace(-0.2, 0.2, 5),
+        jnp.linspace(-0.2, 0.2, 5),
     ),
     axis=-1,
 ).reshape(-1, 3))
 
 rotation_deltas = jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
-    jax.random.split(jax.random.PRNGKey(0), 500),
+    jax.random.split(jax.random.PRNGKey(0), 200),
     Pose.identity(),
     0.001, 100.0
 )
@@ -120,5 +120,4 @@ pose = Pose.from_position_and_target(
 
 ).inverse()
 image = renderer.render_attribute(pose.as_matrix()[None,...], vertices, faces, ranges, vertex_colors)
-print(image.sum())
 rr.log("rgb_image", rr.Image(image), timeless=True)

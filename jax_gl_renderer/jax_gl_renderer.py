@@ -530,6 +530,28 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
             ),
         ).results
 
+
+    def _render_batch_interp(args, axes):
+        attributes, uvs, triangle_ids, faces = args
+
+        original_shape_uvs = uvs.shape
+        original_shape_triangle_ids = triangle_ids.shape
+
+        uvs = jnp.moveaxis(uvs, axes[1], 0)
+        size_1 = uvs.shape[0]
+        size_2 = uvs.shape[1]
+        triangle_ids = jnp.moveaxis(triangle_ids, axes[2], 0)
+
+        uvs = uvs.reshape(uvs.shape[0] * uvs.shape[1], *uvs.shape[2:])
+        triangle_ids = triangle_ids.reshape(triangle_ids.shape[0] * triangle_ids.shape[1], *triangle_ids.shape[2:])
+
+        image = _interpolate_fwd_custom_call(r, 
+            attributes, uvs, triangle_ids, faces)[0]
+
+        image = image.reshape(size_1, size_2, *image.shape[1:])
+        out_axes = (0,)
+        return (image,), out_axes
+
     # *********************************************
     # *  REGISTER THE OP WITH JAX  *
     # *********************************************
@@ -542,6 +564,7 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
 
     # # Connect the XLA translation rules for JIT compilation
     mlir.register_lowering(_interpolate_prim, _interpolate_fwd_lowering, platform="gpu")
+    batching.primitive_batchers[_interpolate_prim] = _render_batch_interp
 
     return _interpolate_prim
 

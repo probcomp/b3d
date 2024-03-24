@@ -35,7 +35,7 @@ image_width, image_height, fx,fy, cx,cy, near, far = 200, 100, 200.0, 200.0, 100
 jax_renderer = jax_gl_renderer.JaxGLRenderer(w, image_height, fx,fy, cx,cy, near, far)
 ```
 
-#### render_to_barycentrics
+#### render
 ```
 uvs, object_ids, triangle_ids  = renderer.render_to_barycentrics_many(
     poses, vertices, faces, ranges
@@ -52,8 +52,9 @@ Outputs:
 - `uvs`: has shape [num_scenes, image_height, image_width, 2] and dtype jnp.float32
 - `object_ids`: has shape [num_scenes, image_height, image_width] and dtype jnp.int32
 - `triangle_ids`: has shape [num_scenes, image_height, image_width] and dtype jnp.int32
+- `zs`: has shape [num_scenes, image_height, image_width] and dtype jnp.float32
 
-For scene number `S` and pixel at row `i` and column `j`, `uvs[S, i, j]` contains the `u` and `v` barycentric coordinates of the intersection point with triangle index at `triangle_ids[S, i, j]` which is on object index `object_ids[S, i, j] - 1`. If the pixel's ray did not intersect any triangle, the values in corresponding.
+For scene number `S` and pixel at row `i` and column `j`, `uvs[S, i, j]` contains the `u` and `v` barycentric coordinates of the intersection point with triangle index at `triangle_ids[S, i, j]` which is on object index `object_ids[S, i, j] - 1`. And the z coordinate of the intersection point is `z[S, i, j]`. If the pixel's ray did not intersect any triangle, the values in corresponding.
 
 #### render_attribute
 ```

@@ -37,7 +37,7 @@ jax_renderer = jax_gl_renderer.JaxGLRenderer(w, image_height, fx,fy, cx,cy, near
 
 #### render
 ```
-uvs, object_ids, triangle_ids  = renderer.render_to_barycentrics_many(
+uvs, object_ids, triangle_ids  = renderer.render_many(
     poses, vertices, faces, ranges
 )
 ```

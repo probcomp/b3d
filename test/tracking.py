@@ -1,6 +1,4 @@
-import dcolmap.hgps as hgps
 import rerun as rr
-from dcolmap.hgps.datasources import VideoInput
 import genjax
 import os
 import numpy as np
@@ -14,8 +12,8 @@ PORT = 8812
 rr.init("asdf233")
 rr.connect(addr=f'127.0.0.1:{PORT}')
 
-path = os.path.join(hgps.get_assets_path(), "shared_data_bucket/input_data/ramen_case.r3d.video_input.npz")
-video_input = VideoInput.load(path)
+path = os.path.join(b3d.get_assets_path(), "shared_data_bucket/input_data/ramen_case.r3d.video_input.npz")
+video_input = b3d.VideoInput.load(path)
 
 
 image_width, image_height, fx,fy, cx,cy,near,far = np.array(video_input.camera_intrinsics_depth)
@@ -62,7 +60,7 @@ colors = rgbs_resized[0][mask]
 
 
 
-vertices, faces, vertex_colors, face_colors = hgps.make_mesh_from_point_cloud_and_resolution(
+vertices, faces, vertex_colors, face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
     point_cloud, colors, 0.003 * 2 * jnp.ones(len(colors))
 )
 object_pose = Pose.from_translation(vertices.mean(0))
@@ -136,45 +134,10 @@ def enumerative_proposal(trace, key):
     return trace, key
 
 
-def rerun_visualize_trace_t(trace, t):
-    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
-    (
-        vertices, faces, vertex_colors,
-        color_error,
-        depth_error,
 
-        inlier_score,
-        outlier_prob,
-
-        color_multiplier,
-        depth_multiplier
-    ) = trace.get_args()
-
-    rr.set_time_sequence("frame", t)
-
-    # rr.log("/get_score", rr.Scalar(trace.get_score()))
-    rr.log("/rgb/image", rr.Image(observed_rgb))
-    rr.log("/rgb/image/rendering", rr.Image(rendered_rgb))
-
-    rr.log("/depth/image/", rr.DepthImage(observed_depth))
-    rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
-
-    rr.log("text_document", 
-        rr.TextDocument(f'''
-# Score: {trace.get_score()} \n
-# inlier_score: {inlier_score} \n
-# Outlier Prob: {outlier_prob} \n
-# color multiplier: {color_multiplier} \n
-# depth multiplier: {depth_multiplier} \n
-'''.strip(),
-            media_type=rr.MediaType.MARKDOWN
-                        )
-    )
-
-
-color_error, depth_error = (20.0, 5.0)
+color_error, depth_error = (20.0, 0.04)
 inlier_score, outlier_prob = (4.0, 0.0001)
-color_multiplier, depth_multiplier = (2000.0, 0.0)
+color_multiplier, depth_multiplier = (1000.0, 1000.0)
 arguments = (
         vertices, faces, vertex_colors,
         color_error,
@@ -203,7 +166,7 @@ trace, _ = model.importance(
 )
 
 
-rerun_visualize_trace_t(trace, 0)
+b3d.rerun_visualize_trace_t(trace, 0)
 
 END_T = len(video_input.xyz)
 key = jax.random.PRNGKey(0)
@@ -215,6 +178,6 @@ for T_observed_image in tqdm(range(START_T,END_T, 1)):
     )
     for _ in range(1):
         trace,key = enumerative_proposal(trace, key)
-    rerun_visualize_trace_t(trace, T_observed_image)
+    b3d.rerun_visualize_trace_t(trace, T_observed_image)
     chain2.append(trace["object_pose"])
 

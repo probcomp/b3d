@@ -10,6 +10,39 @@ import jax
 import inspect
 from inspect import signature
 import genjax
+import b3d
+from pathlib import Path
+import os
+import trimesh
+from b3d import Pose
+
+from dataclasses import dataclass
+
+def get_root() -> Path: return Path(Path(b3d.__file__).parents[1])
+
+def get_assets() -> Path:
+    """The absolute path of the assets directory on current machine"""
+    assets_dir_path = get_root() / 'assets'
+
+    if not os.path.exists(assets_dir_path):
+        os.makedirs(assets_dir_path)
+        print(f"Initialized empty directory for shared bucket data at {assets_dir_path}.")
+
+    return assets_dir_path
+
+get_assets_path = get_assets
+
+def get_shared() -> Path:
+    """The absolute path of the assets directory on current machine"""
+    data_dir_path = get_assets() / 'shared_data_bucket'
+
+    if not os.path.exists(data_dir_path):
+        os.makedirs(data_dir_path)
+        print(f"Initialized empty directory for shared bucket data at {data_dir_path}.")
+
+    return data_dir_path
+
+def get_gcloud_bucket_ref()-> str: return "gs://hgps_data_bucket"
 
 def xyz_from_depth(
     z: "Depth Image", 
@@ -203,3 +236,105 @@ def make_enumerator(
         ),
     )
 
+from typing import Any, NamedTuple, TypeAlias
+import jax
+Array: TypeAlias = jax.Array
+
+@dataclass
+class VideoInput:
+    """
+    Video data input. Note: Spatial units are measured in meters.
+
+    World Coordinates. The floor is x,y and up is z.
+    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera, 
+        x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
+    Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
+    Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
+        The camera matrix is given by: $$ K = \begin{bmatrix} f_x & 0 & c_x \ 0 & f_y & c_y \ 0 & 0 & 1 \end{bmatrix} $$
+    Spatial units. Spatial units are measured in meters (if not indicated otherwise).
+
+    **Attributes:**
+    - rgb
+        video_input['rgb'][t,i,j] contains RGB values in the interval [0,255] of pixel i,j at time t.
+        Shape: (T,H,W,3) -- Note this might be different from the width and height of xyz
+        Type: uint8, in [0,255]
+    - xyz
+        video_input['xyz'][t,i,j] is the 3d point associated with pixel i,j at time t in camera coordinates
+        Shape: (T, H', W', 3) -- Note this might be different from the width and height of rgb
+        Type: Float
+    - camera_positions
+        video_input['camera_positions'][t] is the position of the camera at time t
+        Shape: (T, 3)
+        Type: Float
+    - camera_quaternions
+        video_input['camera_quaternions'][t] is the quaternion (in xyzw format) representing the orientation of the camera at time t
+        Shape: (T, 4)
+        Type: Float
+    - camera_intrinsics_rgb
+        video_input['camera_intrinsics_rgb'][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of rgb above
+        Shape: (8,)
+        Type: Float
+    - camera_intrinsics_depth
+        video_input['camera_intrinsics_depth'][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of xyz above
+        Shape: (8,)
+        Type: Float
+
+    **Note:**
+    For compactness, rgb values are saved as uint8 values, however 
+    the output of the renderer is a float between 0 and 1. VideoInput 
+    stores uint8 colors, so please use the rgb_float property for 
+    compatibility.
+
+    **Note:** 
+    The width and height of the `rgb` and `xyz` arrays may differ. 
+    Their shapes match the entries in `camera_intrinsics_rgb` and 
+    `camera_intrinsics_depth`, respectively. The latter was used
+    to project the `depth` arrays to `xyz`.
+    """
+    rgb: Array  # [num_frames, height_rgb, width_rgb, 3]
+    xyz: Array  # [num_frames, height_depth, width_depth, 3]
+    camera_positions: Array# [num_frames, 3]
+    camera_quaternions: Array# [num_frames, 4]
+    camera_intrinsics_rgb: Array# [8,] (width_rgb, height_rgb, fx, fy, cx, cy, near, far)
+    camera_intrinsics_depth: Array# [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
+
+    def to_dict(self):
+        return {
+            'rgb': self.rgb,
+            'xyz': self.xyz,
+            'camera_positions': self.camera_positions,
+            'camera_quaternions': self.camera_quaternions,
+            'camera_intrinsics_rgb': self.camera_intrinsics_rgb,
+            'camera_intrinsics_depth': self.camera_intrinsics_depth
+        }
+
+    def save(self, filepath: str):
+        """Saves VideoInput to file"""
+        jnp.savez(filepath,
+                rgb=self.rgb,
+                xyz=self.xyz,
+                camera_positions=self.camera_positions,
+                camera_quaternions=self.camera_quaternions,
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
+
+    @classmethod
+    def load(cls, filepath: str):
+        """Loads VideoInput from file"""
+        with open(filepath, 'rb') as f:
+            data = jnp.load(f, allow_pickle=True)
+            return cls(
+                rgb=jnp.array(data['rgb']),
+                xyz=jnp.array(data['xyz']),
+                camera_positions=jnp.array(data['camera_positions']),
+                camera_quaternions=jnp.array(data['camera_quaternions']),
+                camera_intrinsics_rgb=jnp.array(data['camera_intrinsics_rgb']),
+                camera_intrinsics_depth=jnp.array(data['camera_intrinsics_depth'])
+            )
+    
+    @property
+    def rgb_float(self): 
+        if self.rgb.dtype == jnp.uint8:
+            return self.rgb / 255.0
+        else:
+            return self.rgb

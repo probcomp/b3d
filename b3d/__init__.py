@@ -10,3 +10,4 @@ __version__ = "0.0.1"
 from .renderer import *
 from .pose import *
 from .utils import *
+from .model import *

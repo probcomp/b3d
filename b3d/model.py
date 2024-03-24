@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import b3d
 from jax.scipy.special import logsumexp
+import rerun as rr
 
 class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, low, high):
@@ -132,3 +133,39 @@ def model_gl_factory(renderer):
         ) @ "observed_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model
+
+
+def rerun_visualize_trace_t(trace, t):
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    (
+        vertices, faces, vertex_colors,
+        color_error,
+        depth_error,
+
+        inlier_score,
+        outlier_prob,
+
+        color_multiplier,
+        depth_multiplier
+    ) = trace.get_args()
+
+    rr.set_time_sequence("frame", t)
+
+    # rr.log("/get_score", rr.Scalar(trace.get_score()))
+    rr.log("/rgb/image", rr.Image(observed_rgb))
+    rr.log("/rgb/image/rendering", rr.Image(rendered_rgb))
+
+    rr.log("/depth/image/", rr.DepthImage(observed_depth))
+    rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
+
+    rr.log("text_document", 
+        rr.TextDocument(f'''
+# Score: {trace.get_score()} \n
+# inlier_score: {inlier_score} \n
+# Outlier Prob: {outlier_prob} \n
+# color multiplier: {color_multiplier} \n
+# depth multiplier: {depth_multiplier} \n
+'''.strip(),
+            media_type=rr.MediaType.MARKDOWN
+                        )
+    )

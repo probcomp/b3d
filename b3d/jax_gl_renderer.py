@@ -11,7 +11,7 @@ from jaxlib.hlo_helpers import custom_call
 import functools
 import os
 
-import jax_gl_renderer.nvdiffrast.jax as dr
+import b3d.nvdiffrast.jax as dr
 
 
 def get_assets_dir():
@@ -79,7 +79,7 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
 #     interpolated_value = (relevant_attributes[:,:] * barycentric.reshape(3,1)).sum(0)
 #     return interpolated_value
 
-class JaxGLRenderer(object):
+class Renderer(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
         """A renderer for rendering meshes.
 

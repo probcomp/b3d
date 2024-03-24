@@ -20,7 +20,7 @@ cx=50.0
 cy=50.0
 near=0.001
 far=16.0
-renderer = b3d.JaxGLRenderer(
+renderer = b3d.Renderer(
     width, height, fx, fy, cx, cy, near, far
 )
 

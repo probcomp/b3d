@@ -1,4 +1,4 @@
-# jax_gl_renderer - Parallel OpenGL Rendering
+# b3d - Bayes3D
 
 ## Installation
 
@@ -27,12 +27,12 @@ pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-re
 pip install git+https://github.com/probcomp/jax_gl_renderer.git
 ```
 
-## Usage
+## Renderer
 
-Initialize `JaxGLRenderer`:
+Initialize `Renderer`:
 ```
 image_width, image_height, fx,fy, cx,cy, near, far = 200, 100, 200.0, 200.0, 100.0, 50.0, 0.001, 16.0
-jax_renderer = jax_gl_renderer.JaxGLRenderer(w, image_height, fx,fy, cx,cy, near, far)
+jax_renderer = jax_gl_renderer.Renderer(w, image_height, fx,fy, cx,cy, near, far)
 ```
 
 #### render

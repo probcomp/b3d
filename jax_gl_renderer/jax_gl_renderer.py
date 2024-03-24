@@ -137,10 +137,7 @@ class JaxGLRenderer(object):
 
     #####
 
-
-
-
-    def render_to_barycentrics_many(self, poses, vertices, faces, ranges):
+    def render_many(self, poses, vertices, faces, ranges):
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
         rast_out, rast_out_aux = self.rasterize(
             poses,
@@ -151,35 +148,14 @@ class JaxGLRenderer(object):
             self.resolution
         )
         uvs = rast_out[...,:2]
+        zs = rast_out[...,3]
         object_ids = rast_out_aux[...,0]
         triangle_ids = rast_out_aux[...,1]
-        return uvs, object_ids, triangle_ids
+        return uvs, object_ids, triangle_ids, zs
 
-    def render_to_barycentrics(self, pose, vertices, faces, ranges):
-        uvs, object_ids, triangle_ids = self.render_to_barycentrics_many(pose[None,...], vertices, faces, ranges)
-        return uvs[0], object_ids[0], triangle_ids[0]
-
-    def render_depth_many(self, poses, vertices, faces, ranges):
-        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
-        rast_out, rast_out_aux = self.rasterize(
-            poses,
-            vertices_h,
-            faces,
-            ranges,
-            self.projection_matrix,
-            self.resolution
-        )
-        uvs = rast_out[...,:2]
-        object_ids = rast_out_aux[...,0]
-        triangle_ids = rast_out_aux[...,1]
-        mask = object_ids > 0
-
-        interpolated_values = interpolate_depth(uvs, triangle_ids, poses[:,None, None,:,:], object_ids, vertices_h, faces, ranges)
-        image = interpolated_values * mask[...,None]
-        return image
-
-    def render_depth(self, pose, vertices, faces, ranges):
-        return self.render_depth_many(pose[None,...], vertices, faces, ranges)[0]
+    def render(self, pose, vertices, faces, ranges):
+        uvs, object_ids, triangle_ids, zs = self.render_many(pose[None,...], vertices, faces, ranges)
+        return uvs[0], object_ids[0], triangle_ids[0], zs[0]
 
     def render_attribute_many(self, poses, vertices, faces, ranges, attributes):
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
@@ -196,35 +172,15 @@ class JaxGLRenderer(object):
         triangle_ids = rast_out_aux[...,1]
         mask = object_ids > 0
 
-        interpolated_values = interpolate_attribute(uvs, triangle_ids, faces, attributes)
+        interpolated_values = self.interpolate(
+            attributes,
+            uvs, triangle_ids, faces
+        )
         image = interpolated_values * mask[...,None]
         return image
     
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
         return self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)[0]
-
-
-    def render_attribute_faces_many(self, poses, vertices, faces, ranges, attributes):
-        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
-        rast_out, rast_out_aux = self.rasterize(
-            poses,
-            vertices_h,
-            faces,
-            ranges,
-            self.projection_matrix,
-            self.resolution
-        )
-        uvs = rast_out[...,:2]
-        object_ids = rast_out_aux[...,0]
-        triangle_ids = rast_out_aux[...,1]
-        mask = object_ids > 0
-
-        interpolated_values = attributes[triangle_ids-1]
-        image = interpolated_values * mask[...,None]
-        return image
-    
-    def render_attribute_faces(self, pose, vertices, faces, ranges, attributes):
-        return self.render_attribute_faces_many(pose[None,...], vertices, faces, ranges, attributes)[0]
 
 # XLA array layout in memory
 def default_layouts(*shapes):

@@ -130,45 +130,45 @@ void jax_interpolate_fwd(cudaStream_t stream,
 }
 
 
-void jax_interpolate_poses_fwd(cudaStream_t stream,
-                          void **buffers,
-                          const char *opaque, std::size_t opaque_len) {
+// void jax_interpolate_poses_fwd(cudaStream_t stream,
+//                           void **buffers,
+//                           const char *opaque, std::size_t opaque_len) {
 
-    const DiffInterpolateCustomCallDescriptor &d =
-        *UnpackDescriptor<DiffInterpolateCustomCallDescriptor>(opaque, opaque_len);
+//     const DiffInterpolateCustomCallDescriptor &d =
+//         *UnpackDescriptor<DiffInterpolateCustomCallDescriptor>(opaque, opaque_len);
 
-    //  attributes, uvs, triangle_ids, faces
-    const float *poses = reinterpret_cast<const float *> (buffers[0]);
-    const float *uvs = reinterpret_cast<const float *> (buffers[1]);
-    const int *triangle_ids = reinterpret_cast<const int *> (buffers[2]);
-    const float *vertices = reinterpret_cast<const float *> (buffers[3]);
-    const int *faces = reinterpret_cast<const int *> (buffers[4]);
+//     //  attributes, uvs, triangle_ids, faces
+//     const float *poses = reinterpret_cast<const float *> (buffers[0]);
+//     const float *uvs = reinterpret_cast<const float *> (buffers[1]);
+//     const int *triangle_ids = reinterpret_cast<const int *> (buffers[2]);
+//     const float *vertices = reinterpret_cast<const float *> (buffers[3]);
+//     const int *faces = reinterpret_cast<const int *> (buffers[4]);
 
-    float *out = reinterpret_cast<float *> (buffers[5]);
+//     float *out = reinterpret_cast<float *> (buffers[5]);
 
-    InterpolateKernelParams p = {}; // Initialize all fields to zero.
-    p.numVertices  = d.num_vertices;
-    p.numAttr      = d.num_attributes;
-    p.numTriangles = d.num_triangles;
-    p.height       = d.rast_height;
-    p.width        = d.rast_width;
-    p.depth        = d.rast_depth;
+//     InterpolateKernelParams p = {}; // Initialize all fields to zero.
+//     p.numVertices  = d.num_vertices;
+//     p.numAttr      = d.num_attributes;
+//     p.numTriangles = d.num_triangles;
+//     p.height       = d.rast_height;
+//     p.width        = d.rast_width;
+//     p.depth        = d.rast_depth;
 
-    p.poses = triangle_ids;
-    p.vertices = vertices;
-    p.triangles = triangle_ids;
-    p.faces = faces;
-    p.uvs = uvs;
-    p.attributes = attributes;
+//     p.poses = triangle_ids;
+//     p.vertices = vertices;
+//     p.triangles = triangle_ids;
+//     p.faces = faces;
+//     p.uvs = uvs;
+//     p.attributes = attributes;
 
-    p.out = out;
+//     p.out = out;
 
-    void* args[] = {&p};
-    dim3 blockSize = getLaunchBlockSize(IP_FWD_MAX_KERNEL_BLOCK_WIDTH, IP_FWD_MAX_KERNEL_BLOCK_HEIGHT,
-                            p.width, p.height);
-    dim3 gridSize  = getLaunchGridSize(blockSize, p.width, p.height, p.depth);
-    NVDR_CHECK_CUDA_ERROR(cudaLaunchKernel((void*)InterpolateFwdKernel, gridSize, blockSize, args, 0, stream));
-}
+//     void* args[] = {&p};
+//     dim3 blockSize = getLaunchBlockSize(IP_FWD_MAX_KERNEL_BLOCK_WIDTH, IP_FWD_MAX_KERNEL_BLOCK_HEIGHT,
+//                             p.width, p.height);
+//     dim3 gridSize  = getLaunchGridSize(blockSize, p.width, p.height, p.depth);
+//     NVDR_CHECK_CUDA_ERROR(cudaLaunchKernel((void*)InterpolateFwdKernel, gridSize, blockSize, args, 0, stream));
+// }
 
 
 //------------------------------------------------------------------------

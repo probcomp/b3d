@@ -15,7 +15,7 @@ pybind11::dict Registrations() {
   dict["jax_rasterize_bwd"] = EncapsulateFunction(jax_rasterize_bwd);
 
   dict["jax_interpolate_fwd"] = EncapsulateFunction(jax_interpolate_fwd);
-  dict["jax_interpolate_poses_fwd"] = EncapsulateFunction(jax_interpolate_poses_fwd);
+  // dict["jax_interpolate_poses_fwd"] = EncapsulateFunction(jax_interpolate_poses_fwd);
   // dict["jax_interpolate_bwd"] = EncapsulateFunction(jax_interpolate_bwd);
   return dict;
 }

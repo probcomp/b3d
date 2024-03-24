@@ -134,6 +134,7 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
             out int v_layer;
             out int v_offset;
             flat out int seg_id_out;
+            out vec4 world_frame_vertex;
             uniform sampler2D texture;
             void main()
             {
@@ -143,7 +144,8 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
                 vec4 v3 = texelFetch(texture, ivec2(2, layer), 0);
                 vec4 v4 = texelFetch(texture, ivec2(3, layer), 0);
                 mat4 pose_mat = transpose(mat4(v1,v2,v3,v4));
-                gl_Position = projection_matrix * pose_mat * in_pos;
+                world_frame_vertex = pose_mat * in_pos;
+                gl_Position = projection_matrix * world_frame_vertex;
                 v_layer = layer;
                 v_offset = gl_BaseInstanceARB; // Sneak in TriID offset here.
                 seg_id_out = seg_id;
@@ -168,9 +170,11 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
                 in int v_layer[];
                 in int v_offset[];
                 flat in int seg_id_out[];
+                in vec4 world_frame_vertex[];
                 out vec4 var_uvzw;
                 out vec4 var_db;
                 flat out int seg_id;
+                out vec4 world_frame_vertex_out;
                 void main()
                 {
                     // Plane equations for bary differentials.
@@ -209,9 +213,9 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
                     int layer_id = v_layer[0];
                     int prim_id = gl_PrimitiveIDIn + v_offset[0];
 
-                    gl_Layer = layer_id; gl_PrimitiveID = prim_id; gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, gl_in[0].gl_Position.w); var_uvzw = vec4(1.f, 0.f, gl_in[0].gl_Position.z, gl_in[0].gl_Position.w); var_db = db0; seg_id = seg_id_out[0]; EmitVertex();
-                    gl_Layer = layer_id; gl_PrimitiveID = prim_id; gl_Position = vec4(gl_in[1].gl_Position.x, gl_in[1].gl_Position.y, gl_in[1].gl_Position.z, gl_in[1].gl_Position.w); var_uvzw = vec4(0.f, 1.f, gl_in[1].gl_Position.z, gl_in[1].gl_Position.w); var_db = db1; seg_id = seg_id_out[1]; EmitVertex();
-                    gl_Layer = layer_id; gl_PrimitiveID = prim_id; gl_Position = vec4(gl_in[2].gl_Position.x, gl_in[2].gl_Position.y, gl_in[2].gl_Position.z, gl_in[2].gl_Position.w); var_uvzw = vec4(0.f, 0.f, gl_in[2].gl_Position.z, gl_in[2].gl_Position.w); var_db = db2; seg_id = seg_id_out[2]; EmitVertex();
+                    gl_Layer = layer_id; gl_PrimitiveID = prim_id; gl_Position = vec4(gl_in[0].gl_Position.x, gl_in[0].gl_Position.y, gl_in[0].gl_Position.z, gl_in[0].gl_Position.w); var_uvzw = vec4(1.f, 0.f, gl_in[0].gl_Position.z, gl_in[0].gl_Position.w); var_db = db0; seg_id = seg_id_out[0]; world_frame_vertex_out = world_frame_vertex[0]; EmitVertex();
+                    gl_Layer = layer_id; gl_PrimitiveID = prim_id; gl_Position = vec4(gl_in[1].gl_Position.x, gl_in[1].gl_Position.y, gl_in[1].gl_Position.z, gl_in[1].gl_Position.w); var_uvzw = vec4(0.f, 1.f, gl_in[1].gl_Position.z, gl_in[1].gl_Position.w); var_db = db1; seg_id = seg_id_out[1]; world_frame_vertex_out = world_frame_vertex[1]; EmitVertex();
+                    gl_Layer = layer_id; gl_PrimitiveID = prim_id; gl_Position = vec4(gl_in[2].gl_Position.x, gl_in[2].gl_Position.y, gl_in[2].gl_Position.z, gl_in[2].gl_Position.w); var_uvzw = vec4(0.f, 0.f, gl_in[2].gl_Position.z, gl_in[2].gl_Position.w); var_db = db2; seg_id = seg_id_out[2]; world_frame_vertex_out = world_frame_vertex[2]; EmitVertex();
                 }
             )
         );
@@ -223,6 +227,7 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
                 in vec4 var_uvzw;
                 in vec4 var_db;
                 flat in int seg_id;
+                in vec4 world_frame_vertex_out;
                 layout(location = 0) out vec4 out_raster;
                 layout(location = 1) out ivec4 out_db;
                 IF_ZMODIFY(
@@ -230,7 +235,7 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
                 )
                 void main()
                 {   
-                    out_raster = vec4(var_uvzw.x, var_uvzw.y, var_uvzw.z / var_uvzw.w, float(gl_PrimitiveID + 1));
+                    out_raster = vec4(var_uvzw.x, var_uvzw.y, var_uvzw.z / var_uvzw.w, world_frame_vertex_out.z);
                     out_db = ivec4(seg_id, gl_PrimitiveID + 1, 0.0, 0.0);
                     IF_ZMODIFY(gl_FragDepth = gl_FragCoord.z + in_dummy;)
                 }

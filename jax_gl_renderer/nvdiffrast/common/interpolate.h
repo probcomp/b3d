@@ -26,8 +26,6 @@ struct InterpolateKernelParams
     const int*      faces;                            // Incoming triangle buffer.
     const float*      uvs;                            // Incoming triangle buffer.
     const float*    attributes;                           // Incoming attribute buffer.
-    const float*    poses;                           // Incoming attribute buffer.
-    const float*    vertices;                           // Incoming attribute buffer.
     float*          out;                            // Outgoing interpolated attributes.
 
     int             numTriangles;                   // Number of triangles.

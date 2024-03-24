@@ -22,20 +22,6 @@ def multiply_quats(q1, q2):
 def multiply_quat_and_vec(q, vs):
     return Rot.from_quat(q).apply(vs)
 
-
-def choose_good_quat(q):
-    """
-    If the real part of the quaternion is negative, 
-    return the antipodal quaternion, 
-    which represents the same rotation.
-
-    Recall that SO(3) is isomorphic to  S^3/x~-x and 
-    also to D^3/~ where x~-x for x in S^2 = \partial D^3.
-    """
-    # TODO: choose good representative if q[3]==0 there is still ambiguity.
-    return jnp.where(q[...,[3]] ==0 , q, jnp.sign(q[...,[3]])*q)
-
-
 def sample_uniform_pose(key, low, high):
     keys = jax.random.split(key, 2)
     pos = jax.random.uniform(keys[0], (3,)) * (high - low) + low

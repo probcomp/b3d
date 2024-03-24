@@ -7,6 +7,6 @@
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
 __version__ = "0.0.1"
-from .jax_gl_renderer import *
+from .renderer import *
 from .pose import *
 from .utils import *

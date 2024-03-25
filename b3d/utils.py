@@ -55,36 +55,6 @@ def xyz_from_depth(
     return xyz
 
 
-@partial(jnp.vectorize, signature='(k)->(k)')
-def rgb_to_lab(rgb):
-    # Convert sRGB to linear RGB
-    rgb = jnp.clip(rgb, 0, 1)
-    mask = rgb > 0.04045
-    rgb = jnp.where(mask, jnp.power((rgb + 0.055) / 1.055, 2.4), rgb / 12.92)
-
-    # RGB to XYZ
-    # https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
-    rgb_to_xyz = jnp.array([[0.4124564, 0.3575761, 0.1804375],
-                            [0.2126729, 0.7151522, 0.0721750],
-                            [0.0193339, 0.1191920, 0.9503041]])
-    xyz = jnp.dot(rgb, rgb_to_xyz.T)
-
-    # XYZ to LAB
-    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIEXYZ_to_CIELAB
-    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])  # D65 white point
-    xyz_normalized = xyz / xyz_ref
-    mask = xyz_normalized > 0.008856
-    xyz_f = jnp.where(mask, jnp.power(xyz_normalized, 1/3), 7.787 * xyz_normalized + 16/116)
-
-    L = 116 * xyz_f[1] - 16
-    a = 500 * (xyz_f[0] - xyz_f[1])
-    b = 200 * (xyz_f[1] - xyz_f[2])
-
-    lab = jnp.stack([L, a, b], axis=-1)
-    return lab
-
-
-
 def make_mesh_from_point_cloud_and_resolution(
     grid_centers, grid_colors, resolutions
 ):

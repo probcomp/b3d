@@ -13,7 +13,8 @@ rr.init("asdf233")
 rr.connect(addr=f'127.0.0.1:{PORT}')
 
 path = os.path.join(b3d.get_assets_path(),
- "shared_data_bucket/input_data/orange_mug_pan_around_and_pickup.r3d.video_input.npz")
+#  "shared_data_bucket/input_data/orange_mug_pan_around_and_pickup.r3d.video_input.npz")
+ "shared_data_bucket/input_data/ramen_case.r3d.video_input.npz")
 video_input = b3d.VideoInput.load(path)
 
 
@@ -55,9 +56,9 @@ xyz = video_input.xyz[0]
 point_cloud = xyz[mask]
 colors = rgbs_resized[0][mask]
 
-# subset = (point_cloud > point_cloud.mean(0)).all(1)
-# point_cloud = point_cloud[subset]
-# colors = colors[subset]
+subset = (point_cloud < point_cloud.mean(0)).all(1)
+point_cloud = point_cloud[subset]
+colors = colors[subset]
 
 
 
@@ -171,7 +172,7 @@ b3d.rerun_visualize_trace_t(trace, 0)
 
 END_T = len(video_input.xyz)
 key = jax.random.PRNGKey(0)
-chain2 = [trace["object_pose"]]
+chain2 = []
 for T_observed_image in tqdm(range(START_T,END_T, 1)):
     trace = enumerator_observations.update_choices(trace, key,
         rgbs_resized[T_observed_image],
@@ -179,6 +180,30 @@ for T_observed_image in tqdm(range(START_T,END_T, 1)):
     )
     for _ in range(1):
         trace,key = enumerative_proposal(trace, key)
-    b3d.rerun_visualize_trace_t(trace, T_observed_image)
     chain2.append(trace["object_pose"])
+
+for T_observed_image in tqdm(range(len(chain2))):
+    trace = enumerator_observations.update_choices(trace, key,
+        rgbs_resized[T_observed_image],
+        video_input.xyz[T_observed_image,...,2]
+    )
+    trace = enumerator.update_choices(trace, key, chain2[T_observed_image])
+    b3d.rerun_visualize_trace_t(trace, T_observed_image)
+    rr.log("/point_cloud",
+        rr.Points3D(
+            video_input.xyz[T_observed_image].reshape(-1, 3),
+        )
+    )
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    rr.log("/point_cloud",
+        rr.Points3D(
+            video_input.xyz[T_observed_image].reshape(-1, 3),
+        )
+    )
+    rr.log("/rendered_point_cloud",
+        rr.Points3D(
+            b3d.xyz_from_depth(rendered_depth, fx, fy, cx, cy).reshape(-1, 3),
+        )
+    )
+
 

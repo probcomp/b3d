@@ -33,38 +33,6 @@ uniform_pose = UniformPose()
 gaussian_vmf_pose = GaussianPose()
 
 
-class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
-        return rendered_rgb
-
-    def logpdf(self, observed_rgb,
-               rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
-        
-        valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
-        observed_lab = b3d.rgb_to_lab(observed_rgb)
-        rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-        inlier_match_mask = (jnp.linalg.norm(observed_lab - rendered_lab, axis=-1) < lab_tolerance)
-        inlier_match_mask = inlier_match_mask * valid_data_mask
-        
-        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
-        logp_out = jnp.log(outlier_prob)
-        logp_no_data = jnp.log(1 / 1.0)
-
-        num_data_points = jnp.size(inlier_match_mask)
-        num_inliers = jnp.sum(inlier_match_mask)
-        num_no_data = jnp.sum(1.0 - valid_data_mask)
-        num_outliers = num_data_points - num_inliers - num_no_data
-
-        log_sum_of_probs = logsumexp(jnp.array([
-            jnp.log(num_inliers) + logp_in,
-            jnp.log(num_outliers) + logp_out,
-            jnp.log(num_no_data) + logp_no_data
-        ]))
-        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
-
-        return average_log_prob * multiplier
-
-rgb_sensor_model = RGBSensorModel()
 
 
 class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
@@ -97,6 +65,51 @@ class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 depth_sensor_model = DepthSensorModel()
 
+def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance):
+    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+    # valid_data_mask = jnp.full(valid_data_mask.shape, True)
+    observed_lab = b3d.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+    error = (
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+    )
+    inlier_match_mask = (error < lab_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    num_data_points = jnp.size(inlier_match_mask)
+    num_inliers = jnp.sum(inlier_match_mask)
+    num_no_data = jnp.sum(1.0 - valid_data_mask)
+    num_outliers = num_data_points - num_inliers - num_no_data
+    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers
+
+class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+        return rendered_rgb
+
+    def logpdf(self, observed_rgb,
+               rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+        
+        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
+            observed_rgb, rendered_rgb, lab_tolerance
+        )
+        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+        logp_out = jnp.log(outlier_prob)
+        logp_no_data = jnp.log(1 / 1.0)
+
+
+        log_sum_of_probs = logsumexp(jnp.array([
+            jnp.log(num_inliers) + logp_in,
+            jnp.log(num_outliers) + logp_out,
+            jnp.log(num_no_data) + logp_no_data
+        ]))
+        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+
+        return average_log_prob * multiplier
+
+rgb_sensor_model = RGBSensorModel()
+
+
 
 def model_gl_factory(renderer):
     @genjax.static_gen_fn
@@ -116,13 +129,9 @@ def model_gl_factory(renderer):
     ):
         object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "object_pose"
         camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "camera_pose"
-        uvs, object_ids, triangle_ids, rendered_depth = renderer.render(
+        rendered_rgb, rendered_depth = renderer.render_attribute(
             (camera_pose.inv() @ object_pose).as_matrix()[None,...],
-            vertices, faces, jnp.array([[0, len(faces)]], dtype=jnp.int32)
-        )
-        rendered_rgb = renderer.interpolate(
-            colors,
-            uvs, triangle_ids, faces
+            vertices, faces, jnp.array([[0, len(faces)]], dtype=jnp.int32), colors
         )
         observed_rgb = rgb_sensor_model(
             rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
@@ -158,14 +167,24 @@ def rerun_visualize_trace_t(trace, t):
     rr.log("/depth/image/", rr.DepthImage(observed_depth))
     rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
 
+    lab_tolerance = color_error
+
+    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
+        observed_rgb, rendered_rgb, lab_tolerance
+    )
+
+    rr.log("/rgb/image/inliers", rr.Image(inlier_match_mask * 1.0))
+
     rr.log("text_document", 
         rr.TextDocument(f'''
 # Score: {trace.get_score()} \n
+# num_inliers: {num_inliers} \n
+# num_no_data: {num_no_data} \n
+# num_outliers: {num_outliers} \n
 # inlier_score: {inlier_score} \n
 # Outlier Prob: {outlier_prob} \n
 # color multiplier: {color_multiplier} \n
 # depth multiplier: {depth_multiplier} \n
 '''.strip(),
             media_type=rr.MediaType.MARKDOWN
-                        )
-    )
+                        ))

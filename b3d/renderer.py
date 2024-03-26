@@ -161,18 +161,7 @@ class Renderer(object):
         return uvs[0], object_ids[0], triangle_ids[0], zs[0]
 
     def render_attribute_many(self, poses, vertices, faces, ranges, attributes):
-        vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
-        rast_out, rast_out_aux = self.rasterize(
-            poses,
-            vertices_h,
-            faces,
-            ranges,
-            self.projection_matrix,
-            self.resolution
-        )
-        uvs = rast_out[...,:2]
-        object_ids = rast_out_aux[...,0]
-        triangle_ids = rast_out_aux[...,1]
+        uvs, object_ids, triangle_ids, zs = self.render_many(poses, vertices, faces, ranges)
         mask = object_ids > 0
 
         interpolated_values = self.interpolate_many(
@@ -180,10 +169,12 @@ class Renderer(object):
             uvs, triangle_ids, faces
         )
         image = interpolated_values * mask[...,None]
-        return image
+        #  + (1 - mask[...,None]) * 1.0
+        return image, zs
     
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
-        return self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)[0]
+        image, zs =  self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)
+        return image[0], zs[0]
 
 # XLA array layout in memory
 def default_layouts(*shapes):

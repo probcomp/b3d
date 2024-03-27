@@ -9,7 +9,7 @@ from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 import rerun as rr
 
-rr.init("demo2.py")
+rr.init("demo.py")
 rr.connect("127.0.0.1:8812")
 
 width=100
@@ -34,6 +34,24 @@ vertices = vertices - vertices.mean(0)
 faces = jnp.array(mesh.faces)
 vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[...,:3] / 255.0
 ranges = jnp.array([[0, len(faces)]])
+
+pose = Pose.from_position_and_target(
+    jnp.array([3.2, 0.5, 0.0]),
+    jnp.array([0.0, 0.0, 0.0])
+
+).inverse()
+
+
+rr.log(
+    "/3d/mesh",
+    rr.Mesh3D(
+        vertex_positions=vertices,
+        indices=faces,
+        vertex_colors=vertex_colors
+    ),
+    timeless=True
+)
+
 
 num_frames = 60
 
@@ -119,5 +137,5 @@ pose = Pose.from_position_and_target(
     jnp.array([0.0, 0.0, 0.0])
 
 ).inverse()
-image = renderer.render_attribute(pose.as_matrix()[None,...], vertices, faces, ranges, vertex_colors)
+image, depth = renderer.render_attribute(pose.as_matrix()[None,...], vertices, faces, ranges, vertex_colors)
 rr.log("rgb_image", rr.Image(image), timeless=True)

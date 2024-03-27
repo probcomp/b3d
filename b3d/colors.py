@@ -55,9 +55,8 @@ def cie94_err(lab1, lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     deltaE_94 = jnp.sqrt((deltaL/(kL*SL))**2 + (deltaC_ab/(kC*SC))**2 + (deltaH_ab/(kH*SH))**2)
     return deltaE_94
 
-
 @partial(jnp.vectorize, signature='(n,a),(n,a)->(n)')
-def ciede2000_err(_lab1, _lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
+def ciede2000_err(I1, I2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     """
     Calculates the CIEDE2000 standard difference between 
     n pairs of L*a*b* space colors
@@ -72,8 +71,6 @@ def ciede2000_err(_lab1, _lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     References:
     https://www.wikiwand.com/en/Color_difference#CIEDE2000 
     """
-    I1 = _lab1.reshape(-1, 3)
-    I2 = _lab2.reshape(-1, 3)
     TWOFIVE_7 = np.asarray(6103515625, np.int64)  # 25**7
     
     C1 = jnp.sqrt(I1[...,1]**2 + I1[...,2]**2)
@@ -94,10 +91,10 @@ def ciede2000_err(_lab1, _lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     # Typically, these functions return an angular value in radians ranging
     # from -pi to pi. This must be converted to a hue angle in degrees between
     # 0° and 360° by addition of 2*pi to negative hue angles.  
-    h1 = h1.at[h1<0].set(h1[h1<0] + 2*jnp.pi)
-    h2 = h2.at[h2<0].set(h2[h2<0] + 2*jnp.pi)        
-    h1 = h1.at[((a1 == 0) * (I1[...,2] == 0))].set(0)
-    h2 = h2.at[((a2 == 0) * (I2[...,2] == 0))].set(0)
+    h1 = jnp.where(h1<0, h1+2*jnp.pi, h1) #h1.at[h1<0].set(h1[h1<0] + 2*jnp.pi)
+    h2 = jnp.where(h2<0, h2+2*jnp.pi, h2) #h2.at[h2<0].set(h2[h2<0] + 2*jnp.pi)        
+    h1 = jnp.where((a1 == 0) & (I1[...,2] == 0), 0, h1) #h1.at[((a1 == 0) * (I1[...,2] == 0))].set(0)
+    h2 = jnp.where((a2 == 0) & (I2[...,2] == 0), 0, h2) #h2.at[((a2 == 0) * (I2[...,2] == 0))].set(0)
 
     ## Calculate dL, dC and dH    
     # Here the following equations are laid to calculate the differences in
@@ -105,11 +102,13 @@ def ciede2000_err(_lab1, _lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     dL = I2[...,0] - I1[...,0]
     dC = C2d - C1d   
     hsub = h2 - h1    
+    c1d_c2d_nonzero = (C1d*C2d != 0)
+    hsub_under_pi = (abs(hsub) <= jnp.pi)
     dh = jnp.zeros(h2.shape)
-    dh = dh.at[(C1d*C2d != 0) * (abs(hsub)<=jnp.pi)].set(hsub[(C1d*C2d != 0) * (abs(hsub)<=jnp.pi)])
-    dh = dh.at[(C1d*C2d != 0) * (hsub > jnp.pi)].set(hsub[(C1d*C2d != 0) * (hsub > jnp.pi)] - 2*jnp.pi)
-    dh = dh.at[(C1d*C2d != 0) * (hsub < -jnp.pi)].set(hsub[(C1d*C2d != 0) * (hsub < -jnp.pi)] + 2*jnp.pi)
-    dh = dh.at[C1d*C2d == 0].set(0)    
+    dh = jnp.where(c1d_c2d_nonzero & hsub_under_pi, hsub, dh)
+    dh = jnp.where(c1d_c2d_nonzero & (hsub > jnp.pi), hsub - 2*jnp.pi, dh)
+    dh = jnp.where(c1d_c2d_nonzero & (hsub < -jnp.pi), hsub + 2*jnp.pi, dh)
+    dh = jnp.where(jnp.logical_not(c1d_c2d_nonzero), 0, dh)    
     dH = 2*jnp.sqrt(C1d*C2d) * jnp.sin(dh/2)
 
     ## Calculate CIEDE2000 Color-Difference dE00:    
@@ -117,10 +116,12 @@ def ciede2000_err(_lab1, _lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     Cdbar = (C1d + C2d)/2    
     hadd = h1 + h2    
     hbar = jnp.zeros(h1.shape) 
-    hbar = hbar.at[(abs(hsub) <= jnp.pi) * (C1d*C2d != 0)].set(hadd[(abs(hsub) <= jnp.pi) * (C1d*C2d != 0)]/2)
-    hbar = hbar.at[(abs(hsub) > jnp.pi) * (hadd < 2*jnp.pi) * (C1d*C2d != 0)].set((hadd[(abs(hsub) > jnp.pi) * (hadd < 2*jnp.pi) * (C1d*C2d != 0)] + 2*jnp.pi)/2)
-    hbar = hbar.at[(abs(hsub) > jnp.pi) * (hadd >= 2*jnp.pi) * (C1d*C2d != 0)].set((hadd[(abs(hsub) > jnp.pi) * (hadd >= 2*jnp.pi) * (C1d*C2d != 0)] - 2*jnp.pi)/2)
-    hbar = hbar.at[C1d*C2d == 0].set(hadd[C1d*C2d == 0])
+    hsub_under_pi = (abs(hsub) <= jnp.pi)
+    hadd_under_2pi = (hadd < 2*jnp.pi)
+    hbar = jnp.where(hsub_under_pi & c1d_c2d_nonzero, hadd/2, hbar)
+    hbar = jnp.where(jnp.logical_not(hsub_under_pi) & hadd_under_2pi & c1d_c2d_nonzero, (hadd + 2*jnp.pi)/2, hbar)
+    hbar = jnp.where(jnp.logical_not(hsub_under_pi) & hadd_under_2pi & c1d_c2d_nonzero, (hadd - 2*jnp.pi)/2, hbar)
+    hbar = jnp.where(jnp.logical_not(c1d_c2d_nonzero), hadd, hbar)
     T = 1 - 0.17*jnp.cos(hbar - jnp.deg2rad(30)) + 0.24*jnp.cos(2*hbar) + 0.32*jnp.cos(3*hbar + jnp.deg2rad(6)) - 0.20*jnp.cos(4*hbar-jnp.deg2rad(63)); # check the format for cos    
     dTheta = jnp.deg2rad(30)*jnp.exp(-((hbar - jnp.deg2rad(275))/jnp.deg2rad(25))**2);    
     RC = 2*jnp.sqrt((Cdbar**7)/(Cdbar**7 + TWOFIVE_7))
@@ -140,6 +141,5 @@ def ciede2000_err(_lab1, _lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
 if __name__ == '__main__':
     pureRed = jnp.array([[255,0,0],[255,0,0]]); darkRed = jnp.array([[255,10,50],[255,10,50]])
     I1 = rgb_to_lab(pureRed/255); I2 = rgb_to_lab(darkRed/255)
-    print(I1, I2)
-    err = ciede2000_err(I1, I2)
-    print(f"CIEDE2000 err={err}") 
+    err = jax.jit(ciede2000_err)(I1, I2)
+    print(err)

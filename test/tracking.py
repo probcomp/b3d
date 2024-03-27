@@ -8,8 +8,8 @@ from b3d import Pose
 import b3d
 from tqdm   import tqdm
 
-PORT = 8812
-rr.init("asdf233")
+PORT = 8813
+rr.init("bunny")
 rr.connect(addr=f'127.0.0.1:{PORT}')
 
 path = os.path.join(b3d.get_assets_path(),
@@ -206,4 +206,4 @@ for T_observed_image in tqdm(range(len(chain2))):
         )
     )
 
-
+from IPython import embed; embed()

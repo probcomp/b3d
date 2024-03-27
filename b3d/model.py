@@ -65,15 +65,19 @@ class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 depth_sensor_model = DepthSensorModel()
 
-def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance):
+def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance, cielab=False):
     valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
     # valid_data_mask = jnp.full(valid_data_mask.shape, True)
     observed_lab = b3d.rgb_to_lab(observed_rgb)
     rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-    error = (
+    if cielab: 
+        h,w,_ = observed_lab.shape
+        error = b3d.ciede2000_err(observed_lab.reshape((h*w,3)), rendered_lab.reshape((h*w,3))).reshape((h,w))
+    else:
+        error = (
         jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
-    )
+        )
     inlier_match_mask = (error < lab_tolerance)
     inlier_match_mask = inlier_match_mask * valid_data_mask
 
@@ -91,7 +95,7 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
                rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
         
         inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
-            observed_rgb, rendered_rgb, lab_tolerance
+            observed_rgb, rendered_rgb, lab_tolerance, cielab=True
         )
         logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
         logp_out = jnp.log(outlier_prob)

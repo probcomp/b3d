@@ -1,0 +1,5 @@
+genjax @ git+https://github.com/probcomp/genjax
+rerun-sdk
+tqdm
+numpy
+Pillow

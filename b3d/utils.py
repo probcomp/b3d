@@ -287,6 +287,16 @@ class VideoInput:
                 camera_quaternions=self.camera_quaternions,
                 camera_intrinsics_rgb=self.camera_intrinsics_rgb,
                 camera_intrinsics_depth=self.camera_intrinsics_depth)
+    
+    def save_start_to_end(self, filepath: str, start_t: int, end_t: int):
+        """Saves VideoInput's data in a time range to file"""
+        jnp.savez(filepath,
+                rgb=self.rgb[start_t:end_t],
+                xyz=self.xyz[start_t:end_t],
+                camera_positions=self.camera_positions[start_t:end_t],
+                camera_quaternions=self.camera_quaternions[start_t:end_t],
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
 
     @classmethod
     def load(cls, filepath: str):

@@ -7,6 +7,8 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 import rerun as rr
 
+CIE_ERR = True  # use the CIEDE2000 error for LAB colors. If false, use L2
+
 class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, low, high):
         return sample_uniform_pose(key, low, high)
@@ -85,7 +87,7 @@ def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance, cielab=False):
     num_inliers = jnp.sum(inlier_match_mask)
     num_no_data = jnp.sum(1.0 - valid_data_mask)
     num_outliers = num_data_points - num_inliers - num_no_data
-    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers
+    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error
 
 class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
@@ -94,8 +96,8 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
     def logpdf(self, observed_rgb,
                rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
         
-        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
-            observed_rgb, rendered_rgb, lab_tolerance, cielab=True
+        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error = color_error_helper(
+            observed_rgb, rendered_rgb, lab_tolerance, cielab=CIE_ERR
         )
         logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
         logp_out = jnp.log(outlier_prob)
@@ -171,24 +173,29 @@ def rerun_visualize_trace_t(trace, t):
     rr.log("/depth/image/", rr.DepthImage(observed_depth))
     rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
 
-    lab_tolerance = color_error
-
-    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
-        observed_rgb, rendered_rgb, lab_tolerance
+    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error = color_error_helper(
+        observed_rgb, rendered_rgb, color_error, cielab=CIE_ERR
     )
 
     rr.log("/rgb/image/inliers", rr.Image(inlier_match_mask * 1.0))
+    rr.log("/rgb/image/outliers", rr.Image(1-(inlier_match_mask * 1.0)))
+    rr.log(f"/rgb/image/errors", rr.Image(error))
 
     rr.log("text_document", 
-        rr.TextDocument(f'''
-# Score: {trace.get_score()} \n
-# num_inliers: {num_inliers} \n
-# num_no_data: {num_no_data} \n
-# num_outliers: {num_outliers} \n
-# inlier_score: {inlier_score} \n
-# Outlier Prob: {outlier_prob} \n
-# color multiplier: {color_multiplier} \n
-# depth multiplier: {depth_multiplier} \n
-'''.strip(),
+            rr.TextDocument(f'''
+    # Score: {trace.get_score()} \n
+    # num_inliers: {num_inliers} \n
+    # num_no_data: {num_no_data} \n
+    # num_outliers: {num_outliers} \n
+    # inlier_score: {inlier_score} \n
+    # Outlier Prob: {outlier_prob} \n
+    # color multiplier: {color_multiplier} \n
+    # depth multiplier: {depth_multiplier} \n
+    '''.strip(),
             media_type=rr.MediaType.MARKDOWN
                         ))
+    
+    
+    # return all Image vizs
+    return (observed_rgb, rendered_rgb, observed_depth, rendered_depth, inlier_match_mask, error)
+    

@@ -193,7 +193,7 @@ class Renderer(object):
         dy, ddb = diffs
 
         grads = _rasterize_bwd_custom_call(self, pose, pos, tri, ranges, projMatrix, resolution, rast_out, rast_out_db, dy, ddb)
-        return grads[0], None, None, None, None, None
+        return jnp.zeros_like(pose), None, None, None, None, None
 
     _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
 

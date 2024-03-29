@@ -10,6 +10,8 @@ from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import functools
 import os
+from collections import OrderedDict
+
 
 import b3d.nvdiffrast.jax as dr
 
@@ -46,39 +48,6 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     )
     return orth @ persp @ view
 
-# @staticmethod
-# @functools.partial(
-#     jnp.vectorize,
-#     signature="(2),(),(m,4,4),()->(3)",
-#     excluded=(
-#         4,
-#         5,
-#         6,
-#     ),
-# )
-# def interpolate_depth(uv, triangle_id, poses, object_id, vertices, faces, ranges):
-#     relevant_vertices = vertices[faces[triangle_id-1]]
-#     pose_of_object = poses[object_id-1]
-#     relevant_vertices_transformed = relevant_vertices @ pose_of_object.T
-#     barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
-#     interpolated_value = (relevant_vertices_transformed[:,:3] * barycentric.reshape(3,1)).sum(0)
-#     return interpolated_value
-
-# @staticmethod
-# @functools.partial(
-#     jnp.vectorize,
-#     signature="(2),()->(k)",
-#     excluded=(
-#         2,
-#         3,
-#     ),
-# )
-# def interpolate_attribute(uv, triangle_id, faces, attributes):
-#     relevant_attributes = attributes[faces[triangle_id-1]]
-#     barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
-#     interpolated_value = (relevant_attributes[:,:] * barycentric.reshape(3,1)).sum(0)
-#     return interpolated_value
-
 
 # TODO prevent the same items from being added multiple times to library (name checking, etc)
 # TODO or override previous data if already registered
@@ -86,8 +55,9 @@ class MeshLibrary:
     def __init__(self):
         # cumulative (renderer inputs)
         self.vertices=jnp.empty((0,3)) 
-        self.faces=jnp.empty((0,3))
+        self.faces=jnp.empty((0,3), dtype=int)
         self.ranges=jnp.empty((0,2), dtype=int)
+        self._ranges = OrderedDict()
         self.attributes=None  # optional
         self.names=dict()  # optional
         self.names_set=set()
@@ -101,10 +71,17 @@ class MeshLibrary:
         Return vertices, faces, ranges for renderer input
         given object indices to render
         """
+        # if self.attributes is not None:
+        #     return (self.vertices, self.faces, self.ranges[obj_idxs], self.attributes)        
+        # else:   
+        #     return (self.vertices, self.faces, self.ranges[obj_idxs])
         if self.attributes is not None:
-            return (self.vertices, self.faces, self.ranges[obj_idxs], self.attributes)        
+            return (self.vertices, self.faces, jax.lax.switch(obj_idxs, self._ranges.values()), self.attributes)        
         else:   
-            return (self.vertices, self.faces, self.ranges[obj_idxs])
+            return (self.vertices, self.faces, jax.lax.switch(obj_idxs, self._ranges.values()))
+    
+    
+    
     
     def get_object_name(self, obj_idx):
         return self.names[obj_idx]
@@ -133,6 +110,7 @@ class MeshLibrary:
         self.vertices = jnp.concatenate((self.vertices, vertices))    
         self.faces = jnp.concatenate((self.faces, faces + self.faces_offset))
         self.ranges = jnp.concatenate((self.ranges, jnp.array([[self.faces_offset, faces.shape[0]]])))
+        self._ranges[self.num_objects] = lambda: jnp.array([[self.faces_offset, faces.shape[0]]])
         self.faces_offset += faces.shape[0]
         
         if attributes is not None:
@@ -161,11 +139,14 @@ class MeshLibrary:
         self.vertices = jnp.concatenate((self.vertices, *list_of_vertices))   
         
         _offset = jnp.concatenate([jnp.array([0]), 
-                                   jnp.cumsum(jnp.array([len(f) for f in list_of_faces]))])  # internally offset the inputs
+                                    jnp.cumsum(jnp.array([len(f) for f in list_of_faces]))])  # internally offset the inputs
         list_of_faces_with_offset = [face + _offset[i] + self.faces_offset for i, face in enumerate(list_of_faces)] 
          
         self.faces = jnp.concatenate((self.faces, *list_of_faces_with_offset))
         self.ranges = jnp.concatenate((self.ranges, *[jnp.array([[_offset[i] + self.faces_offset, faces.shape[0]]]) for i, faces in enumerate(list_of_faces)]))
+        for i, faces in enumerate(list_of_faces):
+            self._ranges[self.num_objects+i] = jnp.array([[_offset[i] + self.faces_offset, faces.shape[0]]])
+        
         self.faces_offset = self.faces.shape[0]
         
         if list_of_attributes is not None:

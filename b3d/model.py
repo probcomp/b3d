@@ -148,20 +148,20 @@ def model_multiobject_gl_factory(renderer):
         depth_multiplier
     ):
         
-        poses_as_mtx = jnp.empty((0,4))
-        library_obj_indices_to_render = jnp.empty((0,))
-        
+        poses_as_mtx = jnp.empty((0,4,4))
+        library_obj_indices_to_render = jnp.empty((0,), dtype=int)
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
+
         for i in range(_num_obj_arr.shape[0]):        
             object_identity = uniform_discrete(jnp.arange(0, b3d.LIBRARY.num_objects)) @ f"object_{i}"  # TODO possible_object_indices?
             library_obj_indices_to_render = jnp.concatenate((library_obj_indices_to_render, jnp.array([object_identity])))
             
             object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
-            camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose_{i}"
-            poses_as_mtx = jnp.concatenate([poses_as_mtx, (camera_pose.inv() @ object_pose).as_matrix()], axis=0)
+            poses_as_mtx = jnp.concatenate([poses_as_mtx, (camera_pose.inv() @ object_pose).as_matrix()[None,...]], axis=0)
 
         rendered_rgb, rendered_depth = renderer.render_attribute(
             poses_as_mtx,
-            b3d.LIBRARY.get_renderer_inputs(library_obj_indices_to_render) # vertices, faces, ranges, colors (attributes)
+            b3d.LIBRARY.vertices, b3d.LIBRARY.faces, b3d.LIBRARY.ranges[library_obj_indices_to_render], b3d.LIBRARY.attributes
         )
         observed_rgb = rgb_sensor_model(
             rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier

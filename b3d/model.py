@@ -9,6 +9,14 @@ import rerun as rr
 
 CIE_ERR = True  # use the CIEDE2000 error for LAB colors. If false, use L2
 
+class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
+    def sample(self, key, vals):
+        return jax.random.choice(key, vals)
+
+    def logpdf(self, sampled_val, vals, **kwargs):
+        return jnp.log(1.0 / (vals.shape[0]))
+uniform_discrete = UniformDiscrete()
+ 
 class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, low, high):
         return sample_uniform_pose(key, low, high)
@@ -33,9 +41,6 @@ class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
 
 uniform_pose = UniformPose()
 gaussian_vmf_pose = GaussianPose()
-
-
-
 
 class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
@@ -67,28 +72,6 @@ class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 depth_sensor_model = DepthSensorModel()
 
-def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance, cielab=False):
-    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
-    # valid_data_mask = jnp.full(valid_data_mask.shape, True)
-    observed_lab = b3d.rgb_to_lab(observed_rgb)
-    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-    if cielab: 
-        h,w,_ = observed_lab.shape
-        error = b3d.ciede2000_err(observed_lab.reshape((h*w,3)), rendered_lab.reshape((h*w,3))).reshape((h,w))
-    else:
-        error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
-        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
-        )
-    inlier_match_mask = (error < lab_tolerance)
-    inlier_match_mask = inlier_match_mask * valid_data_mask
-
-    num_data_points = jnp.size(inlier_match_mask)
-    num_inliers = jnp.sum(inlier_match_mask)
-    num_no_data = jnp.sum(1.0 - valid_data_mask)
-    num_outliers = num_data_points - num_inliers - num_no_data
-    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error
-
 class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
         return rendered_rgb
@@ -96,7 +79,7 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
     def logpdf(self, observed_rgb,
                rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
         
-        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error = color_error_helper(
+        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error = b3d.color_error_helper(
             observed_rgb, rendered_rgb, lab_tolerance, cielab=CIE_ERR
         )
         logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
@@ -138,6 +121,47 @@ def model_gl_factory(renderer):
         rendered_rgb, rendered_depth = renderer.render_attribute(
             (camera_pose.inv() @ object_pose).as_matrix()[None,...],
             vertices, faces, jnp.array([[0, len(faces)]], dtype=jnp.int32), colors
+        )
+        observed_rgb = rgb_sensor_model(
+            rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
+        ) @ "observed_rgb"
+
+        observed_depth = depth_sensor_model(
+            rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
+        ) @ "observed_depth"
+        return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
+    return model
+
+
+def model_multiobject_gl_factory(renderer):
+    @genjax.static_gen_fn
+    def model(
+        _num_obj_arr, # new 
+
+        color_error,
+        depth_error,
+
+        inlier_score,
+        outlier_prob,
+
+        color_multiplier,
+        depth_multiplier
+    ):
+        
+        poses_as_mtx = jnp.empty((0,4))
+        library_obj_indices_to_render = jnp.empty((0,))
+        
+        for i in range(_num_obj_arr.shape[0]):        
+            object_identity = uniform_discrete(jnp.arange(0, b3d.LIBRARY.num_objects)) @ f"object_{i}"  # TODO possible_object_indices?
+            library_obj_indices_to_render = jnp.concatenate((library_obj_indices_to_render, jnp.array([object_identity])))
+            
+            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
+            camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose_{i}"
+            poses_as_mtx = jnp.concatenate([poses_as_mtx, (camera_pose.inv() @ object_pose).as_matrix()], axis=0)
+
+        rendered_rgb, rendered_depth = renderer.render_attribute(
+            poses_as_mtx,
+            b3d.LIBRARY.get_renderer_inputs(library_obj_indices_to_render) # vertices, faces, ranges, colors (attributes)
         )
         observed_rgb = rgb_sensor_model(
             rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier

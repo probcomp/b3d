@@ -79,6 +79,106 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
 #     interpolated_value = (relevant_attributes[:,:] * barycentric.reshape(3,1)).sum(0)
 #     return interpolated_value
 
+
+# TODO prevent the same items from being added multiple times to library (name checking, etc)
+# TODO or override previous data if already registered
+class MeshLibrary:
+    def __init__(self):
+        # cumulative (renderer inputs)
+        self.vertices=jnp.empty((0,3)) 
+        self.faces=jnp.empty((0,3))
+        self.ranges=jnp.empty((0,2), dtype=int)
+        self.attributes=None  # optional
+        self.names=dict()  # optional
+        self.names_set=set()
+        
+        # helpers
+        self.num_objects = 0
+        self.faces_offset = 0
+        
+    def get_renderer_inputs(self, obj_idxs):
+        """
+        Return vertices, faces, ranges for renderer input
+        given object indices to render
+        """
+        if self.attributes is not None:
+            return (self.vertices, self.faces, self.ranges[obj_idxs], self.attributes)        
+        else:   
+            return (self.vertices, self.faces, self.ranges[obj_idxs])
+    
+    def get_object_name(self, obj_idx):
+        return self.names[obj_idx]
+        
+    def get_object_vertices_faces(self, obj_idx):
+        """
+        Return all vertices, and specific faces for 
+        a given object idx in the library
+        """
+        obj_range_start, obj_range_len = self.ranges[obj_idx]
+        return (self.vertices, 
+                self.faces[obj_range_start:obj_range_len])        
+        
+    def add_object(self, vertices, faces, attributes=None, name=None):
+        """
+        Given a new set of vertices and faces, update library.
+        The input vertices/faces should correspond to a novel object, not a 
+        novel copy of an object already indexed by the library.
+        """
+        if name is not None: 
+            self.names[self.num_objects] = name
+            self.names_set.add(name)
+        else:
+            self.names[self.num_objects] = ""
+        
+        self.vertices = jnp.concatenate((self.vertices, vertices))    
+        self.faces = jnp.concatenate((self.faces, faces + self.faces_offset))
+        self.ranges = jnp.concatenate((self.ranges, jnp.array([[self.faces_offset, faces.shape[0]]])))
+        self.faces_offset += faces.shape[0]
+        
+        if attributes is not None:
+            if self.attributes is None:
+                self.attributes = attributes 
+            else:
+                assert attributes.shape[0] == vertices.shape[0], "Attributes should be [num_vertices, num_attributes]"
+                self.attributes = jnp.concatenate((self.attributes, attributes))
+            
+        self.num_objects += 1
+
+        
+    def add_objects(self, list_of_vertices, list_of_faces, list_of_attributes=None, list_of_names=None):
+        """
+        Given new sets of vertices and faces, update library.
+        The input vertices/faces should correspond to novel objects, not 
+        novel copies of an object already indexed by the library.
+        """
+        if list_of_names is not None:
+            for i, name in enumerate(list_of_names): 
+                self.names[i] = name
+        else:
+            for i, name in enumerate(list_of_names): 
+                self.names[i] = ""
+        
+        self.vertices = jnp.concatenate((self.vertices, *list_of_vertices))   
+        
+        _offset = jnp.concatenate([jnp.array([0]), 
+                                   jnp.cumsum(jnp.array([len(f) for f in list_of_faces]))])  # internally offset the inputs
+        list_of_faces_with_offset = [face + _offset[i] + self.faces_offset for i, face in enumerate(list_of_faces)] 
+         
+        self.faces = jnp.concatenate((self.faces, *list_of_faces_with_offset))
+        self.ranges = jnp.concatenate((self.ranges, *[jnp.array([[_offset[i] + self.faces_offset, faces.shape[0]]]) for i, faces in enumerate(list_of_faces)]))
+        self.faces_offset = self.faces.shape[0]
+        
+        if list_of_attributes is not None:
+            if self.attributes is None:
+                self.attributes = jnp.concatenate((*list_of_attributes,)) 
+            else:
+                self.attributes = jnp.concatenate((self.attributes, *list_of_attributes,))
+                
+        self.num_objects += len(list_of_faces)
+
+        
+LIBRARY = MeshLibrary() 
+     
 class Renderer(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
         """A renderer for rendering meshes.

@@ -138,6 +138,29 @@ def ciede2000_err(I1, I2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     return dE
 
 
+def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance, cielab=False):
+    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+    # valid_data_mask = jnp.full(valid_data_mask.shape, True)
+    observed_lab = rgb_to_lab(observed_rgb)
+    rendered_lab = rgb_to_lab(rendered_rgb)
+    if cielab: 
+        h,w,_ = observed_lab.shape
+        error = ciede2000_err(observed_lab.reshape((h*w,3)), rendered_lab.reshape((h*w,3))).reshape((h,w))
+    else:
+        error = (
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+        )
+    inlier_match_mask = (error < lab_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    num_data_points = jnp.size(inlier_match_mask)
+    num_inliers = jnp.sum(inlier_match_mask)
+    num_no_data = jnp.sum(1.0 - valid_data_mask)
+    num_outliers = num_data_points - num_inliers - num_no_data
+    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error
+
+
 if __name__ == '__main__':
     pureRed = jnp.array([[255,0,0],[255,0,0]]); darkRed = jnp.array([[255,10,50],[255,10,50]])
     I1 = rgb_to_lab(pureRed/255); I2 = rgb_to_lab(darkRed/255)

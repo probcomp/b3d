@@ -6,6 +6,16 @@ import jax.numpy as jnp
 import b3d
 from jax.scipy.special import logsumexp
 import rerun as rr
+from collections import OrderedDict
+from jax.tree_util import register_pytree_node_class
+
+class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
+    def sample(self, key, vals):
+        return jax.random.choice(key, vals)
+
+    def logpdf(self, sampled_val, vals, **kwargs):
+        return jnp.log(1.0 / (vals.shape[0]))
+uniform_discrete = UniformDiscrete()
 
 class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, low, high):
@@ -146,17 +156,17 @@ def model_gl_factory(renderer):
 
 def rerun_visualize_trace_t(trace, t):
     (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
-    (
-        vertices, faces, vertex_colors,
-        color_error,
-        depth_error,
+    # (
+    #     vertices, faces, vertex_colors,
+    #     color_error,
+    #     depth_error,
 
-        inlier_score,
-        outlier_prob,
+    #     inlier_score,
+    #     outlier_prob,
 
-        color_multiplier,
-        depth_multiplier
-    ) = trace.get_args()
+    #     color_multiplier,
+    #     depth_multiplier
+    # ) = trace.get_args()
 
     rr.set_time_sequence("frame", t)
 
@@ -167,24 +177,116 @@ def rerun_visualize_trace_t(trace, t):
     rr.log("/depth/image/", rr.DepthImage(observed_depth))
     rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
 
-    lab_tolerance = color_error
+    # lab_tolerance = color_error
 
-    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
-        observed_rgb, rendered_rgb, lab_tolerance
-    )
+    # inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
+    #     observed_rgb, rendered_rgb, lab_tolerance
+    # )
 
-    rr.log("/rgb/image/inliers", rr.Image(inlier_match_mask * 1.0))
+    # rr.log("/rgb/image/inliers", rr.Image(inlier_match_mask * 1.0))
 
-    rr.log("text_document", 
-        rr.TextDocument(f'''
-# Score: {trace.get_score()} \n
-# num_inliers: {num_inliers} \n
-# num_no_data: {num_no_data} \n
-# num_outliers: {num_outliers} \n
-# inlier_score: {inlier_score} \n
-# Outlier Prob: {outlier_prob} \n
-# color multiplier: {color_multiplier} \n
-# depth multiplier: {depth_multiplier} \n
-'''.strip(),
-            media_type=rr.MediaType.MARKDOWN
-                        ))
+#     rr.log("text_document", 
+#         rr.TextDocument(f'''
+# # Score: {trace.get_score()} \n
+# # num_inliers: {num_inliers} \n
+# # num_no_data: {num_no_data} \n
+# # num_outliers: {num_outliers} \n
+# # inlier_score: {inlier_score} \n
+# # Outlier Prob: {outlier_prob} \n
+# # color multiplier: {color_multiplier} \n
+# # depth multiplier: {depth_multiplier} \n
+# '''.strip(),
+#             media_type=rr.MediaType.MARKDOWN
+#                         ))
+    
+
+def model_multiobject_gl_factory(renderer):
+    @genjax.static_gen_fn
+    def model(
+        _num_obj_arr, # new 
+
+        color_error,
+        depth_error,
+
+        inlier_score,
+        outlier_prob,
+
+        color_multiplier,
+        depth_multiplier,
+        object_library
+    ):
+
+        poses_as_mtx = jnp.empty((0,4,4))
+        library_obj_indices_to_render = jnp.empty((0,), dtype=int)
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
+
+        for i in range(_num_obj_arr.shape[0]):        
+            object_identity = uniform_discrete(jnp.arange(0, len(object_library.ranges))) @ f"object_{i}"  # TODO possible_object_indices?
+            library_obj_indices_to_render = jnp.concatenate((library_obj_indices_to_render, jnp.array([object_identity])))
+
+            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
+            poses_as_mtx = jnp.concatenate([poses_as_mtx, (camera_pose.inv() @ object_pose).as_matrix()[None,...]], axis=0)
+
+        rendered_rgb, rendered_depth = renderer.render_attribute(
+            poses_as_mtx,
+            object_library.vertices, object_library.faces, object_library.ranges[library_obj_indices_to_render], object_library.attributes
+        )
+        observed_rgb = rgb_sensor_model(
+            rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
+        ) @ "observed_rgb"
+
+        observed_depth = depth_sensor_model(
+            rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
+        ) @ "observed_depth"
+        return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
+    return model
+
+
+@register_pytree_node_class
+class MeshLibrary:
+    def __init__(self, vertices, faces, ranges, attributes):
+        # cumulative (renderer inputs)
+        self.vertices = vertices
+        self.faces = faces
+        self.ranges = ranges
+        self.attributes = attributes
+
+    @staticmethod
+    def make_empty_library():
+        return MeshLibrary(jnp.empty((0,3)), jnp.empty((0,3), dtype=int), jnp.empty((0,2), dtype=int), None)
+
+    def tree_flatten(self):
+        return ((self.vertices, self.faces, self.ranges, self.attributes), None)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(*children)
+
+    def get_object_name(self, obj_idx):
+        return self.names[obj_idx] 
+
+    def add_object(self, vertices, faces, attributes=None, name=None):
+        """
+        Given a new set of vertices and faces, update library.
+        The input vertices/faces should correspond to a novel object, not a 
+        novel copy of an object already indexed by the library.
+        """
+        # if name is None:
+        #     name = ""
+        # self.names.append(name)
+
+        current_length_of_vertices = len(self.vertices)
+        current_length_of_faces = len(self.faces)
+        
+        self.vertices = jnp.concatenate((self.vertices, vertices))    
+        self.faces = jnp.concatenate((self.faces, faces + current_length_of_vertices))
+    
+        self.ranges = jnp.concatenate((self.ranges, jnp.array([[current_length_of_faces, faces.shape[0]]])))
+
+        if attributes is not None:
+            if self.attributes is None:
+                self.attributes = attributes 
+            else:
+                assert attributes.shape[0] == vertices.shape[0], "Attributes should be [num_vertices, num_attributes]"
+                self.attributes = jnp.concatenate((self.attributes, attributes))
+

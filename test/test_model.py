@@ -1,5 +1,5 @@
 import b3d
-from b3d.model import model_gl_factory
+from b3d.model import model_gl_factory, model_multiobject_gl_factory
 from b3d import Pose
 import jax
 import genjax
@@ -30,5 +30,28 @@ trace, _ = model.importance(
     (
         jnp.zeros((100,3)), jnp.zeros((100,3),dtype=jnp.int32), jnp.zeros((100,3)),
         0.1, 0.1, 0.1, 0.1, 0.1, 0.1
+    ),
+)
+
+model = model_multiobject_gl_factory(renderer)
+
+object_library = b3d.model.MeshLibrary()
+object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+
+
+trace, _ = model.importance(
+    jax.random.PRNGKey(0),
+    genjax.choice_map(
+        {
+            # "camera_pose": Pose.identity(),
+            # "object_pose": Pose.identity(),
+        }
+    ),
+    (
+        jnp.arange(3),
+        0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+        object_library
     ),
 )

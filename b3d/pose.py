@@ -57,7 +57,7 @@ def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     return mean_pose @ Pose(translation, quat)
 
 
-def camera_from_position_and_target(position, target, up=jnp.array([0., 0., 1.])):
+def camera_from_position_and_target(position, target=jnp.array([0., 0., 0.]), up=jnp.array([0., 0., 1.])):
     """
     Create a camera pose at `position` with the camera-z-axis pointint at `target`.
     Recall that in world coordinates we assume z-axis is up.

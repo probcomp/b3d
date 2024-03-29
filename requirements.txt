@@ -3,3 +3,6 @@ rerun-sdk
 tqdm
 numpy
 Pillow
+tensorflow-probability
+trimesh
+matplotlib

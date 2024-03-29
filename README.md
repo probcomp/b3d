@@ -22,9 +22,9 @@ pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-re
 # CUDA 11 installation
 pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
-4. Install `jax_gl_renderer`:
+4. Install `b3d`:
 ```
-pip install git+https://github.com/probcomp/jax_gl_renderer.git
+pip install git+https://github.com/probcomp/b3d.git
 ```
 
 ## Renderer

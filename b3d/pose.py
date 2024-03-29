@@ -190,19 +190,15 @@ class Pose:
                     multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: "Pose") -> "Pose":
-        warn("Adding poses makes little sense!")
         return Pose(self.pos + pose.pos, self.quat + pose.quat)
 
     def __sub__(self, pose: "Pose") -> "Pose":
-        warn("Adding poses makes little sense!")
         return Pose(self.pos - pose.pos, self.quat - pose.quat)
 
     def scale(self, scale: Float) -> "Pose":
-        raise Warning("Scaling a pose is makes no sense!")
         return Pose(self.pos * scale, self.quat * scale)
 
     def __mul__(self, scale: Float) -> "Pose":
-        raise Warning("Scaling a pose makes no sense!")
         return self.scale(scale)
 
     def __matmul__(self, pose: "Pose") -> "Pose":

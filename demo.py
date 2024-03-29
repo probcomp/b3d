@@ -35,6 +35,27 @@ faces = jnp.array(mesh.faces)
 vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[...,:3] / 255.0
 ranges = jnp.array([[0, len(faces)]])
 
+
+import jax.numpy as jnp
+list_of_vertices = [jnp.zeros((99,3)), jnp.zeros((201,3))]
+list_of_faces = [jnp.zeros((10,3)), jnp.zeros((31,3))]
+
+vertices = jnp.concatenate(list_of_vertices)
+cumulative_lengths = jnp.concatenate([jnp.array([0]), jnp.cumsum(jnp.array([len(f) for f in list_of_vertices]))])
+faces = jnp.concatenate([f + cumulative_lengths[i] for i, f in enumerate(list_of_faces)])
+
+lengths_of_faces = jnp.array([len(f) for f in list_of_faces])
+cumulative_lengths_faces = jnp.concatenate([jnp.array([0]), jnp.cumsum(jnp.array([len(f) for f in list_of_faces]))])
+
+object_ranges = jnp.array([[(cumulative_lengths_faces[i], lengths_of_faces[i])] for i in range(len(list_of_faces))])
+
+object_ids = jnp.array([0,0, 1])
+object_ranges[object_ids]
+
+
+
+
+
 pose = Pose.from_position_and_target(
     jnp.array([3.2, 0.5, 0.0]),
     jnp.array([0.0, 0.0, 0.0])

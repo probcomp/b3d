@@ -67,14 +67,10 @@ rr.log("/rgb", rr.Image(target_image), timeless=True)
     ),
 )
 def point_to_line_distance(point, vector):
-    return jnp.linalg.norm(jnp.cross(point, point - vector)) / jnp.linalg.norm(vector)
+    unit_vector = vector / jnp.linalg.norm(vector)
+    return jnp.linalg.norm(point - jnp.dot(point, unit_vector) * unit_vector)
 
-
-@functools.partial(
-    jnp.vectorize,
-    signature="(2)->(3)",
-    excluded=(1,2,3,4,5,)
-)
+width = 5
 def get_mixed_color(ij, ijs, triangle_ids_padded, vertices_transformed_by_pose, faces, vertex_colors):
     i,j = ij
     triangle_ids_patch = jax.lax.dynamic_slice(
@@ -93,17 +89,43 @@ def get_mixed_color(ij, ijs, triangle_ids_padded, vertices_transformed_by_pose, 
     pixel_vector = pixel_vectors[width, width]
 
     center_points_of_triangle =(
-        vertices_transformed_by_pose[faces[triangle_ids_patch-1]].mean(-2) * (triangle_ids_patch > 0)[...,None]
-    ) + (1.0 - (triangle_ids_patch > 0)[...,None]) *5.0 * pixel_vectors
+        vertices_transformed_by_pose[faces[triangle_ids_patch-1]]
+    ).mean(-2) * (triangle_ids_patch > 0)[...,None]
 
-    distances = (point_to_line_distance(center_points_of_triangle, pixel_vector) + 0.00001)
-
-    weights = 1 / distances
-    normalized_weights = weights / weights.sum()
+    distances = point_to_line_distance(center_points_of_triangle, pixel_vector)
+    return distances.sum()
+    # weights = 1 / distances
+    # normalized_weights = weights / weights.sum()
     
-    colors_patch = (vertex_colors[faces[triangle_ids_patch-1]] * (triangle_ids_patch > 0)[...,None,None]).mean(-2)
-    final_color = (colors_patch * normalized_weights[...,None]).sum(0).sum(0)
-    return jnp.clip(final_color, 0.0, 1.0)
+    # colors_patch = (vertex_colors[faces[triangle_ids_patch-1]] * (triangle_ids_patch > 0)[...,None,None]).mean(-2)
+    # final_color = (colors_patch * normalized_weights[...,None]).sum(0).sum(0)
+    # return jnp.clip(final_color, 0.0, 1.0)
+
+
+def f(pose):
+    _, _, triangle_ids, _ = renderer.render(pose.as_matrix()[None,...], vertices, faces, ranges)
+    vertices_transformed_by_pose = pose.apply(vertices)
+    triangle_ids_padded = jnp.pad(triangle_ids, pad_width=[(width, width)])
+    ijs = jnp.moveaxis(jnp.mgrid[: image_height, : image_width], 0, -1)
+    mixed_image = get_mixed_color(jnp.array([55,55]), ijs, triangle_ids_padded, vertices_transformed_by_pose, faces, vertex_colors)
+    return mixed_image.sum()
+
+pose = Pose.from_translation(
+    jnp.array([0.3, 0.3, 3.0]),
+)
+pose2 = Pose.from_translation(
+    jnp.array([0.2, 0.2, 3.0]),
+)
+print(loss(pose), loss(pose2))
+
+grad_func = jax.grad(loss)
+print(grad_func(pose))
+
+
+
+def loss(pose):
+    return jnp.abs(render_mixed(pose) - target_image).sum()
+
 
 
 def render_mixed(pose):
@@ -116,13 +138,16 @@ def render_mixed(pose):
     return mixed_image
 
 def loss(pose):
-    return jnp.abs(render_mixed(pose)[57,58] - target_image[57,58]).sum()
+    return jnp.abs(render_mixed(pose) - target_image).sum()
+
+def point_to_line_distance(point, vector):
+    return jnp.linalg.norm(point - jnp.dot(point, unit_vector) * unit_vector)
+
+def loss(point):
+    return point_to_line_distance(point, jnp.ones(3) * 4.0)
+jax.grad(loss)(jnp.ones(3))
 
 
-
-pose = Pose.from_translation(
-    jnp.array([0.3, 0.3, 3.0]),
-)
 
 mixed_image = render_mixed(pose)
 rr.log("/rgb", rr.Image(target_image), timeless=True)

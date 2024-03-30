@@ -35,7 +35,7 @@ import torch
 from carvekit.api.high import HiInterface
 
 # Check doc strings for more information
-interface = HiInterface(object_type="hairs-like",  # Can be "object" or "hairs-like".
+interface = HiInterface(object_type="object",  # Can be "object" or "hairs-like".
                         batch_size_seg=5,
                         batch_size_matting=1,
                         device='cuda' if torch.cuda.is_available() else 'cpu',
@@ -52,16 +52,34 @@ mask  = jnp.array([jnp.array(output_image)[..., -1] > 0.5 for output_image in ou
 
 rr.log("/img", rr.Image(rgbs_resized[T]))
 rr.log("/img/mask", rr.Image(jnp.tile((mask * 1.0)[...,None],(1,1,3))),timeless=True)
+rr.log("/img", rr.Image(rgbs_resized[T] * mask[...,None]))
 
-for t in range(len(rgbs_resized)):
-    rr.set_time_sequence("frame", t)
-    rr.log(f"/img", rr.Image(rgbs_resized[t]))
 
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
 
 
 from scipy.ndimage.measurements import label
 a, num = label(mask)
+
+import sklearn.cluster
+
+def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
+    c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
+    labels = c.labels_
+    unique, counts = np.unique(labels, return_counts=True)
+    order = np.argsort(-counts)
+    counter = 0
+    new_labels = np.array(labels)
+    for index in order:
+        if unique[index] == -1:
+            continue
+        if counts[index] >= min_points_in_cluster:
+            val = counter
+        else:
+            val = -1
+        new_labels[labels == unique[index]] = val
+        counter += 1
+    return new_labels
 
 
 object_library = b3d.model.MeshLibrary.make_empty_library()
@@ -73,11 +91,15 @@ for i in range(1,num+1):
     point_cloud = xyz[mask_sub]
     colors = rgbs_resized[0][mask_sub]
 
+    labels = segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=100)
+    point_cloud = point_cloud[labels == 0]
+    colors = colors[labels == 0]
     vertices, faces, vertex_colors, face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
-        point_cloud, colors, 0.003 * 2 * jnp.ones(len(colors))
+        point_cloud, colors, point_cloud[:,2] / fx 
     )
     object_pose = Pose.from_translation(vertices.mean(0))
     vertices = object_pose.inverse().apply(vertices)
+    segment_point_cloud
     poses.append(object_pose)
     object_library.add_object(vertices, faces, vertex_colors)
 
@@ -93,11 +115,6 @@ for i in range(1,num+1):
 
 
 all_poses = Pose.stack_poses(poses)
-
-image, depth = renderer.render_attribute(all_poses.as_matrix()[1:3], object_library.vertices, object_library.faces, object_library.ranges[jnp.array([2,2])], object_library.attributes)
-
-rr.log("final", rr.Image(image), timeless=True)
-rr.log("final/overlay", rr.Image(rgbs_resized[0]), timeless=True)
 
 
 
@@ -266,8 +283,27 @@ for T_observed_image in tqdm(range(START_T,END_T, 1)):
         rgbs_resized[T_observed_image],
         xyzs[T_observed_image,...,2]
     )
-    # trace,key = enumerative_proposal_camera(trace, key)
+    trace,key = enumerative_proposal_camera(trace, key)
     trace,key = enumerative_proposal_0(trace, key)
     trace,key = enumerative_proposal_1(trace, key)
     trace,key = enumerative_proposal_2(trace, key)
     b3d.rerun_visualize_trace_t(trace, T_observed_image)
+
+
+def get_poses_from_trace(trace):
+    return Pose.stack_poses([
+        trace[f"object_pose_{i}"] for i in range(len(trace.get_args()[0]))
+    ])
+
+def get_object_ids_from_trace(trace):
+    return jnp.array([
+        trace[f"object_{i}"] for i in range(len(trace.get_args()[0]))
+    ])
+
+t  = 9
+rr.set_time_sequence("frame", t)
+poses = get_poses_from_trace(trace)
+object_ids = get_object_ids_from_trace(trace)
+
+jnp.conc
+

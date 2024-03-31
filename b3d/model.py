@@ -311,7 +311,6 @@ def get_rgb_inlier_outlier_from_trace(trace):
     
     return (inlier_match_mask, 1 - inlier_match_mask)
     
-        
 def get_depth_inlier_outlier_from_trace(trace):
     depth_tolerance = trace.get_args()[2]
     observed_depth, rendered_depth = trace.get_retval()[1]
@@ -320,7 +319,6 @@ def get_depth_inlier_outlier_from_trace(trace):
     inlier_match_mask = inlier_match_mask * valid_data_mask
 
     return (inlier_match_mask, 1 - inlier_match_mask)
-
 
 def get_rgb_depth_inlier_outlier_from_trace(trace):
     rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]

@@ -11,3 +11,4 @@ from .renderer import *
 from .pose import *
 from .utils import *
 from .model import *
+from .mesh_library import *

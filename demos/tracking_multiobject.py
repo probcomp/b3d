@@ -43,9 +43,10 @@ model = model_multiobject_gl_factory(renderer)
 from scipy.ndimage import label
 
 assignments, num_objects = label(foreground_mask)
-object_library = b3d.model.MeshLibrary.make_empty_library()
+object_library = b3d.MeshLibrary.make_empty_library()
 
 poses = []
+vertices_lens = []
 for i in range(num_objects):
     xyz = video_input.xyz[0]
     point_cloud = xyz[(assignments == i+1)]
@@ -58,6 +59,7 @@ for i in range(num_objects):
     vertices, faces, vertex_colors, face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
         point_cloud, colors, point_cloud[:,2] / fx * 2.0
     )
+    vertices_lens.append(len(vertices))
     object_pose = Pose.from_translation(vertices.mean(0))
     vertices = object_pose.inverse().apply(vertices)
     poses.append(object_pose)
@@ -76,20 +78,21 @@ all_poses = Pose.stack_poses(poses)
 
 
 key = jax.random.PRNGKey(0)
-translation_deltas = jax.vmap(lambda p: Pose.from_translation(p))(jnp.stack(
+translation_deltas = Pose.concatenate_poses([jax.vmap(lambda p: Pose.from_translation(p))(jnp.stack(
     jnp.meshgrid(
         jnp.linspace(-0.01, 0.01, 11),
         jnp.linspace(-0.01, 0.01, 11),
         jnp.linspace(-0.01, 0.01, 11),
     ),
     axis=-1,
-).reshape(-1, 3))
+).reshape(-1, 3)), Pose.identity()[None,...]])
 
-rotation_deltas = jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
+rotation_deltas = Pose.concatenate_poses([jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
     jax.random.split(jax.random.PRNGKey(0), 11*11*11),
     Pose.identity(),
     0.00001, 1000.0
-)
+), Pose.identity()[None,...]])
+
 
 all_deltas =  Pose.stack_poses([translation_deltas, rotation_deltas])
 
@@ -137,7 +140,7 @@ b3d.rerun_visualize_trace_t(trace, 0)
 
 END_T = len(xyzs)
 key = jax.random.PRNGKey(0)
-chain2 = []
+traces = []
 for T_observed_image in tqdm(range(START_T,END_T, 1)):
     trace = b3d.update_choices_jit(trace, key,
         genjax.Pytree.const(["observed_rgb", "observed_depth"]),
@@ -147,24 +150,61 @@ for T_observed_image in tqdm(range(START_T,END_T, 1)):
     trace,key = enumerative_proposal(trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas)
     for i in range(num_objects):
         trace,key = enumerative_proposal(trace, genjax.Pytree.const([f"object_pose_{i}"]), key, all_deltas)
+    traces.append(trace)
     b3d.rerun_visualize_trace_t(trace, T_observed_image)
 
 
+T = 0
+trace = traces[T]
+
+for T in range(len(traces)):
+    rgb_inliers, rgb_outliers = b3d.get_rgb_inlier_outlier_from_trace(traces[T])
+    depth_inliers, depth_outliers = b3d.get_depth_inlier_outlier_from_trace(traces[T])
+    rr.set_time_sequence("frame", T)
+    rr.log("/rgb/rgb_outliers", rr.Image(jnp.tile((rgb_outliers*1.0)[...,None], (1,1,3))))
+    rr.log("/rgb/depth_outliers", rr.Image(jnp.tile((depth_outliers*1.0)[...,None], (1,1,3))))
+
+
+for trace in traces:
+    object_poses = b3d.get_poses_from_trace(trace)
+    for i in range(num_objects):
+        rr.log(
+            f"/3d/mesh/{i}",
+            rr.Mesh3D(
+                vertex_positions=object_library.vertices,
+                indices=object_library.faces,
+                vertex_colors=object_library.vertex_colors,
+                pose=object_poses[i].as_matrix()
+            ),
+            timeless=True
+        )
+
+
+
+
+
 object_poses = b3d.get_poses_from_trace(trace)
-center_point = object_poses.pos.mean(0)
 
-view_height = 0.5
-view_distance = 1.0
-angles = jnp.linspace(0.0, 2.0 * jnp.pi, 100)
+center_point = object_poses.pos.mean(0) * jnp.array([0.0, 0.0, 1.0])
 
-view_points = jax.vmap(lambda angle: 
+waypoints = [
+    jnp.zeros(3),
+    jnp.array([0.5, -0.7, 0.6]),
+]
+
+
+
+trajectory = jnp.concatenate([jnp.linspace(waypoints[i], waypoints[i+1], int(jnp.linalg.norm(waypoints[i] - waypoints[i+1]) / 0.025) ) for i in range(len(waypoints)-1)])
+
+
+view_points = jax.vmap(lambda position: 
                        Pose.from_position_and_target(
-                            center_point + jnp.linalg.norm(center_point) * jnp.array([-jnp.sin(angle), 0, -jnp.cos(angle)]),
+                            position,
                             center_point,
                             jnp.array([0.0, -1.0, 0.0])
-                        ).inv() )(angles)
+                        ).inv() )(trajectory)
 
-camera_frame_poses = view_points[:,None,...].inv() @ object_poses
+camera_frame_poses = view_points[:,None,...] @ object_poses
 images, _ = renderer.render_attribute_many(
     camera_frame_poses.as_matrix(),
     object_library.vertices,

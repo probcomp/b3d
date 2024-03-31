@@ -154,51 +154,6 @@ def model_gl_factory(renderer):
     return model
 
 
-def rerun_visualize_trace_t(trace, t):
-    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
-    # (
-    #     vertices, faces, vertex_colors,
-    #     color_error,
-    #     depth_error,
-
-    #     inlier_score,
-    #     outlier_prob,
-
-    #     color_multiplier,
-    #     depth_multiplier
-    # ) = trace.get_args()
-
-    rr.set_time_sequence("frame", t)
-
-    # rr.log("/get_score", rr.Scalar(trace.get_score()))
-    rr.log("/rgb/image", rr.Image(observed_rgb))
-    rr.log("/rgb/image/rendering", rr.Image(rendered_rgb))
-
-    rr.log("/depth/image/", rr.DepthImage(observed_depth))
-    rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
-
-    # lab_tolerance = color_error
-
-    # inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
-    #     observed_rgb, rendered_rgb, lab_tolerance
-    # )
-
-    # rr.log("/rgb/image/inliers", rr.Image(inlier_match_mask * 1.0))
-
-#     rr.log("text_document", 
-#         rr.TextDocument(f'''
-# # Score: {trace.get_score()} \n
-# # num_inliers: {num_inliers} \n
-# # num_no_data: {num_no_data} \n
-# # num_outliers: {num_outliers} \n
-# # inlier_score: {inlier_score} \n
-# # Outlier Prob: {outlier_prob} \n
-# # color multiplier: {color_multiplier} \n
-# # depth multiplier: {depth_multiplier} \n
-# '''.strip(),
-#             media_type=rr.MediaType.MARKDOWN
-#                         ))
-    
 
 def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
@@ -242,56 +197,6 @@ def model_multiobject_gl_factory(renderer):
     return model
 
 
-@register_pytree_node_class
-class MeshLibrary:
-    def __init__(self, vertices, faces, ranges, attributes):
-        # cumulative (renderer inputs)
-        self.vertices = vertices
-        self.faces = faces
-        self.ranges = ranges
-        self.attributes = attributes
-
-    @staticmethod
-    def make_empty_library():
-        return MeshLibrary(jnp.empty((0,3)), jnp.empty((0,3), dtype=int), jnp.empty((0,2), dtype=int), None)
-
-    def tree_flatten(self):
-        return ((self.vertices, self.faces, self.ranges, self.attributes), None)
-
-    @classmethod
-    def tree_unflatten(cls, aux_data, children):
-        return cls(*children)
-
-    def get_object_name(self, obj_idx):
-        return self.names[obj_idx] 
-
-    def add_object(self, vertices, faces, attributes=None, name=None):
-        """
-        Given a new set of vertices and faces, update library.
-        The input vertices/faces should correspond to a novel object, not a 
-        novel copy of an object already indexed by the library.
-        """
-        # if name is None:
-        #     name = ""
-        # self.names.append(name)
-
-        current_length_of_vertices = len(self.vertices)
-        current_length_of_faces = len(self.faces)
-        
-        self.vertices = jnp.concatenate((self.vertices, vertices))    
-        self.faces = jnp.concatenate((self.faces, faces + current_length_of_vertices))
-    
-        self.ranges = jnp.concatenate((self.ranges, jnp.array([[current_length_of_faces, faces.shape[0]]])))
-
-        if attributes is not None:
-            if self.attributes is None:
-                self.attributes = attributes 
-            else:
-                assert attributes.shape[0] == vertices.shape[0], "Attributes should be [num_vertices, num_attributes]"
-                self.attributes = jnp.concatenate((self.attributes, attributes))
-
-
-
 def get_poses_from_trace(trace):
     return Pose.stack_poses([
         trace[f"object_pose_{i}"] for i in range(len(trace.get_args()[0]))
@@ -327,3 +232,13 @@ def get_rgb_depth_inlier_outlier_from_trace(trace):
     rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
     
     return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)
+
+def rerun_visualize_trace_t(trace, t):
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    rr.set_time_sequence("frame", t)
+
+    rr.log("/image", rr.Image(observed_rgb))
+    rr.log("/image/rgb_rendering", rr.Image(rendered_rgb))
+
+    rr.log("/image/depth", rr.DepthImage(observed_depth))
+    rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))

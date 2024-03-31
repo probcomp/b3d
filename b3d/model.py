@@ -177,7 +177,7 @@ def model_multiobject_gl_factory(renderer):
 def rerun_visualize_trace_t(trace, t):
     (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
     (
-        vertices, faces, vertex_colors,
+        _dummy, #vertices, faces, vertex_colors,
         color_error,
         depth_error,
 
@@ -197,7 +197,7 @@ def rerun_visualize_trace_t(trace, t):
     rr.log("/depth/image/", rr.DepthImage(observed_depth))
     rr.log("/depth/image/rendering", rr.DepthImage(rendered_depth))
 
-    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error = color_error_helper(
+    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers, error = b3d.color_error_helper(
         observed_rgb, rendered_rgb, color_error, cielab=CIE_ERR
     )
 

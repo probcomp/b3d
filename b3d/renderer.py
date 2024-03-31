@@ -57,31 +57,13 @@ class MeshLibrary:
         self.vertices=jnp.empty((0,3)) 
         self.faces=jnp.empty((0,3), dtype=int)
         self.ranges=jnp.empty((0,2), dtype=int)
-        self._ranges = OrderedDict()
         self.attributes=None  # optional
-        self.names=dict()  # optional
+        self.names=[]  # optional
         self.names_set=set()
         
         # helpers
         self.num_objects = 0
-        self.faces_offset = 0
         
-    def get_renderer_inputs(self, obj_idxs):
-        """
-        Return vertices, faces, ranges for renderer input
-        given object indices to render
-        """
-        # if self.attributes is not None:
-        #     return (self.vertices, self.faces, self.ranges[obj_idxs], self.attributes)        
-        # else:   
-        #     return (self.vertices, self.faces, self.ranges[obj_idxs])
-        if self.attributes is not None:
-            return (self.vertices, self.faces, jax.lax.switch(obj_idxs, self._ranges.values()), self.attributes)        
-        else:   
-            return (self.vertices, self.faces, jax.lax.switch(obj_idxs, self._ranges.values()))
-    
-    
-    
     
     def get_object_name(self, obj_idx):
         return self.names[obj_idx]
@@ -123,40 +105,32 @@ class MeshLibrary:
         self.num_objects += 1
 
         
-    def add_objects(self, list_of_vertices, list_of_faces, list_of_attributes=None, list_of_names=None):
+    def add_object(self, vertices, faces, attributes=None, name=None):
         """
-        Given new sets of vertices and faces, update library.
-        The input vertices/faces should correspond to novel objects, not 
-        novel copies of an object already indexed by the library.
+        Given a new set of vertices and faces, update library.
+        The input vertices/faces should correspond to a novel object, not a 
+        novel copy of an object already indexed by the library.
         """
-        if list_of_names is not None:
-            for i, name in enumerate(list_of_names): 
-                self.names[i] = name
-        else:
-            for i, name in enumerate(list_of_names): 
-                self.names[i] = ""
-        
-        self.vertices = jnp.concatenate((self.vertices, *list_of_vertices))   
-        
-        _offset = jnp.concatenate([jnp.array([0]), 
-                                    jnp.cumsum(jnp.array([len(f) for f in list_of_faces]))])  # internally offset the inputs
-        list_of_faces_with_offset = [face + _offset[i] + self.faces_offset for i, face in enumerate(list_of_faces)] 
-         
-        self.faces = jnp.concatenate((self.faces, *list_of_faces_with_offset))
-        self.ranges = jnp.concatenate((self.ranges, *[jnp.array([[_offset[i] + self.faces_offset, faces.shape[0]]]) for i, faces in enumerate(list_of_faces)]))
-        for i, faces in enumerate(list_of_faces):
-            self._ranges[self.num_objects+i] = jnp.array([[_offset[i] + self.faces_offset, faces.shape[0]]])
-        
-        self.faces_offset = self.faces.shape[0]
-        
-        if list_of_attributes is not None:
-            if self.attributes is None:
-                self.attributes = jnp.concatenate((*list_of_attributes,)) 
-            else:
-                self.attributes = jnp.concatenate((self.attributes, *list_of_attributes,))
-                
-        self.num_objects += len(list_of_faces)
+        if name is None:
+            name = ""
+        self.names.append(name)
 
+        current_length_of_vertices = len(self.vertices)
+        current_length_of_faces = len(self.faces)
+        
+        self.vertices = jnp.concatenate((self.vertices, vertices))    
+        self.faces = jnp.concatenate((self.faces, faces + current_length_of_vertices))
+    
+        self.ranges = jnp.concatenate((self.ranges, jnp.array([[current_length_of_faces, faces.shape[0]]])))
+
+        if attributes is not None:
+            if self.attributes is None:
+                self.attributes = attributes 
+            else:
+                assert attributes.shape[0] == vertices.shape[0], "Attributes should be [num_vertices, num_attributes]"
+                self.attributes = jnp.concatenate((self.attributes, attributes))
+
+        self.num_objects += 1
         
 LIBRARY = MeshLibrary() 
      

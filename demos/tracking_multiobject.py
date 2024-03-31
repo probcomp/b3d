@@ -148,3 +148,32 @@ for T_observed_image in tqdm(range(START_T,END_T, 1)):
     for i in range(num_objects):
         trace,key = enumerative_proposal(trace, genjax.Pytree.const([f"object_pose_{i}"]), key, all_deltas)
     b3d.rerun_visualize_trace_t(trace, T_observed_image)
+
+
+object_poses = b3d.get_poses_from_trace(trace)
+center_point = object_poses.pos.mean(0)
+
+view_height = 0.5
+view_distance = 1.0
+angles = jnp.linspace(0.0, 2.0 * jnp.pi, 100)
+
+view_points = jax.vmap(lambda angle: 
+                       Pose.from_position_and_target(
+                            center_point + jnp.linalg.norm(center_point) * jnp.array([-jnp.sin(angle), 0, -jnp.cos(angle)]),
+                            center_point,
+                            jnp.array([0.0, -1.0, 0.0])
+                        ).inv() )(angles)
+
+camera_frame_poses = view_points[:,None,...].inv() @ object_poses
+images, _ = renderer.render_attribute_many(
+    camera_frame_poses.as_matrix(),
+    object_library.vertices,
+    object_library.faces,
+    object_library.ranges[jnp.array([0,1,2])],
+    object_library.attributes,
+)
+
+for t in range(len(images)):
+    rr.set_time_sequence("frame", t)
+    rr.log(f"/img", rr.Image(images[t]))
+

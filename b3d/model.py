@@ -301,3 +301,31 @@ def get_object_ids_from_trace(trace):
     return jnp.array([
         trace[f"object_{i}"] for i in range(len(trace.get_args()[0]))
     ])
+    
+def get_rgb_inlier_outlier_from_trace(trace):
+    lab_tolerance = trace.get_args()[1]
+    observed_rgb, rendered_rgb = trace.get_retval()[0]
+    inlier_match_mask = color_error_helper(
+        observed_rgb, rendered_rgb, lab_tolerance
+    )[0]
+    
+    return (inlier_match_mask, 1 - inlier_match_mask)
+    
+        
+def get_depth_inlier_outlier_from_trace(trace):
+    depth_tolerance = trace.get_args()[2]
+    observed_depth, rendered_depth = trace.get_retval()[1]
+    valid_data_mask = (rendered_depth != 0.0)
+    inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) < depth_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    return (inlier_match_mask, 1 - inlier_match_mask)
+
+
+def get_rgb_depth_inlier_outlier_from_trace(trace):
+    rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]
+    depth_inlier_mask = get_depth_inlier_outlier_from_trace(trace)[0]
+    
+    rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
+    
+    return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)

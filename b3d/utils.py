@@ -317,6 +317,17 @@ class VideoInput:
                 camera_intrinsics_rgb=self.camera_intrinsics_rgb,
                 camera_intrinsics_depth=self.camera_intrinsics_depth)
 
+    def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
+        """Saves new VideoInput containing data 
+        between a timeframe into file"""
+        jnp.savez(filepath,
+                rgb=self.rgb[start_t:end_t],
+                xyz=self.xyz[start_t:end_t],
+                camera_positions=self.camera_positions[start_t:end_t],
+                camera_quaternions=self.camera_quaternions[start_t:end_t],
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
+
     @classmethod
     def load(cls, filepath: str):
         """Loads VideoInput from file"""

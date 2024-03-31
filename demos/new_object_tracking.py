@@ -161,18 +161,6 @@ rendered_depth_at_seg_t = trace_at_seg_t.get_retval()[1][1]
 # SHOUT mesh acquisition
 ###################################
 ### determine a segmentation mask to construct a partial mesh from
-# sobel filter for edges (exclude from "outliers" that go into segmentation)
-
-# sx = ndimage.sobel(rendered_depth_at_seg_t, axis=0, mode='constant')
-# sy = ndimage.sobel(rendered_depth_at_seg_t, axis=1, mode='constant')
-# sob = np.hypot(sx, sy)
-# sob *= 255.0 / np.max(sob)
-
-# sx1 = ndimage.sobel(xyzs[START_JOINT_T,...,-1], axis=0, mode='constant')
-# sy1 = ndimage.sobel(xyzs[START_JOINT_T,...,-1], axis=1, mode='constant')
-# sob1 = np.hypot(sx1, sy1)
-# sob1 *= 255.0 / np.max(sob1)
-
 cie_diff = b3d.ciede2000_err(b3d.rgb_to_lab(rgbs_resized[START_JOINT_T]), 
                                         b3d.rgb_to_lab(rendered_rgb_at_seg_t))
 depth_diff = jnp.abs(rendered_depth_at_seg_t - xyzs[START_JOINT_T, ..., -1]) # TODO use CIEDE for inference as well

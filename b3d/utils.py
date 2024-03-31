@@ -6,6 +6,7 @@ import genjax
 from PIL import Image
 import subprocess
 import jax
+import sklearn.cluster
 
 import inspect
 from inspect import signature
@@ -84,6 +85,25 @@ def rgb_to_lab(rgb):
     return lab
 
 
+def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
+    c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
+    labels = c.labels_
+    unique, counts = np.unique(labels, return_counts=True)
+    order = np.argsort(-counts)
+    counter = 0
+    new_labels = np.array(labels)
+    for index in order:
+        if unique[index] == -1:
+            continue
+        if counts[index] >= min_points_in_cluster:
+            val = counter
+        else:
+            val = -1
+        new_labels[labels == unique[index]] = val
+        counter += 1
+    return new_labels
+
+
 
 def make_mesh_from_point_cloud_and_resolution(
     grid_centers, grid_colors, resolutions
@@ -149,8 +169,6 @@ def get_rgb_pil_image(image, max=1.0):
     ).convert("RGB")
     return img
 
-
-
 def make_onehot(n, i, hot=1, cold=0):
     return tuple(cold if j != i else hot for j in range(n))
 
@@ -167,74 +185,55 @@ def multivmap(f, args=None):
     return multivmapped
 
 
-Enumerator = namedtuple(
-    "Enumerator",
-    [
-        "update_choices",
-        "update_choices_with_weight",
-        "update_choices_get_score",
-        "enumerate_choices",
-        "enumerate_choices_with_weights",
-        "enumerate_choices_get_scores",
-    ],
+def update_choices(trace, key, addr_const, *values):
+    addresses = addr_const.const
+    return trace.update(
+        key,
+        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.Diff.tree_diff_unknown_change(trace.get_args())
+    )[0]
+update_choices_jit = jax.jit(update_choices, static_argnums=(2,))
+
+
+def update_choices_get_score(trace, key, addr_const, *values):
+    return update_choices(trace, key, addr_const, *values).get_score()
+update_choices_get_score_jit = jax.jit(update_choices_get_score, static_argnums=(2,))
+
+enumerate_choices = jax.vmap(
+    update_choices,
+    in_axes=(None, None, None, 0),
 )
+enumerate_choices_jit = jax.jit(enumerate_choices, static_argnums=(2,))
+
+enumerate_choices_get_scores = jax.vmap(
+    update_choices_get_score,
+    in_axes=(None, None, None, 0),
+)
+enumerate_choices_get_scores_jit = jax.jit(enumerate_choices_get_scores, static_argnums=(2,))
 
 
-def make_enumerator(
-    addresses,
-):
-    def enumerator(trace, key, *args):
-        return trace.update(
-            key,
-            genjax.choice_map({addr: c for (addr, c) in zip(addresses, args)}),
-            genjax.Diff.tree_diff_unknown_change(trace.get_args())
-        )[0]
+def nn_background_segmentation(images):
+    import torch
+    from carvekit.api.high import HiInterface
 
-    def enumerator_with_weight(trace, key, *args):
-        return trace.update(
-            key,
-            genjax.choice_map({addr: c for (addr, c) in zip(addresses, args)}),
-            genjax.Diff.tree_diff_unknown_change(trace.get_args())
-        )[:2]
+    # Check doc strings for more information
+    interface = HiInterface(object_type="object",  # Can be "object" or "hairs-like".
+                            batch_size_seg=5,
+                            batch_size_matting=1,
+                            device='cuda' if torch.cuda.is_available() else 'cpu',
+                            seg_mask_size=640,  # Use 640 for Tracer B7 and 320 for U2Net
+                            matting_mask_size=2048,
+                            trimap_prob_threshold=231,
+                            trimap_dilation=30,
+                            trimap_erosion_iters=5,
+                            fp16=False)
 
-    def enumerator_score(trace, key, *args):
-        return enumerator(trace, key, *args).get_score()
 
-    return Enumerator(
-        jax.jit(enumerator),
-        jax.jit(enumerator_with_weight),
-        jax.jit(enumerator_score),
-        jax.jit(
-            multivmap(
-                enumerator,
-                (
-                    False,
-                    False,
-                )
-                + (True,) * len(addresses),
-            )
-        ),
-        jax.jit(
-            multivmap(
-                enumerator_with_weight,
-                (
-                    False,
-                    False,
-                )
-                + (True,) * len(addresses),
-            )
-        ),
-        jax.jit(
-            multivmap(
-                enumerator_score,
-                (
-                    False,
-                    False,
-                )
-                + (True,) * len(addresses),
-            )
-        ),
-    )
+    output_images = interface(images)
+    masks  = jnp.array([jnp.array(output_image)[..., -1] > 0.5 for output_image in output_images])
+    return masks
+
+
 
 from typing import Any, NamedTuple, TypeAlias
 import jax

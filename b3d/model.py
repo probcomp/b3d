@@ -290,3 +290,14 @@ class MeshLibrary:
                 assert attributes.shape[0] == vertices.shape[0], "Attributes should be [num_vertices, num_attributes]"
                 self.attributes = jnp.concatenate((self.attributes, attributes))
 
+
+
+def get_poses_from_trace(trace):
+    return Pose.stack_poses([
+        trace[f"object_pose_{i}"] for i in range(len(trace.get_args()[0]))
+    ])
+
+def get_object_ids_from_trace(trace):
+    return jnp.array([
+        trace[f"object_{i}"] for i in range(len(trace.get_args()[0]))
+    ])

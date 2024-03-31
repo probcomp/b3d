@@ -10,6 +10,11 @@ import os
 import setuptools
 import b3d
 
+import os
+
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -40,10 +45,7 @@ setuptools.setup(
         + (["lib/*.lib"] if os.name == "nt" else [])
     },
     include_package_data=True,
-    install_requires=[
-        "numpy",
-        "ninja"
-    ],  # note: can't require torch here as it will install torch even for a TensorFlow container
+    install_requires=required,
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",

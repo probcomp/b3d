@@ -317,7 +317,7 @@ class VideoInput:
                 camera_intrinsics_rgb=self.camera_intrinsics_rgb,
                 camera_intrinsics_depth=self.camera_intrinsics_depth)
 
-    def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
+    def save_subsequence(self, filepath: str, start_t: int, end_t: int):
         """Saves new VideoInput containing data 
         between a timeframe into file"""
         jnp.savez(filepath,

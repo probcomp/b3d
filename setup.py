@@ -8,9 +8,6 @@
 
 import os
 import setuptools
-import b3d
-
-import os
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
@@ -18,9 +15,10 @@ with open('requirements.txt') as f:
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+
 setuptools.setup(
     name="b3d",
-    version=b3d.__version__,
+    version="0.0.1",
     packages=setuptools.find_packages(),
     package_data={
         "b3d": [

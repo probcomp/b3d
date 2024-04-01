@@ -7,7 +7,6 @@ import jax
 from b3d import Pose
 import b3d
 from tqdm   import tqdm
-from b3d.model import model_gl_factory, model_multiobject_gl_factory
 
 PORT = 8812
 rr.init("asdf223ff3")
@@ -38,7 +37,7 @@ rr.log("/img/mask", rr.Image(jnp.tile((foreground_mask * 1.0)[...,None],(1,1,3))
 
 
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
-model = model_multiobject_gl_factory(renderer)
+model = b3d.model_multiobject_gl_factory(renderer)
 
 from scipy.ndimage import label
 

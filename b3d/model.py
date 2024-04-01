@@ -140,7 +140,7 @@ def model_multiobject_gl_factory(renderer):
         camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
 
         for i in range(_num_obj_arr.shape[0]):        
-            object_identity = uniform_discrete(jnp.arange(0, len(object_library.ranges))) @ f"object_{i}"  # TODO possible_object_indices?
+            object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f"object_{i}"  # TODO possible_object_indices?
             library_obj_indices_to_render = jnp.concatenate((library_obj_indices_to_render, jnp.array([object_identity])))
 
             object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
@@ -148,7 +148,7 @@ def model_multiobject_gl_factory(renderer):
 
         rendered_rgb, rendered_depth = renderer.render_attribute(
             poses_as_mtx,
-            object_library.vertices, object_library.faces, object_library.ranges[library_obj_indices_to_render], object_library.attributes
+            object_library.vertices, object_library.faces, object_library.ranges[library_obj_indices_to_render] * (library_obj_indices_to_render >= 0).reshape(-1,1), object_library.attributes
         )
         observed_rgb = rgb_sensor_model(
             rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier

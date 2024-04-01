@@ -119,42 +119,6 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 rgb_sensor_model = RGBSensorModel()
 
-
-
-def model_gl_factory(renderer):
-    @genjax.static_gen_fn
-    def model(
-        vertices,
-        faces,
-        colors,
-
-        color_error,
-        depth_error,
-
-        inlier_score,
-        outlier_prob,
-
-        color_multiplier,
-        depth_multiplier
-    ):
-        object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "object_pose"
-        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "camera_pose"
-        rendered_rgb, rendered_depth = renderer.render_attribute(
-            (camera_pose.inv() @ object_pose).as_matrix()[None,...],
-            vertices, faces, jnp.array([[0, len(faces)]], dtype=jnp.int32), colors
-        )
-        observed_rgb = rgb_sensor_model(
-            rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
-        ) @ "observed_rgb"
-
-        observed_depth = depth_sensor_model(
-            rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
-        ) @ "observed_depth"
-        return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
-    return model
-
-
-
 def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
     def model(

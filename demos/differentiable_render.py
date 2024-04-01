@@ -10,7 +10,7 @@ from b3d import Pose
 import rerun as rr
 import functools
 
-rr.init("demo22.py")
+rr.init("diff_rendering")
 rr.connect("127.0.0.1:8812")
 
 image_width=100

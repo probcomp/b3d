@@ -83,7 +83,21 @@ def rgb_to_lab(rgb):
     lab = jnp.stack([L, a, b], axis=-1)
     return lab
 
-
+def unproject_depth(depth, intrinsics):
+    """Unprojects a depth image into a point cloud.
+    Args:
+        depth (jnp.ndarray): The depth image. Shape (H, W)
+        intrinsics (width, height, fx, fy, cx, cy, near, far): The camera intrinsics.
+    Returns:
+        jnp.ndarray: The point cloud. Shape (H, W, 3)
+    """
+    mask = (depth < intrinsics[-1]) * (depth > intrinsics[-2])
+    depth = depth * mask + intrinsics[-1] * (1.0 - mask)
+    y, x = jnp.mgrid[: depth.shape[0], : depth.shape[1]]
+    x = (x - intrinsics[4]) / intrinsics[2]
+    y = (y - intrinsics[5]) / intrinsics[3]
+    point_cloud_image = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * depth[:, :, None]
+    return point_cloud_image
 
 def make_mesh_from_point_cloud_and_resolution(
     grid_centers, grid_colors, resolutions

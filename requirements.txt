@@ -8,3 +8,4 @@ trimesh
 matplotlib
 scipy
 ninja
+scikit-learn

@@ -1,57 +1,50 @@
 import b3d
-from b3d.model import model_gl_factory, model_multiobject_gl_factory
+from b3d.model import model_multiobject_gl_factory
 from b3d import Pose
 import jax
 import genjax
 import jax.numpy as jnp
 
-width=100
-height=100
-fx=50.0
-fy=50.0
-cx=50.0
-cy=50.0
-near=0.001
-far=16.0
-renderer = b3d.Renderer(
-    width, height, fx, fy, cx, cy, near, far
-)
+class TestGroup:
 
-model = model_gl_factory(renderer)
+    width=100
+    height=100
+    fx=50.0
+    fy=50.0
+    cx=50.0
+    cy=50.0
+    near=0.001
+    far=16.0
+    renderer = b3d.Renderer(
+        width, height, fx, fy, cx, cy, near, far
+    )
 
-trace, _ = model.importance(
-    jax.random.PRNGKey(0),
-    genjax.choice_map(
-        {
-            "camera_pose": Pose.identity(),
-            "object_pose": Pose.identity(),
-        }
-    ),
-    (
-        jnp.zeros((100,3)), jnp.zeros((100,3),dtype=jnp.int32), jnp.zeros((100,3)),
-        0.1, 0.1, 0.1, 0.1, 0.1, 0.1
-    ),
-)
+    model = model_multiobject_gl_factory(renderer)
 
-model = model_multiobject_gl_factory(renderer)
+    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
 
-object_library = b3d.model.MeshLibrary()
-object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-
-
-trace, _ = model.importance(
-    jax.random.PRNGKey(0),
-    genjax.choice_map(
-        {
-            # "camera_pose": Pose.identity(),
-            # "object_pose": Pose.identity(),
-        }
-    ),
-    (
-        jnp.arange(3),
-        0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-        object_library
-    ),
-)
+    def test_importance(self):
+        object_library = self.object_library
+        model = self.model
+        trace, _ = model.importance(
+            jax.random.PRNGKey(0),
+            genjax.choice_map(
+                {
+                    "camera_pose": Pose.identity(),
+                    "object_pose_0": Pose.identity(),
+                }
+            ),
+            (
+                jnp.arange(3),
+                0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                object_library
+            ),
+        )
+        identity_pose = Pose.identity()
+        assert jnp.allclose(trace["camera_pose"].position, identity_pose.position)
+        assert jnp.allclose(trace["camera_pose"].quaternion, identity_pose.quaternion)
+        assert jnp.allclose(trace["object_pose_0"].position, identity_pose.position)
+        assert jnp.allclose(trace["object_pose_0"].quaternion, identity_pose.quaternion)

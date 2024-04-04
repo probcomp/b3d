@@ -9,3 +9,4 @@ matplotlib
 scipy
 ninja
 scikit-learn
+pytest

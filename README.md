@@ -20,6 +20,16 @@ Install `b3d`:
 pip install git+https://github.com/probcomp/b3d.git
 ```
 
+### Install assets
+1. Navigate to `b3d/bucket_utils`.
+2. Ask an admin to give your Google account 
+    access to the Google cloud data bucket containing the assets.
+    (Use the Google account associated with your Google cloud.)
+3. Run `gcloud auth login` on your Google cloud machine,
+    so the data-pulling script can use your Google account to
+    authenticate pulling from the data bucket.
+4. Run `python chi_pull.py`
+
 ## Renderer
 
 Initialize `Renderer`:

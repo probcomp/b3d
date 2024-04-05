@@ -3,7 +3,6 @@ import argparse
 import json
 import os
 import subprocess
-import dcolmap
 import b3d
 from pathlib import Path
 

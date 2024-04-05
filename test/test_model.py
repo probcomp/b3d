@@ -19,12 +19,36 @@ class TestGroup:
         width, height, fx, fy, cx, cy, near, far
     )
 
+    key = jax.random.PRNGKey(0)
+
+    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+
+
+
+    @genjax.static_gen_fn
+    def object_gf(object_library):
+        object_identity = b3d.uniform_discrete(jnp.arange(-1, object_library.get_num_objects())) @ f"id"
+        object_pose = b3d.uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"pose"
+
+    trace = object_gf.simulate(key, (object_library,))
+
+    @genjax.static_gen_fn
+    def model(dummy_num_objects):
+        genjax.map_
+
+
     model = model_multiobject_gl_factory(renderer)
 
     object_library = b3d.MeshLibrary.make_empty_library()
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+
+
+
 
     def test_importance(self):
         object_library = self.object_library

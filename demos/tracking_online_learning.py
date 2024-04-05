@@ -33,12 +33,12 @@ rgbs_resized = jnp.clip(jax.vmap(jax.image.resize, in_axes=(0, None, None))(
 object_library = b3d.MeshLibrary.make_empty_library()
 point_cloud = xyzs[0].reshape(-1,3)
 colors = rgbs_resized[0].reshape(-1,3)
-sub = jax.random.choice(jax.random.PRNGKey(0), jnp.arange(len(point_cloud)), (len(point_cloud),), replace=False)
+
+sub = jax.random.choice(jax.random.PRNGKey(0), jnp.arange(len(point_cloud)), (len(point_cloud)//6,), replace=False)
 point_cloud = point_cloud[sub]
 colors = colors[sub]
-
 vertices, faces, vertex_colors, face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
-    point_cloud, colors, point_cloud[:,2] / fx * 4.0
+    point_cloud, colors, point_cloud[:,2] / fx * 6.0
 )
 # object_pose = Pose.from_translation(vertices.mean(0))
 # vertices = object_pose.inverse().apply(vertices)
@@ -146,8 +146,15 @@ for reaquisition_phase in range(len(REAQUISITION_TS)-1):
 
     assignment = b3d.segment_point_cloud(point_cloud)
 
+    point_cloud = point_cloud.reshape(-1,3)[assignment==0]
+    point_cloud_colors = point_cloud_colors.reshape(-1,3)[assignment==0]
+    
+    sub = jax.random.choice(jax.random.PRNGKey(0), jnp.arange(len(point_cloud)), (len(point_cloud)//4,), replace=False)
+    point_cloud = point_cloud[sub]
+    colors = point_cloud_colors[sub]
+
     vertices, faces, vertex_colors, face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
-        point_cloud.reshape(-1,3)[assignment==0], point_cloud_colors.reshape(-1,3)[assignment==0], point_cloud.reshape(-1,3)[assignment==0][:,2] / fx * 3.0
+        point_cloud, colors, point_cloud[:,2] / fx * 2.0
     )
 
     object_pose = Pose.from_translation(vertices.mean(0))
@@ -165,8 +172,8 @@ for reaquisition_phase in range(len(REAQUISITION_TS)-1):
     b3d.rerun_visualize_trace_t(trace, REAQUISITION_T)
     inference_data_over_time.append((b3d.get_poses_from_trace(trace),b3d.get_object_ids_from_trace(trace), trace["camera_pose"], T_observed_image ))
 
+
 for i in tqdm(range(len(inference_data_over_time))):
-    print(t)
     poses, object_ids, camera_pose, t = inference_data_over_time[i]
     trace = update_jit(
         key,

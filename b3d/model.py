@@ -8,6 +8,7 @@ from jax.scipy.special import logsumexp
 import rerun as rr
 from collections import OrderedDict
 from jax.tree_util import register_pytree_node_class
+from tensorflow_probability.substrates import jax as tfp
 
 class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
     def sample(self, key, vals):
@@ -41,7 +42,6 @@ class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
 
 uniform_pose = UniformPose()
 gaussian_vmf_pose = GaussianPose()
-
 
 
 
@@ -148,7 +148,10 @@ def model_multiobject_gl_factory(renderer):
 
         rendered_rgb, rendered_depth = renderer.render_attribute(
             poses_as_mtx,
-            object_library.vertices, object_library.faces, object_library.ranges[library_obj_indices_to_render] * (library_obj_indices_to_render >= 0).reshape(-1,1), object_library.attributes
+            object_library.vertices,
+            object_library.faces,
+            object_library.ranges[library_obj_indices_to_render] * (library_obj_indices_to_render >= 0).reshape(-1,1),
+            object_library.attributes
         )
         observed_rgb = rgb_sensor_model(
             rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier

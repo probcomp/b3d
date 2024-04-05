@@ -27,6 +27,9 @@ class MeshLibrary:
     def get_object_name(self, obj_idx):
         return self.names[obj_idx] 
 
+    def get_num_objects(self):
+        return len(self.ranges)
+
     def add_object(self, vertices, faces, attributes=None, name=None):
         """
         Given a new set of vertices and faces, update library.

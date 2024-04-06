@@ -50,10 +50,9 @@ setuptools.setup(
     ],
     entry_points = {
         'console_scripts': [
-            'b3d_pull = b3d.bucket_utils.chi_pull:download_from_bucket',
-            'b3d_push = b3d.bucket_utils.chi_push:upload_to_bucket',
+            'b3d_pull = b3d.bucket_utils.b3d_pull:download_from_bucket',
+            'b3d_push = b3d.bucket_utils.b3d_push:upload_to_bucket',
         ]
-        
     },
     python_requires=">=3.6",
 )

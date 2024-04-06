@@ -1,28 +1,21 @@
 # b3d - Bayes3D
 
 ## Installation
-
-1. Install Pytorch:
+Install Pytorch:
 ```
-# CUDA 11.8
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
 # CUDA 12.1
 pip3 install torch torchvision torchaudio
 ```
-3. Install OpenGL:
+Install OpenGL:
 ```
 sudo apt-get install mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
 ```
-3. Install JAX:
+Install JAX:
 ```
 # CUDA 12 installation
 pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-
-# CUDA 11 installation
-pip install --upgrade "jax[cuda11_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 ```
-4. Install `b3d`:
+Install `b3d`:
 ```
 pip install git+https://github.com/probcomp/b3d.git
 ```

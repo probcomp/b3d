@@ -10,3 +10,5 @@ scipy
 ninja
 scikit-learn
 pytest
+ipython
+jupyter

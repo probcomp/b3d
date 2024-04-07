@@ -1,6 +1,16 @@
 # b3d - Bayes3D
 
 ## Installation
+Get machine with:
+NVIDIA GPU (on GCP select NVIDIA L4)
+CUDA 12.3+
+Python 3.10
+
+Get Conda environment:
+```
+conda create -n b3d python=3.10
+```
+
 Install Pytorch:
 ```
 # CUDA 12.1
@@ -19,6 +29,9 @@ Install `b3d`:
 ```
 pip install git+https://github.com/probcomp/b3d.git
 ```
+
+### Download assets
+Run `b3d_pull` from within the conda environment in which you installed `b3d`.
 
 ## Renderer
 

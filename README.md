@@ -1,37 +1,17 @@
 # b3d - Bayes3D
 
-## Installation
+## Installation on GCP
 Get machine with:
-NVIDIA GPU (on GCP select NVIDIA L4)
-CUDA 12.3+
-Python 3.10
+- NVIDIA GPU
+    - On GCP use NVIDIA L4 
+- CUDA 12.3+
+    - On GCP run `sudo sh -c "echo 'export DRIVER_VERSION=550.54.15' > /opt/deeplearning/driver-version.sh"`
+    - Then run `/opt/deeplearning/install-driver.sh`
+- Python 3.10
+    - `conda create -n b3d python=3.10`
 
-Get Conda environment:
-```
-conda create -n b3d python=3.10
-```
+Run install script `bash install.sh`
 
-Install Pytorch:
-```
-# CUDA 12.1
-pip3 install torch torchvision torchaudio
-```
-Install OpenGL:
-```
-sudo apt-get install mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
-```
-Install JAX:
-```
-# CUDA 12 installation
-pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-```
-Install `b3d`:
-```
-pip install git+https://github.com/probcomp/b3d.git
-```
-
-### Download assets
-Run `b3d_pull` from within the conda environment in which you installed `b3d`.
 
 ## Renderer
 

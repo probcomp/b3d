@@ -30,7 +30,7 @@ uvs, object_ids, triangle_ids  = renderer.render_many(
 
 Inputs:
 -  `poses`: Pose matrix with shape [num_scenes, num_objects, 4, 4] and dtype jnp.float32
--  `vertices`: Vertex position matrix with shape [num_vertices, 4] and dtype jnp.float32
+-  `vertices`: Vertex position matrix with shape [num_vertices, 3] and dtype jnp.float32
 -  `faces`: Triangle matrix with shape [num_triangles, 3] and dtype jnp.int32
 -  `ranges`: Ranges matrix with shape [num_objects, 2] where the 2 elements specify start indices and counts into faces.
 

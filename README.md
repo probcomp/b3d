@@ -1,16 +1,48 @@
 # b3d - Bayes3D
 
-## Installation on GCP
-Get machine with:
-- NVIDIA GPU
-    - On GCP use NVIDIA L4 
-- CUDA 12.3+
-    - On GCP run `sudo sh -c "echo 'export DRIVER_VERSION=550.54.15' > /opt/deeplearning/driver-version.sh"`
-    - Then run `/opt/deeplearning/install-driver.sh`
-- Python 3.10
-    - `conda create -n b3d python=3.10`
+## Insstallation
+- NVIDIA GPU with CUDA 12.3+. Run `nvidia-smi`
+```
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.54.15              Driver Version: 550.54.15      CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+```
+and verify that `CUDA Version: xx.x` is >= 12.3. If not, ensure your NVIDIA GPU supports CUDA 12.3+ and install a NVIDIA driver version compatible with 12.3+. For GCP instances, use:
+```
+sudo sh -c "echo 'export DRIVER_VERSION=550.54.15' > /opt/deeplearning/driver-version.sh"
+/opt/deeplearning/install-driver.sh
+```
 
-Run install script `bash install.sh`
+- Create Python environment
+```
+conda create -n b3d python=3.10
+conda activate b3d
+```
+
+- Tunnel port `8812` for Rerun visualization by adding the `RemoteForward`line to your ssh config:
+```
+Host xx.xx.xxx.xxx
+    HostName xx.xx.xxx.xxx
+    IdentityFile ~/.ssh/id_rsa
+    User thomasbayes
+    RemoteForward 8812 127.0.0.1:8812
+```
+
+- Open Rerun viewer on local machine:
+```
+pip install rerun-sdk
+rerun --port 8812
+```
+
+- Run installation script using `bash install.sh`
+
+- Verify installing using `python demo.py` which should print:
+```
+FPS: 175.81572963059995
+```
+and display a `demo.py` visualization log in Rerun viewer.
+
+
 
 
 ## Renderer

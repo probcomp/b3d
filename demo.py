@@ -71,7 +71,6 @@ for t in range(num_frames - 1):
 
 
 all_gt_poses = Pose.stack_poses(poses)
-print("Number of frames: ", all_gt_poses.shape)
 
 
 _,_,_,observed_images = renderer.render_many(
@@ -123,7 +122,6 @@ import time
 start = time.time()
 pose_estimates_over_time = inference_program(poses[0], observed_images)
 end = time.time()
-print("Time elapsed:", end - start)
 print("FPS:", all_gt_poses.shape[0] / (end - start))
 
 inferred_images = renderer.render_many(pose_estimates_over_time.as_matrix()[:,None,...], vertices, faces, ranges)[3]

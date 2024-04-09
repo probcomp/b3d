@@ -25,6 +25,7 @@ struct RasterizeGLState // Must be initializable by memset to zero.
     int                     depth;              // Allocated frame buffer depth.
     int                     posCount;           // Allocated position buffer in floats.
     int                     triCount;           // Allocated triangle buffer in ints.
+    int                     numLayers;          // Allocated frame buffer num layers.
     GLContext               glctx;
     GLuint                  glFBO;
     GLuint                  glColorBuffer[2];
@@ -53,7 +54,7 @@ struct RasterizeGLState // Must be initializable by memset to zero.
 // Shared C++ code prototypes.
 
 void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceIdx);
-void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, int posCount, int triCount, int width, int height, int depth);
+void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, int posCount, int triCount, int width, int height, int depth, int numLayers);
 void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, float** outputPtr, std::vector<float>& projMatrix, const float* posePtr, const float* posPtr, int posCount, int vtxPerInstance, const int32_t* triPtr, int triCount, const int32_t* rangesPtr, int num_objects, int width, int height, int depth, int peeling_idx);
 void rasterizeCopyResults(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, float** outputPtr, int width, int height, int depth);
 void rasterizeReleaseBuffers(NVDR_CTX_ARGS, RasterizeGLState& s);

@@ -34,8 +34,8 @@ rgbs_resized = jnp.clip(jax.vmap(jax.image.resize, in_axes=(0, None, None))(
 ), 0.0, 1.0)
 
 
-
-renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+num_layers = 2048
+renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far, num_layers)
 model = b3d.model_multiobject_gl_factory(renderer)
 importance_jit = jax.jit(model.importance)
 update_jit = jax.jit(model.update)

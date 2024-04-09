@@ -30,7 +30,10 @@ class MeshLibrary:
     def get_num_objects(self):
         return len(self.ranges)
 
-    def add_object(self, vertices, faces, attributes=None, name=None):
+    def add_object(
+            self, vertices, faces,
+            attributes=None, name=None
+        ):
         """
         Given a new set of vertices and faces, update library.
         The input vertices/faces should correspond to a novel object, not a 

@@ -1,6 +1,12 @@
-# Bayes3D
+![b3d](https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622)
 
-## Setup
+<p align="center">
+  <img src="https://github.com/probcomp/b3d/assets/66085644/53d4f644-530e-41b9-87f9-814064f12230" alt="animated" width="150%" />
+</p>
+
+
+
+## Installation
 ### NVIDIA GPU with CUDA 12.3+
 Run `nvidia-smi`
 ```
@@ -47,5 +53,5 @@ Verify install succeeded by running `python demo.py` which should print:
 ```
 FPS: 175.81572963059995
 ```
-and display a `demo.py` visualization log in Rerun viewer.
+and display a `demo.py` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
 

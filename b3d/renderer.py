@@ -40,7 +40,7 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     return orth @ persp @ view
 
 class Renderer(object):
-    def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
+    def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=2048):
         """
         Triangle mesh renderer.
 
@@ -68,6 +68,7 @@ class Renderer(object):
         self.resolution = jnp.array([height, width]).astype(jnp.int32)
         self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
+        self.num_layers = num_layers
         self._rasterize_partial = jax.tree_util.Partial(self._rasterize, self)
 
     @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
@@ -326,7 +327,7 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
             mlir.dtype_to_ir_type(np.dtype(np.int32)),
         )
         opaque = dr._get_plugin(gl=True).build_diff_rasterize_fwd_descriptor(
-            r.renderer_env.cpp_wrapper, [num_images, num_objects, num_vertices, num_triangles]
+            r.renderer_env.cpp_wrapper, [num_images, num_objects, num_vertices, num_triangles, r.num_layers]
         )
 
         op_name = "jax_rasterize_fwd_gl"

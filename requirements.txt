@@ -12,3 +12,5 @@ scikit-learn
 pytest
 ipython
 jupyter
+pyransac3d
+pdoc3

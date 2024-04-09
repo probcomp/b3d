@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>b3d.model API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>b3d.model</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import genjax
+from b3d.pose import Pose, sample_uniform_pose, sample_gaussian_vmf_pose
+from genjax.generative_functions.distributions import ExactDensity
+import jax
+import jax.numpy as jnp
+import b3d
+from jax.scipy.special import logsumexp
+import rerun as rr
+from collections import OrderedDict
+from jax.tree_util import register_pytree_node_class
+from tensorflow_probability.substrates import jax as tfp
+
+class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
+    def sample(self, key, vals):
+        return jax.random.choice(key, vals)
+
+    def logpdf(self, sampled_val, vals, **kwargs):
+        return jnp.log(1.0 / (vals.shape[0]))
+uniform_discrete = UniformDiscrete()
+
+class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, low, high):
+        return sample_uniform_pose(key, low, high)
+
+    def logpdf(self, pose, low, high):
+        position = pose.pos
+        valid = ((low &lt;= position) &amp; (position &lt;= high))
+        position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
+        return position_score.sum() + jnp.pi**2
+
+class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, mean_pose, variance, concentration):
+        return sample_gaussian_vmf_pose(key, mean_pose, variance, concentration)
+
+    def logpdf(self, pose, mean_pose, variance, concentration):
+        translation_score = tfp.distributions.MultivariateNormalDiag(
+        mean_pose.pos, jnp.ones(3) * variance).log_prob(pose.pos)
+        quaternion_score = tfp.distributions.VonMisesFisher(
+            mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
+        ).log_prob(pose.quat)
+        return translation_score + quaternion_score
+
+uniform_pose = UniformPose()
+gaussian_vmf_pose = GaussianPose()
+
+
+
+class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
+        return rendered_depth
+
+    def logpdf(self, observed_depth,
+               rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
+
+        valid_data_mask = (rendered_depth != 0.0)
+        inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) &lt; tolerance)
+        inlier_match_mask = inlier_match_mask * valid_data_mask
+
+        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+        logp_out = jnp.log(outlier_prob)
+        logp_no_data = jnp.log(1 / 1.0)
+
+        num_data_points = jnp.size(inlier_match_mask)
+        num_inliers = jnp.sum(inlier_match_mask)
+        num_no_data = jnp.sum(1.0 - valid_data_mask)
+        num_outliers = num_data_points - num_inliers - num_no_data
+
+        log_sum_of_probs = logsumexp(jnp.array([
+            jnp.log(num_inliers) + logp_in,
+            jnp.log(num_outliers) + logp_out,
+            jnp.log(num_no_data) + logp_no_data
+        ]))
+        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+        return average_log_prob * multiplier
+
+depth_sensor_model = DepthSensorModel()
+
+def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance):
+    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+    # valid_data_mask = jnp.full(valid_data_mask.shape, True)
+    observed_lab = b3d.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+    error = (
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+    )
+    inlier_match_mask = (error &lt; lab_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    num_data_points = jnp.size(inlier_match_mask)
+    num_inliers = jnp.sum(inlier_match_mask)
+    num_no_data = jnp.sum(1.0 - valid_data_mask)
+    num_outliers = num_data_points - num_inliers - num_no_data
+    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers
+
+class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+        return rendered_rgb
+
+    def logpdf(self, observed_rgb,
+               rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+        
+        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
+            observed_rgb, rendered_rgb, lab_tolerance
+        )
+        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+        logp_out = jnp.log(outlier_prob)
+        logp_no_data = jnp.log(1 / 1.0)
+
+
+        log_sum_of_probs = logsumexp(jnp.array([
+            jnp.log(num_inliers) + logp_in,
+            jnp.log(num_outliers) + logp_out,
+            jnp.log(num_no_data) + logp_no_data
+        ]))
+        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+
+        return average_log_prob * multiplier
+
+rgb_sensor_model = RGBSensorModel()
+
+def model_multiobject_gl_factory(renderer):
+    @genjax.static_gen_fn
+    def model(
+        _num_obj_arr, # new 
+
+        color_error,
+        depth_error,
+
+        inlier_score,
+        outlier_prob,
+
+        color_multiplier,
+        depth_multiplier,
+        object_library
+    ):
+
+        object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
+        object_indices = jnp.empty((0,), dtype=int)
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f&#34;camera_pose&#34;
+            
+        for i in range(_num_obj_arr.shape[0]):        
+            object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f&#34;object_{i}&#34;
+            object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
+
+            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f&#34;object_pose_{i}&#34;
+            object_poses = Pose.concatenate_poses([object_poses, object_pose[None,...]])
+
+        rendered_rgb, rendered_depth = renderer.render_attribute(
+            object_poses,
+            object_library.vertices,
+            object_library.faces,
+            object_library.ranges[object_indices] * (object_indices &gt;= 0).reshape(-1,1),
+            object_library.attributes
+        )
+        observed_rgb = rgb_sensor_model(
+            rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
+        ) @ &#34;observed_rgb&#34;
+
+        observed_depth = depth_sensor_model(
+            rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
+        ) @ &#34;observed_depth&#34;
+        return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
+    return model
+
+
+def get_poses_from_trace(trace):
+    return Pose.stack_poses([
+        trace[f&#34;object_pose_{i}&#34;] for i in range(len(trace.get_args()[0]))
+    ])
+
+def get_object_ids_from_trace(trace):
+    return jnp.array([
+        trace[f&#34;object_{i}&#34;] for i in range(len(trace.get_args()[0]))
+    ])
+    
+def get_rgb_inlier_outlier_from_trace(trace):
+    lab_tolerance = trace.get_args()[1]
+    observed_rgb, rendered_rgb = trace.get_retval()[0]
+    inlier_match_mask = color_error_helper(
+        observed_rgb, rendered_rgb, lab_tolerance
+    )[0]
+    
+    return (inlier_match_mask, 1 - inlier_match_mask)
+    
+def get_depth_inlier_outlier_from_trace(trace):
+    depth_tolerance = trace.get_args()[2]
+    observed_depth, rendered_depth = trace.get_retval()[1]
+    valid_data_mask = (rendered_depth != 0.0)
+    inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) &lt; depth_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    return (inlier_match_mask, 1 - inlier_match_mask)
+
+def get_rgb_depth_inlier_outlier_from_trace(trace):
+    rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]
+    depth_inlier_mask = get_depth_inlier_outlier_from_trace(trace)[0]
+    
+    rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
+    
+    return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)
+
+def rerun_visualize_trace_t(trace, t):
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    rr.set_time_sequence(&#34;frame&#34;, t)
+
+    rr.log(&#34;/image&#34;, rr.Image(observed_rgb))
+    rr.log(&#34;/image/rgb_rendering&#34;, rr.Image(rendered_rgb))
+
+    rr.log(&#34;/image/depth&#34;, rr.DepthImage(observed_depth))
+    rr.log(&#34;/image/depth_rendering&#34;, rr.DepthImage(rendered_depth))</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="b3d.model.color_error_helper"><code class="name flex">
+<span>def <span class="ident">color_error_helper</span></span>(<span>observed_rgb, rendered_rgb, lab_tolerance)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance):
+    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+    # valid_data_mask = jnp.full(valid_data_mask.shape, True)
+    observed_lab = b3d.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+    error = (
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+    )
+    inlier_match_mask = (error &lt; lab_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    num_data_points = jnp.size(inlier_match_mask)
+    num_inliers = jnp.sum(inlier_match_mask)
+    num_no_data = jnp.sum(1.0 - valid_data_mask)
+    num_outliers = num_data_points - num_inliers - num_no_data
+    return inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.get_depth_inlier_outlier_from_trace"><code class="name flex">
+<span>def <span class="ident">get_depth_inlier_outlier_from_trace</span></span>(<span>trace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_depth_inlier_outlier_from_trace(trace):
+    depth_tolerance = trace.get_args()[2]
+    observed_depth, rendered_depth = trace.get_retval()[1]
+    valid_data_mask = (rendered_depth != 0.0)
+    inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) &lt; depth_tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    return (inlier_match_mask, 1 - inlier_match_mask)</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.get_object_ids_from_trace"><code class="name flex">
+<span>def <span class="ident">get_object_ids_from_trace</span></span>(<span>trace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_object_ids_from_trace(trace):
+    return jnp.array([
+        trace[f&#34;object_{i}&#34;] for i in range(len(trace.get_args()[0]))
+    ])</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.get_poses_from_trace"><code class="name flex">
+<span>def <span class="ident">get_poses_from_trace</span></span>(<span>trace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_poses_from_trace(trace):
+    return Pose.stack_poses([
+        trace[f&#34;object_pose_{i}&#34;] for i in range(len(trace.get_args()[0]))
+    ])</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.get_rgb_depth_inlier_outlier_from_trace"><code class="name flex">
+<span>def <span class="ident">get_rgb_depth_inlier_outlier_from_trace</span></span>(<span>trace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_rgb_depth_inlier_outlier_from_trace(trace):
+    rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]
+    depth_inlier_mask = get_depth_inlier_outlier_from_trace(trace)[0]
+    
+    rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
+    
+    return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.get_rgb_inlier_outlier_from_trace"><code class="name flex">
+<span>def <span class="ident">get_rgb_inlier_outlier_from_trace</span></span>(<span>trace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_rgb_inlier_outlier_from_trace(trace):
+    lab_tolerance = trace.get_args()[1]
+    observed_rgb, rendered_rgb = trace.get_retval()[0]
+    inlier_match_mask = color_error_helper(
+        observed_rgb, rendered_rgb, lab_tolerance
+    )[0]
+    
+    return (inlier_match_mask, 1 - inlier_match_mask)</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.model_multiobject_gl_factory"><code class="name flex">
+<span>def <span class="ident">model_multiobject_gl_factory</span></span>(<span>renderer)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def model_multiobject_gl_factory(renderer):
+    @genjax.static_gen_fn
+    def model(
+        _num_obj_arr, # new 
+
+        color_error,
+        depth_error,
+
+        inlier_score,
+        outlier_prob,
+
+        color_multiplier,
+        depth_multiplier,
+        object_library
+    ):
+
+        object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
+        object_indices = jnp.empty((0,), dtype=int)
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f&#34;camera_pose&#34;
+            
+        for i in range(_num_obj_arr.shape[0]):        
+            object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f&#34;object_{i}&#34;
+            object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
+
+            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f&#34;object_pose_{i}&#34;
+            object_poses = Pose.concatenate_poses([object_poses, object_pose[None,...]])
+
+        rendered_rgb, rendered_depth = renderer.render_attribute(
+            object_poses,
+            object_library.vertices,
+            object_library.faces,
+            object_library.ranges[object_indices] * (object_indices &gt;= 0).reshape(-1,1),
+            object_library.attributes
+        )
+        observed_rgb = rgb_sensor_model(
+            rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
+        ) @ &#34;observed_rgb&#34;
+
+        observed_depth = depth_sensor_model(
+            rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
+        ) @ &#34;observed_depth&#34;
+        return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
+    return model</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.rerun_visualize_trace_t"><code class="name flex">
+<span>def <span class="ident">rerun_visualize_trace_t</span></span>(<span>trace, t)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rerun_visualize_trace_t(trace, t):
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    rr.set_time_sequence(&#34;frame&#34;, t)
+
+    rr.log(&#34;/image&#34;, rr.Image(observed_rgb))
+    rr.log(&#34;/image/rgb_rendering&#34;, rr.Image(rendered_rgb))
+
+    rr.log(&#34;/image/depth&#34;, rr.DepthImage(observed_depth))
+    rr.log(&#34;/image/depth_rendering&#34;, rr.DepthImage(rendered_depth))</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="b3d.model.DepthSensorModel"><code class="flex name class">
+<span>class <span class="ident">DepthSensorModel</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>DepthSensorModel()</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DepthSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
+        return rendered_depth
+
+    def logpdf(self, observed_depth,
+               rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
+
+        valid_data_mask = (rendered_depth != 0.0)
+        inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) &lt; tolerance)
+        inlier_match_mask = inlier_match_mask * valid_data_mask
+
+        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+        logp_out = jnp.log(outlier_prob)
+        logp_no_data = jnp.log(1 / 1.0)
+
+        num_data_points = jnp.size(inlier_match_mask)
+        num_inliers = jnp.sum(inlier_match_mask)
+        num_no_data = jnp.sum(1.0 - valid_data_mask)
+        num_outliers = num_data_points - num_inliers - num_no_data
+
+        log_sum_of_probs = logsumexp(jnp.array([
+            jnp.log(num_inliers) + logp_in,
+            jnp.log(num_outliers) + logp_out,
+            jnp.log(num_no_data) + logp_no_data
+        ]))
+        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+        return average_log_prob * multiplier</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>genjax._src.generative_functions.distributions.distribution.ExactDensity</li>
+<li>genjax._src.generative_functions.distributions.distribution.Distribution</li>
+<li>genjax._src.core.datatypes.generative.JAXGenerativeFunction</li>
+<li>genjax._src.core.datatypes.generative.GenerativeFunction</li>
+<li>genjax._src.core.pytree.Pytree</li>
+<li>equinox._module.Module</li>
+<li>genjax._src.generative_functions.supports_callees.SupportsCalleeSugar</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="b3d.model.DepthSensorModel" href="#b3d.model.DepthSensorModel">DepthSensorModel</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="b3d.model.DepthSensorModel.logpdf"><code class="name flex">
+<span>def <span class="ident">logpdf</span></span>(<span>self, observed_depth, rendered_depth, tolerance, inlier_score, outlier_prob, multiplier)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Given a value from the support of the distribution, compute the log
+probability of that value under the density (with respect to the standard base
+measure).</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>v: A value from the support of the distribution.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>logpdf</code></dt>
+<dd>The log density evaluated at <code>v</code>, with density configured by <code>args</code>.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logpdf(self, observed_depth,
+           rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
+
+    valid_data_mask = (rendered_depth != 0.0)
+    inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) &lt; tolerance)
+    inlier_match_mask = inlier_match_mask * valid_data_mask
+
+    logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+    logp_out = jnp.log(outlier_prob)
+    logp_no_data = jnp.log(1 / 1.0)
+
+    num_data_points = jnp.size(inlier_match_mask)
+    num_inliers = jnp.sum(inlier_match_mask)
+    num_no_data = jnp.sum(1.0 - valid_data_mask)
+    num_outliers = num_data_points - num_inliers - num_no_data
+
+    log_sum_of_probs = logsumexp(jnp.array([
+        jnp.log(num_inliers) + logp_in,
+        jnp.log(num_outliers) + logp_out,
+        jnp.log(num_no_data) + logp_no_data
+    ]))
+    average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+    return average_log_prob * multiplier</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.DepthSensorModel.sample"><code class="name flex">
+<span>def <span class="ident">sample</span></span>(<span>self, key, rendered_depth, tolerance, inlier_score, outlier_prob, multiplier)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Sample from the distribution, returning a value from the event space.</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>key: A <code>PRNGKey</code>.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>v</code></dt>
+<dd>A value from the support of the distribution.</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><code>genjax.normal</code> is a distribution with an exact density, which supports the <code>sample</code> interface. Here's an example of invoking <code>sample</code>.</p>
+<p>```python exec="yes" source="tabbed-left"
+import jax
+import genjax</p>
+<p>console = genjax.console()</p>
+<p>key = jax.random.PRNGKey(314159)
+v = genjax.normal.sample(key, 0.0, 1.0)
+print(console.render(v))</p>
+<pre><code>
+Note that you often do want or need to invoke &lt;code&gt;sample&lt;/code&gt; directly - you'll likely want to use the generative function interface methods instead:
+
+```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;
+import jax
+import genjax
+
+console = genjax.console()
+
+key = jax.random.PRNGKey(314159)
+tr = genjax.normal.simulate(key, (0.0, 1.0))
+print(console.render(tr))
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sample(self, key, rendered_depth, tolerance, inlier_score, outlier_prob, multiplier):
+    return rendered_depth</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="b3d.model.GaussianPose"><code class="flex name class">
+<span>class <span class="ident">GaussianPose</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>GaussianPose()</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, mean_pose, variance, concentration):
+        return sample_gaussian_vmf_pose(key, mean_pose, variance, concentration)
+
+    def logpdf(self, pose, mean_pose, variance, concentration):
+        translation_score = tfp.distributions.MultivariateNormalDiag(
+        mean_pose.pos, jnp.ones(3) * variance).log_prob(pose.pos)
+        quaternion_score = tfp.distributions.VonMisesFisher(
+            mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
+        ).log_prob(pose.quat)
+        return translation_score + quaternion_score</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>genjax._src.generative_functions.distributions.distribution.ExactDensity</li>
+<li>genjax._src.generative_functions.distributions.distribution.Distribution</li>
+<li>genjax._src.core.datatypes.generative.JAXGenerativeFunction</li>
+<li>genjax._src.core.datatypes.generative.GenerativeFunction</li>
+<li>genjax._src.core.pytree.Pytree</li>
+<li>equinox._module.Module</li>
+<li>genjax._src.generative_functions.supports_callees.SupportsCalleeSugar</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="b3d.model.GaussianPose" href="#b3d.model.GaussianPose">GaussianPose</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="b3d.model.GaussianPose.logpdf"><code class="name flex">
+<span>def <span class="ident">logpdf</span></span>(<span>self, pose, mean_pose, variance, concentration)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Given a value from the support of the distribution, compute the log
+probability of that value under the density (with respect to the standard base
+measure).</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>v: A value from the support of the distribution.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>logpdf</code></dt>
+<dd>The log density evaluated at <code>v</code>, with density configured by <code>args</code>.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logpdf(self, pose, mean_pose, variance, concentration):
+    translation_score = tfp.distributions.MultivariateNormalDiag(
+    mean_pose.pos, jnp.ones(3) * variance).log_prob(pose.pos)
+    quaternion_score = tfp.distributions.VonMisesFisher(
+        mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
+    ).log_prob(pose.quat)
+    return translation_score + quaternion_score</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.GaussianPose.sample"><code class="name flex">
+<span>def <span class="ident">sample</span></span>(<span>self, key, mean_pose, variance, concentration)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Sample from the distribution, returning a value from the event space.</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>key: A <code>PRNGKey</code>.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>v</code></dt>
+<dd>A value from the support of the distribution.</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><code>genjax.normal</code> is a distribution with an exact density, which supports the <code>sample</code> interface. Here's an example of invoking <code>sample</code>.</p>
+<p>```python exec="yes" source="tabbed-left"
+import jax
+import genjax</p>
+<p>console = genjax.console()</p>
+<p>key = jax.random.PRNGKey(314159)
+v = genjax.normal.sample(key, 0.0, 1.0)
+print(console.render(v))</p>
+<pre><code>
+Note that you often do want or need to invoke &lt;code&gt;sample&lt;/code&gt; directly - you'll likely want to use the generative function interface methods instead:
+
+```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;
+import jax
+import genjax
+
+console = genjax.console()
+
+key = jax.random.PRNGKey(314159)
+tr = genjax.normal.simulate(key, (0.0, 1.0))
+print(console.render(tr))
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sample(self, key, mean_pose, variance, concentration):
+    return sample_gaussian_vmf_pose(key, mean_pose, variance, concentration)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="b3d.model.RGBSensorModel"><code class="flex name class">
+<span>class <span class="ident">RGBSensorModel</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>RGBSensorModel()</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+        return rendered_rgb
+
+    def logpdf(self, observed_rgb,
+               rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+        
+        inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
+            observed_rgb, rendered_rgb, lab_tolerance
+        )
+        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+        logp_out = jnp.log(outlier_prob)
+        logp_no_data = jnp.log(1 / 1.0)
+
+
+        log_sum_of_probs = logsumexp(jnp.array([
+            jnp.log(num_inliers) + logp_in,
+            jnp.log(num_outliers) + logp_out,
+            jnp.log(num_no_data) + logp_no_data
+        ]))
+        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+
+        return average_log_prob * multiplier</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>genjax._src.generative_functions.distributions.distribution.ExactDensity</li>
+<li>genjax._src.generative_functions.distributions.distribution.Distribution</li>
+<li>genjax._src.core.datatypes.generative.JAXGenerativeFunction</li>
+<li>genjax._src.core.datatypes.generative.GenerativeFunction</li>
+<li>genjax._src.core.pytree.Pytree</li>
+<li>equinox._module.Module</li>
+<li>genjax._src.generative_functions.supports_callees.SupportsCalleeSugar</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="b3d.model.RGBSensorModel" href="#b3d.model.RGBSensorModel">RGBSensorModel</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="b3d.model.RGBSensorModel.logpdf"><code class="name flex">
+<span>def <span class="ident">logpdf</span></span>(<span>self, observed_rgb, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Given a value from the support of the distribution, compute the log
+probability of that value under the density (with respect to the standard base
+measure).</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>v: A value from the support of the distribution.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>logpdf</code></dt>
+<dd>The log density evaluated at <code>v</code>, with density configured by <code>args</code>.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logpdf(self, observed_rgb,
+           rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+    
+    inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
+        observed_rgb, rendered_rgb, lab_tolerance
+    )
+    logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+    logp_out = jnp.log(outlier_prob)
+    logp_no_data = jnp.log(1 / 1.0)
+
+
+    log_sum_of_probs = logsumexp(jnp.array([
+        jnp.log(num_inliers) + logp_in,
+        jnp.log(num_outliers) + logp_out,
+        jnp.log(num_no_data) + logp_no_data
+    ]))
+    average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+
+    return average_log_prob * multiplier</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.RGBSensorModel.sample"><code class="name flex">
+<span>def <span class="ident">sample</span></span>(<span>self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Sample from the distribution, returning a value from the event space.</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>key: A <code>PRNGKey</code>.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>v</code></dt>
+<dd>A value from the support of the distribution.</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><code>genjax.normal</code> is a distribution with an exact density, which supports the <code>sample</code> interface. Here's an example of invoking <code>sample</code>.</p>
+<p>```python exec="yes" source="tabbed-left"
+import jax
+import genjax</p>
+<p>console = genjax.console()</p>
+<p>key = jax.random.PRNGKey(314159)
+v = genjax.normal.sample(key, 0.0, 1.0)
+print(console.render(v))</p>
+<pre><code>
+Note that you often do want or need to invoke &lt;code&gt;sample&lt;/code&gt; directly - you'll likely want to use the generative function interface methods instead:
+
+```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;
+import jax
+import genjax
+
+console = genjax.console()
+
+key = jax.random.PRNGKey(314159)
+tr = genjax.normal.simulate(key, (0.0, 1.0))
+print(console.render(tr))
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sample(self, key, rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
+    return rendered_rgb</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="b3d.model.UniformDiscrete"><code class="flex name class">
+<span>class <span class="ident">UniformDiscrete</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>UniformDiscrete()</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
+    def sample(self, key, vals):
+        return jax.random.choice(key, vals)
+
+    def logpdf(self, sampled_val, vals, **kwargs):
+        return jnp.log(1.0 / (vals.shape[0]))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>genjax._src.generative_functions.distributions.distribution.ExactDensity</li>
+<li>genjax._src.generative_functions.distributions.distribution.Distribution</li>
+<li>genjax._src.core.datatypes.generative.JAXGenerativeFunction</li>
+<li>genjax._src.core.datatypes.generative.GenerativeFunction</li>
+<li>genjax._src.core.pytree.Pytree</li>
+<li>equinox._module.Module</li>
+<li>genjax._src.generative_functions.supports_callees.SupportsCalleeSugar</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="b3d.model.UniformDiscrete" href="#b3d.model.UniformDiscrete">UniformDiscrete</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="b3d.model.UniformDiscrete.logpdf"><code class="name flex">
+<span>def <span class="ident">logpdf</span></span>(<span>self, sampled_val, vals, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Given a value from the support of the distribution, compute the log
+probability of that value under the density (with respect to the standard base
+measure).</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>v: A value from the support of the distribution.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>logpdf</code></dt>
+<dd>The log density evaluated at <code>v</code>, with density configured by <code>args</code>.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logpdf(self, sampled_val, vals, **kwargs):
+    return jnp.log(1.0 / (vals.shape[0]))</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.UniformDiscrete.sample"><code class="name flex">
+<span>def <span class="ident">sample</span></span>(<span>self, key, vals)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Sample from the distribution, returning a value from the event space.</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>key: A <code>PRNGKey</code>.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>v</code></dt>
+<dd>A value from the support of the distribution.</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><code>genjax.normal</code> is a distribution with an exact density, which supports the <code>sample</code> interface. Here's an example of invoking <code>sample</code>.</p>
+<p>```python exec="yes" source="tabbed-left"
+import jax
+import genjax</p>
+<p>console = genjax.console()</p>
+<p>key = jax.random.PRNGKey(314159)
+v = genjax.normal.sample(key, 0.0, 1.0)
+print(console.render(v))</p>
+<pre><code>
+Note that you often do want or need to invoke &lt;code&gt;sample&lt;/code&gt; directly - you'll likely want to use the generative function interface methods instead:
+
+```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;
+import jax
+import genjax
+
+console = genjax.console()
+
+key = jax.random.PRNGKey(314159)
+tr = genjax.normal.simulate(key, (0.0, 1.0))
+print(console.render(tr))
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sample(self, key, vals):
+    return jax.random.choice(key, vals)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="b3d.model.UniformPose"><code class="flex name class">
+<span>class <span class="ident">UniformPose</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>UniformPose()</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, low, high):
+        return sample_uniform_pose(key, low, high)
+
+    def logpdf(self, pose, low, high):
+        position = pose.pos
+        valid = ((low &lt;= position) &amp; (position &lt;= high))
+        position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
+        return position_score.sum() + jnp.pi**2</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>genjax._src.generative_functions.distributions.distribution.ExactDensity</li>
+<li>genjax._src.generative_functions.distributions.distribution.Distribution</li>
+<li>genjax._src.core.datatypes.generative.JAXGenerativeFunction</li>
+<li>genjax._src.core.datatypes.generative.GenerativeFunction</li>
+<li>genjax._src.core.pytree.Pytree</li>
+<li>equinox._module.Module</li>
+<li>genjax._src.generative_functions.supports_callees.SupportsCalleeSugar</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="b3d.model.UniformPose" href="#b3d.model.UniformPose">UniformPose</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="b3d.model.UniformPose.logpdf"><code class="name flex">
+<span>def <span class="ident">logpdf</span></span>(<span>self, pose, low, high)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Given a value from the support of the distribution, compute the log
+probability of that value under the density (with respect to the standard base
+measure).</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>v: A value from the support of the distribution.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>logpdf</code></dt>
+<dd>The log density evaluated at <code>v</code>, with density configured by <code>args</code>.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logpdf(self, pose, low, high):
+    position = pose.pos
+    valid = ((low &lt;= position) &amp; (position &lt;= high))
+    position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
+    return position_score.sum() + jnp.pi**2</code></pre>
+</details>
+</dd>
+<dt id="b3d.model.UniformPose.sample"><code class="name flex">
+<span>def <span class="ident">sample</span></span>(<span>self, key, low, high)</span>
+</code></dt>
+<dd>
+<div class="desc"><blockquote>
+<p>Sample from the distribution, returning a value from the event space.</p>
+</blockquote>
+<h2 id="arguments">Arguments</h2>
+<p>key: A <code>PRNGKey</code>.
+*args: The arguments to the distribution invocation.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>v</code></dt>
+<dd>A value from the support of the distribution.</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><code>genjax.normal</code> is a distribution with an exact density, which supports the <code>sample</code> interface. Here's an example of invoking <code>sample</code>.</p>
+<p>```python exec="yes" source="tabbed-left"
+import jax
+import genjax</p>
+<p>console = genjax.console()</p>
+<p>key = jax.random.PRNGKey(314159)
+v = genjax.normal.sample(key, 0.0, 1.0)
+print(console.render(v))</p>
+<pre><code>
+Note that you often do want or need to invoke &lt;code&gt;sample&lt;/code&gt; directly - you'll likely want to use the generative function interface methods instead:
+
+```python exec=&quot;yes&quot; source=&quot;tabbed-left&quot;
+import jax
+import genjax
+
+console = genjax.console()
+
+key = jax.random.PRNGKey(314159)
+tr = genjax.normal.simulate(key, (0.0, 1.0))
+print(console.render(tr))
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sample(self, key, low, high):
+    return sample_uniform_pose(key, low, high)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="b3d" href="index.html">b3d</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="b3d.model.color_error_helper" href="#b3d.model.color_error_helper">color_error_helper</a></code></li>
+<li><code><a title="b3d.model.get_depth_inlier_outlier_from_trace" href="#b3d.model.get_depth_inlier_outlier_from_trace">get_depth_inlier_outlier_from_trace</a></code></li>
+<li><code><a title="b3d.model.get_object_ids_from_trace" href="#b3d.model.get_object_ids_from_trace">get_object_ids_from_trace</a></code></li>
+<li><code><a title="b3d.model.get_poses_from_trace" href="#b3d.model.get_poses_from_trace">get_poses_from_trace</a></code></li>
+<li><code><a title="b3d.model.get_rgb_depth_inlier_outlier_from_trace" href="#b3d.model.get_rgb_depth_inlier_outlier_from_trace">get_rgb_depth_inlier_outlier_from_trace</a></code></li>
+<li><code><a title="b3d.model.get_rgb_inlier_outlier_from_trace" href="#b3d.model.get_rgb_inlier_outlier_from_trace">get_rgb_inlier_outlier_from_trace</a></code></li>
+<li><code><a title="b3d.model.model_multiobject_gl_factory" href="#b3d.model.model_multiobject_gl_factory">model_multiobject_gl_factory</a></code></li>
+<li><code><a title="b3d.model.rerun_visualize_trace_t" href="#b3d.model.rerun_visualize_trace_t">rerun_visualize_trace_t</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="b3d.model.DepthSensorModel" href="#b3d.model.DepthSensorModel">DepthSensorModel</a></code></h4>
+<ul class="">
+<li><code><a title="b3d.model.DepthSensorModel.logpdf" href="#b3d.model.DepthSensorModel.logpdf">logpdf</a></code></li>
+<li><code><a title="b3d.model.DepthSensorModel.sample" href="#b3d.model.DepthSensorModel.sample">sample</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="b3d.model.GaussianPose" href="#b3d.model.GaussianPose">GaussianPose</a></code></h4>
+<ul class="">
+<li><code><a title="b3d.model.GaussianPose.logpdf" href="#b3d.model.GaussianPose.logpdf">logpdf</a></code></li>
+<li><code><a title="b3d.model.GaussianPose.sample" href="#b3d.model.GaussianPose.sample">sample</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="b3d.model.RGBSensorModel" href="#b3d.model.RGBSensorModel">RGBSensorModel</a></code></h4>
+<ul class="">
+<li><code><a title="b3d.model.RGBSensorModel.logpdf" href="#b3d.model.RGBSensorModel.logpdf">logpdf</a></code></li>
+<li><code><a title="b3d.model.RGBSensorModel.sample" href="#b3d.model.RGBSensorModel.sample">sample</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="b3d.model.UniformDiscrete" href="#b3d.model.UniformDiscrete">UniformDiscrete</a></code></h4>
+<ul class="">
+<li><code><a title="b3d.model.UniformDiscrete.logpdf" href="#b3d.model.UniformDiscrete.logpdf">logpdf</a></code></li>
+<li><code><a title="b3d.model.UniformDiscrete.sample" href="#b3d.model.UniformDiscrete.sample">sample</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="b3d.model.UniformPose" href="#b3d.model.UniformPose">UniformPose</a></code></h4>
+<ul class="">
+<li><code><a title="b3d.model.UniformPose.logpdf" href="#b3d.model.UniformPose.logpdf">logpdf</a></code></li>
+<li><code><a title="b3d.model.UniformPose.sample" href="#b3d.model.UniformPose.sample">sample</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

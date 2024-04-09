@@ -37,6 +37,7 @@ from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
 from warnings import warn
 from typing import Any, NamedTuple, TypeAlias
+import numpy as np
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -46,23 +47,8 @@ Quaternion: TypeAlias = Array
 def multiply_quats(q1, q2):
     return (Rot.from_quat(q1)*Rot.from_quat(q2)).as_quat()
 
-
 def multiply_quat_and_vec(q, vs):
     return Rot.from_quat(q).apply(vs)
-
-
-def choose_good_quat(q):
-    &#34;&#34;&#34;
-    If the real part of the quaternion is negative, 
-    return the antipodal quaternion, 
-    which represents the same rotation.
-
-    Recall that SO(3) is isomorphic to  S^3/x~-x and 
-    also to D^3/~ where x~-x for x in S^2 = \partial D^3.
-    &#34;&#34;&#34;
-    # TODO: choose good representative if q[3]==0 there is still ambiguity.
-    return jnp.where(q[...,[3]] ==0 , q, jnp.sign(q[...,[3]])*q)
-
 
 def sample_uniform_pose(key, low, high):
     keys = jax.random.split(key, 2)
@@ -100,7 +86,7 @@ def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     return mean_pose @ Pose(translation, quat)
 
 
-def camera_from_position_and_target(position, target, up=jnp.array([0., 0., 1.])):
+def camera_from_position_and_target(position, target=jnp.array([0., 0., 0.]), up=jnp.array([0., 0., 1.])):
     &#34;&#34;&#34;
     Create a camera pose at `position` with the camera-z-axis pointint at `target`.
     Recall that in world coordinates we assume z-axis is up.
@@ -233,19 +219,15 @@ class Pose:
                     multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
-        warn(&#34;Adding poses makes little sense!&#34;)
         return Pose(self.pos + pose.pos, self.quat + pose.quat)
 
     def __sub__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
-        warn(&#34;Adding poses makes little sense!&#34;)
         return Pose(self.pos - pose.pos, self.quat - pose.quat)
 
     def scale(self, scale: Float) -&gt; &#34;Pose&#34;:
-        raise Warning(&#34;Scaling a pose is makes no sense!&#34;)
         return Pose(self.pos * scale, self.quat * scale)
 
     def __mul__(self, scale: Float) -&gt; &#34;Pose&#34;:
-        raise Warning(&#34;Scaling a pose makes no sense!&#34;)
         return self.scale(scale)
 
     def __matmul__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
@@ -352,7 +334,7 @@ class Pose:
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="b3d.pose.camera_from_position_and_target"><code class="name flex">
-<span>def <span class="ident">camera_from_position_and_target</span></span>(<span>position, target, up=Array([0., 0., 1.], dtype=float32))</span>
+<span>def <span class="ident">camera_from_position_and_target</span></span>(<span>position, target=Array([0., 0., 0.], dtype=float32), up=Array([0., 0., 1.], dtype=float32))</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Create a camera pose at <code>position</code> with the camera-z-axis pointint at <code>target</code>.
@@ -365,7 +347,7 @@ Recall that in world coordinates we assume z-axis is up.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def camera_from_position_and_target(position, target, up=jnp.array([0., 0., 1.])):
+<pre><code class="python">def camera_from_position_and_target(position, target=jnp.array([0., 0., 0.]), up=jnp.array([0., 0., 1.])):
     &#34;&#34;&#34;
     Create a camera pose at `position` with the camera-z-axis pointint at `target`.
     Recall that in world coordinates we assume z-axis is up.
@@ -391,33 +373,6 @@ Recall that in world coordinates we assume z-axis is up.</p>
         position,
         Rot.from_matrix(rotation_matrix).as_quat()
     )</code></pre>
-</details>
-</dd>
-<dt id="b3d.pose.choose_good_quat"><code class="name flex">
-<span>def <span class="ident">choose_good_quat</span></span>(<span>q)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>If the real part of the quaternion is negative,
-return the antipodal quaternion,
-which represents the same rotation.</p>
-<p>Recall that SO(3) is isomorphic to
-S^3/x~-x and
-also to D^3/~ where x~-x for x in S^2 = \partial D^3.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def choose_good_quat(q):
-    &#34;&#34;&#34;
-    If the real part of the quaternion is negative, 
-    return the antipodal quaternion, 
-    which represents the same rotation.
-
-    Recall that SO(3) is isomorphic to  S^3/x~-x and 
-    also to D^3/~ where x~-x for x in S^2 = \partial D^3.
-    &#34;&#34;&#34;
-    # TODO: choose good representative if q[3]==0 there is still ambiguity.
-    return jnp.where(q[...,[3]] ==0 , q, jnp.sign(q[...,[3]])*q)</code></pre>
 </details>
 </dd>
 <dt id="b3d.pose.logpdf_uniform_pose"><code class="name flex">
@@ -645,19 +600,15 @@ class Pose:
                     multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
-        warn(&#34;Adding poses makes little sense!&#34;)
         return Pose(self.pos + pose.pos, self.quat + pose.quat)
 
     def __sub__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
-        warn(&#34;Adding poses makes little sense!&#34;)
         return Pose(self.pos - pose.pos, self.quat - pose.quat)
 
     def scale(self, scale: Float) -&gt; &#34;Pose&#34;:
-        raise Warning(&#34;Scaling a pose is makes no sense!&#34;)
         return Pose(self.pos * scale, self.quat * scale)
 
     def __mul__(self, scale: Float) -&gt; &#34;Pose&#34;:
-        raise Warning(&#34;Scaling a pose makes no sense!&#34;)
         return self.scale(scale)
 
     def __matmul__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
@@ -1153,7 +1104,7 @@ def xyzw(self): return self._quaternion</code></pre>
 </details>
 </dd>
 <dt id="b3d.pose.Pose.from_position_and_target"><code class="name flex">
-<span>def <span class="ident">from_position_and_target</span></span>(<span>position, target, up=Array([0., 0., 1.], dtype=float32))</span>
+<span>def <span class="ident">from_position_and_target</span></span>(<span>position, target=Array([0., 0., 0.], dtype=float32), up=Array([0., 0., 1.], dtype=float32))</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Create a camera pose at <code>position</code> with the camera-z-axis pointint at <code>target</code>.
@@ -1166,7 +1117,7 @@ Recall that in world coordinates we assume z-axis is up.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def camera_from_position_and_target(position, target, up=jnp.array([0., 0., 1.])):
+<pre><code class="python">def camera_from_position_and_target(position, target=jnp.array([0., 0., 0.]), up=jnp.array([0., 0., 1.])):
     &#34;&#34;&#34;
     Create a camera pose at `position` with the camera-z-axis pointint at `target`.
     Recall that in world coordinates we assume z-axis is up.
@@ -1366,7 +1317,6 @@ approximateley the inverse of the variance.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def scale(self, scale: Float) -&gt; &#34;Pose&#34;:
-    raise Warning(&#34;Scaling a pose is makes no sense!&#34;)
     return Pose(self.pos * scale, self.quat * scale)</code></pre>
 </details>
 </dd>
@@ -1415,7 +1365,6 @@ approximateley the inverse of the variance.</p>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="b3d.pose.camera_from_position_and_target" href="#b3d.pose.camera_from_position_and_target">camera_from_position_and_target</a></code></li>
-<li><code><a title="b3d.pose.choose_good_quat" href="#b3d.pose.choose_good_quat">choose_good_quat</a></code></li>
 <li><code><a title="b3d.pose.logpdf_uniform_pose" href="#b3d.pose.logpdf_uniform_pose">logpdf_uniform_pose</a></code></li>
 <li><code><a title="b3d.pose.multiply_quat_and_vec" href="#b3d.pose.multiply_quat_and_vec">multiply_quat_and_vec</a></code></li>
 <li><code><a title="b3d.pose.multiply_quats" href="#b3d.pose.multiply_quats">multiply_quats</a></code></li>

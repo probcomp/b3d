@@ -10,14 +10,7 @@ from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import functools
 import os
-
 import b3d.nvdiffrast.jax as dr
-
-
-def get_assets_dir():
-    return os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "assets"
-    )
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
@@ -46,57 +39,36 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     )
     return orth @ persp @ view
 
-# @staticmethod
-# @functools.partial(
-#     jnp.vectorize,
-#     signature="(2),(),(m,4,4),()->(3)",
-#     excluded=(
-#         4,
-#         5,
-#         6,
-#     ),
-# )
-# def interpolate_depth(uv, triangle_id, poses, object_id, vertices, faces, ranges):
-#     relevant_vertices = vertices[faces[triangle_id-1]]
-#     pose_of_object = poses[object_id-1]
-#     relevant_vertices_transformed = relevant_vertices @ pose_of_object.T
-#     barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
-#     interpolated_value = (relevant_vertices_transformed[:,:3] * barycentric.reshape(3,1)).sum(0)
-#     return interpolated_value
-
-# @staticmethod
-# @functools.partial(
-#     jnp.vectorize,
-#     signature="(2),()->(k)",
-#     excluded=(
-#         2,
-#         3,
-#     ),
-# )
-# def interpolate_attribute(uv, triangle_id, faces, attributes):
-#     relevant_attributes = attributes[faces[triangle_id-1]]
-#     barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
-#     interpolated_value = (relevant_attributes[:,:] * barycentric.reshape(3,1)).sum(0)
-#     return interpolated_value
-
 class Renderer(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
-        """A renderer for rendering meshes.
+        """
+        Triangle mesh renderer.
 
-        Args:
-            intrinsics (bayes3d.camera): The camera intrinsics.
-            num_layers (int, optional): The number of scenes to render in parallel. Defaults to 1024.
+        Parameters:
+            width: int
+                Image width.
+            height: int
+                Image height.
+            fx: float
+                Focal length x.
+            fy: float
+                Focal length y.
+            cx: float
+                Principal point x.
+            cy: float
+                Principal point y.
+            near: float
+                Near plane.
+            far: float
+                Far plane.
+            num_layers: int
+                Number of layers in the depth buffer.
         """
         self.width, self.height = width, height
         self.resolution = jnp.array([height, width]).astype(jnp.int32)
         self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
-        self.rasterize = jax.tree_util.Partial(self._rasterize, self)
-        # self.interpolate = jax.tree_util.Partial(self._interpolate, self)
-
-    # ------------------
-    # Rasterization
-    # ------------------
+        self._rasterize_partial = jax.tree_util.Partial(self._rasterize, self)
 
     @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
     def _rasterize(self, pose, pos, tri, ranges, projMatrix, resolution):
@@ -123,27 +95,36 @@ class Renderer(object):
     def interpolate(self, attributes, uvs, triangle_ids, faces):
         return self.interpolate_many(attributes, uvs[None,...], triangle_ids[None,...], faces)[0]
 
-    # def _interpolate_fwd(self, attributes, uvs, triangle_ids, faces):
-    #     out = _interpolate_fwd_custom_call(self, attributes, uvs, triangle_ids, faces, )
-    #     saved_tensors = (attributes, uvs, triangle_ids, faces, )
+    def rasterize_many(self, poses, vertices, faces, ranges):
+        """
+        Rasterize many scenes in parallel. For scene number S and pixel at row i and column j,
+        uvs[S, i, j] contains the u and v barycentric coordinates of the intersection point with
+        triangle index at triangle_ids[S, i, j] - 1 which is on object index object_ids[S, i, j] - 1.
+        And the z coordinate of the intersection point is z[S, i, j].
+        If the pixel's ray did not intersect any triangle, the values in corresponding pixel is 0.
 
-    #     return out, saved_tensors
-    
-    # def _interpolate_bwd(self, saved_tensors, diffs):
-    #     attr, rast, tri = saved_tensors
-    #     dy, _ = diffs 
-    #     g_attr, g_rast = _interpolate_bwd_custom_call(self, attr, rast, tri, dy)
-    #     return g_attr, g_rast, None
-    
-    # _interpolate.defvjp(_interpolate_fwd, 
-    #                     _interpolate_bwd)
-
-    #####
-
-    def render_many(self, poses, vertices, faces, ranges):
+        Parameters:
+            poses: float array, shape (num_scenes, num_objects, 4, 4)
+                Object pose matrix.
+            vertices: float array, shape (num_vertices, 3)
+                Vertex position matrix.
+            faces: int array, shape (num_triangles, 3)
+                Faces Triangle matrix. The integers correspond to rows in the vertices matrix.
+            ranges: int array, shape (num_objects, 2)
+                Ranges matrix with the 2 elements specify start indices and counts into faces.
+        Outputs:
+            uvs: float array, shape (num_scenes, height, width, 2)
+                UV coordinates of the intersection point on the triangle. Zeros if the pixel ray doesn't collide a triangle.
+            object_ids: int array, shape (num_scenes, height, width)
+                Index + 1 of the object that this pixel ray intersections. Zero if the pixel ray doesn't collide a triangle.
+            triangle_ids: int array, shape (num_scenes, height, width)
+                Index + 1 of the triangle face that this pixel ray intersections. Zero if the pixel ray doesn't collide a triangle.
+            zs: float array, shape (num_scenes, height, width)
+                Depth of the intersection point. Zero if the pixel ray doesn't collide a triangle.
+        """
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
-        rast_out, rast_out_aux = self.rasterize(
-            poses,
+        rast_out, rast_out_aux = self._rasterize_partial(
+            poses.as_matrix(),
             vertices_h,
             faces,
             ranges,
@@ -156,12 +137,57 @@ class Renderer(object):
         triangle_ids = rast_out_aux[...,1]
         return uvs, object_ids, triangle_ids, zs
 
-    def render(self, pose, vertices, faces, ranges):
-        uvs, object_ids, triangle_ids, zs = self.render_many(pose[None,...], vertices, faces, ranges)
+    def rasterize(self, pose, vertices, faces, ranges):
+        """
+        Rasterize a singe scene. 
+
+        Parameters:
+            poses: float array, shape (num_objects, 4, 4)
+                Object pose matrix.
+            vertices: float array, shape (num_vertices, 3)
+                Vertex position matrix.
+            faces: int array, shape (num_triangles, 3)
+                Faces Triangle matrix. The integers correspond to rows in the vertices matrix.
+            ranges: int array, shape (num_objects, 2)
+                Ranges matrix with the 2 elements specify start indices and counts into faces.
+        Outputs:
+            uvs: float array, shape (height, width, 2)
+                UV coordinates of the intersection point on the triangle. Zeros if the pixel ray doesn't collide a triangle.
+            object_ids: int array, shape (height, width)
+                Index + 1 of the object that this pixel ray intersections. Zero if the pixel ray doesn't collide a triangle.
+            triangle_ids: int array, shape (height, width)
+                Index + 1 of the triangle face that this pixel ray intersections. Zero if the pixel ray doesn't collide a triangle.
+            zs: float array, shape (height, width)
+                Depth of the intersection point. Zero if the pixel ray doesn't collide a triangle.
+        """
+        uvs, object_ids, triangle_ids, zs = self.rasterize_many(pose[None,...], vertices, faces, ranges)
         return uvs[0], object_ids[0], triangle_ids[0], zs[0]
 
     def render_attribute_many(self, poses, vertices, faces, ranges, attributes):
-        uvs, object_ids, triangle_ids, zs = self.render_many(poses, vertices, faces, ranges)
+        """
+        Render many scenes to an image by rasterizing and then interpolating attributes.
+
+        Parameters:
+            poses: float array, shape (num_scenes, num_objects, 4, 4)
+                Object pose matrix.
+            vertices: float array, shape (num_vertices, 3)
+                Vertex position matrix.
+            faces: int array, shape (num_triangles, 3)
+                Faces Triangle matrix. The integers correspond to rows in the vertices matrix.
+            ranges: int array, shape (num_objects, 2)
+                Ranges matrix with the 2 elements specify start indices and counts into faces.
+            attributes: float array, shape (num_vertices, num_attributes)
+                Attributes corresponding to the vertices
+
+        Outputs:
+            image: float array, shape (num_scenes, height, width, num_attributes)
+                At each pixel the value is the barycentric interpolation of the attributes corresponding to the
+                3 vertices of the triangle with which the pixel's ray intersected. If the pixel's ray does not intersect
+                any triangle the value at that pixel will be 0s.
+            zs: float array, shape (num_scenes, height, width)
+                Depth of the intersection point. Zero if the pixel ray doesn't collide a triangle.
+        """
+        uvs, object_ids, triangle_ids, zs = self.rasterize_many(poses, vertices, faces, ranges)
         mask = object_ids > 0
 
         interpolated_values = self.interpolate_many(
@@ -173,8 +199,33 @@ class Renderer(object):
         return image, zs
     
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
+        """
+        Render a single scenes to an image by rasterizing and then interpolating attributes.
+
+        Parameters:
+            poses: float array, shape (num_objects, 4, 4)
+                Object pose matrix.
+            vertices: float array, shape (num_vertices, 3)
+                Vertex position matrix.
+            faces: int array, shape (num_triangles, 3)
+                Faces Triangle matrix. The integers correspond to rows in the vertices matrix.
+            ranges: int array, shape (num_objects, 2)
+                Ranges matrix with the 2 elements specify start indices and counts into faces.
+            attributes: float array, shape (num_vertices, num_attributes)
+                Attributes corresponding to the vertices
+
+        Outputs:
+            image: float array, shape (height, width, num_attributes)
+                At each pixel the value is the barycentric interpolation of the attributes corresponding to the
+                3 vertices of the triangle with which the pixel's ray intersected. If the pixel's ray does not intersect
+                any triangle the value at that pixel will be 0s.
+            zs: float array, shape (height, width)
+                Depth of the intersection point. Zero if the pixel ray doesn't collide a triangle.
+        """
         image, zs =  self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)
         return image[0], zs[0]
+
+
 
 # XLA array layout in memory
 def default_layouts(*shapes):

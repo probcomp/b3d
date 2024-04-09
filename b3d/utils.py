@@ -19,11 +19,11 @@ from b3d import Pose
 
 from dataclasses import dataclass
 
-def get_root() -> Path: return Path(Path(b3d.__file__).parents[1])
+def get_root_path() -> Path: return Path(Path(b3d.__file__).parents[1])
 
 def get_assets() -> Path:
     """The absolute path of the assets directory on current machine"""
-    assets_dir_path = get_root() / 'assets'
+    assets_dir_path = get_root_path() / 'assets'
 
     if not os.path.exists(assets_dir_path):
         os.makedirs(assets_dir_path)
@@ -210,6 +210,24 @@ enumerate_choices_get_scores = jax.vmap(
     in_axes=(None, None, None, 0),
 )
 enumerate_choices_get_scores_jit = jax.jit(enumerate_choices_get_scores, static_argnums=(2,))
+
+
+# Enumerative proposal function
+from functools import partial
+@partial(jax.jit, static_argnames=['addressses'])
+def enumerate_and_select_best_move(trace, addressses, key, all_deltas):
+    addr = addressses.const[0]
+    current_pose = trace[addr]
+    for i in range(len(all_deltas)):
+        test_poses = current_pose @ all_deltas[i]
+        potential_scores = b3d.enumerate_choices_get_scores(
+            trace, jax.random.PRNGKey(0), addressses, test_poses
+        )
+        current_pose = test_poses[potential_scores.argmax()]
+    trace = b3d.update_choices(
+        trace, key, addressses, current_pose
+    )
+    return trace, key
 
 
 def nn_background_segmentation(images):

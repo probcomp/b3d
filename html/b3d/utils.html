@@ -27,16 +27,373 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">import jax.numpy as jnp
+from functools import partial
+import numpy as np
+from collections import namedtuple
+import genjax
+from PIL import Image
+import subprocess
+import jax
+import sklearn.cluster
+
+import inspect
+from inspect import signature
+import genjax
+import b3d
+from pathlib import Path
+import os
+import trimesh
+from b3d import Pose
+
+from dataclasses import dataclass
+
+def get_root_path() -&gt; Path: return Path(Path(b3d.__file__).parents[1])
+
+def get_assets() -&gt; Path:
+    &#34;&#34;&#34;The absolute path of the assets directory on current machine&#34;&#34;&#34;
+    assets_dir_path = get_root_path() / &#39;assets&#39;
+
+    if not os.path.exists(assets_dir_path):
+        os.makedirs(assets_dir_path)
+        print(f&#34;Initialized empty directory for shared bucket data at {assets_dir_path}.&#34;)
+
+    return assets_dir_path
+
+get_assets_path = get_assets
+
+def get_shared() -&gt; Path:
+    &#34;&#34;&#34;The absolute path of the assets directory on current machine&#34;&#34;&#34;
+    data_dir_path = get_assets() / &#39;shared_data_bucket&#39;
+
+    if not os.path.exists(data_dir_path):
+        os.makedirs(data_dir_path)
+        print(f&#34;Initialized empty directory for shared bucket data at {data_dir_path}.&#34;)
+
+    return data_dir_path
+
+def get_gcloud_bucket_ref()-&gt; str: return &#34;gs://hgps_data_bucket&#34;
 
 def xyz_from_depth(
     z: &#34;Depth Image&#34;, 
     fx, fy, cx, cy
 ):
-    v, u = jnp.mgrid[: z.shape[0], : z.shape[1]] + 0.5
+    v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
     x = (u - cx) / fx
     y = (v - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
-    return xyz</code></pre>
+    return xyz
+
+
+@partial(jnp.vectorize, signature=&#39;(k)-&gt;(k)&#39;)
+def rgb_to_lab(rgb):
+    # Convert sRGB to linear RGB
+    rgb = jnp.clip(rgb, 0, 1)
+    mask = rgb &gt; 0.04045
+    rgb = jnp.where(mask, jnp.power((rgb + 0.055) / 1.055, 2.4), rgb / 12.92)
+
+    # RGB to XYZ
+    # https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
+    rgb_to_xyz = jnp.array([[0.4124564, 0.3575761, 0.1804375],
+                            [0.2126729, 0.7151522, 0.0721750],
+                            [0.0193339, 0.1191920, 0.9503041]])
+    xyz = jnp.dot(rgb, rgb_to_xyz.T)
+
+    # XYZ to LAB
+    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIEXYZ_to_CIELAB
+    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])  # D65 white point
+    xyz_normalized = xyz / xyz_ref
+    mask = xyz_normalized &gt; 0.008856
+    xyz_f = jnp.where(mask, jnp.power(xyz_normalized, 1/3), 7.787 * xyz_normalized + 16/116)
+
+    L = 116 * xyz_f[1] - 16
+    a = 500 * (xyz_f[0] - xyz_f[1])
+    b = 200 * (xyz_f[1] - xyz_f[2])
+
+    lab = jnp.stack([L, a, b], axis=-1)
+    return lab
+
+
+def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
+    c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
+    labels = c.labels_
+    unique, counts = np.unique(labels, return_counts=True)
+    order = np.argsort(-counts)
+    counter = 0
+    new_labels = np.array(labels)
+    for index in order:
+        if unique[index] == -1:
+            continue
+        if counts[index] &gt;= min_points_in_cluster:
+            val = counter
+        else:
+            val = -1
+        new_labels[labels == unique[index]] = val
+        counter += 1
+    return new_labels
+
+
+
+def make_mesh_from_point_cloud_and_resolution(
+    grid_centers, grid_colors, resolutions
+):
+    box_mesh = trimesh.creation.box(jnp.ones(3))
+    base_vertices, base_faces = jnp.array(box_mesh.vertices), jnp.array(box_mesh.faces)
+
+    def process_ith_ball(
+        i,
+        positions,
+        colors,
+        base_vertices,
+        base_faces,
+        resolutions          
+    ):
+        transform = Pose.from_translation(positions[i])
+        new_vertices = base_vertices * resolutions[i]
+        new_vertices = transform.apply(new_vertices)
+        return (
+            new_vertices,
+            base_faces + i*len(new_vertices),
+            jnp.tile(colors[i][None,...],(len(base_vertices),1)),
+            jnp.tile(colors[i][None,...],(len(base_faces),1)),
+        )
+
+    vertices_, faces_, vertex_colors_, face_colors_ = jax.vmap(
+        process_ith_ball, in_axes=(0, None, None, None, None, None)
+    )(
+        jnp.arange(len(grid_centers)),
+        grid_centers,
+        grid_colors,
+        base_vertices,
+        base_faces,
+        resolutions * 1.0
+    )
+
+    vertices = jnp.concatenate(vertices_, axis=0)
+    faces = jnp.concatenate(faces_, axis=0)
+    vertex_colors = jnp.concatenate(vertex_colors_, axis=0)
+    face_colors = jnp.concatenate(face_colors_, axis=0)
+    return vertices, faces, vertex_colors, face_colors
+
+
+
+def get_rgb_pil_image(image, max=1.0):
+    &#34;&#34;&#34;Convert an RGB image to a PIL image.
+
+    Args:
+        image (np.ndarray): RGB image. Shape (H, W, 3).
+        max (float): Maximum value for colormap.
+    Returns:
+        PIL.Image: RGB image visualized as a PIL image.
+    &#34;&#34;&#34;
+    image = np.clip(image, 0.0, max)
+    if image.shape[-1] == 3:
+        image_type = &#34;RGB&#34;
+    else:
+        image_type = &#34;RGBA&#34;
+
+    img = Image.fromarray(
+        np.rint(image / max * 255.0).astype(np.int8),
+        mode=image_type,
+    ).convert(&#34;RGB&#34;)
+    return img
+
+def make_onehot(n, i, hot=1, cold=0):
+    return tuple(cold if j != i else hot for j in range(n))
+
+
+def multivmap(f, args=None):
+    if args is None:
+        args = (True,) * len(inspect.signature(f).parameters)
+    multivmapped = f
+    for i, ismapped in reversed(list(enumerate(args))):
+        if ismapped:
+            multivmapped = jax.vmap(
+                multivmapped, in_axes=make_onehot(len(args), i, hot=0, cold=None)
+            )
+    return multivmapped
+
+
+def update_choices(trace, key, addr_const, *values):
+    addresses = addr_const.const
+    return trace.update(
+        key,
+        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.Diff.tree_diff_unknown_change(trace.get_args())
+    )[0]
+update_choices_jit = jax.jit(update_choices, static_argnums=(2,))
+
+
+def update_choices_get_score(trace, key, addr_const, *values):
+    return update_choices(trace, key, addr_const, *values).get_score()
+update_choices_get_score_jit = jax.jit(update_choices_get_score, static_argnums=(2,))
+
+enumerate_choices = jax.vmap(
+    update_choices,
+    in_axes=(None, None, None, 0),
+)
+enumerate_choices_jit = jax.jit(enumerate_choices, static_argnums=(2,))
+
+enumerate_choices_get_scores = jax.vmap(
+    update_choices_get_score,
+    in_axes=(None, None, None, 0),
+)
+enumerate_choices_get_scores_jit = jax.jit(enumerate_choices_get_scores, static_argnums=(2,))
+
+
+# Enumerative proposal function
+from functools import partial
+@partial(jax.jit, static_argnames=[&#39;addressses&#39;])
+def enumerate_and_select_best_move(trace, addressses, key, all_deltas):
+    addr = addressses.const[0]
+    current_pose = trace[addr]
+    for i in range(len(all_deltas)):
+        test_poses = current_pose @ all_deltas[i]
+        potential_scores = b3d.enumerate_choices_get_scores(
+            trace, jax.random.PRNGKey(0), addressses, test_poses
+        )
+        current_pose = test_poses[potential_scores.argmax()]
+    trace = b3d.update_choices(
+        trace, key, addressses, current_pose
+    )
+    return trace, key
+
+
+def nn_background_segmentation(images):
+    import torch
+    from carvekit.api.high import HiInterface
+
+    # Check doc strings for more information
+    interface = HiInterface(object_type=&#34;object&#34;,  # Can be &#34;object&#34; or &#34;hairs-like&#34;.
+                            batch_size_seg=5,
+                            batch_size_matting=1,
+                            device=&#39;cuda&#39; if torch.cuda.is_available() else &#39;cpu&#39;,
+                            seg_mask_size=640,  # Use 640 for Tracer B7 and 320 for U2Net
+                            matting_mask_size=2048,
+                            trimap_prob_threshold=231,
+                            trimap_dilation=30,
+                            trimap_erosion_iters=5,
+                            fp16=False)
+
+
+    output_images = interface(images)
+    masks  = jnp.array([jnp.array(output_image)[..., -1] &gt; 0.5 for output_image in output_images])
+    return masks
+
+
+
+from typing import Any, NamedTuple, TypeAlias
+import jax
+Array: TypeAlias = jax.Array
+
+@dataclass
+class VideoInput:
+    &#34;&#34;&#34;
+    Video data input. Note: Spatial units are measured in meters.
+
+    World Coordinates. The floor is x,y and up is z.
+    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera, 
+        x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
+    Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
+    Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
+        The camera matrix is given by: $$ K = \begin{bmatrix} f_x &amp; 0 &amp; c_x \ 0 &amp; f_y &amp; c_y \ 0 &amp; 0 &amp; 1 \end{bmatrix} $$
+    Spatial units. Spatial units are measured in meters (if not indicated otherwise).
+
+    **Attributes:**
+    - rgb
+        video_input[&#39;rgb&#39;][t,i,j] contains RGB values in the interval [0,255] of pixel i,j at time t.
+        Shape: (T,H,W,3) -- Note this might be different from the width and height of xyz
+        Type: uint8, in [0,255]
+    - xyz
+        video_input[&#39;xyz&#39;][t,i,j] is the 3d point associated with pixel i,j at time t in camera coordinates
+        Shape: (T, H&#39;, W&#39;, 3) -- Note this might be different from the width and height of rgb
+        Type: Float
+    - camera_positions
+        video_input[&#39;camera_positions&#39;][t] is the position of the camera at time t
+        Shape: (T, 3)
+        Type: Float
+    - camera_quaternions
+        video_input[&#39;camera_quaternions&#39;][t] is the quaternion (in xyzw format) representing the orientation of the camera at time t
+        Shape: (T, 4)
+        Type: Float
+    - camera_intrinsics_rgb
+        video_input[&#39;camera_intrinsics_rgb&#39;][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of rgb above
+        Shape: (8,)
+        Type: Float
+    - camera_intrinsics_depth
+        video_input[&#39;camera_intrinsics_depth&#39;][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of xyz above
+        Shape: (8,)
+        Type: Float
+
+    **Note:**
+    For compactness, rgb values are saved as uint8 values, however 
+    the output of the renderer is a float between 0 and 1. VideoInput 
+    stores uint8 colors, so please use the rgb_float property for 
+    compatibility.
+
+    **Note:** 
+    The width and height of the `rgb` and `xyz` arrays may differ. 
+    Their shapes match the entries in `camera_intrinsics_rgb` and 
+    `camera_intrinsics_depth`, respectively. The latter was used
+    to project the `depth` arrays to `xyz`.
+    &#34;&#34;&#34;
+    rgb: Array  # [num_frames, height_rgb, width_rgb, 3]
+    xyz: Array  # [num_frames, height_depth, width_depth, 3]
+    camera_positions: Array# [num_frames, 3]
+    camera_quaternions: Array# [num_frames, 4]
+    camera_intrinsics_rgb: Array# [8,] (width_rgb, height_rgb, fx, fy, cx, cy, near, far)
+    camera_intrinsics_depth: Array# [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
+
+    def to_dict(self):
+        return {
+            &#39;rgb&#39;: self.rgb,
+            &#39;xyz&#39;: self.xyz,
+            &#39;camera_positions&#39;: self.camera_positions,
+            &#39;camera_quaternions&#39;: self.camera_quaternions,
+            &#39;camera_intrinsics_rgb&#39;: self.camera_intrinsics_rgb,
+            &#39;camera_intrinsics_depth&#39;: self.camera_intrinsics_depth
+        }
+
+    def save(self, filepath: str):
+        &#34;&#34;&#34;Saves VideoInput to file&#34;&#34;&#34;
+        jnp.savez(filepath,
+                rgb=self.rgb,
+                xyz=self.xyz,
+                camera_positions=self.camera_positions,
+                camera_quaternions=self.camera_quaternions,
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
+
+    def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
+        &#34;&#34;&#34;Saves new VideoInput containing data 
+        between a timeframe into file&#34;&#34;&#34;
+        jnp.savez(filepath,
+                rgb=self.rgb[start_t:end_t],
+                xyz=self.xyz[start_t:end_t],
+                camera_positions=self.camera_positions[start_t:end_t],
+                camera_quaternions=self.camera_quaternions[start_t:end_t],
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
+
+    @classmethod
+    def load(cls, filepath: str):
+        &#34;&#34;&#34;Loads VideoInput from file&#34;&#34;&#34;
+        with open(filepath, &#39;rb&#39;) as f:
+            data = jnp.load(f, allow_pickle=True)
+            return cls(
+                rgb=jnp.array(data[&#39;rgb&#39;]),
+                xyz=jnp.array(data[&#39;xyz&#39;]),
+                camera_positions=jnp.array(data[&#39;camera_positions&#39;]),
+                camera_quaternions=jnp.array(data[&#39;camera_quaternions&#39;]),
+                camera_intrinsics_rgb=jnp.array(data[&#39;camera_intrinsics_rgb&#39;]),
+                camera_intrinsics_depth=jnp.array(data[&#39;camera_intrinsics_depth&#39;])
+            )
+    
+    @property
+    def rgb_float(self): 
+        if self.rgb.dtype == jnp.uint8:
+            return self.rgb / 255.0
+        else:
+            return self.rgb</code></pre>
 </details>
 </section>
 <section>
@@ -46,6 +403,464 @@ def xyz_from_depth(
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="b3d.utils.enumerate_and_select_best_move"><code class="name flex">
+<span>def <span class="ident">enumerate_and_select_best_move</span></span>(<span>trace, addressses, key, all_deltas)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@partial(jax.jit, static_argnames=[&#39;addressses&#39;])
+def enumerate_and_select_best_move(trace, addressses, key, all_deltas):
+    addr = addressses.const[0]
+    current_pose = trace[addr]
+    for i in range(len(all_deltas)):
+        test_poses = current_pose @ all_deltas[i]
+        potential_scores = b3d.enumerate_choices_get_scores(
+            trace, jax.random.PRNGKey(0), addressses, test_poses
+        )
+        current_pose = test_poses[potential_scores.argmax()]
+    trace = b3d.update_choices(
+        trace, key, addressses, current_pose
+    )
+    return trace, key</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.enumerate_choices"><code class="name flex">
+<span>def <span class="ident">enumerate_choices</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices(trace, key, addr_const, *values):
+    addresses = addr_const.const
+    return trace.update(
+        key,
+        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.Diff.tree_diff_unknown_change(trace.get_args())
+    )[0]</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.enumerate_choices_get_scores"><code class="name flex">
+<span>def <span class="ident">enumerate_choices_get_scores</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices_get_score(trace, key, addr_const, *values):
+    return update_choices(trace, key, addr_const, *values).get_score()</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.enumerate_choices_get_scores_jit"><code class="name flex">
+<span>def <span class="ident">enumerate_choices_get_scores_jit</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices_get_score(trace, key, addr_const, *values):
+    return update_choices(trace, key, addr_const, *values).get_score()</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.enumerate_choices_jit"><code class="name flex">
+<span>def <span class="ident">enumerate_choices_jit</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices(trace, key, addr_const, *values):
+    addresses = addr_const.const
+    return trace.update(
+        key,
+        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.Diff.tree_diff_unknown_change(trace.get_args())
+    )[0]</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.get_assets"><code class="name flex">
+<span>def <span class="ident">get_assets</span></span>(<span>) ‑> pathlib.Path</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The absolute path of the assets directory on current machine</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_assets() -&gt; Path:
+    &#34;&#34;&#34;The absolute path of the assets directory on current machine&#34;&#34;&#34;
+    assets_dir_path = get_root_path() / &#39;assets&#39;
+
+    if not os.path.exists(assets_dir_path):
+        os.makedirs(assets_dir_path)
+        print(f&#34;Initialized empty directory for shared bucket data at {assets_dir_path}.&#34;)
+
+    return assets_dir_path</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.get_assets_path"><code class="name flex">
+<span>def <span class="ident">get_assets_path</span></span>(<span>) ‑> pathlib.Path</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The absolute path of the assets directory on current machine</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_assets() -&gt; Path:
+    &#34;&#34;&#34;The absolute path of the assets directory on current machine&#34;&#34;&#34;
+    assets_dir_path = get_root_path() / &#39;assets&#39;
+
+    if not os.path.exists(assets_dir_path):
+        os.makedirs(assets_dir_path)
+        print(f&#34;Initialized empty directory for shared bucket data at {assets_dir_path}.&#34;)
+
+    return assets_dir_path</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.get_gcloud_bucket_ref"><code class="name flex">
+<span>def <span class="ident">get_gcloud_bucket_ref</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_gcloud_bucket_ref()-&gt; str: return &#34;gs://hgps_data_bucket&#34;</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.get_rgb_pil_image"><code class="name flex">
+<span>def <span class="ident">get_rgb_pil_image</span></span>(<span>image, max=1.0)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convert an RGB image to a PIL image.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>image</code></strong> :&ensp;<code>np.ndarray</code></dt>
+<dd>RGB image. Shape (H, W, 3).</dd>
+<dt><strong><code>max</code></strong> :&ensp;<code>float</code></dt>
+<dd>Maximum value for colormap.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>PIL.Image</code></dt>
+<dd>RGB image visualized as a PIL image.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_rgb_pil_image(image, max=1.0):
+    &#34;&#34;&#34;Convert an RGB image to a PIL image.
+
+    Args:
+        image (np.ndarray): RGB image. Shape (H, W, 3).
+        max (float): Maximum value for colormap.
+    Returns:
+        PIL.Image: RGB image visualized as a PIL image.
+    &#34;&#34;&#34;
+    image = np.clip(image, 0.0, max)
+    if image.shape[-1] == 3:
+        image_type = &#34;RGB&#34;
+    else:
+        image_type = &#34;RGBA&#34;
+
+    img = Image.fromarray(
+        np.rint(image / max * 255.0).astype(np.int8),
+        mode=image_type,
+    ).convert(&#34;RGB&#34;)
+    return img</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.get_root_path"><code class="name flex">
+<span>def <span class="ident">get_root_path</span></span>(<span>) ‑> pathlib.Path</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_root_path() -&gt; Path: return Path(Path(b3d.__file__).parents[1])</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.get_shared"><code class="name flex">
+<span>def <span class="ident">get_shared</span></span>(<span>) ‑> pathlib.Path</span>
+</code></dt>
+<dd>
+<div class="desc"><p>The absolute path of the assets directory on current machine</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_shared() -&gt; Path:
+    &#34;&#34;&#34;The absolute path of the assets directory on current machine&#34;&#34;&#34;
+    data_dir_path = get_assets() / &#39;shared_data_bucket&#39;
+
+    if not os.path.exists(data_dir_path):
+        os.makedirs(data_dir_path)
+        print(f&#34;Initialized empty directory for shared bucket data at {data_dir_path}.&#34;)
+
+    return data_dir_path</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.make_mesh_from_point_cloud_and_resolution"><code class="name flex">
+<span>def <span class="ident">make_mesh_from_point_cloud_and_resolution</span></span>(<span>grid_centers, grid_colors, resolutions)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_mesh_from_point_cloud_and_resolution(
+    grid_centers, grid_colors, resolutions
+):
+    box_mesh = trimesh.creation.box(jnp.ones(3))
+    base_vertices, base_faces = jnp.array(box_mesh.vertices), jnp.array(box_mesh.faces)
+
+    def process_ith_ball(
+        i,
+        positions,
+        colors,
+        base_vertices,
+        base_faces,
+        resolutions          
+    ):
+        transform = Pose.from_translation(positions[i])
+        new_vertices = base_vertices * resolutions[i]
+        new_vertices = transform.apply(new_vertices)
+        return (
+            new_vertices,
+            base_faces + i*len(new_vertices),
+            jnp.tile(colors[i][None,...],(len(base_vertices),1)),
+            jnp.tile(colors[i][None,...],(len(base_faces),1)),
+        )
+
+    vertices_, faces_, vertex_colors_, face_colors_ = jax.vmap(
+        process_ith_ball, in_axes=(0, None, None, None, None, None)
+    )(
+        jnp.arange(len(grid_centers)),
+        grid_centers,
+        grid_colors,
+        base_vertices,
+        base_faces,
+        resolutions * 1.0
+    )
+
+    vertices = jnp.concatenate(vertices_, axis=0)
+    faces = jnp.concatenate(faces_, axis=0)
+    vertex_colors = jnp.concatenate(vertex_colors_, axis=0)
+    face_colors = jnp.concatenate(face_colors_, axis=0)
+    return vertices, faces, vertex_colors, face_colors</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.make_onehot"><code class="name flex">
+<span>def <span class="ident">make_onehot</span></span>(<span>n, i, hot=1, cold=0)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_onehot(n, i, hot=1, cold=0):
+    return tuple(cold if j != i else hot for j in range(n))</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.multivmap"><code class="name flex">
+<span>def <span class="ident">multivmap</span></span>(<span>f, args=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def multivmap(f, args=None):
+    if args is None:
+        args = (True,) * len(inspect.signature(f).parameters)
+    multivmapped = f
+    for i, ismapped in reversed(list(enumerate(args))):
+        if ismapped:
+            multivmapped = jax.vmap(
+                multivmapped, in_axes=make_onehot(len(args), i, hot=0, cold=None)
+            )
+    return multivmapped</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.nn_background_segmentation"><code class="name flex">
+<span>def <span class="ident">nn_background_segmentation</span></span>(<span>images)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def nn_background_segmentation(images):
+    import torch
+    from carvekit.api.high import HiInterface
+
+    # Check doc strings for more information
+    interface = HiInterface(object_type=&#34;object&#34;,  # Can be &#34;object&#34; or &#34;hairs-like&#34;.
+                            batch_size_seg=5,
+                            batch_size_matting=1,
+                            device=&#39;cuda&#39; if torch.cuda.is_available() else &#39;cpu&#39;,
+                            seg_mask_size=640,  # Use 640 for Tracer B7 and 320 for U2Net
+                            matting_mask_size=2048,
+                            trimap_prob_threshold=231,
+                            trimap_dilation=30,
+                            trimap_erosion_iters=5,
+                            fp16=False)
+
+
+    output_images = interface(images)
+    masks  = jnp.array([jnp.array(output_image)[..., -1] &gt; 0.5 for output_image in output_images])
+    return masks</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.rgb_to_lab"><code class="name flex">
+<span>def <span class="ident">rgb_to_lab</span></span>(<span>rgb)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@partial(jnp.vectorize, signature=&#39;(k)-&gt;(k)&#39;)
+def rgb_to_lab(rgb):
+    # Convert sRGB to linear RGB
+    rgb = jnp.clip(rgb, 0, 1)
+    mask = rgb &gt; 0.04045
+    rgb = jnp.where(mask, jnp.power((rgb + 0.055) / 1.055, 2.4), rgb / 12.92)
+
+    # RGB to XYZ
+    # https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
+    rgb_to_xyz = jnp.array([[0.4124564, 0.3575761, 0.1804375],
+                            [0.2126729, 0.7151522, 0.0721750],
+                            [0.0193339, 0.1191920, 0.9503041]])
+    xyz = jnp.dot(rgb, rgb_to_xyz.T)
+
+    # XYZ to LAB
+    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIEXYZ_to_CIELAB
+    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])  # D65 white point
+    xyz_normalized = xyz / xyz_ref
+    mask = xyz_normalized &gt; 0.008856
+    xyz_f = jnp.where(mask, jnp.power(xyz_normalized, 1/3), 7.787 * xyz_normalized + 16/116)
+
+    L = 116 * xyz_f[1] - 16
+    a = 500 * (xyz_f[0] - xyz_f[1])
+    b = 200 * (xyz_f[1] - xyz_f[2])
+
+    lab = jnp.stack([L, a, b], axis=-1)
+    return lab</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.segment_point_cloud"><code class="name flex">
+<span>def <span class="ident">segment_point_cloud</span></span>(<span>point_cloud, threshold=0.01, min_points_in_cluster=0)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
+    c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
+    labels = c.labels_
+    unique, counts = np.unique(labels, return_counts=True)
+    order = np.argsort(-counts)
+    counter = 0
+    new_labels = np.array(labels)
+    for index in order:
+        if unique[index] == -1:
+            continue
+        if counts[index] &gt;= min_points_in_cluster:
+            val = counter
+        else:
+            val = -1
+        new_labels[labels == unique[index]] = val
+        counter += 1
+    return new_labels</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.update_choices"><code class="name flex">
+<span>def <span class="ident">update_choices</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices(trace, key, addr_const, *values):
+    addresses = addr_const.const
+    return trace.update(
+        key,
+        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.Diff.tree_diff_unknown_change(trace.get_args())
+    )[0]</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.update_choices_get_score"><code class="name flex">
+<span>def <span class="ident">update_choices_get_score</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices_get_score(trace, key, addr_const, *values):
+    return update_choices(trace, key, addr_const, *values).get_score()</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.update_choices_get_score_jit"><code class="name flex">
+<span>def <span class="ident">update_choices_get_score_jit</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices_get_score(trace, key, addr_const, *values):
+    return update_choices(trace, key, addr_const, *values).get_score()</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.update_choices_jit"><code class="name flex">
+<span>def <span class="ident">update_choices_jit</span></span>(<span>trace, key, addr_const, *values)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_choices(trace, key, addr_const, *values):
+    addresses = addr_const.const
+    return trace.update(
+        key,
+        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.Diff.tree_diff_unknown_change(trace.get_args())
+    )[0]</code></pre>
+</details>
+</dd>
 <dt id="b3d.utils.xyz_from_depth"><code class="name flex">
 <span>def <span class="ident">xyz_from_depth</span></span>(<span>z: Depth Image, fx, fy, cx, cy)</span>
 </code></dt>
@@ -59,7 +874,7 @@ def xyz_from_depth(
     z: &#34;Depth Image&#34;, 
     fx, fy, cx, cy
 ):
-    v, u = jnp.mgrid[: z.shape[0], : z.shape[1]] + 0.5
+    v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
     x = (u - cx) / fx
     y = (v - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
@@ -69,6 +884,309 @@ def xyz_from_depth(
 </dl>
 </section>
 <section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="b3d.utils.VideoInput"><code class="flex name class">
+<span>class <span class="ident">VideoInput</span></span>
+<span>(</span><span>rgb: jax.Array, xyz: jax.Array, camera_positions: jax.Array, camera_quaternions: jax.Array, camera_intrinsics_rgb: jax.Array, camera_intrinsics_depth: jax.Array)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Video data input. Note: Spatial units are measured in meters.</p>
+<p>World Coordinates. The floor is x,y and up is z.
+Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera,
+x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
+Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
+Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
+The camera matrix is given by: $$ K = egin{bmatrix} f_x &amp; 0 &amp; c_x \ 0 &amp; f_y &amp; c_y \ 0 &amp; 0 &amp; 1 \end{bmatrix} $$
+Spatial units. Spatial units are measured in meters (if not indicated otherwise).</p>
+<p><strong>Attributes:</strong>
+- rgb
+video_input['rgb'][t,i,j] contains RGB values in the interval [0,255] of pixel i,j at time t.
+Shape: (T,H,W,3) &ndash; Note this might be different from the width and height of xyz
+Type: uint8, in [0,255]
+- xyz
+video_input['xyz'][t,i,j] is the 3d point associated with pixel i,j at time t in camera coordinates
+Shape: (T, H', W', 3) &ndash; Note this might be different from the width and height of rgb
+Type: Float
+- camera_positions
+video_input['camera_positions'][t] is the position of the camera at time t
+Shape: (T, 3)
+Type: Float
+- camera_quaternions
+video_input['camera_quaternions'][t] is the quaternion (in xyzw format) representing the orientation of the camera at time t
+Shape: (T, 4)
+Type: Float
+- camera_intrinsics_rgb
+video_input['camera_intrinsics_rgb'][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of rgb above
+Shape: (8,)
+Type: Float
+- camera_intrinsics_depth
+video_input['camera_intrinsics_depth'][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of xyz above
+Shape: (8,)
+Type: Float</p>
+<p><strong>Note:</strong>
+For compactness, rgb values are saved as uint8 values, however
+the output of the renderer is a float between 0 and 1. VideoInput
+stores uint8 colors, so please use the rgb_float property for
+compatibility.</p>
+<p><strong>Note:</strong>
+The width and height of the <code>rgb</code> and <code>xyz</code> arrays may differ.
+Their shapes match the entries in <code>camera_intrinsics_rgb</code> and
+<code>camera_intrinsics_depth</code>, respectively. The latter was used
+to project the <code>depth</code> arrays to <code>xyz</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class VideoInput:
+    &#34;&#34;&#34;
+    Video data input. Note: Spatial units are measured in meters.
+
+    World Coordinates. The floor is x,y and up is z.
+    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera, 
+        x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
+    Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
+    Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
+        The camera matrix is given by: $$ K = \begin{bmatrix} f_x &amp; 0 &amp; c_x \ 0 &amp; f_y &amp; c_y \ 0 &amp; 0 &amp; 1 \end{bmatrix} $$
+    Spatial units. Spatial units are measured in meters (if not indicated otherwise).
+
+    **Attributes:**
+    - rgb
+        video_input[&#39;rgb&#39;][t,i,j] contains RGB values in the interval [0,255] of pixel i,j at time t.
+        Shape: (T,H,W,3) -- Note this might be different from the width and height of xyz
+        Type: uint8, in [0,255]
+    - xyz
+        video_input[&#39;xyz&#39;][t,i,j] is the 3d point associated with pixel i,j at time t in camera coordinates
+        Shape: (T, H&#39;, W&#39;, 3) -- Note this might be different from the width and height of rgb
+        Type: Float
+    - camera_positions
+        video_input[&#39;camera_positions&#39;][t] is the position of the camera at time t
+        Shape: (T, 3)
+        Type: Float
+    - camera_quaternions
+        video_input[&#39;camera_quaternions&#39;][t] is the quaternion (in xyzw format) representing the orientation of the camera at time t
+        Shape: (T, 4)
+        Type: Float
+    - camera_intrinsics_rgb
+        video_input[&#39;camera_intrinsics_rgb&#39;][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of rgb above
+        Shape: (8,)
+        Type: Float
+    - camera_intrinsics_depth
+        video_input[&#39;camera_intrinsics_depth&#39;][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of xyz above
+        Shape: (8,)
+        Type: Float
+
+    **Note:**
+    For compactness, rgb values are saved as uint8 values, however 
+    the output of the renderer is a float between 0 and 1. VideoInput 
+    stores uint8 colors, so please use the rgb_float property for 
+    compatibility.
+
+    **Note:** 
+    The width and height of the `rgb` and `xyz` arrays may differ. 
+    Their shapes match the entries in `camera_intrinsics_rgb` and 
+    `camera_intrinsics_depth`, respectively. The latter was used
+    to project the `depth` arrays to `xyz`.
+    &#34;&#34;&#34;
+    rgb: Array  # [num_frames, height_rgb, width_rgb, 3]
+    xyz: Array  # [num_frames, height_depth, width_depth, 3]
+    camera_positions: Array# [num_frames, 3]
+    camera_quaternions: Array# [num_frames, 4]
+    camera_intrinsics_rgb: Array# [8,] (width_rgb, height_rgb, fx, fy, cx, cy, near, far)
+    camera_intrinsics_depth: Array# [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
+
+    def to_dict(self):
+        return {
+            &#39;rgb&#39;: self.rgb,
+            &#39;xyz&#39;: self.xyz,
+            &#39;camera_positions&#39;: self.camera_positions,
+            &#39;camera_quaternions&#39;: self.camera_quaternions,
+            &#39;camera_intrinsics_rgb&#39;: self.camera_intrinsics_rgb,
+            &#39;camera_intrinsics_depth&#39;: self.camera_intrinsics_depth
+        }
+
+    def save(self, filepath: str):
+        &#34;&#34;&#34;Saves VideoInput to file&#34;&#34;&#34;
+        jnp.savez(filepath,
+                rgb=self.rgb,
+                xyz=self.xyz,
+                camera_positions=self.camera_positions,
+                camera_quaternions=self.camera_quaternions,
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
+
+    def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
+        &#34;&#34;&#34;Saves new VideoInput containing data 
+        between a timeframe into file&#34;&#34;&#34;
+        jnp.savez(filepath,
+                rgb=self.rgb[start_t:end_t],
+                xyz=self.xyz[start_t:end_t],
+                camera_positions=self.camera_positions[start_t:end_t],
+                camera_quaternions=self.camera_quaternions[start_t:end_t],
+                camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+                camera_intrinsics_depth=self.camera_intrinsics_depth)
+
+    @classmethod
+    def load(cls, filepath: str):
+        &#34;&#34;&#34;Loads VideoInput from file&#34;&#34;&#34;
+        with open(filepath, &#39;rb&#39;) as f:
+            data = jnp.load(f, allow_pickle=True)
+            return cls(
+                rgb=jnp.array(data[&#39;rgb&#39;]),
+                xyz=jnp.array(data[&#39;xyz&#39;]),
+                camera_positions=jnp.array(data[&#39;camera_positions&#39;]),
+                camera_quaternions=jnp.array(data[&#39;camera_quaternions&#39;]),
+                camera_intrinsics_rgb=jnp.array(data[&#39;camera_intrinsics_rgb&#39;]),
+                camera_intrinsics_depth=jnp.array(data[&#39;camera_intrinsics_depth&#39;])
+            )
+    
+    @property
+    def rgb_float(self): 
+        if self.rgb.dtype == jnp.uint8:
+            return self.rgb / 255.0
+        else:
+            return self.rgb</code></pre>
+</details>
+<h3>Class variables</h3>
+<dl>
+<dt id="b3d.utils.VideoInput.camera_intrinsics_depth"><code class="name">var <span class="ident">camera_intrinsics_depth</span> : jax.Array</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="b3d.utils.VideoInput.camera_intrinsics_rgb"><code class="name">var <span class="ident">camera_intrinsics_rgb</span> : jax.Array</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="b3d.utils.VideoInput.camera_positions"><code class="name">var <span class="ident">camera_positions</span> : jax.Array</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="b3d.utils.VideoInput.camera_quaternions"><code class="name">var <span class="ident">camera_quaternions</span> : jax.Array</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="b3d.utils.VideoInput.rgb"><code class="name">var <span class="ident">rgb</span> : jax.Array</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="b3d.utils.VideoInput.xyz"><code class="name">var <span class="ident">xyz</span> : jax.Array</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Static methods</h3>
+<dl>
+<dt id="b3d.utils.VideoInput.load"><code class="name flex">
+<span>def <span class="ident">load</span></span>(<span>filepath: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Loads VideoInput from file</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@classmethod
+def load(cls, filepath: str):
+    &#34;&#34;&#34;Loads VideoInput from file&#34;&#34;&#34;
+    with open(filepath, &#39;rb&#39;) as f:
+        data = jnp.load(f, allow_pickle=True)
+        return cls(
+            rgb=jnp.array(data[&#39;rgb&#39;]),
+            xyz=jnp.array(data[&#39;xyz&#39;]),
+            camera_positions=jnp.array(data[&#39;camera_positions&#39;]),
+            camera_quaternions=jnp.array(data[&#39;camera_quaternions&#39;]),
+            camera_intrinsics_rgb=jnp.array(data[&#39;camera_intrinsics_rgb&#39;]),
+            camera_intrinsics_depth=jnp.array(data[&#39;camera_intrinsics_depth&#39;])
+        )</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="b3d.utils.VideoInput.rgb_float"><code class="name">var <span class="ident">rgb_float</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def rgb_float(self): 
+    if self.rgb.dtype == jnp.uint8:
+        return self.rgb / 255.0
+    else:
+        return self.rgb</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="b3d.utils.VideoInput.save"><code class="name flex">
+<span>def <span class="ident">save</span></span>(<span>self, filepath: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Saves VideoInput to file</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def save(self, filepath: str):
+    &#34;&#34;&#34;Saves VideoInput to file&#34;&#34;&#34;
+    jnp.savez(filepath,
+            rgb=self.rgb,
+            xyz=self.xyz,
+            camera_positions=self.camera_positions,
+            camera_quaternions=self.camera_quaternions,
+            camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+            camera_intrinsics_depth=self.camera_intrinsics_depth)</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.VideoInput.save_in_timeframe"><code class="name flex">
+<span>def <span class="ident">save_in_timeframe</span></span>(<span>self, filepath: str, start_t: int, end_t: int)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Saves new VideoInput containing data
+between a timeframe into file</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
+    &#34;&#34;&#34;Saves new VideoInput containing data 
+    between a timeframe into file&#34;&#34;&#34;
+    jnp.savez(filepath,
+            rgb=self.rgb[start_t:end_t],
+            xyz=self.xyz[start_t:end_t],
+            camera_positions=self.camera_positions[start_t:end_t],
+            camera_quaternions=self.camera_quaternions[start_t:end_t],
+            camera_intrinsics_rgb=self.camera_intrinsics_rgb,
+            camera_intrinsics_depth=self.camera_intrinsics_depth)</code></pre>
+</details>
+</dd>
+<dt id="b3d.utils.VideoInput.to_dict"><code class="name flex">
+<span>def <span class="ident">to_dict</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_dict(self):
+    return {
+        &#39;rgb&#39;: self.rgb,
+        &#39;xyz&#39;: self.xyz,
+        &#39;camera_positions&#39;: self.camera_positions,
+        &#39;camera_quaternions&#39;: self.camera_quaternions,
+        &#39;camera_intrinsics_rgb&#39;: self.camera_intrinsics_rgb,
+        &#39;camera_intrinsics_depth&#39;: self.camera_intrinsics_depth
+    }</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -84,7 +1202,48 @@ def xyz_from_depth(
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="b3d.utils.enumerate_and_select_best_move" href="#b3d.utils.enumerate_and_select_best_move">enumerate_and_select_best_move</a></code></li>
+<li><code><a title="b3d.utils.enumerate_choices" href="#b3d.utils.enumerate_choices">enumerate_choices</a></code></li>
+<li><code><a title="b3d.utils.enumerate_choices_get_scores" href="#b3d.utils.enumerate_choices_get_scores">enumerate_choices_get_scores</a></code></li>
+<li><code><a title="b3d.utils.enumerate_choices_get_scores_jit" href="#b3d.utils.enumerate_choices_get_scores_jit">enumerate_choices_get_scores_jit</a></code></li>
+<li><code><a title="b3d.utils.enumerate_choices_jit" href="#b3d.utils.enumerate_choices_jit">enumerate_choices_jit</a></code></li>
+<li><code><a title="b3d.utils.get_assets" href="#b3d.utils.get_assets">get_assets</a></code></li>
+<li><code><a title="b3d.utils.get_assets_path" href="#b3d.utils.get_assets_path">get_assets_path</a></code></li>
+<li><code><a title="b3d.utils.get_gcloud_bucket_ref" href="#b3d.utils.get_gcloud_bucket_ref">get_gcloud_bucket_ref</a></code></li>
+<li><code><a title="b3d.utils.get_rgb_pil_image" href="#b3d.utils.get_rgb_pil_image">get_rgb_pil_image</a></code></li>
+<li><code><a title="b3d.utils.get_root_path" href="#b3d.utils.get_root_path">get_root_path</a></code></li>
+<li><code><a title="b3d.utils.get_shared" href="#b3d.utils.get_shared">get_shared</a></code></li>
+<li><code><a title="b3d.utils.make_mesh_from_point_cloud_and_resolution" href="#b3d.utils.make_mesh_from_point_cloud_and_resolution">make_mesh_from_point_cloud_and_resolution</a></code></li>
+<li><code><a title="b3d.utils.make_onehot" href="#b3d.utils.make_onehot">make_onehot</a></code></li>
+<li><code><a title="b3d.utils.multivmap" href="#b3d.utils.multivmap">multivmap</a></code></li>
+<li><code><a title="b3d.utils.nn_background_segmentation" href="#b3d.utils.nn_background_segmentation">nn_background_segmentation</a></code></li>
+<li><code><a title="b3d.utils.rgb_to_lab" href="#b3d.utils.rgb_to_lab">rgb_to_lab</a></code></li>
+<li><code><a title="b3d.utils.segment_point_cloud" href="#b3d.utils.segment_point_cloud">segment_point_cloud</a></code></li>
+<li><code><a title="b3d.utils.update_choices" href="#b3d.utils.update_choices">update_choices</a></code></li>
+<li><code><a title="b3d.utils.update_choices_get_score" href="#b3d.utils.update_choices_get_score">update_choices_get_score</a></code></li>
+<li><code><a title="b3d.utils.update_choices_get_score_jit" href="#b3d.utils.update_choices_get_score_jit">update_choices_get_score_jit</a></code></li>
+<li><code><a title="b3d.utils.update_choices_jit" href="#b3d.utils.update_choices_jit">update_choices_jit</a></code></li>
 <li><code><a title="b3d.utils.xyz_from_depth" href="#b3d.utils.xyz_from_depth">xyz_from_depth</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="b3d.utils.VideoInput" href="#b3d.utils.VideoInput">VideoInput</a></code></h4>
+<ul class="">
+<li><code><a title="b3d.utils.VideoInput.camera_intrinsics_depth" href="#b3d.utils.VideoInput.camera_intrinsics_depth">camera_intrinsics_depth</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.camera_intrinsics_rgb" href="#b3d.utils.VideoInput.camera_intrinsics_rgb">camera_intrinsics_rgb</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.camera_positions" href="#b3d.utils.VideoInput.camera_positions">camera_positions</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.camera_quaternions" href="#b3d.utils.VideoInput.camera_quaternions">camera_quaternions</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.load" href="#b3d.utils.VideoInput.load">load</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.rgb" href="#b3d.utils.VideoInput.rgb">rgb</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.rgb_float" href="#b3d.utils.VideoInput.rgb_float">rgb_float</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.save" href="#b3d.utils.VideoInput.save">save</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.save_in_timeframe" href="#b3d.utils.VideoInput.save_in_timeframe">save_in_timeframe</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.to_dict" href="#b3d.utils.VideoInput.to_dict">to_dict</a></code></li>
+<li><code><a title="b3d.utils.VideoInput.xyz" href="#b3d.utils.VideoInput.xyz">xyz</a></code></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

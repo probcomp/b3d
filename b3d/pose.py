@@ -9,6 +9,7 @@ from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
 from warnings import warn
 from typing import Any, NamedTuple, TypeAlias
+import numpy as np
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array

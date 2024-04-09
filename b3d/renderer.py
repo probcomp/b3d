@@ -10,14 +10,7 @@ from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import functools
 import os
-
 import b3d.nvdiffrast.jax as dr
-
-
-def get_assets_dir():
-    return os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "assets"
-    )
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
@@ -46,57 +39,36 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     )
     return orth @ persp @ view
 
-# @staticmethod
-# @functools.partial(
-#     jnp.vectorize,
-#     signature="(2),(),(m,4,4),()->(3)",
-#     excluded=(
-#         4,
-#         5,
-#         6,
-#     ),
-# )
-# def interpolate_depth(uv, triangle_id, poses, object_id, vertices, faces, ranges):
-#     relevant_vertices = vertices[faces[triangle_id-1]]
-#     pose_of_object = poses[object_id-1]
-#     relevant_vertices_transformed = relevant_vertices @ pose_of_object.T
-#     barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
-#     interpolated_value = (relevant_vertices_transformed[:,:3] * barycentric.reshape(3,1)).sum(0)
-#     return interpolated_value
-
-# @staticmethod
-# @functools.partial(
-#     jnp.vectorize,
-#     signature="(2),()->(k)",
-#     excluded=(
-#         2,
-#         3,
-#     ),
-# )
-# def interpolate_attribute(uv, triangle_id, faces, attributes):
-#     relevant_attributes = attributes[faces[triangle_id-1]]
-#     barycentric = jnp.concatenate([uv, jnp.array([1.0 - uv.sum()])])
-#     interpolated_value = (relevant_attributes[:,:] * barycentric.reshape(3,1)).sum(0)
-#     return interpolated_value
-
 class Renderer(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=1024):
-        """A renderer for rendering meshes.
+        """
+        Triangle mesh renderer.
 
-        Args:
-            intrinsics (bayes3d.camera): The camera intrinsics.
-            num_layers (int, optional): The number of scenes to render in parallel. Defaults to 1024.
+        Parameters:
+            width: int
+                Image width.
+            height: int
+                Image height.
+            fx: float
+                Focal length x.
+            fy: float
+                Focal length y.
+            cx: float
+                Principal point x.
+            cy: float
+                Principal point y.
+            near: float
+                Near plane.
+            far: float
+                Far plane.
+            num_layers: int
+                Number of layers in the depth buffer.
         """
         self.width, self.height = width, height
         self.resolution = jnp.array([height, width]).astype(jnp.int32)
         self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
-        self.rasterize = jax.tree_util.Partial(self._rasterize, self)
-        # self.interpolate = jax.tree_util.Partial(self._interpolate, self)
-
-    # ------------------
-    # Rasterization
-    # ------------------
+        self._rasterize_partial = jax.tree_util.Partial(self._rasterize, self)
 
     @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
     def _rasterize(self, pose, pos, tri, ranges, projMatrix, resolution):
@@ -123,27 +95,10 @@ class Renderer(object):
     def interpolate(self, attributes, uvs, triangle_ids, faces):
         return self.interpolate_many(attributes, uvs[None,...], triangle_ids[None,...], faces)[0]
 
-    # def _interpolate_fwd(self, attributes, uvs, triangle_ids, faces):
-    #     out = _interpolate_fwd_custom_call(self, attributes, uvs, triangle_ids, faces, )
-    #     saved_tensors = (attributes, uvs, triangle_ids, faces, )
-
-    #     return out, saved_tensors
-    
-    # def _interpolate_bwd(self, saved_tensors, diffs):
-    #     attr, rast, tri = saved_tensors
-    #     dy, _ = diffs 
-    #     g_attr, g_rast = _interpolate_bwd_custom_call(self, attr, rast, tri, dy)
-    #     return g_attr, g_rast, None
-    
-    # _interpolate.defvjp(_interpolate_fwd, 
-    #                     _interpolate_bwd)
-
-    #####
-
-    def render_many(self, poses, vertices, faces, ranges):
+    def rasterize_many(self, poses, vertices, faces, ranges):
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
-        rast_out, rast_out_aux = self.rasterize(
-            poses,
+        rast_out, rast_out_aux = self._rasterize_partial(
+            poses.as_matrix(),
             vertices_h,
             faces,
             ranges,
@@ -156,12 +111,12 @@ class Renderer(object):
         triangle_ids = rast_out_aux[...,1]
         return uvs, object_ids, triangle_ids, zs
 
-    def render(self, pose, vertices, faces, ranges):
-        uvs, object_ids, triangle_ids, zs = self.render_many(pose[None,...], vertices, faces, ranges)
+    def rasterize(self, pose, vertices, faces, ranges):
+        uvs, object_ids, triangle_ids, zs = self.rasterize_many(pose[None,...], vertices, faces, ranges)
         return uvs[0], object_ids[0], triangle_ids[0], zs[0]
 
     def render_attribute_many(self, poses, vertices, faces, ranges, attributes):
-        uvs, object_ids, triangle_ids, zs = self.render_many(poses, vertices, faces, ranges)
+        uvs, object_ids, triangle_ids, zs = self.rasterize_many(poses, vertices, faces, ranges)
         mask = object_ids > 0
 
         interpolated_values = self.interpolate_many(
@@ -175,6 +130,8 @@ class Renderer(object):
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
         image, zs =  self.render_attribute_many(pose[None,...], vertices, faces, ranges, attributes)
         return image[0], zs[0]
+
+
 
 # XLA array layout in memory
 def default_layouts(*shapes):

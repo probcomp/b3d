@@ -19,8 +19,11 @@ and verify that `CUDA Version: xx.x` is >= 12.3.
 If not, ensure your NVIDIA GPU supports CUDA 12.3+ and install a NVIDIA driver version compatible with 12.3+. For GCP instances, use:
 ```
 sudo sh -c "echo 'export DRIVER_VERSION=550.54.15' > /opt/deeplearning/driver-version.sh"
-/opt/deeplearning/uninstall-driver.sh  # follow with sudo reboot
 /opt/deeplearning/install-driver.sh
+```
+If the above commands fail, then first uninstall the existing driver by running the below, then try again.
+```
+/opt/deeplearning/uninstall-driver.sh  # follow with sudo reboot
 ```
 
 ### Python Environment

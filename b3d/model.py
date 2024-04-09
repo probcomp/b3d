@@ -144,7 +144,7 @@ def model_multiobject_gl_factory(renderer):
             object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
 
             object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
-            object_poses = Pose.concatenate_poses([object_poses, object_pose[None,...]])
+            object_poses = Pose.concatenate_poses([object_poses, camera_pose.inv() @ object_pose[None,...]])
 
         rendered_rgb, rendered_depth = renderer.render_attribute(
             object_poses,

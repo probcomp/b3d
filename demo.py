@@ -19,7 +19,6 @@ path = os.path.join(b3d.get_root_path(),
 "assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
 video_input = b3d.VideoInput.load(path)
 
-
 # Get intrinsics
 image_width, image_height, fx,fy, cx,cy,near,far = np.array(video_input.camera_intrinsics_depth)
 image_width, image_height = int(image_width), int(image_height)

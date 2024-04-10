@@ -95,8 +95,7 @@ trace, _ = importance_jit(
             ("camera_pose", Pose.identity()),
             ("object_pose_0", Pose.identity()),
             ("object_0", 0),
-            ("observed_rgb", rgbs_resized[START_T]),
-            ("observed_depth", xyzs[START_T,...,2]),
+            ("observed_rgb_depth", (rgbs_resized[START_T], xyzs[START_T,...,2])),
         ])
     ),
     (jnp.arange(1),color_error,depth_error,inlier_score,outlier_prob,color_multiplier,depth_multiplier, object_library)
@@ -108,9 +107,8 @@ ACQUISITION_T = 120
 for T_observed_image in tqdm(range(ACQUISITION_T)):
     # Constrain on new RGB and Depth data.
     trace = b3d.update_choices_jit(trace, key,
-        genjax.Pytree.const(["observed_rgb", "observed_depth"]),
-        rgbs_resized[T_observed_image],
-        xyzs[T_observed_image,...,2]
+        genjax.Pytree.const(["observed_rgb_depth"]),
+        (rgbs_resized[T_observed_image],xyzs[T_observed_image,...,2])
     )
     trace,key = b3d.enumerate_and_select_best_move(trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas)
     b3d.rerun_visualize_trace_t(trace, T_observed_image)
@@ -129,8 +127,9 @@ rr.log("outliers", rr.Image(jnp.tile((outler_mask*1.0)[...,None], (1,1,3))))
 
 
 # Get the point cloud corresponding to the outliers
-point_cloud = b3d.xyz_from_depth(trace["observed_depth"], fx,fy,cx,cy)[outler_mask]
-point_cloud_colors = trace["observed_rgb"][outler_mask]
+rgb, depth = trace["observed_rgb_depth"]
+point_cloud = b3d.xyz_from_depth(depth, fx,fy,cx,cy)[outler_mask]
+point_cloud_colors = rgb[outler_mask]
 
 # Segment the outlier cloud.
 assignment = b3d.segment_point_cloud(point_cloud)
@@ -161,8 +160,7 @@ trace, _ = importance_jit(
             ("object_pose_1", trace["camera_pose"] @ object_pose),
             ("object_0", 0),
             ("object_1", 1),
-            ("observed_rgb", rgbs_resized[ACQUISITION_T]),
-            ("observed_depth", xyzs[ACQUISITION_T,...,2]),
+            ("observed_rgb_depth", (rgbs_resized[ACQUISITION_T], xyzs[ACQUISITION_T,...,2])),
         ])
     ),
     (jnp.arange(2),color_error,depth_error,inlier_score,outlier_prob,color_multiplier,depth_multiplier, object_library)
@@ -174,9 +172,8 @@ FINAL_T = len(xyzs)
 for T_observed_image in tqdm(range(ACQUISITION_T, FINAL_T)):
     # Constrain on new RGB and Depth data.
     trace = b3d.update_choices_jit(trace, key,
-        genjax.Pytree.const(["observed_rgb", "observed_depth"]),
-        rgbs_resized[T_observed_image],
-        xyzs[T_observed_image,...,2]
+        genjax.Pytree.const(["observed_rgb_depth"]),
+        (rgbs_resized[T_observed_image],xyzs[T_observed_image,...,2])
     )
     trace,key = b3d.enumerate_and_select_best_move(trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas)
     trace,key = b3d.enumerate_and_select_best_move(trace, genjax.Pytree.const([f"object_pose_1"]), key, all_deltas)

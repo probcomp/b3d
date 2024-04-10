@@ -60,9 +60,9 @@ object_library = b3d.MeshLibrary.make_empty_library()
 object_library.add_object(vertices, faces, vertex_colors)
 
 
-color_error, depth_error = (40.0, 0.02)
+color_error, depth_error = (60.0, 0.01)
 inlier_score, outlier_prob = (5.0, 0.00001)
-color_multiplier, depth_multiplier = (500.0, 500.0)
+color_multiplier, depth_multiplier = (700.0, 500.0)
 arguments = (
         jnp.arange(1),
         color_error,

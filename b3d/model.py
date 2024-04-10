@@ -119,13 +119,53 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 rgb_sensor_model = RGBSensorModel()
 
+
+class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_rgb, rendered_depth, color_tolerance, depth_tolerance, inlier_score, outlier_prob, multiplier):
+        return (rendered_rgb, rendered_depth)
+
+    def logpdf(self, observed, rendered_rgb, rendered_depth, color_tolerance, depth_tolerance, inlier_score, outlier_prob, multiplier):
+        observed_rgb, observed_depth = observed
+
+        observed_lab = b3d.rgb_to_lab(observed_rgb)
+        rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+
+        valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+
+        error = (
+            jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+            jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+        )
+        color_inliers = (error < color_tolerance)
+        depth_inliers = (jnp.abs(observed_depth - rendered_depth) < depth_tolerance)
+        inliers = color_inliers * depth_inliers * valid_data_mask
+
+        num_data_points = jnp.size(inliers)
+        num_inliers = jnp.sum(inliers)
+        num_no_data = jnp.sum(1.0 - valid_data_mask)
+        num_outliers = num_data_points - num_inliers - num_no_data
+        
+        logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
+        logp_out = jnp.log(outlier_prob)
+        logp_no_data = jnp.log(1 / 1.0)
+
+        log_sum_of_probs = logsumexp(jnp.array([
+            jnp.log(num_inliers) + logp_in,
+            jnp.log(num_outliers) + logp_out,
+            jnp.log(num_no_data) + logp_no_data
+        ]))
+        average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
+        return average_log_prob * multiplier
+
+rgbd_sensor_model = RGBDSensorModel()
+
 def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
     def model(
         _num_obj_arr, # new 
 
-        color_error,
-        depth_error,
+        color_tolerance,
+        depth_tolerance,
 
         inlier_score,
         outlier_prob,
@@ -153,13 +193,9 @@ def model_multiobject_gl_factory(renderer):
             object_library.ranges[object_indices] * (object_indices >= 0).reshape(-1,1),
             object_library.attributes
         )
-        observed_rgb = rgb_sensor_model(
-            rendered_rgb, color_error, inlier_score, outlier_prob, color_multiplier
-        ) @ "observed_rgb"
-
-        observed_depth = depth_sensor_model(
-            rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
-        ) @ "observed_depth"
+        observed_rgb, observed_depth = rgbd_sensor_model(
+            rendered_rgb, rendered_depth, color_tolerance, depth_tolerance, inlier_score, outlier_prob, color_multiplier
+        ) @ "observed_rgb_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model
 

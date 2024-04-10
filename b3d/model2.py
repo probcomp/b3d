@@ -202,40 +202,30 @@ def generate_voxel_object_library(n_objects, object_model_args):
         object_library.add_object(*mesh)
     return object_library
 
+@genjax.static_gen_fn
+def step_model(state):
+    (camera_pose, object_poses) = state
+    new_camera_pose = gaussian_vmf_pose(camera_pose, 0.05, 0.05) @ "camera_pose"
+    
+    # new_poses_as_mtx = jnp.empty((0,4,4))
+    new_poses = []
+    for i in range(len(object_poses)):
+        prev_pose = object_poses[i] # Pose.from_matrix(object_poses_as_mtx[i])
+        object_pose = gaussian_vmf_pose(prev_pose, 0.05, 0.05) @ (i, "object_pose")
+        # new_poses_as_mtx = jnp.concatenate([new_poses_as_mtx, object_pose.as_matrix()[None, ...]])
+        new_poses.append(object_pose)
+
+    return (new_camera_pose, new_poses)
+
 def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
-    def model(
-        _num_obj_arr, # new 
+    def obs_model(poses, camera_pose, 
+                object_library, library_obj_indices_to_render,
+                color_error, depth_error, inlier_score, outlier_prob, color_multiplier, depth_multiplier
+                ):
+        poses_as_mtx = jnp.stack([(camera_pose.inv() @ pose).as_matrix() for pose in poses])
 
-        color_error,
-        depth_error,
-
-        inlier_score,
-        outlier_prob,
-
-        color_multiplier,
-        depth_multiplier,
-
-        object_model_args
-    ):
-
-        # object_library = generate_voxel_object_library(_num_obj_arr.shape[0], object_model_args) @ "object_library"
-        object_library = b3d.MeshLibrary.make_empty_library()
-        vertices, faces, vertex_colors = generate_object_voxel_mesh(*object_model_args) @ "mesh"
-        print(vertices, faces, vertex_colors)
-        object_library.add_object(vertices, faces, vertex_colors)
-
-        poses_as_mtx = jnp.empty((0,4,4))
-        library_obj_indices_to_render = jnp.empty((0,), dtype=int)
-        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
-
-        for i in range(_num_obj_arr.shape[0]):        
-            object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f"object_{i}"  # TODO possible_object_indices?
-            library_obj_indices_to_render = jnp.concatenate((library_obj_indices_to_render, jnp.array([object_identity])))
-
-            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
-            poses_as_mtx = jnp.concatenate([poses_as_mtx, (camera_pose.inv() @ object_pose).as_matrix()[None,...]], axis=0)
-
+        # poses_as_mtx = camera_pose.inv() @ poses_as_mtx
         rendered_rgb, rendered_depth = renderer.render_attribute(
             poses_as_mtx,
             object_library.vertices,
@@ -251,6 +241,70 @@ def model_multiobject_gl_factory(renderer):
             rendered_depth, depth_error, inlier_score, outlier_prob, depth_multiplier
         ) @ "observed_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
+
+    @genjax.static_gen_fn
+    def model(
+        _num_obj_arr, # new 
+
+        color_error,
+        depth_error,
+
+        inlier_score,
+        outlier_prob,
+
+        color_multiplier,
+        depth_multiplier,
+
+        object_model_args,
+
+        _max_n_frames_arr,
+        n_frames
+    ):
+
+        # object_library = generate_voxel_object_library(_num_obj_arr.shape[0], object_model_args) @ "object_library"
+        object_library = b3d.MeshLibrary.make_empty_library()
+        vertices, faces, vertex_colors = generate_object_voxel_mesh(*object_model_args) @ "mesh"
+        object_library.add_object(vertices, faces, vertex_colors)
+
+        # poses_as_mtx = jnp.empty((0,4,4))
+        poses = []
+        library_obj_indices_to_render = jnp.empty((0,), dtype=int)
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
+
+        for i in range(_num_obj_arr.shape[0]):        
+            object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f"object_{i}"  # TODO possible_object_indices?
+            library_obj_indices_to_render = jnp.concatenate((library_obj_indices_to_render, jnp.array([object_identity])))
+
+            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
+            poses.append(object_pose)
+
+        obs_init = obs_model(
+            poses, camera_pose,
+            object_library, library_obj_indices_to_render,
+            color_error, depth_error, inlier_score, outlier_prob, color_multiplier, depth_multiplier
+        ) @ "obs"
+
+        steps = genjax.unfold_combinator(
+            max_length=_max_n_frames_arr.shape[0]
+        )(step_model)(
+            n_frames, (camera_pose, poses)
+        ) @ "steps"
+
+        obs_steps = genjax.map_combinator(
+            in_axes=(0, (0, 0, None, None, None, None, None, None, None, None))
+        )(
+            genjax.masking_combinator(obs_model)
+        )(
+            jnp.arange(_max_n_frames_arr.shape[0]) < n_frames,
+            (
+                steps[1], steps[0],
+                object_library, library_obj_indices_to_render,
+                color_error, depth_error, inlier_score, outlier_prob, color_multiplier, depth_multiplier
+            )
+        ) @ "obs_steps"
+
+        return object_library, obs_init, obs_steps
+
     return model
 
 
@@ -291,7 +345,7 @@ def get_rgb_depth_inlier_outlier_from_trace(trace):
     return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)
 
 def rerun_visualize_trace_t(trace, t):
-    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    object_library, (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
     rr.set_time_sequence("frame", t)
 
     rr.log("/image", rr.Image(observed_rgb))
@@ -299,3 +353,49 @@ def rerun_visualize_trace_t(trace, t):
 
     rr.log("/image/depth", rr.DepthImage(observed_depth))
     rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))
+
+    for i in range(object_library.get_num_objects()):
+        vp, f, vc = object_library.get_object(i)
+        rr.log(
+            f"/objects_meshes/{i}",
+            rr.Mesh3D(
+                vertex_positions=vp,
+                indices=f,
+                vertex_colors=vc
+            ),
+            timeless=True
+        )
+
+def rerun_visualize_trace_across_time(trace):
+    object_library, obs_init, obs_step = trace.get_retval()
+    
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = obs_init
+    rr.set_time_sequence("frame", 0)
+    rr.log("/image", rr.Image(observed_rgb))
+    rr.log("/image/rgb_rendering", rr.Image(rendered_rgb))
+    rr.log("/image/depth", rr.DepthImage(observed_depth))
+    rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))
+    for i in range(object_library.get_num_objects()):
+        vp, f, vc = object_library.get_object(i)
+        rr.log(
+            f"/objects_meshes/{i}",
+            rr.Mesh3D(
+                vertex_positions=vp,
+                indices=f,
+                vertex_colors=vc
+            )
+        )
+
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = obs_step.value
+    for j in range(observed_rgb.shape[0]):
+        if obs_step.flag[j]:
+            t = j + 1
+            rr.set_time_sequence("frame", t)
+            rr.log("/image", rr.Image(observed_rgb[j]))
+            rr.log("/image/rgb_rendering", rr.Image(rendered_rgb[j]))
+            rr.log("/image/depth", rr.DepthImage(observed_depth[j]))
+            rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth[j]))
+
+            # TODO: revisualize objects at new poses
+
+    # TODO: add visualizations for the camera

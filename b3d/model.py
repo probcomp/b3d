@@ -163,6 +163,9 @@ def model_multiobject_gl_factory(renderer):
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model
 
+def get_rendered_rgb_depth_from_trace(trace):
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval
+    return (rendered_rgb, rendered_depth)
 
 def get_poses_from_trace(trace):
     return Pose.stack_poses([

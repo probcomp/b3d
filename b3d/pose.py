@@ -217,6 +217,8 @@ class Pose:
         return Pose(jnp.stack([pose.pos for pose in pose_list]),
                     jnp.stack([pose.quat for pose in pose_list]))
 
+    def split(self, n):
+        return [Pose(ps,qs) for (ps,qs) in zip(jnp.array_split(self.pos, n), jnp.array_split(self.quat, n))]
 
     def inv(self):
         """

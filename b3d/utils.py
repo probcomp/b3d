@@ -103,7 +103,20 @@ def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
         counter += 1
     return new_labels
 
-
+def aabb(object_points):
+    """
+    Returns the axis aligned bounding box of a point cloud.
+    Args:
+        object_points: (N,3) point cloud
+    Returns:
+        dims: (3,) dimensions of the bounding box
+        pose: (4,4) pose of the bounding box
+    """
+    maxs = jnp.max(object_points, axis=0)
+    mins = jnp.min(object_points, axis=0)
+    dims = maxs - mins
+    center = (maxs + mins) / 2
+    return dims, b3d.Pose.from_translation(center)
 
 def make_mesh_from_point_cloud_and_resolution(
     grid_centers, grid_colors, resolutions

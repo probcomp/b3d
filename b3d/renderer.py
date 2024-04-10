@@ -124,7 +124,7 @@ class Renderer(object):
         """
         vertices_h = jnp.concatenate([vertices, jnp.ones((vertices.shape[0], 1))], axis=-1)
         rast_out, rast_out_aux = self._rasterize_partial(
-            poses.as_matrix(),
+            poses,
             vertices_h,
             faces,
             ranges,

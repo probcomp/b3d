@@ -192,7 +192,7 @@ def generate_object_voxel_mesh(
         voxel_present_flat
     )
 
-    return vertices, faces, vertex_colors, face_colors, point_centers ,depth
+    return vertices, faces, vertex_colors
 
 @genjax.static_gen_fn
 def generate_voxel_object_library(n_objects, object_model_args):
@@ -219,7 +219,11 @@ def model_multiobject_gl_factory(renderer):
         object_model_args
     ):
 
-        object_library = generate_voxel_object_library(_num_obj_arr.shape[0], object_model_args) @ "object_library"
+        # object_library = generate_voxel_object_library(_num_obj_arr.shape[0], object_model_args) @ "object_library"
+        object_library = b3d.MeshLibrary.make_empty_library()
+        vertices, faces, vertex_colors = generate_object_voxel_mesh(*object_model_args) @ "mesh"
+        print(vertices, faces, vertex_colors)
+        object_library.add_object(vertices, faces, vertex_colors)
 
         poses_as_mtx = jnp.empty((0,4,4))
         library_obj_indices_to_render = jnp.empty((0,), dtype=int)

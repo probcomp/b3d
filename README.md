@@ -23,7 +23,8 @@ sudo sh -c "echo 'export DRIVER_VERSION=550.54.15' > /opt/deeplearning/driver-ve
 ```
 If the above commands fail, then first uninstall the existing driver by running the below, then try again.
 ```
-/opt/deeplearning/uninstall-driver.sh  # follow with sudo reboot
+/opt/deeplearning/uninstall-driver.sh
+sudo reboot
 ```
 
 ### Python Environment

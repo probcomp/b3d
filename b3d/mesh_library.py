@@ -38,6 +38,9 @@ class MeshLibrary:
         Given a new set of vertices and faces, update library.
         The input vertices/faces should correspond to a novel object, not a 
         novel copy of an object already indexed by the library.
+
+        (Note: if all vertices in a face are the same, the face will be invisible,
+        ie. it will be as though the face does not exist.)
         """
         # if name is None:
         #     name = ""
@@ -51,6 +54,7 @@ class MeshLibrary:
         self.faces = jnp.concatenate((self.faces, faces + current_length_of_vertices))
     
         self.vertex_index_to_object = jnp.concatenate((self.vertex_index_to_object, jnp.full(len(vertices), current_length_of_ranges)))
+
         self.ranges = jnp.concatenate((self.ranges, jnp.array([[current_length_of_faces, faces.shape[0]]])))
 
         if attributes is not None:

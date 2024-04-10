@@ -148,6 +148,69 @@ def make_mesh_from_point_cloud_and_resolution(
 
 
 
+
+def make_mesh_from_point_cloud_and_resolution_2(
+    grid_centers, grid_colors, resolutions,
+    live_grid_indices
+):
+    """
+    Resolutions = box side length (I think).
+    """
+    box_mesh = trimesh.creation.box(np.ones(3))
+    base_vertices, base_faces = jnp.array(box_mesh.vertices), jnp.array(box_mesh.faces)
+    
+    # To make a cube-shaped object which is invisible, have each face
+    # just have all vertices be the same (vertex 0).
+    faces_for_invisible_object = jnp.zeros_like(base_faces)
+
+    def process_ith_ball(
+        i,
+        live_grid_indices,
+        positions,
+        colors,
+        base_vertices,
+        base_faces,
+        resolutions          
+    ):
+        transform = Pose.from_translation(positions[i])
+        new_vertices = base_vertices * resolutions[i]
+        new_vertices = transform.apply(new_vertices)
+
+        
+        faces = jax.lax.select(
+            live_grid_indices[i],
+            base_faces + i*len(new_vertices),
+            faces_for_invisible_object
+        )
+
+        return (
+            new_vertices,
+            faces,
+            jnp.tile(colors[i][None,...],(len(base_vertices),1)),
+            jnp.tile(colors[i][None,...],(len(base_faces),1)),
+        )
+
+    vertices_, faces_, vertex_colors_, face_colors_ = jax.vmap(
+        process_ith_ball, in_axes=(0, None, None, None, None, None, None)
+    )(
+        jnp.arange(len(grid_centers)),
+        live_grid_indices,
+        grid_centers,
+        grid_colors,
+        base_vertices,
+        base_faces,
+        resolutions * 1.0
+    )
+
+    vertices = jnp.concatenate(vertices_, axis=0)
+    faces = jnp.concatenate(faces_, axis=0)
+    vertex_colors = jnp.concatenate(vertex_colors_, axis=0)
+    face_colors = jnp.concatenate(face_colors_, axis=0)
+    return vertices, faces, vertex_colors, face_colors
+
+
+
+
 def get_rgb_pil_image(image, max=1.0):
     """Convert an RGB image to a PIL image.
 
@@ -184,6 +247,10 @@ def multivmap(f, args=None):
             )
     return multivmapped
 
+def multivmap_at_zero(f, n_times):
+    for _ in range(n_times):
+        f = jax.vmap(f, in_axes=(0,))
+    return f
 
 def update_choices(trace, key, addr_const, *values):
     addresses = addr_const.const
@@ -366,3 +433,24 @@ class VideoInput:
             return self.rgb / 255.0
         else:
             return self.rgb
+
+###
+def unproject_depth(depth, intrinsics):
+    """Unprojects a depth image into a point cloud.
+    
+    Args:
+        depth (jnp.ndarray): The depth image. Shape (H, W)
+        intrinsics: tuple (fx,fy, cx,cy,near,far)
+    Returns:
+        jnp.ndarray: The point cloud. Shape (H, W, 3)
+    """
+    (fx,fy, cx,cy,near,far) = intrinsics
+    mask = (depth < far) * (depth > near)
+    depth = depth * mask + far * (1.0 - mask)
+    y, x = jnp.mgrid[: depth.shape[0], : depth.shape[1]]
+    x = (x - cx) / fx
+    y = (y - cy) / fy
+    point_cloud_image = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * depth[:, :, None]
+    return point_cloud_image
+unproject_depth_jit = jax.jit(unproject_depth)
+unproject_depth_vmap_jit = jax.jit(jax.vmap(unproject_depth, in_axes=(0,None)))

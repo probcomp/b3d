@@ -13,6 +13,7 @@ import rerun as rr
 from collections import OrderedDict
 from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
+import b3d.utils as utils
 
 class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
     def sample(self, key, vals):
@@ -124,24 +125,74 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 rgb_sensor_model = RGBSensorModel()
 
 @genjax.static_gen_fn
-def generate_object_voxel_mesh(img_width, img_height, subx, suby):
+def generate_object_voxel_mesh(
+    img_width, img_height, subx, suby,
+    intrinsics,
+    p_occupancy
+):
     """
         img_width = image width
         img_height = image height
         subx = amount to subsample along width (have img_width/subx gradations)
         suby = amount to subsample along height (have img_height/suby gradations)
     """
+    img_width = img_width.const
+    img_height = img_height.const
+    subx = subx.const
+    suby = suby.const
+    intrinsics = intrinsics.const
+
+    (fx,fy, cx,cy,near,far) = intrinsics
+    # print(f"near = {near}, far = {far}")
+
     w = img_width // subx
     h = img_height // suby
 
-    voxel_present = None # TODO: map combinator on bernoulli
-    depth = None # TODO: map combinator on uniform
-    rgb = None # TODO: map combinator on uniform
+    # Decide which "pixels" will have a visible voxel there
+    voxel_present = genjax.map_combinator(in_axes=(0,))(
+        genjax.map_combinator(in_axes=(0,))(genjax.flip)
+    )(p_occupancy * jnp.ones((w, h))) @ "voxel_present"
 
-    vertices, faces, vertex_colors, face_colors = make_mesh_from_point_clud_and_resolution(
-        
+    depth = genjax.map_combinator(in_axes=(0, (0, 0)))(
+        genjax.map_combinator(in_axes=(0, (0, 0)))(
+            genjax.masking_combinator(genjax.uniform)
+        )
+    )(voxel_present, (near * jnp.ones((w, h)), far * jnp.ones((w, h)))) @ "depth"
+    
+    colors = genjax.map_combinator(in_axes=(0, (0, 0)))(    # width
+        genjax.map_combinator(in_axes=(0, (0, 0)))(         # height
+            genjax.map_combinator(in_axes=(None, (0, 0)))(  # color
+                genjax.masking_combinator(genjax.uniform)
+            )
+        )
+    )(voxel_present, (jnp.zeros((w, h, 3)), jnp.ones((w, h, 3)))) @ "color"
+
+    ##  set color & depth values to -1 for invalid slts
+    # function which takes a mask object on a single number
+    # and returns -1.0 if the mask object is invalid, otherwise
+    matcher = lambda mask_object: mask_object.match(lambda: -1.0, lambda x : x)
+    # map this function over the depth array & color array
+    depth = utils.multivmap_at_zero(matcher, 2)(depth)
+    colors = utils.multivmap_at_zero(matcher, 3)(colors)
+
+    voxel_present_flat = voxel_present.reshape(-1)
+    depth_flat = depth.reshape(-1)
+    colors_flat = colors.reshape(-1, 3)
+    resolutions = depth_flat / fx * 2.0 * jnp.sqrt(subx * suby) * 1.25
+
+    i2 = (fx // subx, fy // suby, cx // subx, cy // suby, near, far)
+    point_centers = utils.unproject_depth(depth, i2).reshape(-1, 3)
+
+    # return (voxel_present, depth, colors, resolutions, point_centers)
+
+    vertices, faces, vertex_colors, face_colors = utils.make_mesh_from_point_cloud_and_resolution_2(
+        point_centers,
+        colors_flat,
+        resolutions,
+        voxel_present_flat
     )
 
+    return vertices, faces, vertex_colors, face_colors, point_centers ,depth
 
 @genjax.static_gen_fn
 def generate_voxel_object_library(n_objects, object_model_args):

@@ -45,8 +45,9 @@ key = jax.random.PRNGKey(0)
 camera_pose = Pose.from_position_and_target(jnp.array([0.6, 0.0, 0.0]), jnp.array([0.0, 0.0, 0.0]))
 
 cp_to_pose = lambda cp: Pose(jnp.array([cp[0], cp[1], 0.0]), b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat())
-gt_cp = jnp.array([0.0, 0.0, -jnp.pi/2])
 # gt_cp = jnp.array([0.0, 0.0, jnp.pi/2])
+gt_cp = jnp.array([0.0, 0.0, jnp.pi])
+gt_cp = jnp.array([0.0, 0.0, -jnp.pi/2])
 gt_cp = jnp.array([0.0, 0.0, 0.0])
 gt_cp = jnp.array([0.0, 0.0, jnp.pi])
 object_pose = cp_to_pose(gt_cp)
@@ -106,7 +107,10 @@ cp_delta_poses = jax.vmap(cp_to_pose)(delta_cps)
 test_poses = gt_trace["object_pose_0"] @ cp_delta_poses
 test_poses_batches = test_poses.split(10)
 scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses) for poses in test_poses_batches])
-samples = jax.random.categorical(key, scores, shape=(100,))
+
+samples = jax.random.categorical(key, scores * 0.0, shape=(100,))
+
+samples = jax.random.categorical(key, scores * 2.0, shape=(100,))
 
 alternate_view_images,_  = renderer.render_attribute_many(
     (alternate_camera_pose.inv() @  test_poses[samples])[:, None,...],

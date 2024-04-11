@@ -14,3 +14,4 @@ ipython
 jupyter
 pyransac3d
 pdoc3
+opencv-python

@@ -84,7 +84,21 @@ def rgb_to_lab(rgb):
     lab = jnp.stack([L, a, b], axis=-1)
     return lab
 
-
+def unproject_depth(depth, intrinsics):
+    """Unprojects a depth image into a point cloud.
+    Args:
+        depth (jnp.ndarray): The depth image. Shape (H, W)
+        intrinsics (width, height, fx, fy, cx, cy, near, far): The camera intrinsics.
+    Returns:
+        jnp.ndarray: The point cloud. Shape (H, W, 3)
+    """
+    mask = (depth < intrinsics[-1]) * (depth > intrinsics[-2])
+    depth = depth * mask + intrinsics[-1] * (1.0 - mask)
+    y, x = jnp.mgrid[: depth.shape[0], : depth.shape[1]]
+    x = (x - intrinsics[4]) / intrinsics[2]
+    y = (y - intrinsics[5]) / intrinsics[3]
+    point_cloud_image = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * depth[:, :, None]
+    return point_cloud_image
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
     c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
     labels = c.labels_

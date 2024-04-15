@@ -47,11 +47,13 @@ class TestGroup:
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
 
+    model_args = b3d.ModelArgs(
+        0.1, 0.1, 0.1, 0.1, 0.1, 0.1
+    )
 
 
 
     def test_importance(self):
-        object_library = self.object_library
         model = self.model
         trace, _ = model.importance(
             jax.random.PRNGKey(0),
@@ -63,8 +65,8 @@ class TestGroup:
             ),
             (
                 jnp.arange(3),
-                0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-                object_library
+                self.model_args,
+                self.object_library
             ),
         )
         identity_pose = Pose.identity()

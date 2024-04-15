@@ -9,6 +9,7 @@ import rerun as rr
 from collections import OrderedDict
 from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
+from collections import namedtuple
 
 class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
     def sample(self, key, vals):
@@ -83,19 +84,22 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 rgbd_sensor_model = RGBDSensorModel()
 
+
+ModelArgs = namedtuple('ModelArgs', [
+    'color_tolerance',
+    'depth_tolerance',
+    'inlier_score',
+    'outlier_prob',
+    'color_multiplier',
+    'depth_multiplier',
+])
+
+
 def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
     def model(
         _num_obj_arr, # new 
-
-        color_tolerance,
-        depth_tolerance,
-
-        inlier_score,
-        outlier_prob,
-
-        color_multiplier,
-        depth_multiplier,
+        model_args,
         object_library
     ):
 
@@ -118,7 +122,12 @@ def model_multiobject_gl_factory(renderer):
             object_library.attributes
         )
         observed_rgb, observed_depth = rgbd_sensor_model(
-            rendered_rgb, rendered_depth, color_tolerance, depth_tolerance, inlier_score, outlier_prob, color_multiplier
+            rendered_rgb, rendered_depth,
+            model_args.color_tolerance,
+            model_args.depth_tolerance,
+            model_args.inlier_score,
+            model_args.outlier_prob,
+            model_args.color_multiplier
         ) @ "observed_rgb_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model
@@ -136,32 +145,25 @@ def get_object_ids_from_trace(trace):
     return jnp.array([
         trace[f"object_{i}"] for i in range(len(trace.get_args()[0]))
     ])
-    
-def get_rgb_inlier_outlier_from_trace(trace):
-    lab_tolerance = trace.get_args()[1]
-    observed_rgb, rendered_rgb = trace.get_retval()[0]
-    inlier_match_mask = color_error_helper(
-        observed_rgb, rendered_rgb, lab_tolerance
-    )[0]
-    
-    return (inlier_match_mask, 1 - inlier_match_mask)
-    
-def get_depth_inlier_outlier_from_trace(trace):
-    depth_tolerance = trace.get_args()[2]
-    observed_depth, rendered_depth = trace.get_retval()[1]
-    valid_data_mask = (rendered_depth != 0.0)
-    inlier_match_mask = (jnp.abs(observed_depth - rendered_depth) < depth_tolerance)
-    inlier_match_mask = inlier_match_mask * valid_data_mask
 
-    return (inlier_match_mask, 1 - inlier_match_mask)
 
 def get_rgb_depth_inlier_outlier_from_trace(trace):
-    rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]
-    depth_inlier_mask = get_depth_inlier_outlier_from_trace(trace)[0]
-    
-    rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
-    
-    return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    model_args = trace.get_args()[1]
+
+    observed_lab = b3d.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+
+    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+
+    error = (
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+    )
+    color_inliers = (error < model_args.color_tolerance)
+    depth_inliers = (jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance)
+    inliers = color_inliers * depth_inliers * valid_data_mask
+    return (inliers, jnp.logical_not(inliers))
 
 def rerun_visualize_trace_t(trace, t):
     (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()

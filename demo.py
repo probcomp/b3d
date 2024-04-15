@@ -88,6 +88,9 @@ object_library.add_object(vertices, faces, vertex_colors)
 
 # Initial trace for timestep 0
 START_T = 0
+model_args = b3d.ModelArgs(
+    color_error, depth_error, inlier_score, outlier_prob, color_multiplier, depth_multiplier,
+)
 trace, _ = importance_jit(
     jax.random.PRNGKey(0),
     genjax.choice_map(
@@ -98,7 +101,7 @@ trace, _ = importance_jit(
             ("observed_rgb_depth", (rgbs_resized[START_T], xyzs[START_T,...,2])),
         ])
     ),
-    (jnp.arange(1),color_error,depth_error,inlier_score,outlier_prob,color_multiplier,depth_multiplier, object_library)
+    (jnp.arange(1), model_args, object_library)
 )
 # Visualize trace
 b3d.rerun_visualize_trace_t(trace, 0)
@@ -114,15 +117,8 @@ for T_observed_image in tqdm(range(ACQUISITION_T)):
     b3d.rerun_visualize_trace_t(trace, T_observed_image)
 
 
-# Compute RGB and Depth outliers
-rgb_inliers, rgb_outliers = b3d.get_rgb_inlier_outlier_from_trace(trace)
-depth_inliers, depth_outliers = b3d.get_depth_inlier_outlier_from_trace(trace)
-rr.set_time_sequence("frame", T_observed_image)
-rr.log("/rgb/rgb_outliers", rr.Image(jnp.tile((rgb_outliers*1.0)[...,None], (1,1,3))))
-rr.log("/rgb/depth_outliers", rr.Image(jnp.tile((depth_outliers*1.0)[...,None], (1,1,3))))
-
 # Outliers are AND of the RGB and Depth outlier masks
-outler_mask = jnp.logical_and(rgb_outliers , depth_outliers)
+inlier_mask, outler_mask = b3d.get_rgb_depth_inlier_outlier_from_trace(trace)
 rr.log("outliers", rr.Image(jnp.tile((outler_mask*1.0)[...,None], (1,1,3))))
 
 
@@ -163,7 +159,7 @@ trace, _ = importance_jit(
             ("observed_rgb_depth", (rgbs_resized[ACQUISITION_T], xyzs[ACQUISITION_T,...,2])),
         ])
     ),
-    (jnp.arange(2),color_error,depth_error,inlier_score,outlier_prob,color_multiplier,depth_multiplier, object_library)
+    (jnp.arange(2),model_args, object_library)
 )
 # Visualize trace
 b3d.rerun_visualize_trace_t(trace, ACQUISITION_T)

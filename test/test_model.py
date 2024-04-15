@@ -5,6 +5,7 @@ import jax
 import genjax
 import jax.numpy as jnp
 
+
 class TestGroup:
 
     width=100

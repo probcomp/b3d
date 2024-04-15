@@ -276,7 +276,7 @@ class Pose:
         Args:
             posxyzw: Jax array with shape (7,)
         """
-        return Pose(posxyzw[:3], posxyzw[3:])
+        return Pose(posxyzw[...,:3], posxyzw[...,3:])
 
 
     # TODO: Should we keep that on the Pose class?

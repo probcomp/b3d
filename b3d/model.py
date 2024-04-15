@@ -9,6 +9,7 @@ import rerun as rr
 from collections import OrderedDict
 from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
+from b3d.colors import color_error_helper
 
 class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
     def sample(self, key, vals):

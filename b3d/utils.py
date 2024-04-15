@@ -16,6 +16,7 @@ from pathlib import Path
 import os
 import trimesh
 from b3d import Pose
+import rerun as rr
 
 from dataclasses import dataclass
 
@@ -264,6 +265,11 @@ def nn_background_segmentation(images):
     masks  = jnp.array([jnp.array(output_image)[..., -1] > 0.5 for output_image in output_images])
     return masks
 
+def rr_log_pose(channel, pose):
+    origins = jnp.tile(pose.pos[None,...], (3,1))
+    vectors = jnp.eye(3)
+    colors = jnp.eye(3)
+    rr.log(channel, rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3,:3].T, colors=colors))
 
 
 from typing import Any, NamedTuple, TypeAlias

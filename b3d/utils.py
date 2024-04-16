@@ -272,6 +272,17 @@ def rr_log_pose(channel, pose):
     rr.log(channel, rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3,:3].T, colors=colors))
 
 
+def normalize_log_scores(log_p):
+    """
+    Normalizes log scores.
+    Args:
+        log_p: (N,) log scores
+    Returns:
+        log_p_normalized: (N,) normalized log scores
+    """
+    return jnp.exp(log_p - jax.scipy.special.logsumexp(log_p))
+
+
 from typing import Any, NamedTuple, TypeAlias
 import jax
 Array: TypeAlias = jax.Array

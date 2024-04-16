@@ -62,25 +62,10 @@ object_center_hypothesis = point_cloud[distances.argmin()]
 
 
 
-color_error, depth_error = (50.0, 0.02)
-inlier_score, outlier_prob = (5.0, 0.00001)
-color_multiplier, depth_multiplier = (2000.0, 2000.0)
-model_args = b3d.ModelArgs(
-    color_error,
-    depth_error,
-
-    inlier_score,
-    outlier_prob,
-
-    color_multiplier,
-    depth_multiplier,
-)
-
 key = jax.random.PRNGKey(0)
 
-
 from functools import partial
-@partial(jax.jit, static_argnames=['addresss', 'number'])
+@partial(jax.jit, static_argnames=['address', 'number'])
 def gvmf_pose_proposal(trace, key, variance, concentration, address, number):
     addr = address.const
     test_poses = Pose.concatenate_poses([jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
@@ -93,10 +78,26 @@ def gvmf_pose_proposal(trace, key, variance, concentration, address, number):
     )
     sample = jax.random.categorical(key, scores)
     trace = b3d.update_choices_jit(trace, jax.random.PRNGKey(0), genjax.Pytree.const([addr]),
-            test_poses[sample])
+            test_poses[scores.argmax()])
     key = jax.random.split(key, 2)[-1]
     return trace, key
 
+
+
+
+color_error, depth_error = (60.0, 0.01)
+inlier_score, outlier_prob = (10.0, 0.000001)
+color_multiplier, depth_multiplier = (5000.0, 5000.0)
+model_args = b3d.ModelArgs(
+    color_error,
+    depth_error,
+
+    inlier_score,
+    outlier_prob,
+
+    color_multiplier,
+    depth_multiplier,
+)
 
 trace, _ = model.importance(
     jax.random.PRNGKey(0),
@@ -114,12 +115,57 @@ trace, _ = model.importance(
 b3d.rerun_visualize_trace_t(trace, 0)
 rr.log("prediction", rr.Points3D(trace["object_pose_0"].apply(vertices)))
 
-for t in tqdm(range(40)):
+for t in tqdm(range(100)):
     trace, key = gvmf_pose_proposal(trace, key,
-        0.01, 10.0, genjax.Pytree.const("object_pose_0"), 1000)
+        0.01, 1.0, genjax.Pytree.const("object_pose_0"), 1000)
+
+for t in tqdm(range(100)):
+    trace, key = gvmf_pose_proposal(trace, key,
+        0.02, 100.0, genjax.Pytree.const("object_pose_0"), 1000)
+    b3d.rerun_visualize_trace_t(trace, t)
 
 
 print(trace.get_score())
 b3d.rerun_visualize_trace_t(trace, t)
+rr.log("prediction", rr.Points3D(trace["object_pose_0"].apply(vertices)))
+b3d.rr_log_pose("pose", trace["object_pose_0"])
+
+cp_to_pose = lambda cp: Pose(
+    jnp.array([cp[0], cp[1], 0.0]),
+    b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat()
+)
 
 
+delta_cps = jnp.stack(
+    jnp.meshgrid(
+        jnp.linspace(-0.04, 0.04, 31),
+        jnp.linspace(-0.04, 0.04, 31),
+        jnp.linspace(-jnp.pi, jnp.pi, 71),
+    ),
+    axis=-1,
+).reshape(-1, 3)
+cp_delta_poses = jax.vmap(cp_to_pose)(delta_cps) 
+
+test_poses = trace["object_pose_0"] @ cp_delta_poses
+test_poses_batches = test_poses.split(10)
+scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(
+    trace, key, genjax.Pytree.const(["object_pose_0"]),
+    poses) for poses in test_poses_batches
+])
+
+samples = jax.random.categorical(key, scores * 1.0, shape=(100,))
+
+for t in tqdm(range(len(samples))):
+    trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_pose_0"]),
+        test_poses[samples[t]])
+    b3d.rerun_visualize_trace_t(trace, t)
+    rr.log("prediction", rr.Points3D(trace["object_pose_0"].apply(vertices)))
+    b3d.rr_log_pose("pose", trace["object_pose_0"])
+
+    _, color_inliers, depth_inliers, _ = b3d.get_rgb_depth_inliers_from_trace(trace)
+
+    rr.log("color_inliers", rr.DepthImage(color_inliers*1.0))
+    rr.log("depth_inliers", rr.DepthImage(depth_inliers*1.0))
+
+
+b3d.normalize_log_scores(jnp.array([209.0, 212.0]))

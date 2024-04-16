@@ -44,26 +44,46 @@ class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
 uniform_pose = UniformPose()
 gaussian_vmf_pose = GaussianPose()
 
+ModelArgs = namedtuple('ModelArgs', [
+    'color_tolerance',
+    'depth_tolerance',
+    'inlier_score',
+    'outlier_prob',
+    'color_multiplier',
+    'depth_multiplier',
+])
+
+def get_rgb_depth_inliers_from_trace(trace):
+    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
+    model_args = trace.get_args()[1]
+    return get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
+
+def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args):
+    observed_lab = b3d.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+
+    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
+
+    error = (
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
+    )
+    color_inliers = (error < model_args.color_tolerance) * valid_data_mask
+    depth_inliers = (jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance) * valid_data_mask
+    inliers = color_inliers * depth_inliers * valid_data_mask
+    return (inliers, color_inliers, depth_inliers, valid_data_mask)
 
 class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, color_tolerance, depth_tolerance, inlier_score, outlier_prob, multiplier):
+    def sample(self, key, rendered_rgb, rendered_depth, model_args):
         return (rendered_rgb, rendered_depth)
 
-    def logpdf(self, observed, rendered_rgb, rendered_depth, color_tolerance, depth_tolerance, inlier_score, outlier_prob, multiplier):
+    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args):
         observed_rgb, observed_depth = observed
-
-        observed_lab = b3d.rgb_to_lab(observed_rgb)
-        rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-
-        valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
-
-        error = (
-            jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
-            jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
-        )
-        color_inliers = (error < color_tolerance)
-        depth_inliers = (jnp.abs(observed_depth - rendered_depth) < depth_tolerance)
-        inliers = color_inliers * depth_inliers * valid_data_mask
+        inliers, _, _, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
+        
+        inlier_score = model_args.inlier_score
+        outlier_prob = model_args.outlier_prob
+        multiplier = model_args.color_multiplier
 
         num_data_points = jnp.size(inliers)
         num_inliers = jnp.sum(inliers)
@@ -85,14 +105,6 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 rgbd_sensor_model = RGBDSensorModel()
 
 
-ModelArgs = namedtuple('ModelArgs', [
-    'color_tolerance',
-    'depth_tolerance',
-    'inlier_score',
-    'outlier_prob',
-    'color_multiplier',
-    'depth_multiplier',
-])
 
 
 def model_multiobject_gl_factory(renderer):
@@ -123,11 +135,7 @@ def model_multiobject_gl_factory(renderer):
         )
         observed_rgb, observed_depth = rgbd_sensor_model(
             rendered_rgb, rendered_depth,
-            model_args.color_tolerance,
-            model_args.depth_tolerance,
-            model_args.inlier_score,
-            model_args.outlier_prob,
-            model_args.color_multiplier
+            model_args
         ) @ "observed_rgb_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model
@@ -147,23 +155,7 @@ def get_object_ids_from_trace(trace):
     ])
 
 
-def get_rgb_depth_inlier_outlier_from_trace(trace):
-    (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
-    model_args = trace.get_args()[1]
 
-    observed_lab = b3d.rgb_to_lab(observed_rgb)
-    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-
-    valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
-
-    error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
-        jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
-    )
-    color_inliers = (error < model_args.color_tolerance)
-    depth_inliers = (jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance)
-    inliers = color_inliers * depth_inliers * valid_data_mask
-    return (inliers, jnp.logical_not(inliers))
 
 def rerun_visualize_trace_t(trace, t):
     (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
@@ -174,3 +166,5 @@ def rerun_visualize_trace_t(trace, t):
 
     rr.log("/image/depth", rr.DepthImage(observed_depth))
     rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))
+
+    rr.log("/info", rr.TextDocument(f"# Score : {trace.get_score()}"))

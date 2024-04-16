@@ -54,5 +54,5 @@ Run
 ```
 bash install.sh
 ```
-Verify install succeeded by running `python demo.py` which should display a `demo.py` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
+Verify install succeeded by running `python test/test_demo.py` which should display a `demo` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
 

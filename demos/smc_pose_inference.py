@@ -14,8 +14,8 @@ rr.init("real")
 rr.connect(addr=f'127.0.0.1:{PORT}')
 
 video_input = b3d.VideoInput.load(os.path.join(b3d.get_root_path(),
-"assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
-# "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
+# "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
+"assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
 ))
 
 scaling_factor = 4
@@ -85,9 +85,9 @@ def gvmf_pose_proposal(trace, key, variance, concentration, address, number):
 
 
 
-color_error, depth_error = (60.0, 0.01)
-inlier_score, outlier_prob = (10.0, 0.000001)
-color_multiplier, depth_multiplier = (5000.0, 5000.0)
+color_error, depth_error = (60.0, 0.02)
+inlier_score, outlier_prob = (5.0, 0.000001)
+color_multiplier, depth_multiplier = (3000.0, 3000.0)
 model_args = b3d.ModelArgs(
     color_error,
     depth_error,
@@ -98,6 +98,8 @@ model_args = b3d.ModelArgs(
     color_multiplier,
     depth_multiplier,
 )
+
+
 
 trace, _ = model.importance(
     jax.random.PRNGKey(0),
@@ -115,14 +117,15 @@ trace, _ = model.importance(
 b3d.rerun_visualize_trace_t(trace, 0)
 rr.log("prediction", rr.Points3D(trace["object_pose_0"].apply(vertices)))
 
-for t in tqdm(range(100)):
+for t in tqdm(range(200)):
     trace, key = gvmf_pose_proposal(trace, key,
         0.01, 1.0, genjax.Pytree.const("object_pose_0"), 1000)
+b3d.rerun_visualize_trace_t(trace, 0)
 
 for t in tqdm(range(100)):
     trace, key = gvmf_pose_proposal(trace, key,
-        0.02, 100.0, genjax.Pytree.const("object_pose_0"), 1000)
-    b3d.rerun_visualize_trace_t(trace, t)
+        0.01, 10.0, genjax.Pytree.const("object_pose_0"), 1000)
+b3d.rerun_visualize_trace_t(trace, 0)
 
 
 print(trace.get_score())
@@ -167,5 +170,3 @@ for t in tqdm(range(len(samples))):
     rr.log("color_inliers", rr.DepthImage(color_inliers*1.0))
     rr.log("depth_inliers", rr.DepthImage(depth_inliers*1.0))
 
-
-b3d.normalize_log_scores(jnp.array([209.0, 212.0]))

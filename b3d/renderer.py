@@ -64,12 +64,16 @@ class Renderer(object):
             num_layers: int
                 Number of layers in the depth buffer.
         """
-        self.width, self.height = width, height
-        self.resolution = jnp.array([height, width]).astype(jnp.int32)
-        self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
         self.num_layers = num_layers
         self._rasterize_partial = jax.tree_util.Partial(self._rasterize, self)
+
+        self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
+
+    def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
+        self.width, self.height = width, height
+        self.resolution = jnp.array([height, width]).astype(jnp.int32)
+        self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
     @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
     def _rasterize(self, pose, pos, tri, ranges, projMatrix, resolution):

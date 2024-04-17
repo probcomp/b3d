@@ -1,9 +1,7 @@
 import b3d
 import jax.numpy as jnp
 
-def test_renderer_full():
-    image_width, image_height, fx,fy, cx,cy, near, far = 200, 200, 200.0, 200.0, 100.0, 50.0, 0.001, 16.0
-    renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+def test_renderer_full(renderer):
 
     vertices = jnp.array([
         [0.0, 0.0, 0.0],

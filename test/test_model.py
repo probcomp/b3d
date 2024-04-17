@@ -4,30 +4,16 @@ from b3d import Pose
 import jax
 import genjax
 import jax.numpy as jnp
+import pytest
 
 
 class TestGroup:
-
-    width=100
-    height=100
-    fx=50.0
-    fy=50.0
-    cx=50.0
-    cy=50.0
-    near=0.001
-    far=16.0
-    renderer = b3d.Renderer(
-        width, height, fx, fy, cx, cy, near, far
-    )
-
     key = jax.random.PRNGKey(0)
 
     object_library = b3d.MeshLibrary.make_empty_library()
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-
-
 
     @genjax.static_gen_fn
     def object_gf(object_library):
@@ -36,12 +22,6 @@ class TestGroup:
 
     trace = object_gf.simulate(key, (object_library,))
 
-    @genjax.static_gen_fn
-    def model(dummy_num_objects):
-        genjax.map_
-
-
-    model = model_multiobject_gl_factory(renderer)
 
     object_library = b3d.MeshLibrary.make_empty_library()
     object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
@@ -52,10 +32,8 @@ class TestGroup:
         0.1, 0.1, 0.1, 0.1, 0.1, 0.1
     )
 
-
-
-    def test_importance(self):
-        model = self.model
+    def test_importance(self, renderer):
+        model = model_multiobject_gl_factory(renderer)
         trace, _ = model.importance(
             jax.random.PRNGKey(0),
             genjax.choice_map(

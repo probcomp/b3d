@@ -107,7 +107,7 @@ rgbd_sensor_model = RGBDSensorModel()
 
 
 
-def model_multiobject_gl_factory(renderer):
+def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
     @genjax.static_gen_fn
     def model(
         _num_obj_arr, # new 
@@ -133,7 +133,7 @@ def model_multiobject_gl_factory(renderer):
             object_library.ranges[object_indices] * (object_indices >= 0).reshape(-1,1),
             object_library.attributes
         )
-        observed_rgb, observed_depth = rgbd_sensor_model(
+        observed_rgb, observed_depth = image_likelihood(
             rendered_rgb, rendered_depth,
             model_args
         ) @ "observed_rgb_depth"

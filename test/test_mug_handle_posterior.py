@@ -25,10 +25,10 @@ rr.connect(addr=f'127.0.0.1:{PORT}')
 
 class TestMugHandlePosterior:
 
-    def test_gridding_posterior(self):
+    def test_gridding_posterior(self, renderer):
 
         image_width, image_height, fx, fy, cx, cy, near, far = 100, 100, 200.0, 200.0, 50.0, 50.0, 0.01, 10.0
-        renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+        renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, near, far)
         model = b3d.model_multiobject_gl_factory(renderer)
         importance_jit = jax.jit(model.importance)
         
@@ -94,6 +94,7 @@ class TestMugHandlePosterior:
                 ),
                 (jnp.arange(1), model_args, object_library)
             )
+            print("IMG Size :", gt_trace["observed_rgb_depth"][0].shape)
 
 
             delta_cps = jnp.stack(

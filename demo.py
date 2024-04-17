@@ -13,6 +13,7 @@ from tqdm import tqdm
 import fire
 
 
+
 def test_demo():
     rr.init("demo")
     rr.connect("127.0.0.1:8812")
@@ -38,7 +39,7 @@ def test_demo():
 
 
     num_layers = 2048
-    renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far, num_layers)
+    renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
     model = b3d.model_multiobject_gl_factory(renderer)
     importance_jit = jax.jit(model.importance)
     update_jit = jax.jit(model.update)

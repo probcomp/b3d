@@ -157,14 +157,24 @@ def get_object_ids_from_trace(trace):
 
 
 
-def rerun_visualize_trace_t(trace, t):
+def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
     rr.set_time_sequence("frame", t)
 
-    rr.log("/image", rr.Image(observed_rgb))
-    rr.log("/image/rgb_rendering", rr.Image(rendered_rgb))
+    if "rgb" in modes:
+        rr.log("/image", rr.Image(observed_rgb))
+        rr.log("/image/rgb_rendering", rr.Image(rendered_rgb))
 
-    rr.log("/image/depth", rr.DepthImage(observed_depth))
-    rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))
+    if "depth" in modes:
+        rr.log("/image/depth", rr.DepthImage(observed_depth))
+        rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))
 
-    rr.log("/info", rr.TextDocument(f"# Score : {trace.get_score()}"))
+    info_string = f"# Score : {trace.get_score()}"
+
+    if "inliers" in modes:
+        (inliers, color_inliers, depth_inliers, valid_data_mask) = b3d.get_rgb_depth_inliers_from_trace(trace)
+        rr.log("/image/color_inliers", rr.DepthImage(color_inliers * 1.0))
+        rr.log("/image/depth_inliers", rr.DepthImage(depth_inliers * 1.0))
+        info_string += f"\n # Inliers : {jnp.sum(inliers)}"
+        info_string += f"\n # Valid : {jnp.sum(valid_data_mask)}"
+    rr.log("/info", rr.TextDocument(info_string))

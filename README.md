@@ -33,6 +33,15 @@ conda create -n b3d python=3.10
 conda activate b3d
 ```
 
+### Install b3d
+
+Run
+```
+bash install.sh
+```
+Verify install succeeded by running `python demo.py` which should display a `demo` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
+
+
 ### Visualizer
 Tunnel port `8812` for Rerun visualization by adding the `RemoteForward`line to your ssh config:
 ```
@@ -47,12 +56,3 @@ Install rerun on local machine `pip install rerun-sdk` and open viewer:
 ```
 rerun --port 8812
 ```
-
-### Install b3d
-
-Run
-```
-bash install.sh
-```
-Verify install succeeded by running `python demo.py` which should display a `demo` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
-

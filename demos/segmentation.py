@@ -19,9 +19,14 @@ import os
 import b3d
 
 # Load date
-path = os.path.join(b3d.get_root_path(),
-"assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
-video_input = b3d.VideoInput.load(path)
+# path = os.path.join(b3d.get_root_path(),
+# "assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
+# video_input = b3d.VideoInput.load(path)
+
+video_input = b3d.VideoInput.load(os.path.join(b3d.get_root_path(),
+"assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
+# "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
+))
 
 
 feature_extractor = DetrFeatureExtractor.from_pretrained("facebook/detr-resnet-50-panoptic")

@@ -57,3 +57,10 @@ class MeshLibrary:
                 assert attributes.shape[0] == vertices.shape[0], "Attributes should be [num_vertices, num_attributes]"
                 self.attributes = jnp.concatenate((self.attributes, attributes))
 
+
+    def add_trimesh(self, mesh):
+        vertices = jnp.array(mesh.vertices)
+        vertices = vertices - jnp.mean(vertices, axis=0)
+        faces = jnp.array(mesh.faces)
+        vertex_colors = (jnp.array(mesh.visual.to_color().vertex_colors)[...,:3] / 255.0 ) 
+        self.add_object(vertices, faces, vertex_colors)

@@ -81,7 +81,7 @@ def gvmf_pose_proposal(trace, key, variance, concentration, address, number):
 
 
 color_error, depth_error = (50.0, 0.01)
-inlier_score, outlier_prob = (5.0, 0.01)
+inlier_score, outlier_prob = (10.0, 0.0000001)
 color_multiplier, depth_multiplier = (3000.0, 3000.0)
 model_args = b3d.ModelArgs(
     color_error,
@@ -96,51 +96,10 @@ model_args = b3d.ModelArgs(
 
 key = jax.random.PRNGKey(1000)
 
-
-# from genjax.generative_functions.distributions import ExactDensity
-# class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-#     def sample(self, key, rendered_rgb, rendered_depth, model_args):
-#         return (rendered_rgb, rendered_depth)
-
-#     def logpdf(self, observed, rendered_rgb, rendered_depth, model_args):
-#         observed_rgb, observed_depth = observed
-#         observed_lab = b3d.rgb_to_lab(observed_rgb)
-#         rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-
-#         inlier_score = model_args.inlier_score
-#         outlier_prob = model_args.outlier_prob
-#         multiplier = model_args.color_multiplier
-
-#         valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
-
-#         error = (
-#             jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
-#             jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
-#         )
-#         color_inliers = (error < model_args.color_tolerance) * valid_data_mask
-#         depth_inliers = (jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance) * valid_data_mask
-#         inliers = color_inliers * depth_inliers
-
-#         num_data_points = jnp.size(inliers)
-#         num_inliers = jnp.sum(inliers)
-#         num_outliers = num_data_points - num_inliers
-
-#         logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
-#         logp_out = jnp.log(outlier_prob)
-
-#         log_sum_of_probs = b3d.logsumexp(jnp.array([
-#             jnp.log(num_inliers) + logp_in,
-#             jnp.log(num_outliers) + logp_out,
-#         ]))
-#         average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
-#         return average_log_prob * multiplier
-
-# rgbd_sensor_model = RGBDSensorModel()
-
 model = b3d.model_multiobject_gl_factory(renderer, b3d.rgbd_sensor_model)
 
 importance_jit = jax.jit(model.importance)
-key = jax.random.PRNGKey(0)
+key = jax.random.PRNGKey(110)
 
 
 key = jax.random.split(key, 2)[-1]
@@ -158,26 +117,14 @@ trace, _ = model.importance(
     (jnp.arange(1), model_args, object_library)
 )
 b3d.rerun_visualize_trace_t(trace, 0)
-
-# key = jax.random.split(key, 2)[-1]
-# test_poses = jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
-#     jax.random.split(key, 300000),
-#     trace["object_pose_0"],
-#     0.03, 0.0001
-# )
-# test_poses_batches = test_poses.split(300)
-# scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(trace, key, genjax.Pytree.const(["object_pose_0"]), poses) for poses in test_poses_batches])
-# print(scores.max())
-# trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_pose_0"]),  test_poses[scores.argmax()])
-# print(trace.get_score())
-# b3d.rerun_visualize_trace_t(trace, 0)
-
-for i in range(10):
+params = jnp.array([0.04, 1.0])
+skips = 0
+for i in range(30):
     key = jax.random.split(key, 2)[-1]
     test_poses = jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0,None, None, None))(
         jax.random.split(key, 10000),
         trace["object_pose_0"],
-        0.01, 1000.0
+        params[0], params[1]
     )
     test_poses_batches = test_poses.split(10)
     scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(trace, key, genjax.Pytree.const(["object_pose_0"]), poses) for poses in test_poses_batches])
@@ -185,8 +132,18 @@ for i in range(10):
         trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_pose_0"]),  test_poses[scores.argmax()])
         b3d.rerun_visualize_trace_t(trace, 0)
     else:
-        print(f"skip {i}")
+        params = jnp.array([params[0] * 0.5, params[1] * 2.0])
+        skips += 1
+        print(f"shrinking")
+        if skips > 5:
+            print(f"skip {i}")
+            break
 
+
+contact_parameters_to_pose = lambda cp: Pose(
+    jnp.array([cp[0], cp[1], 0.0]),
+    b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat()
+)
 
 
 delta_cps = jnp.stack(
@@ -197,21 +154,28 @@ delta_cps = jnp.stack(
     ),
     axis=-1,
 ).reshape(-1, 3)
-cp_delta_poses = jax.vmap(b3d.contact_parameters_to_pose)(delta_cps) 
+
+skips = 0
+for i in range(30):
+    key = jax.random.split(key, 2)[-1]
+    cp_delta_poses = jax.vmap(contact_parameters_to_pose)(delta_cps) 
 
 
-test_poses = trace["object_pose_0"] @ cp_delta_poses
-test_poses_batches = test_poses.split(200)
+    test_poses = trace["object_pose_0"] @ cp_delta_poses
+    test_poses_batches = test_poses.split(200)
 
-scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(
-    trace, key, genjax.Pytree.const(["object_pose_0"]),
-    poses) for poses in test_poses_batches
-])
-print(scores.max())
-trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_pose_0"]),  test_poses[scores.argmax()])
-print(trace.get_score())
-b3d.rerun_visualize_trace_t(trace, 0)
+    scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(
+        trace, key, genjax.Pytree.const(["object_pose_0"]),
+        poses) for poses in test_poses_batches
+    ])
 
-# Score : 131.11410522460938
- # Inliers : 210
- # Valid : 245
+    if scores.max() > trace.get_score():
+        trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_pose_0"]),  test_poses[scores.argmax()])
+        b3d.rerun_visualize_trace_t(trace, 0)
+    else:
+        params = delta_cps / 2.0
+        skips += 1
+        print(f"shrinking")
+        if skips > 5:
+            print(f"skip {i}")
+            break

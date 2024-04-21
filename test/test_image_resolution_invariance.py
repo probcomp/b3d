@@ -20,6 +20,23 @@ from tqdm import tqdm
 from pathlib import Path
 import unittest
        
+class UpsamplingRenderer(b3d.Renderer):
+    """
+    Renderer that upsamples rendered image to a desired resolution.
+    Designed for image invariance resolution test, to express images that
+    have more pixels but equal amount of "information"
+    """
+    def __init__(self, *init_args):
+        super().__init__(*init_args)
+        self.IMAGE_WIDTH = self.width 
+        self.IMAGE_HEIGHT = self.height
+    
+    def render_attribute(self, *render_inputs):  ## overload
+        rgb, depth = super().render_attribute(*render_inputs)
+        return (jax.image.resize(rgb, (self.IMAGE_WIDTH, self.IMAGE_HEIGHT,3), 'nearest'), 
+                jax.image.resize(depth, (self.IMAGE_WIDTH, self.IMAGE_HEIGHT), 'nearest'))   
+                    
+        
 class TestImgResolutionInvariance(unittest.TestCase):
     def setup(self, rerun, plot):  # TODO pass in mesh path
         self.rerun = rerun
@@ -39,17 +56,68 @@ class TestImgResolutionInvariance(unittest.TestCase):
         self.object_library.add_object(vertices, faces, vertex_colors)
         print(f"{self.object_library.get_num_objects()} object(s) in library")
         
+        #####
+        # resolutions to test
+        #####
+        self.TEST_RESOLUTIONS =  [
+                            (320,320),
+                            (160,160),
+                            (80,80),
+                            ]  
+        
+        ####
+        # setup renderer
+        ####
+        IMAGE_WIDTH, IMAGE_HEIGHT = self.TEST_RESOLUTIONS[-1]  # lowest resolution (will upsample for image reoslution varying)
+        fx, fy, cx, cy, near, far = IMAGE_WIDTH*2, IMAGE_HEIGHT*2, IMAGE_WIDTH/2, IMAGE_HEIGHT/2, 0.01, 10.0
+
+        self.renderer = UpsamplingRenderer(
+            IMAGE_WIDTH, IMAGE_HEIGHT, fx, fy, cx, cy, near, far
+        )
+        
+        
     def test_peaky(self,rerun=False, plot=False):
+        """
+        Test case 1: 
+            Object is positioned such that there is no uncertainty in the pose (i.e. z axis angle).
+            We expect a posterior peaked near the GT pose.
+        See _test_common() for the invariances asserted.
+        """
         self.setup(rerun, plot)
-        angle_var_bound, mean_var_bound = 1e-4, 1e-4
-        self._test_common(-jnp.pi, angle_var_bound, mean_var_bound)
+        score_mean_bound = 1e-3
+        angle_var_bound = 1e-4 
+        self._test_common(-jnp.pi, score_mean_bound, angle_var_bound)
         
     def test_uncertain(self, rerun=False, plot=False):
+        """
+        Test case 2: 
+            Object is positioned such that there exists certainty 
+            in the pose (i.e. z axis angle) due to self-occlusion, etc.
+            We expect a smoother posterior that increases in the region of the GT pose.
+        See _test_common() for the invariances asserted.
+        """
         self.setup(rerun, plot)
-        angle_var_bound, mean_var_bound = 1e-4, 1e-4
-        self._test_common(-jnp.pi*0.55, angle_var_bound, mean_var_bound)
+        score_mean_bound = 1e-3
+        angle_var_bound = 1e-4
+        self._test_common(-jnp.pi*0.55, score_mean_bound, angle_var_bound)
         
-    def _test_common(self, gt_rotation_angle_z, angle_var_bound=1e-4, mean_var_bound=1e-4):
+    def _test_common(self, gt_rotation_angle_z, score_mean_bound=1e-3, angle_var_bound=1e-4):
+        """
+        The testing procedure common to all test cases. 
+        
+        For a specified set of image resolutions (self.TEST_RESOLUTIONS),
+        Given the GT z axis angle and a uniform gridding of poses, acquires
+        (1) importance sampling scores from the uniform grid and 
+        (2) posterior samples from the IS weights.
+        
+        
+        For a given scene (i.e. the cam/obj poses held constant), 
+        asserts the following across varying image resolutions: 
+        a) IS scores/likelihoods on grid remain the same.
+        b) The variance of sampled angles does not vary significantly.
+            (i.e. variances are similar across image resolution)  
+        """
+        test_resolutions = self.TEST_RESOLUTIONS
         #############
         # get posterior per resolution
         ##############
@@ -58,31 +126,23 @@ class TestImgResolutionInvariance(unittest.TestCase):
         inlier_score, outlier_prob = (5.0, 0.00001)
         color_multiplier, depth_multiplier = (500.0, 500.0)
         num_x_tr, num_y_tr, num_x_rot, num_z_rot = 11, 11, 5, 81
-        
-            
-        test_resolutions = [(50,50), 
-                            (75,75), 
-                            (100,100), 
-                            (150,150), 
-                            (200,200)]       
+             
         samples_variances = []
         samples_means = []
         scores_variances = []
         scores_means = []
+        
         for IMAGE_WIDTH, IMAGE_HEIGHT in test_resolutions:
             print(f"========TESTING RESOLUTION ({IMAGE_WIDTH}, {IMAGE_HEIGHT})========")
             
-            ## Setup rest of intrinsics and renderer
-            fx, fy, cx, cy, near, far = IMAGE_WIDTH*2, IMAGE_HEIGHT*2, IMAGE_WIDTH/2, IMAGE_HEIGHT/2, 0.01, 10.0
-            self.renderer = b3d.Renderer(
-                IMAGE_WIDTH, IMAGE_HEIGHT, fx, fy, cx, cy, near, far
-            )
-            
+            self.renderer.IMAGE_WIDTH = IMAGE_WIDTH 
+            self.renderer.IMAGE_HEIGHT = IMAGE_HEIGHT
+
             ###########
             # Setup test image (no self-occlusion)
             ###########
             camera_pose = Pose.from_position_and_target(
-                jnp.array([0.0, 4.0, 0.0]),
+                jnp.array([0.0, 3.0, 0.0]),
                 jnp.array([0.0, 0.0, 0.0]),
                 up=jnp.array([0,0,1])
             )
@@ -120,8 +180,6 @@ class TestImgResolutionInvariance(unittest.TestCase):
             scores_variances.append(jnp.var(scores, axis=0))
             scores_means.append(jnp.mean(scores, axis=0))
             
-            del self.renderer
-
             
         samples_variances, samples_means = jnp.asarray(samples_variances), jnp.asarray(samples_means)
         scores_variances, scores_means = jnp.asarray(scores_variances), jnp.asarray(scores_means)
@@ -129,20 +187,25 @@ class TestImgResolutionInvariance(unittest.TestCase):
         #############
         # Asserts on sample statistics
         #############
-        # variance peakiness should be similar across resolutions for (1) posterior samples and (2) uniform grid samples
-        assert jnp.var(samples_variances[:, 2]) <= angle_var_bound, f"{samples_variances[:,2]} should all be under {angle_var_bound}"
-        assert jnp.abs(scores_variances.max() - scores_variances.min()) <= jnp.abs(0.05*jnp.mean(scores_variances)), f"{jnp.var(scores_variances)} should all be under {0.05*jnp.mean(scores_variances)}"
- 
+        # a) IS scores/likelihoods on grid remain the same.
+        #   (i.e. means are similar across image resolution)
+        assert jnp.allclose(scores_means.mean(), scores_means, atol=score_mean_bound)
+        
+        # b) The variance of sampled angles does not vary significantly.
+        #     (i.e. variances are similar across image resolution)  
+        assert jnp.allclose(samples_variances[0, 2], samples_variances[:, 2], atol=angle_var_bound)
+        
     def get_gridding_posterior(self, camera_pose, gt_pose_cam, gt_img, gt_depth, 
                                 color_error, depth_error,
                                 inlier_score, outlier_prob,
                                 color_multiplier, depth_multiplier,
                                 num_x_tr=11, num_y_tr=11, num_x_rot=5, num_z_rot=81,
                                 ):
-        ###########
-        # importance sampling
-        ###########
-        print("scoring hypotheses")
+        """
+        Given the GT camera/obj poses and the object pose hypotheses, 
+        evaluates the importance sample weights, and 
+        acquires posterior samples from those scores.
+        """
 
         model = b3d.model_multiobject_gl_factory(self.renderer)
         key = jax.random.PRNGKey(0)
@@ -270,7 +333,6 @@ class TestImgResolutionInvariance(unittest.TestCase):
         freqs = _freqs_array/_freqs_array.sum()
         unique_sample_coords = jnp.asarray([angle_to_coord(delta_cps[unique_sample,-1]) for unique_sample in _freqs.keys()])
         sc1 = axes[1].scatter(unique_sample_coords[:, 0], unique_sample_coords[:, 1], c=freqs, alpha=0.1)   
-        # cbar1 = plt.colorbar(sc1, ax=axes[1],fraction=0.046, pad=0.04)
         return f
 
 

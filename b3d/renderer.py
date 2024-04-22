@@ -72,6 +72,7 @@ class Renderer(object):
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
         self.width, self.height = width, height
+        self.fx, self.fy = fx,fy
         self.resolution = jnp.array([height, width]).astype(jnp.int32)
         self.projection_matrix = projection_matrix_from_intrinsics(width, height, fx, fy, cx, cy, near, far)
 

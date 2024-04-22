@@ -4,14 +4,15 @@ import pytest
 # Arrange
 @pytest.fixture
 def renderer():
-    width=100
-    height=100
-    fx=50.0
-    fy=50.0
-    cx=50.0
-    cy=50.0
+    width=200
+    height=200
+    fx=200.0
+    fy=200.0
+    cx=100.0
+    cy=100.0
     near=0.001
     far=16.0
-    return b3d.Renderer(
+    renderer = b3d.Renderer(
         width, height, fx, fy, cx, cy, near, far
     )
+    return renderer

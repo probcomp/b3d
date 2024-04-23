@@ -10,7 +10,6 @@ import os
 import trimesh
 import b3d
 from b3d import Pose
-import matplotlib.pyplot as plt
 import unittest
        
 class UpsamplingRenderer(b3d.Renderer):

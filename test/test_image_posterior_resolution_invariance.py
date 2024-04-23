@@ -7,17 +7,13 @@
 import jax.numpy as jnp
 import jax
 import genjax
-from matplotlib import cm
 import matplotlib.pyplot as plt
-import numpy as np
 import os
 import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 import rerun as rr
 from tqdm import tqdm
-from pathlib import Path
 import unittest
        
 class UpsamplingRenderer(b3d.Renderer):
@@ -74,15 +70,15 @@ class TestImgResolutionInvariance(unittest.TestCase):
         ####
         # setup renderer
         ####
-        IMAGE_WIDTH, IMAGE_HEIGHT = self.TEST_RESOLUTIONS[-1]  # lowest resolution (will upsample for image reoslution varying)
-        fx, fy, cx, cy, near, far = IMAGE_WIDTH*2, IMAGE_HEIGHT*2, IMAGE_WIDTH/2, IMAGE_HEIGHT/2, 0.01, 10.0
+        RENDERER_IMAGE_WIDTH, RESOLUTION_IMAGE_HEIGHT = self.TEST_RESOLUTIONS[-1]  # lowest resolution (will upsample for image reoslution varying)
+        fx, fy, cx, cy, near, far = RENDERER_IMAGE_WIDTH*2, RESOLUTION_IMAGE_HEIGHT*2, RENDERER_IMAGE_WIDTH/2, RESOLUTION_IMAGE_HEIGHT/2, 0.01, 10.0
 
         self.renderer = UpsamplingRenderer(
-            IMAGE_WIDTH, IMAGE_HEIGHT, fx, fy, cx, cy, near, far
+            RENDERER_IMAGE_WIDTH, RESOLUTION_IMAGE_HEIGHT, fx, fy, cx, cy, near, far
         )
         
         
-    def test_peaky(self,rerun=False, plot=False):
+    def test_peaky(self):
         """
         Test case 1: 
             Object is positioned such that there is no uncertainty in the pose (i.e. z axis angle).
@@ -129,8 +125,6 @@ class TestImgResolutionInvariance(unittest.TestCase):
              
         samples_variances = []
         samples_means = []
-        scores_variances = []
-        scores_means = []
         
         for IMAGE_WIDTH, IMAGE_HEIGHT in test_resolutions:
             print(f"========TESTING RESOLUTION ({IMAGE_WIDTH}, {IMAGE_HEIGHT})========")
@@ -246,11 +240,10 @@ class TestImgResolutionInvariance(unittest.TestCase):
                                 for poses in test_poses_batches])
         samples = jax.random.categorical(key, scores, shape=(500,))  # samples from posterior (prior was a uniform)
 
-
-        ###########
-        # rerun visualization
-        ###########
         if self.rerun:
+            ###########
+            # rerun visualization
+            ###########
             print("generating rerun vizs")
 
             alternate_camera_pose = Pose.from_position_and_target(

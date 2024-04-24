@@ -41,6 +41,13 @@ bash install.sh
 ```
 Verify install succeeded by running `python demo.py` which should display a `demo` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
 
+### Environment Variables
+Add the following to your bash_rc:
+```
+export XLA_PYTHON_CLIENT_PREALLOCATE="false"
+export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
+```
+
 
 ### Visualizer
 Tunnel port `8812` for Rerun visualization by adding the `RemoteForward`line to your ssh config:

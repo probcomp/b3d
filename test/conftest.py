@@ -13,6 +13,6 @@ def renderer():
     near=0.001
     far=16.0
     renderer = b3d.Renderer(
-        width, height, fx, fy, cx, cy, near, far
+        width, height, fx, fy, cx, cy, near, far, 1024
     )
     return renderer

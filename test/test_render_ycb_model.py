@@ -1,6 +1,7 @@
 import os
 import jax.numpy as jnp
 import trimesh
+import b3d
 
 def test_renderer_full(renderer):
     mesh_path = os.path.join(b3d.get_root_path(),

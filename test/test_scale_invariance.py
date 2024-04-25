@@ -63,7 +63,7 @@ rgb_far, depth_far = renderer.render_attribute(
 
 
 color_error, depth_error = (50.0, 0.01)
-inlier_score, outlier_prob = (10.0, 0.0000001)
+inlier_score, outlier_prob = (4.0, 0.000001)
 color_multiplier, depth_multiplier = (1.0, 1.0)
 model_args = b3d.ModelArgs(
     color_error,
@@ -76,21 +76,15 @@ model_args = b3d.ModelArgs(
     depth_multiplier,
 )
 
-print(b3d.rgbd_sensor_model.logpdf(
-    (rgb_near, depth_near), rgb_near, depth_near, model_args
-))
-print(b3d.rgbd_sensor_model.logpdf(
-    (rgb_far, depth_far), rgb_far, depth_far, model_args
-))
-
-
 from genjax.generative_functions.distributions import ExactDensity
 import genjax
-class RGBDSensorModelWithRays(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, model_args):
+
+
+class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy):
         return (rendered_rgb, rendered_depth)
 
-    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args):
+    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy):
         observed_rgb, observed_depth = observed
         inliers, _, _, valid_data_mask = b3d.get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
         
@@ -103,7 +97,7 @@ class RGBDSensorModelWithRays(ExactDensity,genjax.JAXGenerativeFunction):
         num_no_data = jnp.sum(1.0 - valid_data_mask)
         num_outliers = num_data_points - num_inliers - num_no_data
 
-        areas = (rendered_depth / fx)**2        
+        areas = (rendered_depth / fx) * (rendered_depth / fy)
 
         p_in = (1.0 - outlier_prob) * inlier_score + outlier_prob
         p_out = outlier_prob
@@ -116,19 +110,20 @@ class RGBDSensorModelWithRays(ExactDensity,genjax.JAXGenerativeFunction):
         )
         return jnp.log(sum_of_prob) * multiplier
 
-rgbd_sensor_model_with_rays = RGBDSensorModelWithRays()
+rgbd_sensor_model = RGBDSensorModel()
 
-print(rgbd_sensor_model_with_rays.logpdf(
-    (rgb_near, depth_near), rgb_near, depth_near, model_args
+print(rgbd_sensor_model.logpdf(
+    (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy
 ))
-print(rgbd_sensor_model_with_rays.logpdf(
-    (rgb_far, depth_far), rgb_far, depth_far, model_args
+print(rgbd_sensor_model.logpdf(
+    (rgb_far, depth_far), rgb_far, depth_far, model_args, fx, fy
 ))
-print(rgbd_sensor_model_with_rays.logpdf(
-    (rgb_far, depth_far), rgb_near, depth_near, model_args
+
+print(rgbd_sensor_model.logpdf(
+    (rgb_far, depth_far), rgb_near, depth_near, model_args, fx, fy
 ))
-print(rgbd_sensor_model_with_rays.logpdf(
-    (rgb_near, depth_near), rgb_far, depth_far, model_args
+print(rgbd_sensor_model.logpdf(
+    (rgb_near, depth_near), rgb_far, depth_far, model_args, fx, fy
 ))
 
 

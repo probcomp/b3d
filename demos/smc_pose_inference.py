@@ -14,8 +14,8 @@ rr.init("real")
 rr.connect(addr=f'127.0.0.1:{PORT}')
 
 video_input = b3d.VideoInput.load(os.path.join(b3d.get_root_path(),
-# "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
-"assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
+"assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
+# "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
 ))
 
 scaling_factor = 5
@@ -80,9 +80,9 @@ def gvmf_pose_proposal(trace, key, variance, concentration, address, number):
     return trace, key
 
 
-color_error, depth_error = (50.0, 0.01)
-inlier_score, outlier_prob = (10.0, 0.0000001)
-color_multiplier, depth_multiplier = (3000.0, 3000.0)
+color_error, depth_error = (60.0, 0.02)
+inlier_score, outlier_prob = (20.0, 0.001)
+color_multiplier, depth_multiplier = (1.0, 1.0)
 model_args = b3d.ModelArgs(
     color_error,
     depth_error,
@@ -117,6 +117,7 @@ trace, _ = model.importance(
     (jnp.arange(1), model_args, object_library)
 )
 b3d.rerun_visualize_trace_t(trace, 0)
+
 params = jnp.array([0.04, 1.0])
 skips = 0
 for i in range(30):
@@ -148,8 +149,8 @@ contact_parameters_to_pose = lambda cp: Pose(
 
 delta_cps = jnp.stack(
     jnp.meshgrid(
-        jnp.linspace(-0.02, 0.02, 51),
-        jnp.linspace(-0.02, 0.02, 51),
+        jnp.linspace(-0.04, 0.04, 51),
+        jnp.linspace(-0.04, 0.04, 51),
         jnp.linspace(-jnp.pi, jnp.pi, 71),
     ),
     axis=-1,
@@ -179,3 +180,12 @@ for i in range(30):
         if skips > 5:
             print(f"skip {i}")
             break
+
+
+# Score : -14.619775772094727
+ # Inliers : 222
+ # Valid : 247
+
+ # Score : -14.615632057189941
+ # Inliers : 216
+ # Valid : 250

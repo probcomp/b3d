@@ -74,10 +74,10 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     return (inliers, color_inliers, depth_inliers, valid_data_mask)
 
 class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, model_args):
+    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy):
         return (rendered_rgb, rendered_depth)
 
-    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args):
+    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy):
         observed_rgb, observed_depth = observed
         inliers, _, _, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
         
@@ -135,7 +135,8 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
         )
         observed_rgb, observed_depth = image_likelihood(
             rendered_rgb, rendered_depth,
-            model_args
+            model_args,
+            renderer.fx, renderer.fy
         ) @ "observed_rgb_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model

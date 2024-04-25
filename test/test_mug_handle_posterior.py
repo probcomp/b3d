@@ -10,13 +10,6 @@ from tqdm   import tqdm
 import trimesh
 import pytest
 
-# @pytest.fixture
-# def model_and_importance_100x100():
-#     image_width, image_height, fx, fy, cx, cy, near, far = 100, 100, 200.0, 200.0, 50.0, 50.0, 0.01, 10.0
-#     renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
-#     model = b3d.model_multiobject_gl_factory(renderer)
-#     importance_jit = jax.jit(model.importance)
-#     return model, importance_jit
 
 
 PORT = 8812
@@ -52,7 +45,7 @@ class TestMugHandlePosterior:
 
         color_error, depth_error = (60.0, 0.01)
         inlier_score, outlier_prob = (5.0, 0.00001)
-        color_multiplier, depth_multiplier = (500.0, 500.0)
+        color_multiplier, depth_multiplier = (5000.0, 500.0)
         model_args = b3d.ModelArgs(
             color_error,
             depth_error,
@@ -70,12 +63,14 @@ class TestMugHandlePosterior:
             jnp.array([0.0, 0.0, 0.0]), # Front 
             jnp.array([0.0, 0.0, +jnp.pi/2]), # Side
         ]
-        angle_variance_bounds = [
-            (0.2, 0.6),
-            (0.0, 0.01),
-            (0.0, 0.01),
-            (0.0, 0.01),
+
+        sampled_degree_range_bounds = [
+            (50.0, 80.0),
+            (0.0, 15.0),
+            (0.0, 15.0),
+            (0.0, 15.0),
         ]
+
         for text_index in range(len(cps_to_test)):
             gt_cp = cps_to_test[text_index]
 
@@ -96,7 +91,6 @@ class TestMugHandlePosterior:
             )
             print("IMG Size :", gt_trace["observed_rgb_depth"][0].shape)
 
-
             delta_cps = jnp.stack(
                 jnp.meshgrid(
                     jnp.linspace(-0.02, 0.02, 31),
@@ -111,37 +105,37 @@ class TestMugHandlePosterior:
             test_poses_batches = test_poses.split(10)
             scores = jnp.concatenate([b3d.enumerate_choices_get_scores_jit(gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses) for poses in test_poses_batches])
 
-            samples = jax.random.categorical(key, scores, shape=(100,))
+            samples = jax.random.categorical(key, scores, shape=(50,))
             print("GT Contact Parameter :", gt_cp)
 
-            samples_variance = jnp.var(delta_cps[samples], axis=0)
-            print("Variance Contact Parameters :", samples_variance)
-            assert(samples_variance[2] >= angle_variance_bounds[text_index][0]), f"{samples_variance}, {angle_variance_bounds[text_index]}"
-            assert(samples_variance[2] <= angle_variance_bounds[text_index][1]), f"{samples_variance}, {angle_variance_bounds[text_index]}"
+            samples_deg_range = jnp.rad2deg((jnp.max(delta_cps[samples], axis=0) - jnp.min(delta_cps[samples], axis=0))[2])
+
+            print("Sampled Angle Range:", samples_deg_range)
 
 
+            alternate_camera_pose = Pose.from_position_and_target(
+                jnp.array([0.01, 0.000, 0.9]),
+                object_pose.pos
+            )
+            alternate_view_images,_  = renderer.render_attribute_many(
+                (alternate_camera_pose.inv() @  test_poses[samples])[:, None,...],
+                object_library.vertices, object_library.faces,
+                object_library.ranges[jnp.array([0])],
+                object_library.attributes
+            )
 
-            # b3d.get_rgb_pil_image(gt_trace["observed_rgb_depth"][0]).save(
-            #     os.path.join(b3d.get_root_path(), f"assets/{gt_cp}.png")
-            # )
+            for t in range(len(samples)):
+                trace_ = b3d.update_choices_jit(gt_trace, key,  genjax.Pytree.const(["object_pose_0"]), test_poses[samples[t]])
+                b3d.rerun_visualize_trace_t(trace_, t)
+                rr.set_time_sequence("frame", t)
+                rr.log("alternate_view_image", rr.Image(alternate_view_images[t,...]))
+                rr.log("text", rr.TextDocument(f"{delta_cps[samples[t]]} \n {scores[samples[t]]}"))
 
 
+            assert(samples_deg_range >= sampled_degree_range_bounds[text_index][0]), f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
+            assert(samples_deg_range <= sampled_degree_range_bounds[text_index][1]), f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
 
-        # alternate_camera_pose = Pose.from_position_and_target(
-        #     jnp.array([0.01, 0.000, 0.9]),
-        #     object_pose.pos
-        # )
-        # alternate_view_images,_  = renderer.render_attribute_many(
-        #     (alternate_camera_pose.inv() @  test_poses[samples])[:, None,...],
-        #     object_library.vertices, object_library.faces,
-        #     object_library.ranges[jnp.array([0])],
-        #     object_library.attributes
-        # )
+            b3d.rerun_visualize_trace_t(gt_trace, 0)
 
-        # for t in range(len(samples)):
-        #     trace_ = b3d.update_choices_jit(gt_trace, key,  genjax.Pytree.const(["object_pose_0"]), test_poses[samples[t]])
-        #     b3d.rerun_visualize_trace_t(trace_, t)
-        #     rr.set_time_sequence("frame", t)
-        #     rr.log("alternate_view_image", rr.Image(alternate_view_images[t,...]))
-        #     rr.log("text", rr.TextDocument(f"{delta_cps[samples[t]]} \n {scores[samples[t]]}"))
+
 

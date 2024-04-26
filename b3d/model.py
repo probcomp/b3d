@@ -113,6 +113,7 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
         logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
         logp_out = jnp.log(outlier_prob)
         logp_no_data = jnp.log(1 / 1.0)
+        #logp_no_data = jnp.log(0.01)
 
         log_sum_of_probs = logsumexp(jnp.array([
             # jnp.log(num_inliers) + logp_in,
@@ -190,9 +191,14 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
                                                    renderer.fx, renderer.fy)
 
         depth_correction = jnp.power(rendered_depth, 2) * 1/renderer.fx * 1/renderer.fy
+        # degenerates into depth correction
+        dots = jnp.clip(jnp.abs(dots),1,1)
         score_correction = depth_correction * 1/dots
         # clipping hack
-        score_correction = jnp.clip(jnp.nan_to_num(jnp.abs(score_correction)), 1e-6,1)
+        score_correction = jnp.nan_to_num(score_correction)
+        #score_correction = jnp.ones(score_correction.shape)
+        score_correction /= jnp.sum(score_correction)
+        # correct unexplained pixels?
 
         observed_rgb, observed_depth = image_likelihood(
             rendered_rgb, rendered_depth, 

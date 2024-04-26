@@ -22,9 +22,6 @@ class TestMugHandlePosterior:
 
         image_width, image_height, fx, fy, cx, cy, near, far = 100, 100, 200.0, 200.0, 50.0, 50.0, 0.01, 10.0
         renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, near, far)
-        model = b3d.model_multiobject_gl_factory(renderer)
-        importance_jit = jax.jit(model.importance)
-        
 
         mesh_path = os.path.join(b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj")
         mesh = trimesh.load(mesh_path)
@@ -45,7 +42,7 @@ class TestMugHandlePosterior:
 
         color_error, depth_error = (60.0, 0.01)
         inlier_score, outlier_prob = (5.0, 0.00001)
-        color_multiplier, depth_multiplier = (5000.0, 500.0)
+        color_multiplier, depth_multiplier = (10000.0, 500.0)
         model_args = b3d.ModelArgs(
             color_error,
             depth_error,
@@ -66,10 +63,14 @@ class TestMugHandlePosterior:
 
         sampled_degree_range_bounds = [
             (50.0, 80.0),
-            (0.0, 15.0),
-            (0.0, 15.0),
-            (0.0, 15.0),
+            (0.0, 20.0),
+            (0.0, 20.0),
+            (0.0, 20.0),
         ]
+
+        model = b3d.model_multiobject_gl_factory(renderer)
+        importance_jit = jax.jit(model.importance)
+        
 
         for text_index in range(len(cps_to_test)):
             gt_cp = cps_to_test[text_index]

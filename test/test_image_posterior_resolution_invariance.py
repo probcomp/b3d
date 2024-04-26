@@ -120,7 +120,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         object_id = 0
         color_error, depth_error = (40.0, 0.02)
         inlier_score, outlier_prob = (5.0, 0.00001)
-        color_multiplier, depth_multiplier = (500.0, 500.0)
+        color_multiplier, depth_multiplier = (10000.0, 500.0)
         num_x_tr, num_y_tr, num_x_rot, num_z_rot = 11, 11, 5, 80
              
         samples_variances = []

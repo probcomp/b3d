@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import jax.numpy as jnp
 import jax
 import matplotlib.pyplot as plt
@@ -50,7 +51,7 @@ def test_demo():
     # TODO: explain
     inlier_score, outlier_prob = (jnp.float32(5.0), jnp.float32(0.001))
     # TODO: explain
-    color_multiplier, depth_multiplier = (jnp.float32(3000.0), jnp.float32(3000.0))
+    color_multiplier, depth_multiplier = (jnp.float32(5000.0), jnp.float32(3000.0))
 
 
     # Defines the enumeration schedule.

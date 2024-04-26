@@ -1,5 +1,3 @@
-
-
 import requests
 from PIL import Image
 import torch
@@ -11,13 +9,17 @@ from transformers import OwlViTProcessor, OwlViTForObjectDetection
 processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
 
-video_input = b3d.VideoInput.load(os.path.join(b3d.get_root_path(),
-# "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
-"assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
-))
+video_input = b3d.VideoInput.load(
+    os.path.join(
+        b3d.get_root_path(),
+        # "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
+        "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz",
+    )
+)
 
 import numpy as np
-image =Image.fromarray(np.array(video_input.rgb[0]))
+
+image = Image.fromarray(np.array(video_input.rgb[0]))
 image.save("test.png")
 
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
@@ -39,14 +41,15 @@ results = processor.post_process_grounded_object_detection(
     inputs.input_ids,
     box_threshold=0.4,
     text_threshold=0.3,
-    target_sizes=[image.size[::-1]]
+    target_sizes=[image.size[::-1]],
 )
 
 
 import rerun as rr
+
 PORT = 8812
 rr.init("real")
-rr.connect(addr=f'127.0.0.1:{PORT}')
+rr.connect(addr=f"127.0.0.1:{PORT}")
 
 rr.log("image", rr.Image(np.array(image)))
 
@@ -67,7 +70,7 @@ from transformers.models.detr.feature_extraction_detr import rgb_to_id
 rr.init("segmentation")
 rr.connect("127.0.0.1:8812")
 
-import os 
+import os
 import b3d
 
 # Load date
@@ -75,17 +78,22 @@ import b3d
 # "assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
 # video_input = b3d.VideoInput.load(path)
 
-video_input = b3d.VideoInput.load(os.path.join(b3d.get_root_path(),
-"assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
-# "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
-))
+video_input = b3d.VideoInput.load(
+    os.path.join(
+        b3d.get_root_path(),
+        "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz",
+        # "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
+    )
+)
 
 
-feature_extractor = DetrFeatureExtractor.from_pretrained("facebook/detr-resnet-50-panoptic")
+feature_extractor = DetrFeatureExtractor.from_pretrained(
+    "facebook/detr-resnet-50-panoptic"
+)
 model = DetrForSegmentation.from_pretrained("facebook/detr-resnet-50-panoptic")
 
 
-image = Image.fromarray(np.array(video_input.rgb[120*3]))
+image = Image.fromarray(np.array(video_input.rgb[120 * 3]))
 
 # prepare image for the model
 inputs = feature_extractor(images=image, return_tensors="pt")
@@ -104,8 +112,9 @@ panoptic_seg = numpy.array(panoptic_seg, dtype=numpy.uint8)
 panoptic_seg_id = jnp.array(rgb_to_id(panoptic_seg))
 
 image_jnp = jnp.array(image)
-panoptic_seg_id_resize = jax.image.resize(panoptic_seg_id, (image_jnp.shape[0], image_jnp.shape[1]),
- "nearest")
+panoptic_seg_id_resize = jax.image.resize(
+    panoptic_seg_id, (image_jnp.shape[0], image_jnp.shape[1]), "nearest"
+)
 
 rr.log("img", rr.Image(image_jnp))
 rr.log("img/depth", rr.DepthImage(panoptic_seg_id_resize))

@@ -11,26 +11,40 @@ class TestGroup:
     key = jax.random.PRNGKey(0)
 
     object_library = b3d.MeshLibrary.make_empty_library()
-    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
+    object_library.add_object(
+        jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
+    )
+    object_library.add_object(
+        jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
+    )
+    object_library.add_object(
+        jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
+    )
 
     @genjax.static_gen_fn
     def object_gf(object_library):
-        object_identity = b3d.uniform_discrete(jnp.arange(-1, object_library.get_num_objects())) @ f"id"
-        object_pose = b3d.uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"pose"
+        object_identity = (
+            b3d.uniform_discrete(jnp.arange(-1, object_library.get_num_objects()))
+            @ f"id"
+        )
+        object_pose = (
+            b3d.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ f"pose"
+        )
 
     trace = object_gf.simulate(key, (object_library,))
 
-
     object_library = b3d.MeshLibrary.make_empty_library()
-    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-    object_library.add_object(jnp.zeros((100,3)), jnp.zeros((10,3),dtype=jnp.int32), jnp.zeros((100,3)))
-
-    model_args = b3d.ModelArgs(
-        0.1, 0.1, 0.1, 0.1, 0.1, 0.1
+    object_library.add_object(
+        jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
     )
+    object_library.add_object(
+        jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
+    )
+    object_library.add_object(
+        jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
+    )
+
+    model_args = b3d.ModelArgs(0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
 
     def test_importance(self, renderer):
         model = model_multiobject_gl_factory(renderer)
@@ -42,11 +56,7 @@ class TestGroup:
                     "object_pose_0": Pose.identity(),
                 }
             ),
-            (
-                jnp.arange(3),
-                self.model_args,
-                self.object_library
-            ),
+            (jnp.arange(3), self.model_args, self.object_library),
         )
         identity_pose = Pose.identity()
         assert jnp.allclose(trace["camera_pose"].position, identity_pose.position)

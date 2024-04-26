@@ -67,10 +67,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    entry_points = {
-        'console_scripts': [
-            'b3d_pull = b3d.bucket_utils.b3d_pull:download_from_bucket',
-            'b3d_push = b3d.bucket_utils.b3d_push:upload_to_bucket',
+    entry_points={
+        "console_scripts": [
+            "b3d_pull = b3d.bucket_utils.b3d_pull:download_from_bucket",
+            "b3d_push = b3d.bucket_utils.b3d_push:upload_to_bucket",
         ]
     },
     python_requires=">=3.6",

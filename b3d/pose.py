@@ -18,41 +18,47 @@ Float: TypeAlias = Array
 Int: TypeAlias = Array
 Quaternion: TypeAlias = Array
 
+
 def multiply_quats(q1, q2):
-    return (Rot.from_quat(q1)*Rot.from_quat(q2)).as_quat()
+    return (Rot.from_quat(q1) * Rot.from_quat(q2)).as_quat()
+
 
 def multiply_quat_and_vec(q, vs):
     return Rot.from_quat(q).apply(vs)
+
 
 def sample_uniform_pose(key, low, high):
     keys = jax.random.split(key, 2)
     pos = jax.random.uniform(keys[0], (3,)) * (high - low) + low
     quat = jax.random.normal(keys[1], (4,))
     quat = quat / jnp.linalg.norm(quat)
-    return Pose(pos,quat)
+    return Pose(pos, quat)
+
 
 def logpdf_uniform_pose(pose, low, high):
     position = pose.position
-    valid = ((low <= position) & (position <= high))
-    position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
+    valid = (low <= position) & (position <= high)
+    position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high - low)))
     return position_score.sum() + jnp.pi**2
+
 
 def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     """
-    Samples poses from the product of a diagonal normal distribution (for position) and 
+    Samples poses from the product of a diagonal normal distribution (for position) and
     a generalized von Mises-Fisher distribution (for quaternion).
-    
+
     Note:
-    One can view the von Mises–Fisher distribution over the n-sphere 
-    as the restriction of the normal distribution on R^{n+1} 
-    to the n-sphere. From this viewpoint the concentration is 
+    One can view the von Mises–Fisher distribution over the n-sphere
+    as the restriction of the normal distribution on R^{n+1}
+    to the n-sphere. From this viewpoint the concentration is
     approximateley the inverse of the variance.
 
     See:
     > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
     """
     translation = tfp.distributions.MultivariateNormalDiag(
-        jnp.zeros(3), jnp.ones(3) * variance).sample(seed=key)
+        jnp.zeros(3), jnp.ones(3) * variance
+    ).sample(seed=key)
     key = jax.random.split(key, 1)[0]
     quat = tfp.distributions.VonMisesFisher(
         jnp.array([0.0, 0.0, 0.0, 1.0]), concentration
@@ -60,7 +66,9 @@ def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     return mean_pose @ Pose(translation, quat)
 
 
-def camera_from_position_and_target(position, target=jnp.array([0., 0., 0.]), up=jnp.array([0., 0., 1.])):
+def camera_from_position_and_target(
+    position, target=jnp.array([0.0, 0.0, 0.0]), up=jnp.array([0.0, 0.0, 1.0])
+):
     """
     Create a camera pose at `position` with the camera-z-axis pointint at `target`.
     Recall that in world coordinates we assume z-axis is up.
@@ -76,20 +84,17 @@ def camera_from_position_and_target(position, target=jnp.array([0., 0., 0.]), up
     x = jnp.cross(z, up)
     x = x / jnp.linalg.norm(x)
 
-    y = jnp.cross(z,x)
+    y = jnp.cross(z, x)
     y = y / jnp.linalg.norm(y)
 
-    rotation_matrix = jnp.hstack([
-        x.reshape(-1,1),y.reshape(-1,1),z.reshape(-1,1)
-    ])
-    return Pose(
-        position,
-        Rot.from_matrix(rotation_matrix).as_quat()
-    )
+    rotation_matrix = jnp.hstack([x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1)])
+    return Pose(position, Rot.from_matrix(rotation_matrix).as_quat())
+
 
 @register_pytree_node_class
 class Pose:
     """Pose class with positions and quaternions representing rotation."""
+
     def __init__(self, position, quaternion):
         """
         3D rigid transformation
@@ -100,42 +105,46 @@ class Pose:
         self._position = position
         self._quaternion = quaternion
 
-    identity_quaternion = jnp.array([0., 0., 0., 1.])
+    identity_quaternion = jnp.array([0.0, 0.0, 0.0, 1.0])
 
     @property
     def unit_quaternion(self):
-        raise Warning("Use `identity_quaternion` instead, a unit quaternion is any quat with norm 1!")
+        raise Warning(
+            "Use `identity_quaternion` instead, a unit quaternion is any quat with norm 1!"
+        )
         return identity_quaternion
 
     @property
-    def pos(self): return self._position
+    def pos(self):
+        return self._position
+
     position = pos
 
     @property
-    def xyzw(self): return self._quaternion
+    def xyzw(self):
+        return self._quaternion
+
     quat = xyzw
     quaternion = xyzw
 
     @property
-    def wxyz(self): return jnp.concatenate([self.quaternion[...,3:4], self.quaternion[...,:3]], axis=-1)
+    def wxyz(self):
+        return jnp.concatenate(
+            [self.quaternion[..., 3:4], self.quaternion[..., :3]], axis=-1
+        )
 
     @property
-    def rot(self): return Rot.from_quat(self.xyzw)
+    def rot(self):
+        return Rot.from_quat(self.xyzw)
 
     def normalize(self):
-        quat = self.quat/ jnp.linalg.norm(self.quat,axis=-1,keepdims=True)
-        return Pose(
-            self.pos,
-            quat
-        ) 
+        quat = self.quat / jnp.linalg.norm(self.quat, axis=-1, keepdims=True)
+        return Pose(self.pos, quat)
 
     def quat_in_upper_hemisphere(self):
-        quat = self.quat/ jnp.linalg.norm(self.quat,axis=-1,keepdims=True)
-        quat = jnp.sign(quat[...,[3]]) * quat
-        return Pose(
-            self.pos,
-            quat
-        ) 
+        quat = self.quat / jnp.linalg.norm(self.quat, axis=-1, keepdims=True)
+        quat = jnp.sign(quat[..., [3]]) * quat
+        return Pose(self.pos, quat)
 
     def flatten(self):
         return self.pos, self.xyzw
@@ -150,7 +159,7 @@ class Pose:
     @property
     def flat(self):
         return self.flatten()
-    
+
     @property
     def shape(self):
         return self.pos.shape[:-1]
@@ -166,17 +175,19 @@ class Pose:
 
     def as_matrix(self):
         """Return a 4x4 pose matrix."""
-        pose_matrix = jnp.zeros((*self.pos.shape[:-1],4,4))
-        pose_matrix = pose_matrix.at[...,:3,:3].set(Rot.from_quat(self.xyzw).as_matrix())
-        pose_matrix = pose_matrix.at[...,:3,3].set(self.pos)
-        pose_matrix = pose_matrix.at[...,3,3].set(1.0)
+        pose_matrix = jnp.zeros((*self.pos.shape[:-1], 4, 4))
+        pose_matrix = pose_matrix.at[..., :3, :3].set(
+            Rot.from_quat(self.xyzw).as_matrix()
+        )
+        pose_matrix = pose_matrix.at[..., :3, 3].set(self.pos)
+        pose_matrix = pose_matrix.at[..., 3, 3].set(1.0)
         return pose_matrix
 
     @staticmethod
     def identity():
         """Return the identity transformation."""
-        return Pose(jnp.zeros(3), 
-                    jnp.array([0., 0., 0., 1.]))
+        return Pose(jnp.zeros(3), jnp.array([0.0, 0.0, 0.0, 1.0]))
+
     eye = identity
 
     def apply(self, vec: Array) -> Array:
@@ -189,8 +200,7 @@ class Pose:
 
     def compose(self, pose: "Pose") -> "Pose":
         """Compose with other pose."""
-        return Pose(self.apply(pose.pos), 
-                    multiply_quats(self.xyzw, pose.xyzw))
+        return Pose(self.apply(pose.pos), multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: "Pose") -> "Pose":
         return Pose(self.pos + pose.pos, self.quat + pose.quat)
@@ -208,41 +218,48 @@ class Pose:
         """Compose with other poses."""
         # TODO: Add test, in particular to lock in matmul vs mul.
         return self.compose(pose)
-    
+
     @staticmethod
     def concatenate_poses(pose_list):
-        return Pose(jnp.concatenate([pose.pos for pose in pose_list], axis=0),
-                    jnp.concatenate([pose.quat for pose in pose_list], axis=0))
+        return Pose(
+            jnp.concatenate([pose.pos for pose in pose_list], axis=0),
+            jnp.concatenate([pose.quat for pose in pose_list], axis=0),
+        )
 
     @staticmethod
     def stack_poses(pose_list):
-        return Pose(jnp.stack([pose.pos for pose in pose_list]),
-                    jnp.stack([pose.quat for pose in pose_list]))
+        return Pose(
+            jnp.stack([pose.pos for pose in pose_list]),
+            jnp.stack([pose.quat for pose in pose_list]),
+        )
 
     def split(self, n):
-        return [Pose(ps,qs) for (ps,qs) in zip(jnp.array_split(self.pos, n), jnp.array_split(self.quat, n))]
+        return [
+            Pose(ps, qs)
+            for (ps, qs) in zip(
+                jnp.array_split(self.pos, n), jnp.array_split(self.quat, n)
+            )
+        ]
 
     def inv(self):
         """
         Inverse of pose.
 
-        Note that for rotation matrix R and 
+        Note that for rotation matrix R and
         translation vector x we have
         ```
             [[ R x ]  [[ R' -R'x ]  = [[ I  0 ]
              [ 0 1 ]]  [ 0    1  ]]      0  1 ]]
         ```
-        where R' is the transpose of R.   
+        where R' is the transpose of R.
         """
         R_inv = Rot.from_quat(self.xyzw).inv()
-        return Pose(
-            -R_inv.apply(self.pos), 
-             R_inv.as_quat()
-        )
+        return Pose(-R_inv.apply(self.pos), R_inv.as_quat())
+
     inverse = inv
 
     def __str__(self):
-        return f'Pose(position={repr(self.pos)}, quaternion={repr(self.xyzw)})'
+        return f"Pose(position={repr(self.pos)}, quaternion={repr(self.xyzw)})"
 
     def __repr__(self):
         return self.__str__()
@@ -250,21 +267,20 @@ class Pose:
     @staticmethod
     def from_matrix(matrix):
         """Create an Pose from a 4x4 matrix."""
-        return Pose(matrix[...,:3,3],
-                    Rot.from_matrix(matrix[...,:3,:3]).as_quat())
+        return Pose(matrix[..., :3, 3], Rot.from_matrix(matrix[..., :3, :3]).as_quat())
 
     @staticmethod
     def from_xyzw(xyzw):
         """Create a pose from a quaternion. With zero translation."""
-        return Pose(jnp.zeros(3),
-                    xyzw)
+        return Pose(jnp.zeros(3), xyzw)
+
     from_quat = from_xyzw
 
     @staticmethod
     def from_pos(position_vec):
         """Create a pose from a vector. With the identity rotation."""
-        return Pose(position_vec,
-                    jnp.array([0., 0., 0., 1.]))
+        return Pose(position_vec, jnp.array([0.0, 0.0, 0.0, 1.0]))
+
     from_translation = from_pos
 
     @staticmethod
@@ -278,7 +294,6 @@ class Pose:
         """
         return Pose(posxyzw[:3], posxyzw[3:])
 
-
     # TODO: Should we keep that on the Pose class?
     from_position_and_target = camera_from_position_and_target
 
@@ -287,9 +302,13 @@ class Pose:
 
     def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
         import pyransac3d
+
         plane = pyransac3d.Plane()
         plane_eq, _ = plane.fit(
-            np.array(point_cloud), inlier_threshold, minPoints=minPoints, maxIteration=maxIteration
+            np.array(point_cloud),
+            inlier_threshold,
+            minPoints=minPoints,
+            maxIteration=maxIteration,
         )
         plane_eq = jnp.array(plane_eq)
         plane_normal = plane_eq[:3]
@@ -300,8 +319,12 @@ class Pose:
         plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
         return plane_pose
 
-    def fit_table_plane(point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration):
-        plane_pose = b3d.Pose.fit_plane(point_cloud, inlier_threshold,  minPoints, maxIteration)
+    def fit_table_plane(
+        point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
+    ):
+        plane_pose = b3d.Pose.fit_plane(
+            point_cloud, inlier_threshold, minPoints, maxIteration
+        )
         points_in_plane_frame = plane_pose.inv().apply(point_cloud)
         inliers = jnp.abs(points_in_plane_frame[:, 2]) < inlier_threshold
         inlier_plane_points = points_in_plane_frame[inliers]
@@ -310,11 +333,7 @@ class Pose:
             inlier_plane_points, segmentation_threshold
         )
 
-        table_points_in_plane_frame = inlier_plane_points[
-            inlier_table_points_seg == 0
-        ]
-
-
+        table_points_in_plane_frame = inlier_plane_points[inlier_table_points_seg == 0]
 
         (cx, cy), (width, height), rotation_deg = cv2.minAreaRect(
             np.array(table_points_in_plane_frame[:, :2])
@@ -323,9 +342,8 @@ class Pose:
             jnp.array([cx, cy, 0.0]),
             b3d.Rot.from_rotvec(
                 jnp.array([0.0, 0.0, 1.0]) * jnp.deg2rad(rotation_deg)
-            ).as_quat()
+            ).as_quat(),
         )
         table_pose = plane_pose @ pose_shift
         table_dims = jnp.array([width, height, 1e-10])
         return table_pose, table_dims
-    

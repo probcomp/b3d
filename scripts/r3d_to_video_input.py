@@ -17,8 +17,9 @@ parser = argparse.ArgumentParser("r3d_to_video_input")
 parser.add_argument("input", help=".r3d File", type=str)
 args = parser.parse_args()
 
+
 def load_depth(filepath):
-    with open(filepath, 'rb') as depth_fh:
+    with open(filepath, "rb") as depth_fh:
         raw_bytes = depth_fh.read()
         decompressed_bytes = liblzfse.decompress(raw_bytes)
         depth_img = jnp.frombuffer(decompressed_bytes, dtype=jnp.float32)
@@ -28,9 +29,11 @@ def load_depth(filepath):
 
     return depth_img
 
+
 def load_color(filepath):
     img = cv2.imread(filepath)
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
 
 def get_intrinsics(metadata: dict):
     """Converts Record3D metadata dict into intrinsic info needed by nerfstudio
@@ -60,21 +63,27 @@ def get_intrinsics(metadata: dict):
     scaling_factor = metadata["dw"] / metadata["w"]
     return (
         jnp.array([W, H, fx, fy, cx, cy, 0.01, 100.0]),
-        jnp.array([
-            W * scaling_factor,
-            H * scaling_factor,
-            fx * scaling_factor,
-            fy * scaling_factor,
-            cx * scaling_factor,
-            cy * scaling_factor,
-            0.01, 100.0
-        ])
+        jnp.array(
+            [
+                W * scaling_factor,
+                H * scaling_factor,
+                fx * scaling_factor,
+                fy * scaling_factor,
+                cx * scaling_factor,
+                cy * scaling_factor,
+                0.01,
+                100.0,
+            ]
+        ),
     )
+
 
 def load_r3d_video_input(r3d_path):
     r3d_path = Path(r3d_path)
     subprocess.run([f"cp {r3d_path} /tmp/{r3d_path.name}.zip"], shell=True)
-    subprocess.run([f"unzip -qq -o /tmp/{r3d_path.name}.zip -d /tmp/{r3d_path.name}"], shell=True)
+    subprocess.run(
+        [f"unzip -qq -o /tmp/{r3d_path.name}.zip -d /tmp/{r3d_path.name}"], shell=True
+    )
     datapath = f"/tmp/{r3d_path.name}"
 
     f = open(os.path.join(datapath, "metadata"), "r")
@@ -97,9 +106,9 @@ def load_r3d_video_input(r3d_path):
     quaterions = pose_data[..., :4] * jnp.array([-1, 1, 1, -1])  # (N, 4)
     _, _, fx, fy, cx, cy, _, _ = intrinsics_depth
 
-    xyz = jax.vmap(
-        lambda p: b3d.xyz_from_depth(p, fx, fy, cx, cy), in_axes=(0,)
-    )(depths)
+    xyz = jax.vmap(lambda p: b3d.xyz_from_depth(p, fx, fy, cx, cy), in_axes=(0,))(
+        depths
+    )
     return b3d.VideoInput(
         rgb=colors,
         xyz=xyz,
@@ -108,6 +117,7 @@ def load_r3d_video_input(r3d_path):
         camera_intrinsics_rgb=intrinsics_rgb,
         camera_intrinsics_depth=intrinsics_depth,
     )
+
 
 filename = args.input
 video_input = load_r3d_video_input(filename)

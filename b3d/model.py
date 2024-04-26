@@ -106,42 +106,6 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 rgbd_sensor_model = RGBDSensorModel()
 
-
-
-class RGBDSensorRayModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy):
-        return (rendered_rgb, rendered_depth)
-
-    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy):
-        observed_rgb, observed_depth = observed
-
-        observed_lab = b3d.rgb_to_lab(observed_rgb)
-        rendered_lab = b3d.rgb_to_lab(rendered_rgb)
-        error = (
-            jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
-            jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
-        )
-
-        valid_data_mask = (rendered_rgb.sum(-1) != 0.0)
-
-        color_inliers = (error < model_args.color_tolerance) * valid_data_mask
-        depth_inliers = (jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance) * valid_data_mask
-        inliers = color_inliers * depth_inliers
-
-        inlier_score = model_args.inlier_score
-        outlier_prob = model_args.outlier_prob
-        multiplier = model_args.color_multiplier
-
-        corrected_depth = rendered_depth + (rendered_depth == 0.0) * 10.0
-
-        # areas = (corrected_depth / fx) * (corrected_depth / fy)
-        areas = (rendered_depth / fx) * (rendered_depth / fy)
-        areas_normalized = areas / areas.sum()
-        
-        return (jnp.sum(inliers * areas)  - jnp.sum((1.0 - inliers) * areas)) * multiplier
-
-rgbd_sensor_ray_model = RGBDSensorRayModel()
-
 def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
     @genjax.static_gen_fn
     def model(

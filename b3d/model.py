@@ -10,6 +10,7 @@ from collections import OrderedDict
 from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
 from collections import namedtuple
+from b3d.utils import unproject_depth
 
 class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
     def sample(self, key, vals):
@@ -44,6 +45,7 @@ class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
 uniform_pose = UniformPose()
 gaussian_vmf_pose = GaussianPose()
 
+# intrinsics (width, height, fx, fy, cx, cy, near, far)
 ModelArgs = namedtuple('ModelArgs', [
     'color_tolerance',
     'depth_tolerance',
@@ -51,6 +53,7 @@ ModelArgs = namedtuple('ModelArgs', [
     'outlier_prob',
     'color_multiplier',
     'depth_multiplier',
+    # 'intrinsics',
 ])
 
 def get_rgb_depth_inliers_from_trace(trace):
@@ -73,11 +76,26 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     inliers = color_inliers * depth_inliers * valid_data_mask
     return (inliers, color_inliers, depth_inliers, valid_data_mask)
 
+def get_perpendicular_surface_areas(rendered_depth, intrinsics):
+    # approximates the perpendicular verion of the correction
+    #(width, height, fx, fy, cx, cy, near, far) = intrinsics
+    return None
+
+def get_parallel_surface_areas(rendered_depth):
+    # assumes small patch can be approximated to be locally parallel
+    # corrects area of patch by cos(theta) of angle patch makes with the camera
+
+    return None
+
+def get_pixel_ray_cast_surface_areas(rendered_depth):
+    # calculates where rays at the four corners of each pixel hits the surface of the scene
+    return None
+
 class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy):
+    def sample(self, key, rendered_rgb, rendered_depth, score_correction, model_args, fx, fy):
         return (rendered_rgb, rendered_depth)
 
-    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy):
+    def logpdf(self, observed, rendered_rgb, rendered_depth, score_correction, model_args, fx, fy):
         observed_rgb, observed_depth = observed
         inliers, _, _, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
         
@@ -86,17 +104,21 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
         multiplier = model_args.color_multiplier
 
         num_data_points = jnp.size(inliers)
-        num_inliers = jnp.sum(inliers)
+        #num_inliers = jnp.sum(inliers)
+        num_corrected_inliers = jnp.sum(jnp.multiply(inliers, score_correction))
         num_no_data = jnp.sum(1.0 - valid_data_mask)
-        num_outliers = num_data_points - num_inliers - num_no_data
+        #num_outliers = num_data_points - num_inliers - num_no_data
+        num_corrected_outliers = jnp.sum(jnp.multiply(1.0-inliers, score_correction))
         
         logp_in = jnp.log((1.0 - outlier_prob) * inlier_score + outlier_prob)
         logp_out = jnp.log(outlier_prob)
         logp_no_data = jnp.log(1 / 1.0)
 
         log_sum_of_probs = logsumexp(jnp.array([
-            jnp.log(num_inliers) + logp_in,
-            jnp.log(num_outliers) + logp_out,
+            # jnp.log(num_inliers) + logp_in,
+            # jnp.log(num_outliers) + logp_out,
+            jnp.log(num_corrected_inliers) + logp_in,
+            jnp.log(num_corrected_outliers) + logp_out,
             jnp.log(num_no_data) + logp_no_data
         ]))
         average_log_prob = log_sum_of_probs - jnp.log(num_data_points)
@@ -104,7 +126,30 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
 rgbd_sensor_model = RGBDSensorModel()
 
+def get_normal_orientation_map(tri_frame, object_library, cam_inv_pose, width, height, fx, fy):
+    # calculate this after points are transformed
+    object_vert_view = cam_inv_pose.apply(object_library.vertices)
+    direction = jnp.cross(object_vert_view[object_library.faces][:,1,:] - object_vert_view[object_library.faces][:,0,:],
+                        object_vert_view[object_library.faces][:,2,:] - object_vert_view[object_library.faces][:,0,:])
+    norm = jnp.divide(direction,jnp.linalg.norm(direction,axis=1)[:,None])
+    normals = jnp.multiply(norm[tri_frame], jnp.where(tri_frame>=0,1,0)[...,None])
 
+    cx = width//2
+    cy = height//2
+
+    xs = jnp.arange(-cx,cx)/fx
+    ys = jnp.arange(-cy,cy)/fy
+    #(x,y,z) = (pix_x/fx, pix_y/fy, 1)
+    rays = jnp.stack(jnp.meshgrid(xs,ys)+[jnp.ones((width, height))]).transpose((1,2,0))
+    rays = rays/jnp.linalg.norm(rays, axis = 2)[...,None]
+    dots = jnp.einsum('ijk,ijk->ij', normals, rays)
+    return dots, normals
+
+
+def get_score_correction(tri_frame, object_library, cam_inv_pose, depth, fx, fy):
+    dots, normals = get_normal_orientation_map(tri_frame, object_library, cam_inv_pose)
+    depth_correction = jnp.power(depth, 2) * 1/fx * 1/fy
+    return depth_correction * 1/dots
 
 
 def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
@@ -133,8 +178,25 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
             object_library.ranges[object_indices] * (object_indices >= 0).reshape(-1,1),
             object_library.attributes
         )
+
+        _, _, tri_frame, _ = renderer.rasterize(    
+            object_poses,
+            object_library.vertices,
+            object_library.faces,
+            object_library.ranges[object_indices] * (object_indices >= 0).reshape(-1,1),)
+        tri_frame -= 1
+
+        dots, normals = get_normal_orientation_map(tri_frame, object_library, camera_pose.inv(), renderer.width, renderer.height,
+                                                   renderer.fx, renderer.fy)
+
+        depth_correction = jnp.power(rendered_depth, 2) * 1/renderer.fx * 1/renderer.fy
+        score_correction = depth_correction * 1/dots
+        # clipping hack
+        score_correction = jnp.clip(jnp.nan_to_num(jnp.abs(score_correction)), 1e-6,1)
+
         observed_rgb, observed_depth = image_likelihood(
-            rendered_rgb, rendered_depth,
+            rendered_rgb, rendered_depth, 
+            score_correction,
             model_args,
             renderer.fx, renderer.fy
         ) @ "observed_rgb_depth"

@@ -1,7 +1,9 @@
 import jax
 import jax.numpy as jnp
 import genjax
+import rerun as rr
 from .dists import gaussian_vmf_2d
+from .mesh import Mesh, rerun_mesh_rep
 
 def model_factory(*,
         max_T,
@@ -25,7 +27,7 @@ def model_factory(*,
     
     generate_keypoint_mesh = get_generate_keypoint_mesh()
     pose_hmm = get_pose_hmm(max_T, pose_kernel_params, width, height)
-    obs_generator = get_obs_model()
+    obs_generator = get_obs_model(width, height)
 
     @genjax.static_gen_fn
     def model_1keypoint_2d(T):
@@ -70,11 +72,50 @@ def get_pose_hmm(max_T, pose_kernel_params, width, height):
 def get_generate_keypoint_mesh():
     @genjax.static_gen_fn
     def generate_keypoint_mesh():
-        return jnp.array([0., 0., 0.])
+        return Mesh.square_mesh(
+            jnp.array([0., 0.]),
+            jnp.array([2., 2.]),
+            jnp.array([0., 0., 0., 3.])
+        )
     return generate_keypoint_mesh
 
-def get_obs_model():
+def get_obs_model(width, height):
     @genjax.static_gen_fn
-    def obs_model(poses, keypoint_mesh):
-        return None
+    def image_noise(image):
+        return image
+    
+    @genjax.static_gen_fn
+    def generate_background():
+        return Mesh.square_mesh(
+            jnp.array([0., 0.]),
+            jnp.array([width, height]),
+            jnp.array([1., 1., 1., 5.])
+        )
+
+    @genjax.map_combinator(in_axes=(0, None))
+    @genjax.static_gen_fn
+    def obs_model(keypoint_pose, keypoint_mesh : Mesh):
+        background = generate_background() @ "background"
+        keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_pose)
+        mesh = Mesh.merge(background, keypoint_mesh)
+        deterministic_image = mesh.to_image(
+            width, height,
+            lambda rgbd: rgbd[-1],
+            jnp.array([0., 0., 0., jnp.inf])
+        )
+        observed_image = image_noise(deterministic_image) @ "observed_image"
+        return observed_image
+
     return obs_model
+
+### Viz ###
+def rerun_log_trace(trace):
+    (poses, keypoint_mesh, obs) = trace.get_retval()
+    T = trace.get_args()[0]
+    for t in range(T):
+        rr.set_time_sequence("frames", t)
+        rr.log("/obs/rgb", rr.Image(obs[t, ..., :3]))
+        rr.log("/obs/dpth", rr.DepthImage(obs[t, ..., 3]))
+
+        kp_mesh = keypoint_mesh.transform_by_pose(poses[t])
+        rr.log("/keypoint_triangles", rerun_mesh_rep(kp_mesh))

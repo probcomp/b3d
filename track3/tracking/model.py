@@ -9,7 +9,10 @@ def model_factory(*,
         max_T,
         width,
         height,
-        pose_kernel_params
+        pose_kernel_params,
+        max_keypoint_mesh_width,
+        max_keypoint_mesh_height,
+        max_depth
     ):
     """
     Args:
@@ -25,7 +28,7 @@ def model_factory(*,
             [i, j] and top right corner [i+1, j+1].
     """
     
-    generate_keypoint_mesh = get_generate_keypoint_mesh()
+    generate_keypoint_mesh = get_generate_keypoint_mesh(max_keypoint_mesh_width, max_keypoint_mesh_height, max_depth)
     pose_hmm = get_pose_hmm(max_T, pose_kernel_params, width, height)
     obs_generator = get_obs_model(width, height)
 
@@ -61,23 +64,33 @@ def get_pose_hmm(max_T, pose_kernel_params, width, height):
             - T : int
                 Number of frames
         """
-        low = jnp.array([0., 0., 0.])
-        high = jnp.array([width, height, 2*jnp.pi])
+        low = jnp.array([width//2 + 0., width//2 + 0., 0.])
+        high = jnp.array([width//2 + 0.0001, width//2 + 0.0001, 0.0001])
         initial_pose = genjax.uniform(low, high) @ "init"
         subsequent_poses = unfold_poses(T, initial_pose) @ "step"
         return jnp.concatenate([initial_pose[None, :], subsequent_poses])
 
     return pose_hmm
 
-def get_generate_keypoint_mesh():
+def get_generate_keypoint_mesh(maxwidth, maxheight, maxdepth):
     @genjax.static_gen_fn
     def generate_keypoint_mesh():
-        return Mesh.square_mesh(
-            jnp.array([0., 0.]),
-            jnp.array([2., 2.]),
-            jnp.array([0., 0., 0., 3.])
-        )
+        lows = jnp.zeros((maxwidth, maxheight, 4))
+        highs = jnp.ones((maxwidth, maxheight, 4)) * jnp.array([1., 1., 1., maxdepth])
+        rgbd = genjax.map_combinator(in_axes=(1, 1))(
+            genjax.map_combinator(in_axes=(0, 0))(genjax.uniform))(
+            lows, highs
+        ) @ "rgbd"
+        return Mesh.mesh_from_pixels(maxwidth, maxheight, rgbd)
     return generate_keypoint_mesh
+    # @genjax.static_gen_fn
+    # def generate_keypoint_mesh():
+    #     return Mesh.square_mesh(
+    #         jnp.array([0., 0.]),
+    #         jnp.array([12., 16.]),
+    #         jnp.array([0., 0., 0., 3.])
+    #     )
+    # return generate_keypoint_mesh
 
 def get_obs_model(width, height):
     @genjax.static_gen_fn

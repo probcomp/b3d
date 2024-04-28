@@ -45,6 +45,31 @@ class Mesh:
         ])
         return Mesh(vertices, faces, jnp.array([attributes, attributes]))
 
+    def many_squares_meshes(bottom_lefts, widthheights, attributes):
+        """
+        Create multiple axis-aligned square meshes.
+        Args:
+            - bottom_lefts : jnp.array(N, 2)
+            - widthheights : jnp.array(N, 2)
+            - attributes : jnp.array(N, A)
+        """
+        vmapped_mesh = jax.vmap(Mesh.square_mesh, in_axes=(0, 0, 0))(bottom_lefts, widthheights, attributes)
+        return Mesh.merge_vmapped(vmapped_mesh)
+
+    def mesh_from_pixels(width, height, attributes):
+        """
+        Create a mesh from pixel values.
+        Args:
+            - width : int
+            - height : int
+            - attributes : jnp.array(width, height, A)
+        """
+        bottom_lefts = jnp.meshgrid(jnp.arange(width), jnp.arange(height))
+        bottom_lefts = jnp.stack(bottom_lefts, axis=-1).reshape(-1, 2)
+        widthheights = jnp.ones((width * height, 2))
+        attributes = attributes.reshape((-1, attributes.shape[-1]))
+        return Mesh.many_squares_meshes(bottom_lefts, widthheights, attributes)
+
     @staticmethod
     def merge(mesh1, mesh2):
         """
@@ -57,7 +82,26 @@ class Mesh:
         faces = jnp.vstack([mesh1.faces, mesh2.faces + len(mesh1.vertices)])
         attributes = jnp.vstack([mesh1.attributes, mesh2.attributes])
         return Mesh(vertices, faces, attributes)
-    
+
+    @staticmethod
+    def merge_vmapped(vmapped_mesh):
+        """
+        Merge a vmapped mesh.
+        Args:
+            - vmapped_mesh : Mesh with a leading batch dimension.
+        """
+        vertices = vmapped_mesh.vertices.reshape((-1, 2))
+        faces = vmapped_mesh.faces.reshape((-1, 3))
+        attributes = vmapped_mesh.attributes.reshape((-1, vmapped_mesh.attributes.shape[-1]))
+        
+        n_vertices_per_face = vmapped_mesh.vertices.shape[1]
+        N = faces.shape[0]
+        indices = jnp.arange(N)
+        shifts = (indices // n_vertices_per_face) * n_vertices_per_face
+        faces_plus_offset = faces + jnp.array([shifts, shifts, shifts], dtype=int).transpose()
+
+        return Mesh(vertices, faces_plus_offset, attributes)
+
     def scale(self, scale):
         """
         Scale the mesh by factor `scale`.
@@ -151,7 +195,7 @@ class Mesh:
             - default_attribute : The value returned at pixels where no triangle is visible.
         """
         # (F,) boolean array
-        hits_triangle = self._get_in_triangle_array(jnp.array([i + 0.5, j + 0.5]))
+        hits_triangle = self._get_in_triangle_array(jnp.array([i + 0.501, j + 0.501]))
         
         # (F,) array: `depth` from `attributes_to_depth` for each visible
         # triangle; inf for each invisible triangle
@@ -189,7 +233,7 @@ class Mesh:
         return cls(*children)
     
 ## Rerun line segment visualization
-def rerun_mesh_rep(mesh, attribute_to_color=(lambda rgbd: 255 * rgbd[:3])):
+def rerun_mesh_rep(mesh, attribute_to_color=(lambda rgbd: rgbd[:3])):
     # all_lines = jax.vmap(
     #     lambda i: lines_for_triangle(mesh, mesh.faces[i, :]),
     #     in_axes=(0,)

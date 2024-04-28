@@ -30,13 +30,14 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("registrations", &Registrations, "custom call registrations");
     m.def("build_diff_rasterize_fwd_descriptor",
             [](RasterizeGLStateWrapper& stateWrapper,
-            std::vector<int> images_objects_vertices_triangles) {
+            std::vector<int> all_info) {
             DiffRasterizeCustomCallDescriptor d;
             d.gl_state_wrapper = &stateWrapper;
-            d.num_images = images_objects_vertices_triangles[0];
-            d.num_objects = images_objects_vertices_triangles[1];
-            d.num_vertices = images_objects_vertices_triangles[2];
-            d.num_triangles = images_objects_vertices_triangles[3];
+            d.num_images = all_info[0];
+            d.num_objects = all_info[1];
+            d.num_vertices = all_info[2];
+            d.num_triangles = all_info[3];
+            d.num_layers = all_info[4];
             return PackDescriptor(d);
         });
     m.def("build_diff_rasterize_bwd_descriptor",

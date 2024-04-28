@@ -70,6 +70,7 @@ void jax_rasterize_fwd_gl(cudaStream_t stream,
     // std::cout << "num_objects: " << d.num_objects << std::endl;
     // std::cout << "num_vertices: " << d.num_vertices << std::endl;
     // std::cout << "num_triangles: " << d.num_triangles << std::endl;
+    // std::cout << "num_layers: " << d.num_layers << std::endl;
 
     cudaStreamSynchronize(stream);
     NVDR_CHECK_CUDA_ERROR(cudaMemcpy(&resolution[0], _resolution, 2 * sizeof(int), cudaMemcpyDeviceToHost));
@@ -91,7 +92,7 @@ void jax_rasterize_fwd_gl(cudaStream_t stream,
     int height = resolution[0];
     int width  = resolution[1];
     int depth = d.num_images;
-    int max_parallel_images = 1024;
+    int num_layers = d.num_layers;
     // int depth  = instance_mode ? pos.size(0) : ranges.size(0);
     NVDR_CHECK(height > 0 && width > 0, "resolution must be [>0, >0];");
 
@@ -107,7 +108,7 @@ void jax_rasterize_fwd_gl(cudaStream_t stream,
     bool changes = false;
     cudaStreamSynchronize(stream);
 
-    rasterizeResizeBuffers(NVDR_CTX_PARAMS, s, changes, posCount, triCount, width, height, depth);
+    rasterizeResizeBuffers(NVDR_CTX_PARAMS, s, changes, posCount, triCount, width, height, depth, num_layers);
     cudaStreamSynchronize(stream);
 
     if (changes)

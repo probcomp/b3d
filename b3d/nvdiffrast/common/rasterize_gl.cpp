@@ -62,8 +62,6 @@ static void compileGLShader(NVDR_CTX_ARGS, const RasterizeGLState& s, GLuint* pS
     NVDR_CHECK_GL_ERROR(glCompileShader(*pShader));
 }
 
-int NUM_LAYERS = 2048;
-
 static void constructGLProgram(NVDR_CTX_ARGS, GLuint* pProgram, GLuint glVertexShader, GLuint glGeometryShader, GLuint glFragmentShader)
 {
     *pProgram = 0;
@@ -357,13 +355,9 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
     NVDR_CHECK_GL_ERROR(glGenBuffers(1, &s.glTriBuffer));
     NVDR_CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s.glTriBuffer));
 
+    // Create and bind pose buffers. Storage is allocated later.
     NVDR_CHECK_GL_ERROR(glGenTextures(1, &s.glPoseTexture));
     NVDR_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, s.glPoseTexture));
-    NVDR_CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, NUM_LAYERS, 0, GL_RGBA, GL_FLOAT, 0));
-    NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-    NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
     // Set up depth test.
     NVDR_CHECK_GL_ERROR(glEnable(GL_DEPTH_TEST));
@@ -387,7 +381,7 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
     NVDR_CHECK_GL_ERROR(glGenTextures(1, &s.glPrevOutBuffer));
 }
 
-void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, int posCount, int triCount, int width, int height, int depth)
+void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, int posCount, int triCount, int width, int height, int depth, int numLayers)
 {
     changes = false;
 
@@ -415,8 +409,21 @@ void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, i
         changes = true;
     }
 
+    bool grow_num_layers = numLayers > s.numLayers;
+    if (grow_num_layers)
+    {
+        s.numLayers = (numLayers > s.numLayers) ? numLayers : s.numLayers;
+        NVDR_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, s.glPoseTexture));
+        NVDR_CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, s.numLayers, 0, GL_RGBA, GL_FLOAT, 0));
+        NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+        NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+        NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        changes = true;
+    }
+
     // Resize framebuffer?
-    if (width > s.width || height > s.height) // || depth > s.depth)
+    if (width > s.width || height > s.height || grow_num_layers) // || depth > s.depth)
     {
         int num_outputs = s.enableDB ? 2 : 1;
         if (s.cudaColorBuffer[0])
@@ -430,23 +437,23 @@ void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, i
         }
 
         // New framebuffer size.
-        s.width  = (width > s.width) ? width : s.width;
-        s.height = (height > s.height) ? height : s.height;
-        s.depth  = (depth > s.depth) ? depth : s.depth;
+        s.width     = (width > s.width) ? width : s.width;
+        s.height    = (height > s.height) ? height : s.height;
+        s.depth     = (depth > s.depth) ? depth : s.depth;
         s.width  = ROUND_UP(s.width, 32);
         s.height = ROUND_UP(s.height, 32);
-        LOG(INFO) << "Increasing frame buffer size to (width, height, depth) = (" << s.width << ", " << s.height << ", " << s.depth << ")";
+        LOG(INFO) << "Increasing frame buffer size to (width, height, depth, numLayers) = (" << s.width << ", " << s.height << ", " << s.depth << ", " << s.numLayers << ")";
 
         int i =0;
         NVDR_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D_ARRAY, s.glColorBuffer[i]));
-        NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, s.width, s.height, NUM_LAYERS, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0));
+        NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, s.width, s.height, s.numLayers, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
         i =1;
         NVDR_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D_ARRAY, s.glColorBuffer[i]));
-        NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32UI, s.width, s.height, NUM_LAYERS, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, 0));
+        NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32UI, s.width, s.height, s.numLayers, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, 0));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
         NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
@@ -454,7 +461,7 @@ void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, i
 
         // Allocate depth/stencil buffer.
         NVDR_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D_ARRAY, s.glDepthStencilBuffer));
-        NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH24_STENCIL8, s.width, s.height, NUM_LAYERS, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0));
+        NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH24_STENCIL8, s.width, s.height, s.numLayers, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0));
 
         // (Re-)register all GL buffers into Cuda.
         for (int i=0; i < num_outputs; i++)
@@ -511,7 +518,7 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, fl
         if (!s.cudaPrevOutBuffer)
         {
             NVDR_CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D_ARRAY, s.glPrevOutBuffer));
-            NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, s.width, s.height, NUM_LAYERS, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0));
+            NVDR_CHECK_GL_ERROR(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, s.width, s.height, s.numLayers, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0));
             NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
             NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
             NVDR_CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
@@ -562,7 +569,7 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, fl
     // else
     // {
     // Populate a buffer for draw commands and execute it.
-    std::vector<GLDrawCmd> drawCmdBuffer(NUM_LAYERS);
+    std::vector<GLDrawCmd> drawCmdBuffer(s.numLayers);
 
     NVDR_CHECK_CUDA_ERROR(cudaGraphicsGLRegisterImage(&s.cudaPoseTexture, s.glPoseTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsReadOnly));
     cudaArray_t pose_array = 0;
@@ -578,9 +585,9 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, fl
     // Fill in range array to instantiate the same triangles for each output layer.
     // Triangle IDs starts at zero (i.e., one) for each layer, so they correspond to
     // the first dimension in addressing the triangle array.
-    for(int start_pose_idx=0; start_pose_idx < depth; start_pose_idx+=NUM_LAYERS)
+    for(int start_pose_idx=0; start_pose_idx < depth; start_pose_idx+=s.numLayers)
     {
-        int poses_on_this_iter = std::min(depth-start_pose_idx, NUM_LAYERS);
+        int poses_on_this_iter = std::min(depth-start_pose_idx, s.numLayers);
         NVDR_CHECK_GL_ERROR(glViewport(0, 0, width, height));
         NVDR_CHECK_GL_ERROR(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
         // std::cout << "start_pose_idx  " << start_pose_idx << std::endl;

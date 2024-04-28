@@ -27,6 +27,7 @@ struct DiffRasterizeCustomCallDescriptor {
     int num_objects;
     int num_vertices;
     int num_triangles;
+    int num_layers;
 };
 
 struct DiffRasterizeBwdCustomCallDescriptor {

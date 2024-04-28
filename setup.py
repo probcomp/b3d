@@ -9,13 +9,6 @@
 import os
 import setuptools
 
-with open('requirements.txt') as f:
-    required = f.read().splitlines()
-
-with open("README.md", "r") as fh:
-    long_description = fh.read()
-
-
 setuptools.setup(
     name="b3d",
     version="0.0.1",
@@ -43,15 +36,41 @@ setuptools.setup(
         + (["lib/*.lib"] if os.name == "nt" else [])
     },
     include_package_data=True,
-    install_requires=required,
+    dependency_links=[
+        "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
+    ],
+    install_requires=[
+        "genjax @ git+https://github.com/probcomp/genjax",
+        "rerun-sdk==0.14.1",
+        "tqdm==4.66.2",
+        "numpy==1.26.4",
+        "pillow==10.3.0",
+        "tensorflow-probability==0.23.0",
+        "trimesh==4.2.4",
+        "matplotlib==3.8.4",
+        "scipy==1.13.0",
+        "ninja==1.11.1.1",
+        "scikit-learn==1.4.1.post1",
+        "pytest==8.1.1",
+        "ipython==8.23.0",
+        "jupyter==1.0.0",
+        "pyransac3d==0.6.0",
+        "pdoc3==0.10.0",
+        "opencv-python==4.9.0.80",
+        "fire==0.6.0",
+        "torch==2.2.2",
+        "torchaudio==2.2.2",
+        "torchvision==0.17.2",
+        "jax[cuda12_pip]==0.4.26",
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    entry_points = {
-        'console_scripts': [
-            'b3d_pull = b3d.bucket_utils.b3d_pull:download_from_bucket',
-            'b3d_push = b3d.bucket_utils.b3d_push:upload_to_bucket',
+    entry_points={
+        "console_scripts": [
+            "b3d_pull = b3d.bucket_utils.b3d_pull:download_from_bucket",
+            "b3d_push = b3d.bucket_utils.b3d_push:upload_to_bucket",
         ]
     },
     python_requires=">=3.6",

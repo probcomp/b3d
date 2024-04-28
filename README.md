@@ -21,12 +21,33 @@ If not, ensure your NVIDIA GPU supports CUDA 12.3+ and install a NVIDIA driver v
 sudo sh -c "echo 'export DRIVER_VERSION=550.54.15' > /opt/deeplearning/driver-version.sh"
 /opt/deeplearning/install-driver.sh
 ```
+If the above commands fail, then first uninstall the existing driver by running the below, then try again.
+```
+/opt/deeplearning/uninstall-driver.sh
+sudo reboot
+```
 
 ### Python Environment
 ```
 conda create -n b3d python=3.10
 conda activate b3d
 ```
+
+### Install b3d
+
+Run
+```
+bash install.sh
+```
+Verify install succeeded by running `python demo.py` which should display a `demo` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
+
+### Environment Variables
+Add the following to your bash_rc:
+```
+export XLA_PYTHON_CLIENT_PREALLOCATE="false"
+export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
+```
+
 
 ### Visualizer
 Tunnel port `8812` for Rerun visualization by adding the `RemoteForward`line to your ssh config:
@@ -42,12 +63,3 @@ Install rerun on local machine `pip install rerun-sdk` and open viewer:
 ```
 rerun --port 8812
 ```
-
-### Install b3d
-
-Run
-```
-bash install.sh
-```
-Verify install succeeded by running `python demo.py` which should display a `demo.py` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
-

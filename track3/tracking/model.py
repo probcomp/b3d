@@ -115,7 +115,7 @@ def rerun_log_trace(trace):
     for t in range(T):
         rr.set_time_sequence("frames", t)
         rr.log("/obs/rgb", rr.Image(obs[t, ..., :3]))
-        rr.log("/obs/dpth", rr.DepthImage(obs[t, ..., 3]))
+        rr.log("/obs/depth", rr.DepthImage(obs[t, ..., 3]))
 
         kp_mesh = keypoint_mesh.transform_by_pose(poses[t])
         rr.log("/keypoint_triangles", rerun_mesh_rep(kp_mesh))

@@ -189,13 +189,13 @@ class Mesh:
         return cls(*children)
     
 ## Rerun line segment visualization
-def rerun_mesh_rep(mesh, attribute_to_color=(lambda rgbd: rgbd[:3])):
+def rerun_mesh_rep(mesh, attribute_to_color=(lambda rgbd: 255 * rgbd[:3])):
     # all_lines = jax.vmap(
     #     lambda i: lines_for_triangle(mesh, mesh.faces[i, :]),
     #     in_axes=(0,)
     # )(jnp.arange(mesh.faces.shape[0]))
     all_lines = [lines_for_triangle(mesh, i) for i in range(mesh.faces.shape[0])]
-    all_lines = jnp.concatenate(all_lines)
+    # all_lines = jnp.array(all_lines)
     colors = jax.vmap(attribute_to_color, in_axes=(0,))(mesh.attributes)
     return rr.LineStrips2D(all_lines, colors=colors)
 

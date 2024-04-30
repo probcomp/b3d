@@ -92,8 +92,13 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
         corrected_depth = rendered_depth + (rendered_depth == 0.0) * 1.0
         areas = (corrected_depth / fx) * (corrected_depth / fy)
+        # areas_normalized = areas / jnp.sum(areas)
 
-        return (inlier_score * jnp.sum(inliers * areas) + 1.0 * jnp.sum(undecided * areas)  + outlier_prob * jnp.sum(outliers * areas)) * multiplier
+        return (
+            inlier_score * jnp.sum(inliers * areas) +
+            1.0 * jnp.sum(undecided * areas)  +
+            outlier_prob * jnp.sum(outliers * areas)
+        ) * multiplier
 
 rgbd_sensor_model = RGBDSensorModel()
 

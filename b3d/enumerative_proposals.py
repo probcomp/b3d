@@ -23,7 +23,7 @@ enumerate_and_select_best_move = jax.jit(
 )
 
 
-def _gvmf_pose_proposal(trace, key, variance, concentration, address, number):
+def _gvmf_and_select_best_move(trace, key, variance, concentration, address, number):
     addr = address.const
     test_poses = Pose.concatenate_poses(
         [
@@ -51,4 +51,37 @@ def _gvmf_pose_proposal(trace, key, variance, concentration, address, number):
     return trace, key
 
 
-gvmf_pose_proposal = jax.jit(_gvmf_pose_proposal, static_argnames=["address", "number"])
+gvmf_and_select_best_move = jax.jit(_gvmf_and_select_best_move, static_argnames=["address", "number"])
+
+
+
+
+def _gvmf_and_sample(trace, key, variance, concentration, address, number):
+    addr = address.const
+    test_poses = Pose.concatenate_poses(
+        [
+            jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
+                jax.random.split(key, number), trace[addr], variance, concentration
+            )
+        ]
+    )
+    test_poses_batches = test_poses.split(10)
+    scores = jnp.concatenate(
+        [
+            b3d.enumerate_choices_get_scores(
+                trace, key, genjax.Pytree.const([addr]), poses
+            )
+            for poses in test_poses_batches
+        ]
+    )
+    trace = b3d.update_choices(
+        trace,
+        jax.random.PRNGKey(0),
+        genjax.Pytree.const([addr]),
+        test_poses[jax.random.categorical(key, scores)],
+    )
+    key = jax.random.split(key, 2)[-1]
+    return trace, key
+
+
+gvmf_and_sample = jax.jit(_gvmf_and_sample, static_argnames=["address", "number"])

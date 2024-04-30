@@ -44,4 +44,11 @@ for i in range(NUM_IMAGES):
     rr.set_time_sequence("frame", i)
     rr.log("img", rr.Image(rgb[i]))
 
-jnp.savez(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02.npz", rgb=rgb, depth=depth, object_positions=object_poses_in_cam_frame.pos, object_quaternions=object_poses_in_cam_frame.quat)
+jnp.savez(
+    b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02.npz",
+    rgb=rgb, depth=depth,
+    object_positions=object_poses_in_cam_frame.pos,
+    object_quaternions=object_poses_in_cam_frame.quat,
+    camera_intrinsics=jnp.array([width, height, fx, fy, cx, cy, near, far])
+)
+data = jnp.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02.npz")

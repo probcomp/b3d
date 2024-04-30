@@ -218,8 +218,9 @@ class Mesh:
                 Function that maps attributes to depth.
             - default_attribute : The value returned at pixels where no triangle is visible.
         """
-        get_pixel = lambda i, j: self._get_pixel(i, j, attributes_to_depth, default_attribute)
-        return jax.vmap(jax.vmap(get_pixel, in_axes=(0, None)), in_axes=(None, 0))(jnp.arange(width), jnp.arange(height))
+        # get_pixel = lambda i, j: self._get_pixel(i, j, attributes_to_depth, default_attribute)
+        # return jax.vmap(jax.vmap(get_pixel, in_axes=(0, None)), in_axes=(None, 0))(jnp.arange(width), jnp.arange(height))
+        return rasterize_mesh(self, width, height, attributes_to_depth, default_attribute)
 
     ## Pytree registration ##
     def tree_flatten(self):
@@ -255,3 +256,58 @@ def lines_for_triangle(mesh, face_index):
     v1 = mesh.vertices[face[1]]
     v2 = mesh.vertices[face[2]]
     return jnp.array([v0, v1, v2, v0])
+
+
+## Rasterization
+from b3d.renderer import Renderer
+from b3d.pose import Pose
+def rasterize_mesh(mesh, width, height, attributes_to_depth, default_attribute):
+    fx = width * height
+    fy = fx
+    cx = width/2
+    cy = height/2
+    near = 0.1
+    far = (width * height)**2
+    renderer = Renderer(
+        width, height,
+        fx, fy,
+        cx, cy,
+        near, far
+    )
+
+    # TODO:
+    # I think the move is to make the attributes associated with
+    # vertices rather than faces!
+    # Right now there's an issue because we have more vertices
+    # than depth values, since depth values come from faces...
+    # it's just gonna make things complicated.
+
+    # vertices to 3d, at depth fx
+    depths = jax.vmap(attributes_to_depth)(mesh.attributes)
+    vertices = jnp.concatenate((mesh.vertices, fx * jnp.ones((mesh.vertices.shape[0], 1))), axis=-1)
+    # add on depths, scaled down a ton, so we get the right ordering of the triangles
+    # when they overlap
+    vertices += (jnp.array([0, 0, 1/(100 * fx)]).reshape(-1, 1) @ depths.reshape(-1, 1)).transpose()
+
+    faces = vertices.faces
+    identity_pose_3d = Pose.identity().as_matrix()
+
+    _, _, triangle_ids, _ = renderer.rasterize(
+        jnp.array(identity_pose_3d), # 1 object, at identity pose
+        vertices,
+        faces,
+        jnp.array([0, faces.shape[0]]).reshape(1, 2), # 1 object, with all faces
+    )
+
+    measured_attributes = jax.lax.select(
+        triangle_ids == 0,
+        default_attribute,
+        mesh.attributes[
+            jnp.where(
+                triangle_ids == 0,
+                0,
+                triangle_ids - 1)
+            ]
+    )
+
+    return measured_attributes

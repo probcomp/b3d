@@ -209,7 +209,7 @@ class Mesh:
     #         default_attribute
     #     )
 
-    def to_image(self, width, height, attributes_to_depth, default_attribute):
+    def to_image(self, pose_2d, width, height, attributes_to_depth, default_attribute):
         """
         Convert mesh to an image.
         Args:
@@ -221,7 +221,7 @@ class Mesh:
         """
         # get_pixel = lambda i, j: self._get_pixel(i, j, attributes_to_depth, default_attribute)
         # return jax.vmap(jax.vmap(get_pixel, in_axes=(0, None)), in_axes=(None, 0))(jnp.arange(width), jnp.arange(height))
-        return rasterize_mesh(self, width, height, attributes_to_depth, default_attribute)
+        return rasterize_mesh(self, pose_2d, width, height, attributes_to_depth, default_attribute)
 
     ## Pytree registration ##
     def tree_flatten(self):
@@ -266,8 +266,8 @@ width = 64
 height = 64
 fx = width * height
 fy = fx
-cx = width/2
-cy = height/2
+cx = 0
+cy = 0
 near = 0.1
 far = (width * height)**2
 renderer = Renderer(
@@ -276,25 +276,39 @@ renderer = Renderer(
     cx, cy,
     near, far
 )
-def rasterize_mesh(mesh, width, height, attributes_to_depth, default_attribute):
+def rasterize_mesh(mesh, pose_2d, width, height, attributes_to_depth, default_attribute):
     # vertices to 3d, at depth fx
     depths = jax.vmap(attributes_to_depth)(mesh.attributes)
     vertices = jnp.concatenate((mesh.vertices, fx * jnp.ones((mesh.vertices.shape[0], 1))), axis=-1)
     # add on depths, scaled down a ton, so we get the right ordering of the triangles
     # when they overlap
     vertices += (jnp.array([0, 0, 1/(100 * fx)]).reshape(-1, 1) @ depths.reshape(1, -1)).transpose()
-
-    identity_pose_3d = Pose.identity() #.as_matrix()
+    
+    # 3D pose as 4x4 matrix
+    # with transform in xy plane given by pose_2d = [x, y, theta]
+    x, y, theta = pose_2d
+    pose_3d = jnp.array([
+        [jnp.cos(theta), -jnp.sin(theta), 0, x],
+        [jnp.sin(theta), jnp.cos(theta), 0, y],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]
+    ])
 
     rendered = renderer.render_attribute(
-        identity_pose_3d[None, ...],
+        pose_3d[None, ...],
         vertices,
         mesh.faces,
         jnp.array([0, mesh.faces.shape[0]]).reshape(1, 2), # 1 object, with all faces
         mesh.attributes
+    )[0]
+
+    image = jnp.where(
+        (rendered[..., 3] == 0)[..., None],
+        default_attribute,
+        rendered[...]
     )
 
-    return rendered
+    return image
 
     # _, _, triangle_ids, _ = renderer.rasterize(
     #     jnp.array(identity_pose_3d), # 1 object, at identity pose

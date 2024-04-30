@@ -93,6 +93,8 @@ def get_generate_keypoint_mesh(maxwidth, maxheight, maxdepth):
     # return generate_keypoint_mesh
 
 def get_obs_model(width, height):
+    DEFAULT_DEPTH = -1.
+
     @genjax.static_gen_fn
     def image_noise(image):
         return image
@@ -105,11 +107,25 @@ def get_obs_model(width, height):
             jnp.array([1., 1., 1., 5.])
         )
 
-    # @genjax.map_combinator(in_axes=(0, None))
+    @genjax.map_combinator(in_axes=(0, None))
+    @genjax.static_gen_fn
+    def obs_model(keypoint_pose, keypoint_mesh : Mesh):
+        # background = generate_background() @ "background"
+        # keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_pose)
+        # mesh = Mesh.merge(background, keypoint_mesh)
+        deterministic_image = keypoint_mesh.to_image(
+            keypoint_pose, width, height,
+            lambda rgbd: rgbd[-1],
+            jnp.array([0., 0., 0., DEFAULT_DEPTH])
+        )
+        observed_image = image_noise(deterministic_image) @ "observed_image"
+        return observed_image
+    return obs_model
+
     # @genjax.static_gen_fn
-    # def obs_model(keypoint_pose, keypoint_mesh : Mesh):
+    # def obs_model(keypoint_poses, keypoint_mesh : Mesh):
     #     background = generate_background() @ "background"
-    #     keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_pose)
+    #     keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_poses[0, ...])
     #     mesh = Mesh.merge(background, keypoint_mesh)
     #     deterministic_image = mesh.to_image(
     #         width, height,
@@ -119,20 +135,7 @@ def get_obs_model(width, height):
     #     observed_image = image_noise(deterministic_image) @ "observed_image"
     #     return observed_image
 
-    @genjax.static_gen_fn
-    def obs_model(keypoint_poses, keypoint_mesh : Mesh):
-        background = generate_background() @ "background"
-        keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_poses[0, ...])
-        mesh = Mesh.merge(background, keypoint_mesh)
-        deterministic_image = mesh.to_image(
-            width, height,
-            lambda rgbd: rgbd[-1],
-            jnp.array([0., 0., 0., jnp.inf])
-        )
-        observed_image = image_noise(deterministic_image) @ "observed_image"
-        return observed_image
-
-    return obs_model
+    # return obs_model
 
 ### Viz ###
 def rerun_log_trace(trace):

@@ -9,9 +9,7 @@ class Mesh:
     """
         vertices: (V, 2)
         faces: (F, 3)
-        attributes: (F, A)
-            (TODO: make attributes per-vertex instead of per-face?  This is how
-            it is in the full renderer.)
+        attributes: (V, A)
     """
 
     def __init__(self, vertices, faces, attributes):
@@ -43,8 +41,9 @@ class Mesh:
             [0, 1, 2],
             [0, 2, 3],
         ])
-        return Mesh(vertices, faces, jnp.array([attributes, attributes]))
+        return Mesh(vertices, faces, jnp.array([attributes, attributes, attributes, attributes]))
 
+    @staticmethod
     def many_squares_meshes(bottom_lefts, widthheights, attributes):
         """
         Create multiple axis-aligned square meshes.
@@ -166,47 +165,49 @@ class Mesh:
     def _get_in_triangle_array(self, point):
         return jax.vmap(lambda i : self._get_in_triangle(point, i))(jnp.arange(self.faces.shape[0]))        
 
-    def _get_depth_per_triangle(self, hits_triangle, attributes_to_depth):
-        """
-        Get the depth of each triangle.
-        Args:
-            - hits_triangle : jnp.array([F], bool)
-                Boolean array indicating which triangles are hit.
-            - attributes_to_depth : function
-                Function that maps attributes to depth.
-        """
-        return jax.vmap(lambda i : jax.lax.cond(
-            hits_triangle[i],
-            lambda _: attributes_to_depth(self.attributes[i]),
-            lambda _: jnp.inf,
-            None
-        ))(jnp.arange(self.faces.shape[0]))
+    # OUTDATED: relied on attributes being per-face rather than per-file
+    # def _get_depth_per_triangle(self, hits_triangle, attributes_to_depth):
+    #     """
+    #     Get the depth of each triangle.
+    #     Args:
+    #         - hits_triangle : jnp.array([F], bool)
+    #             Boolean array indicating which triangles are hit.
+    #         - attributes_to_depth : function
+    #             Function that maps attributes to depth.
+    #     """
+    #     return jax.vmap(lambda i : jax.lax.cond(
+    #         hits_triangle[i],
+    #         lambda _: attributes_to_depth(self.attributes[i]),
+    #         lambda _: jnp.inf,
+    #         None
+    #     ))(jnp.arange(self.faces.shape[0]))
 
-    def _get_pixel(self, i, j, attributes_to_depth, default_attribute):
-        """
-        Get the pixel value at pixel (i, j).
-        The current implementation simply obtains the color
-        at the center of this pixel [position (i+.5, j+.5)].
-        Args:
-            - i : int
-            - j : int
-            - attributes_to_depth : function
-                Function that maps attributes to depth.
-            - default_attribute : The value returned at pixels where no triangle is visible.
-        """
-        # (F,) boolean array
-        hits_triangle = self._get_in_triangle_array(jnp.array([i + 0.501, j + 0.501]))
+    # OUTDATED: relied on attributes being per-face rather than per-file
+    # def _get_pixel(self, i, j, attributes_to_depth, default_attribute):
+    #     """
+    #     Get the pixel value at pixel (i, j).
+    #     The current implementation simply obtains the color
+    #     at the center of this pixel [position (i+.5, j+.5)].
+    #     Args:
+    #         - i : int
+    #         - j : int
+    #         - attributes_to_depth : function
+    #             Function that maps attributes to depth.
+    #         - default_attribute : The value returned at pixels where no triangle is visible.
+    #     """
+    #     # (F,) boolean array
+    #     hits_triangle = self._get_in_triangle_array(jnp.array([i + 0.501, j + 0.501]))
         
-        # (F,) array: `depth` from `attributes_to_depth` for each visible
-        # triangle; inf for each invisible triangle
-        depth_per_triangle = self._get_depth_per_triangle(hits_triangle, attributes_to_depth)
+    #     # (F,) array: `depth` from `attributes_to_depth` for each visible
+    #     # triangle; inf for each invisible triangle
+    #     depth_per_triangle = self._get_depth_per_triangle(hits_triangle, attributes_to_depth)
 
-        observed_triangle_index = jnp.argmin(depth_per_triangle)
-        return jax.lax.select(
-            hits_triangle[observed_triangle_index],
-            self.attributes[observed_triangle_index],
-            default_attribute
-        )
+    #     observed_triangle_index = jnp.argmin(depth_per_triangle)
+    #     return jax.lax.select(
+    #         hits_triangle[observed_triangle_index],
+    #         self.attributes[observed_triangle_index],
+    #         default_attribute
+    #     )
 
     def to_image(self, width, height, attributes_to_depth, default_attribute):
         """
@@ -275,39 +276,41 @@ def rasterize_mesh(mesh, width, height, attributes_to_depth, default_attribute):
         near, far
     )
 
-    # TODO:
-    # I think the move is to make the attributes associated with
-    # vertices rather than faces!
-    # Right now there's an issue because we have more vertices
-    # than depth values, since depth values come from faces...
-    # it's just gonna make things complicated.
-
     # vertices to 3d, at depth fx
     depths = jax.vmap(attributes_to_depth)(mesh.attributes)
     vertices = jnp.concatenate((mesh.vertices, fx * jnp.ones((mesh.vertices.shape[0], 1))), axis=-1)
     # add on depths, scaled down a ton, so we get the right ordering of the triangles
     # when they overlap
-    vertices += (jnp.array([0, 0, 1/(100 * fx)]).reshape(-1, 1) @ depths.reshape(-1, 1)).transpose()
+    vertices += (jnp.array([0, 0, 1/(100 * fx)]).reshape(-1, 1) @ depths.reshape(1, -1)).transpose()
 
-    faces = vertices.faces
     identity_pose_3d = Pose.identity().as_matrix()
 
-    _, _, triangle_ids, _ = renderer.rasterize(
-        jnp.array(identity_pose_3d), # 1 object, at identity pose
+    rendered = renderer.render_attribute(
+        identity_pose_3d[None, :],
         vertices,
-        faces,
-        jnp.array([0, faces.shape[0]]).reshape(1, 2), # 1 object, with all faces
+        mesh.faces,
+        jnp.array([0, mesh.faces.shape[0]]).reshape(1, 2), # 1 object, with all faces
+        mesh.attributes
     )
 
-    measured_attributes = jax.lax.select(
-        triangle_ids == 0,
-        default_attribute,
-        mesh.attributes[
-            jnp.where(
-                triangle_ids == 0,
-                0,
-                triangle_ids - 1)
-            ]
-    )
+    return rendered
 
-    return measured_attributes
+    # _, _, triangle_ids, _ = renderer.rasterize(
+    #     jnp.array(identity_pose_3d), # 1 object, at identity pose
+    #     vertices,
+    #     faces,
+    #     jnp.array([0, faces.shape[0]]).reshape(1, 2), # 1 object, with all faces
+    # )
+
+    # measured_attributes = jax.lax.select(
+    #     triangle_ids == 0,
+    #     default_attribute,
+    #     mesh.attributes[
+    #         jnp.where(
+    #             triangle_ids == 0,
+    #             0,
+    #             triangle_ids - 1)
+    #         ]
+    # )
+
+    # return measured_attri/butes

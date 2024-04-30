@@ -14,14 +14,15 @@ PORT = 8812
 rr.init("real")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
+INPUT = "real-visible"
 INPUT = "synthetic"
 INPUT = "real-occluded"
-# INPUT = "real-visible"
 
 print(f"Running with input {INPUT}")
 if INPUT == "synthetic":
     video_input = b3d.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
     scaling_factor = 3
+    T = 50
 elif INPUT == "real-occluded":
     video_input = b3d.VideoInput.load(
         os.path.join(
@@ -31,6 +32,7 @@ elif INPUT == "real-occluded":
         )
     )
     scaling_factor = 5
+    T = 0
 elif INPUT == "real-visible":
     video_input = b3d.VideoInput.load(
         os.path.join(
@@ -39,6 +41,7 @@ elif INPUT == "real-visible":
         )
     )
     scaling_factor = 5
+    T = 0
 else:
     raise ValueError(f"Unknown input {INPUT}")
 
@@ -55,8 +58,8 @@ fx, fy, cx, cy, near, far = (
     float(far),
 )
 
-_rgb = video_input.rgb[0].astype(jnp.float32) / 255.0
-_depth = video_input.xyz[0].astype(jnp.float32)[..., 2]
+_rgb = video_input.rgb[T].astype(jnp.float32) / 255.0
+_depth = video_input.xyz[T].astype(jnp.float32)[..., 2]
 rgb = jnp.clip(
     jax.image.resize(_rgb, (image_height, image_width, 3), "nearest"), 0.0, 1.0
 )

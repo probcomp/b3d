@@ -197,7 +197,7 @@ def rasterize_mesh(mesh, pose_2d, width, height, attributes_to_depth, default_at
     # can occlude others.)
     fx = width * height
     fy = fx
-    cx, cy = 0, 0
+    cx, cy = -0.4999, -0.4999
     near, far = 0.1, (width * height)**2
     renderer = Renderer(
         width, height,

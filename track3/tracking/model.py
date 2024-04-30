@@ -64,8 +64,10 @@ def get_pose_hmm(max_T, pose_kernel_params, width, height):
             - T : int
                 Number of frames
         """
-        low = jnp.array([width//2 + 0., width//2 + 0., 0.])
-        high = jnp.array([width//2 + 0.0001, width//2 + 0.0001, 0.0001])
+        low = jnp.array([width//2 + 0.01, width//2 + 0.1, 0.])
+        high = jnp.array([width//2 + 0.0101, width//2 + 0.0101, 0.0001])
+        # low = jnp.array([0., 0., 0.])
+        # high = jnp.array([0 + 0.0001, 0 + 0.0001, 0.0001])
         initial_pose = genjax.uniform(low, high) @ "init"
         subsequent_poses = unfold_poses(T, initial_pose) @ "step"
         return jnp.concatenate([initial_pose[None, :], subsequent_poses])
@@ -81,7 +83,7 @@ def get_generate_keypoint_mesh(maxwidth, maxheight, maxdepth):
             genjax.map_combinator(in_axes=(0, 0))(genjax.uniform))(
             lows, highs
         ) @ "rgbd"
-        return Mesh.mesh_from_pixels(maxwidth, maxheight, rgbd)
+        return Mesh.mesh_from_pixels(maxwidth, maxheight, rgbd).scale(2)
     return generate_keypoint_mesh
 
 def get_obs_model(width, height):

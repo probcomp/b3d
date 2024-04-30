@@ -105,11 +105,24 @@ def get_obs_model(width, height):
             jnp.array([1., 1., 1., 5.])
         )
 
-    @genjax.map_combinator(in_axes=(0, None))
+    # @genjax.map_combinator(in_axes=(0, None))
+    # @genjax.static_gen_fn
+    # def obs_model(keypoint_pose, keypoint_mesh : Mesh):
+    #     background = generate_background() @ "background"
+    #     keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_pose)
+    #     mesh = Mesh.merge(background, keypoint_mesh)
+    #     deterministic_image = mesh.to_image(
+    #         width, height,
+    #         lambda rgbd: rgbd[-1],
+    #         jnp.array([0., 0., 0., jnp.inf])
+    #     )
+    #     observed_image = image_noise(deterministic_image) @ "observed_image"
+    #     return observed_image
+
     @genjax.static_gen_fn
-    def obs_model(keypoint_pose, keypoint_mesh : Mesh):
+    def obs_model(keypoint_poses, keypoint_mesh : Mesh):
         background = generate_background() @ "background"
-        keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_pose)
+        keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_poses[0, ...])
         mesh = Mesh.merge(background, keypoint_mesh)
         deterministic_image = mesh.to_image(
             width, height,

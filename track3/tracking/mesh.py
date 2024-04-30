@@ -262,20 +262,21 @@ def lines_for_triangle(mesh, face_index):
 ## Rasterization
 from b3d.renderer import Renderer
 from b3d.pose import Pose
+width = 64
+height = 64
+fx = width * height
+fy = fx
+cx = width/2
+cy = height/2
+near = 0.1
+far = (width * height)**2
+renderer = Renderer(
+    width, height,
+    fx, fy,
+    cx, cy,
+    near, far
+)
 def rasterize_mesh(mesh, width, height, attributes_to_depth, default_attribute):
-    fx = width * height
-    fy = fx
-    cx = width/2
-    cy = height/2
-    near = 0.1
-    far = (width * height)**2
-    renderer = Renderer(
-        width, height,
-        fx, fy,
-        cx, cy,
-        near, far
-    )
-
     # vertices to 3d, at depth fx
     depths = jax.vmap(attributes_to_depth)(mesh.attributes)
     vertices = jnp.concatenate((mesh.vertices, fx * jnp.ones((mesh.vertices.shape[0], 1))), axis=-1)
@@ -283,10 +284,10 @@ def rasterize_mesh(mesh, width, height, attributes_to_depth, default_attribute):
     # when they overlap
     vertices += (jnp.array([0, 0, 1/(100 * fx)]).reshape(-1, 1) @ depths.reshape(1, -1)).transpose()
 
-    identity_pose_3d = Pose.identity().as_matrix()
+    identity_pose_3d = Pose.identity() #.as_matrix()
 
     rendered = renderer.render_attribute(
-        identity_pose_3d[None, :],
+        identity_pose_3d[None, ...],
         vertices,
         mesh.faces,
         jnp.array([0, mesh.faces.shape[0]]).reshape(1, 2), # 1 object, with all faces

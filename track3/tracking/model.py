@@ -83,14 +83,6 @@ def get_generate_keypoint_mesh(maxwidth, maxheight, maxdepth):
         ) @ "rgbd"
         return Mesh.mesh_from_pixels(maxwidth, maxheight, rgbd)
     return generate_keypoint_mesh
-    # @genjax.static_gen_fn
-    # def generate_keypoint_mesh():
-    #     return Mesh.square_mesh(
-    #         jnp.array([0., 0.]),
-    #         jnp.array([12., 16.]),
-    #         jnp.array([0., 0., 0., 3.])
-    #     )
-    # return generate_keypoint_mesh
 
 def get_obs_model(width, height):
     DEFAULT_DEPTH = -1.
@@ -110,9 +102,6 @@ def get_obs_model(width, height):
     @genjax.map_combinator(in_axes=(0, None))
     @genjax.static_gen_fn
     def obs_model(keypoint_pose, keypoint_mesh : Mesh):
-        # background = generate_background() @ "background"
-        # keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_pose)
-        # mesh = Mesh.merge(background, keypoint_mesh)
         deterministic_image = keypoint_mesh.to_image(
             keypoint_pose, width, height,
             lambda rgbd: rgbd[-1],
@@ -121,21 +110,6 @@ def get_obs_model(width, height):
         observed_image = image_noise(deterministic_image) @ "observed_image"
         return observed_image
     return obs_model
-
-    # @genjax.static_gen_fn
-    # def obs_model(keypoint_poses, keypoint_mesh : Mesh):
-    #     background = generate_background() @ "background"
-    #     keypoint_mesh = keypoint_mesh.transform_by_pose(keypoint_poses[0, ...])
-    #     mesh = Mesh.merge(background, keypoint_mesh)
-    #     deterministic_image = mesh.to_image(
-    #         width, height,
-    #         lambda rgbd: rgbd[-1],
-    #         jnp.array([0., 0., 0., jnp.inf])
-    #     )
-    #     observed_image = image_noise(deterministic_image) @ "observed_image"
-    #     return observed_image
-
-    # return obs_model
 
 ### Viz ###
 def rerun_log_trace(trace):

@@ -14,11 +14,36 @@ PORT = 8812
 rr.init("real")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
-data = jnp.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02.npz")
+INPUT = "synthetic"
+INPUT = "real-occluded"
+# INPUT = "real-visible"
 
-scaling_factor = 3
+print(f"Running with input {INPUT}")
+if INPUT == "synthetic":
+    video_input = b3d.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
+    scaling_factor = 3
+elif INPUT == "real-occluded":
+    video_input = b3d.VideoInput.load(
+        os.path.join(
+            b3d.get_root_path(),
+            "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz",
+            # "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
+        )
+    )
+    scaling_factor = 5
+elif INPUT == "real-visible":
+    video_input = b3d.VideoInput.load(
+        os.path.join(
+            b3d.get_root_path(),
+            "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz",
+        )
+    )
+    scaling_factor = 5
+else:
+    raise ValueError(f"Unknown input {INPUT}")
+
 image_width, image_height, fx, fy, cx, cy, near, far = (
-    jnp.array(data["camera_intrinsics"]) / scaling_factor
+    jnp.array(video_input.camera_intrinsics_depth) / scaling_factor
 )
 image_width, image_height = int(image_width), int(image_height)
 fx, fy, cx, cy, near, far = (
@@ -30,19 +55,12 @@ fx, fy, cx, cy, near, far = (
     float(far),
 )
 
-_rgb = data["rgb"]
-_depth = data["depth"]
-rgbs = jnp.clip(
-    jax.image.resize(_rgb, (len(_rgb), image_height, image_width, 3), "nearest"), 0.0, 1.0
+_rgb = video_input.rgb[0].astype(jnp.float32) / 255.0
+_depth = video_input.xyz[0].astype(jnp.float32)[..., 2]
+rgb = jnp.clip(
+    jax.image.resize(_rgb, (image_height, image_width, 3), "nearest"), 0.0, 1.0
 )
-depths = jax.image.resize(_depth, (len(_rgb), image_height, image_width), "nearest")
-
-
-# rr.log(
-#     "point_cloud", rr.Points3D(point_cloud.reshape(-1, 3), colors=rgb.reshape(-1, 3))
-# )
-# table_pose, table_dims = b3d.Pose.fit_table_plane(point_cloud, 0.01, 0.01, 100, 1000)
-# b3d.rr_log_pose("table", table_pose)
+depth = jax.image.resize(_depth, (image_height, image_width), "nearest")
 
 object_library = b3d.MeshLibrary.make_empty_library()
 mesh_path = os.path.join(
@@ -52,7 +70,7 @@ mesh_path = os.path.join(
 object_library.add_trimesh(trimesh.load(mesh_path))
 
 
-color_error, depth_error = (60.0, 0.01)
+color_error, depth_error = (60.0, 0.02)
 inlier_score, outlier_prob = (5.0, 0.00001)
 color_multiplier, depth_multiplier = (10000.0, 500.0)
 model_args = b3d.ModelArgs(
@@ -75,25 +93,7 @@ importance_jit = jax.jit(model.importance)
 key = jax.random.PRNGKey(110)
 
 
-
-T = 0
-rgb = rgbs[T]
-depth = depths[T]
 point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
-
-gt_trace, _ = model.importance(
-    jax.random.PRNGKey(0),
-    genjax.choice_map(
-        {
-            "camera_pose": Pose.identity(),
-            "object_pose_0": Pose(data["object_positions"][T], data["object_quaternions"][T]),
-            "object_0": 0,
-            "observed_rgb_depth": (rgb, depth),
-        }
-    ),
-    (jnp.arange(1), model_args, object_library),
-)
-b3d.rerun_visualize_trace_t(gt_trace, 0)
 
 vertex_colors = object_library.attributes
 rgb_object_samples = vertex_colors[
@@ -127,8 +127,7 @@ b3d.rerun_visualize_trace_t(trace, 0)
 
 params = jnp.array([0.02, 1.0])
 skips = 0
-for i in range(30):
-    key = jax.random.split(key, 2)[-1]
+for t in tqdm(range(30)):
     (
         trace2,
         key,
@@ -143,14 +142,15 @@ for i in range(30):
         skips += 1
         print(f"shrinking")
         if skips > 5:
-            print(f"skip {i}")
+            print(f"skip {t}")
             break
 
 b3d.rerun_visualize_trace_t(trace, 0)
 
 
 trace_after_gvmf = trace
-key = jax.random.split(key, 2)[-1]
+trace = trace_after_gvmf
+
 
 delta_cps = jnp.stack(
     jnp.meshgrid(
@@ -162,36 +162,56 @@ delta_cps = jnp.stack(
 ).reshape(-1, 3)
 cp_delta_poses = jax.vmap(b3d.contact_parameters_to_pose)(delta_cps)
 
-test_poses = trace["object_pose_0"] @ cp_delta_poses
-test_poses_batches = test_poses.split(10)
 
-scores = jnp.concatenate(
-    [
-        b3d.enumerate_choices_get_scores_jit(
-            gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses
-        )
-        for poses in test_poses_batches
-    ]
+for _ in range(2):
+    key = jax.random.split(key, 2)[-1]
+
+
+    test_poses = trace["object_pose_0"] @ cp_delta_poses
+    test_poses_batches = test_poses.split(20)
+
+    scores = jnp.concatenate(
+        [
+            b3d.enumerate_choices_get_scores_jit(
+                trace, key, genjax.Pytree.const(["object_pose_0"]), poses
+            )
+            for poses in test_poses_batches
+        ]
+    )
+    print("Score Max", scores.max())
+    samples = jax.random.categorical(key, scores, shape=(50,))
+
+    samples_deg_range = jnp.rad2deg(
+        (
+            jnp.max(delta_cps[samples], axis=0)
+            - jnp.min(delta_cps[samples], axis=0)
+        )[2]
+    )
+
+    trace = b3d.update_choices_jit(
+        trace,
+        key,
+        genjax.Pytree.const(["object_pose_0"]),
+        test_poses[samples[0]],
+    )
+    print(trace.get_score())
+
+    b3d.rerun_visualize_trace_t(trace, 0)
+    print("Sampled Angle Range:", samples_deg_range)
+
+
+
+alternate_camera_pose = Pose.from_position_and_target(
+    jnp.array([0.00, -0.3, -0.1]) + test_poses[samples[0]].pos, test_poses[samples[0]].pos
 )
-samples = jax.random.categorical(key, scores, shape=(50,))
 
-samples_deg_range = jnp.rad2deg(
-    (
-        jnp.max(delta_cps[samples], axis=0)
-        - jnp.min(delta_cps[samples], axis=0)
-    )[2]
+alternate_view_images, _ = renderer.render_attribute_many(
+    (alternate_camera_pose.inv() @ test_poses[samples])[:, None, ...],
+    object_library.vertices,
+    object_library.faces,
+    object_library.ranges[jnp.array([0])],
+    object_library.attributes,
 )
-
-trace = b3d.update_choices_jit(
-    trace,
-    key,
-    genjax.Pytree.const(["object_pose_0"]),
-    test_poses[samples[0]],
-)
-b3d.rerun_visualize_trace_t(trace, 0)
-
-
-print("Sampled Angle Range:", samples_deg_range)
 
 
 for t in range(len(samples)):
@@ -202,5 +222,6 @@ for t in range(len(samples)):
         test_poses[samples[t]],
     )
     b3d.rerun_visualize_trace_t(trace, t)
+    rr.log("/alternate_view_image",rr.Image(alternate_view_images[t]))
 
-b3d.rerun_visualize_trace_t(trace_after_gvmf, 1)
+

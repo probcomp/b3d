@@ -11,12 +11,12 @@ import trimesh
 import genjax
 
 PORT = 8812
-rr.init("real")
+rr.init("real2")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
-INPUT = "real-visible"
 INPUT = "synthetic"
 INPUT = "real-occluded"
+INPUT = "real-visible"
 
 print(f"Running with input {INPUT}")
 if INPUT == "synthetic":
@@ -130,6 +130,7 @@ b3d.rerun_visualize_trace_t(trace, 0)
 
 params = jnp.array([0.02, 1.0])
 skips = 0
+counter = 1
 for t in tqdm(range(30)):
     (
         trace2,
@@ -139,7 +140,8 @@ for t in tqdm(range(30)):
     )
     if trace2.get_score() > trace.get_score():
         trace = trace2
-        # b3d.rerun_visualize_trace_t(trace, 0)
+        b3d.rerun_visualize_trace_t(trace, counter)
+        counter += 1
     else:
         params = jnp.array([params[0] * 0.5, params[1] * 2.0])
         skips += 1
@@ -148,7 +150,6 @@ for t in tqdm(range(30)):
             print(f"skip {t}")
             break
 
-b3d.rerun_visualize_trace_t(trace, 0)
 
 
 trace_after_gvmf = trace
@@ -199,7 +200,8 @@ for _ in range(2):
     )
     print(trace.get_score())
 
-    b3d.rerun_visualize_trace_t(trace, 0)
+    b3d.rerun_visualize_trace_t(trace, counter)
+    counter += 1
     print("Sampled Angle Range:", samples_deg_range)
 
 
@@ -224,7 +226,8 @@ for t in range(len(samples)):
         genjax.Pytree.const(["object_pose_0"]),
         test_poses[samples[t]],
     )
-    b3d.rerun_visualize_trace_t(trace, t)
+    b3d.rerun_visualize_trace_t(trace, counter)
+    counter += 1
     rr.log("/alternate_view_image",rr.Image(alternate_view_images[t]))
 
 

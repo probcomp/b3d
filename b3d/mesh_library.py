@@ -82,8 +82,8 @@ class MeshLibrary:
                 ), "Attributes should be [num_vertices, num_attributes]"
                 self.attributes = jnp.concatenate((self.attributes, attributes))
 
-    def add_trimesh(self, mesh):
-        vertices = jnp.array(mesh.vertices)
+    def add_trimesh(self, mesh, vertex_scale_factor=1.0):
+        vertices = jnp.array(mesh.vertices) * vertex_scale_factor
         vertices = vertices - jnp.mean(vertices, axis=0)
         faces = jnp.array(mesh.faces)
         vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0

@@ -14,9 +14,10 @@ PORT = 8812
 rr.init("real2")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
-INPUT = "synthetic"
 INPUT = "real-occluded"
 INPUT = "real-visible"
+INPUT = "synthetic"
+
 
 print(f"Running with input {INPUT}")
 if INPUT == "synthetic":

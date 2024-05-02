@@ -43,10 +43,10 @@ elif "knife" in INPUT:
 else:
     raise ValueError(f"Unknown input {INPUT}")
 
+scaling_factor = 2
 image_width, image_height, fx, fy, cx, cy, near, far = (
-    jnp.array(video_input.camera_intrinsics_depth)
+    jnp.array(video_input.camera_intrinsics_depth) / scaling_factor
 )
-camera_pose = b3d.Pose(video_input.camera_positions[0], video_input.camera_quaternions[0])
 image_width, image_height = int(image_width), int(image_height)
 fx, fy, cx, cy, near, far = (
     float(fx),
@@ -77,11 +77,11 @@ depth = jax.image.resize(_depth, (image_height, image_width), "nearest")
 object_library = b3d.MeshLibrary.make_empty_library()
 fork_path = os.path.join(
     b3d.get_root_path(),
-    "assets/ycb_video_models/models/030_fork/textured.obj",
+    "assets/shared_data_bucket/ycb_video_models/models/030_fork/textured.obj",
 )
 knife_path = os.path.join(
     b3d.get_root_path(),
-    "assets/ycb_video_models/models/032_knife/textured.obj",
+    "assets/shared_data_bucket/ycb_video_models/models/032_knife/textured.obj",
 )
 
 FORK_ID = 0; KNIFE_ID = 1
@@ -116,11 +116,25 @@ key = jax.random.PRNGKey(110)
 
 ### initialize pose hypothesis just based on depth info 
 
-masked_depth = depth * (depth != scene_depth)
-point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy)
-valid_point_cloud = point_cloud[depth != scene_depth].reshape(-1, 3)  # cloud for object only
-object_center_hypothesis = valid_point_cloud.mean(axis=0)
-print(object_center_hypothesis)
+# masked_depth = depth * (depth != scene_depth)
+# point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy)
+# valid_point_cloud = point_cloud[depth != scene_depth].reshape(-1, 3)  # cloud for object only
+# object_center_hypothesis = valid_point_cloud.mean(axis=0)
+# print(object_center_hypothesis)
+
+
+point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
+
+vertex_colors = object_library.attributes
+rgb_object_samples = vertex_colors[
+    jax.random.choice(jax.random.PRNGKey(0), jnp.arange(len(vertex_colors)), (10,))
+]
+distances = jnp.abs(rgb[..., None] - rgb_object_samples.T).sum([-1, -2])
+rr.log("image/distances", rr.DepthImage(distances))
+# rr.log("img", rr.Image(rgb))
+
+object_center_hypothesis = point_cloud[distances.argmin()]
+
 
 
 ### Initialize trace
@@ -134,8 +148,8 @@ trace, _ = model.importance(
         {
             "camera_pose": Pose.identity(),
             "object_pose_0": Pose.sample_gaussian_vmf_pose(
-                key, Pose.from_translation(object_center_hypothesis), 
-                variance, concentration,   
+                key, Pose.from_translation(jnp.array([0.0, 0.0, 2.5])), 
+                0.00001, concentration,   
                 # TODO
                 # if rotation is not tightly constrained with a high concentration 
                 # for this initial vmf sampling (which can generate any angle)
@@ -147,6 +161,7 @@ trace, _ = model.importance(
     ),
     (jnp.arange(1), model_args, object_library),
 )
+b3d.rerun_visualize_trace_t(trace, 0)
 
 ### initialize trace corresponding to each object; will do c2f on these
 trace_fork = b3d.update_choices(trace, key, genjax.Pytree.const(["object_0"]), FORK_ID) 

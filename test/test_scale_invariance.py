@@ -59,7 +59,7 @@ rgb_far, depth_far = renderer.render_attribute(
 
 color_error, depth_error = (50.0, 0.01)
 inlier_score, outlier_prob = (4.0, 0.000001)
-color_multiplier, depth_multiplier = (1.0, 1.0)
+color_multiplier, depth_multiplier = (10000.0, 1.0)
 model_args = b3d.ModelArgs(
     color_error,
     depth_error,

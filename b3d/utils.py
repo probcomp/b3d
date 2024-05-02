@@ -353,6 +353,17 @@ class VideoInput:
         Array  # [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
     )
 
+    def __post_init__(self):
+        super().__init__()
+        assert self.rgb.shape[0] == self.xyz.shape[0]
+        assert self.rgb.shape[1] == self.camera_intrinsics_rgb[1]
+        assert self.rgb.shape[2] == self.camera_intrinsics_rgb[0]
+        assert self.rgb.dtype == jnp.uint8
+        assert len(self.xyz.shape) == 4
+        assert len(self.rgb.shape) == 4
+        assert self.rgb.shape[-1] == 3
+        assert self.xyz.shape[-1] == 3
+
     def to_dict(self):
         return {
             "rgb": self.rgb,

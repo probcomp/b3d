@@ -39,11 +39,14 @@ elif "knife" in INPUT:
     if "visible" in INPUT: 
         T = 1
     elif "occluded" in INPUT: 
-        T = 8   
+        T = 0   
 else:
     raise ValueError(f"Unknown input {INPUT}")
 
-scaling_factor = 2
+
+T = 0   
+
+scaling_factor = 1
 image_width, image_height, fx, fy, cx, cy, near, far = (
     jnp.array(video_input.camera_intrinsics_depth) / scaling_factor
 )
@@ -57,16 +60,21 @@ fx, fy, cx, cy, near, far = (
     float(far),
 )
 
-### Process empty tabletop, as well as specific test scene
+image_width, image_height, fx, fy, cx, cy, near, far = (
+    jnp.array(video_input.camera_intrinsics_depth) / scaling_factor
+)
+image_width, image_height = int(image_width), int(image_height)
+fx, fy, cx, cy, near, far = (
+    float(fx),
+    float(fy),
+    float(cx),
+    float(cy),
+    float(near),
+    float(far),
+)
 
-scene_rgb = video_input.rgb[0].astype(jnp.float32)   # the first frame is only table + occluder
-scene_depth = video_input.xyz[0].astype(jnp.float32)
-
-scene_rgb = jax.image.resize(scene_rgb, (image_height, image_width, 3), "nearest")
-scene_depth = jax.image.resize(scene_depth, (image_height, image_width), "nearest")
-
-_rgb = video_input.rgb[T].astype(jnp.float32) 
-_depth = video_input.xyz[T].astype(jnp.float32)
+_rgb = video_input.rgb[T].astype(jnp.float32) / 255.0
+_depth = video_input.xyz[T].astype(jnp.float32)[..., 2]
 rgb = jnp.clip(
     jax.image.resize(_rgb, (image_height, image_width, 3), "nearest"), 0.0, 1.0
 )
@@ -85,8 +93,8 @@ knife_path = os.path.join(
 )
 
 FORK_ID = 0; KNIFE_ID = 1
-object_library.add_trimesh(trimesh.load(fork_path), 5.0)
-object_library.add_trimesh(trimesh.load(knife_path), 5.0)
+object_library.add_trimesh(trimesh.load(fork_path))
+object_library.add_trimesh(trimesh.load(knife_path))
 print(f"{object_library.get_num_objects()} objects in library")
 
 
@@ -97,17 +105,7 @@ print(f"{object_library.get_num_objects()} objects in library")
 
 ### Inference params
 
-color_error, depth_error = (60.0, 0.02)
-inlier_score, outlier_prob = (5.0, 0.00001)
-color_multiplier, depth_multiplier = (10000.0, 500.0)
-model_args = b3d.ModelArgs(
-    color_error,
-    depth_error,
-    inlier_score,
-    outlier_prob,
-    color_multiplier,
-    depth_multiplier,
-)
+
 
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
 model = b3d.model_multiobject_gl_factory(renderer, b3d.rgbd_sensor_model)
@@ -129,26 +127,40 @@ vertex_colors = object_library.attributes
 rgb_object_samples = vertex_colors[
     jax.random.choice(jax.random.PRNGKey(0), jnp.arange(len(vertex_colors)), (10,))
 ]
-distances = jnp.abs(rgb[..., None] - rgb_object_samples.T).sum([-1, -2])
+distances = jnp.abs(rgb[..., None] - rgb_object_samples.T).sum([-1, -2]) + 100.0 * (depth == 0.0)
 rr.log("image/distances", rr.DepthImage(distances))
+print("best index", jnp.unravel_index(distances.argmin(), distances.shape))
 # rr.log("img", rr.Image(rgb))
 
 object_center_hypothesis = point_cloud[distances.argmin()]
 
-
+rr.log("point_cloud", rr.Points3D(point_cloud))
 
 ### Initialize trace
 
+
+color_error, depth_error = (60.0, 0.02)
+inlier_score, outlier_prob = (5.0, 0.00001)
+color_multiplier, depth_multiplier = (10000.0, 500.0)
+model_args = b3d.ModelArgs(
+    color_error,
+    depth_error,
+    inlier_score,
+    outlier_prob,
+    color_multiplier,
+    depth_multiplier,
+)
+
 key = jax.random.split(key, 2)[-1]
 variance = 0.01
-concentration = 100.0
-trace, _ = model.importance(
-    jax.random.PRNGKey(0),
+concentration = 0.01
+trace, _ = importance_jit(
+    jax.random.PRNGKey(10),
     genjax.choice_map(
         {
             "camera_pose": Pose.identity(),
             "object_pose_0": Pose.sample_gaussian_vmf_pose(
-                key, Pose.from_translation(jnp.array([0.0, 0.0, 2.5])), 
+                key, Pose.from_translation(object_center_hypothesis), 
                 0.00001, concentration,   
                 # TODO
                 # if rotation is not tightly constrained with a high concentration 
@@ -161,12 +173,12 @@ trace, _ = model.importance(
     ),
     (jnp.arange(1), model_args, object_library),
 )
-b3d.rerun_visualize_trace_t(trace, 0)
 
 ### initialize trace corresponding to each object; will do c2f on these
-trace_fork = b3d.update_choices(trace, key, genjax.Pytree.const(["object_0"]), FORK_ID) 
-trace_knife = b3d.update_choices(trace, key, genjax.Pytree.const(["object_0"]), KNIFE_ID)
-init_key = key
+trace_fork = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_0"]), FORK_ID) 
+trace_knife = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_0"]), KNIFE_ID)
+b3d.rerun_visualize_trace_t(trace_fork, 0)
+b3d.rerun_visualize_trace_t(trace_knife, 1)
 
 
 ################
@@ -174,7 +186,7 @@ init_key = key
 ################
 ## incrementally update pose and weights for each object hypothesis
 
-init_params = jnp.array([0.1, 10.0])
+init_params = jnp.array([0.01, 10.0])
 num_samples = 5000
 
 def gvmf_c2f(trace, key, params):
@@ -201,15 +213,17 @@ def gvmf_c2f(trace, key, params):
                 break
     return trace, key
         
-trace_knife_new, _ = gvmf_c2f(trace_knife, init_key, init_params)
-trace_fork_new, key = gvmf_c2f(trace_fork, init_key, init_params)
+trace_fork, key = gvmf_c2f(trace_fork, init_key, init_params)
+trace_knife, key = gvmf_c2f(trace_knife, init_key, init_params)
+b3d.rerun_visualize_trace_t(trace_fork, 0)
+b3d.rerun_visualize_trace_t(trace_knife, 1)
 
 
 ### Setup grid for sampling
 delta_cps = jnp.stack(
     jnp.meshgrid(
-        jnp.linspace(-0.2, 0.2, 41),
-        jnp.linspace(-0.2, 0.2, 41),
+        jnp.linspace(-0.3, 0.3, 41),
+        jnp.linspace(-0.3, 0.3, 41),
         jnp.linspace(-jnp.pi, jnp.pi, 71),
     ),
     axis=-1,
@@ -255,12 +269,13 @@ def grid_c2f(trace, key):
         )
         print("Sampled Angle Range:", samples_deg_range)
         
-        return trace, test_poses, samples
+        return trace, key, test_poses, samples
 
-fork_trace_final, fork_test_poses, fork_samples = grid_c2f(trace_fork_new, key)
-print(f"Fork score = {fork_trace_final.get_score()}")
-knife_trace_final, knife_test_poses, knife_samples = grid_c2f(trace_knife_new, key)
-print(f"Knife score = {knife_trace_final.get_score()}")
+trace_fork, key, test_poses, samples = grid_c2f(trace_fork, key)
+trace_knife, key, test_poses, samples = grid_c2f(trace_knife, key)
+b3d.rerun_visualize_trace_t(trace_fork, 0)
+b3d.rerun_visualize_trace_t(trace_knife, 1)
+
 
 ############
 # visualize samples

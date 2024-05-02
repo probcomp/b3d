@@ -3,7 +3,8 @@ import trimesh
 import jax.numpy as jnp
 import jax
 import rerun as rr
-import os 
+import os
+from b3d import Pose
 
 rr.init("demo")
 rr.connect("127.0.0.1:8812")

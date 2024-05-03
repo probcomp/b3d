@@ -76,10 +76,10 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     return (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask)
 
 class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy):
+    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy, far):
         return (rendered_rgb, rendered_depth)
 
-    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy):
+    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy, far):
         observed_rgb, observed_depth = observed
 
         inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(
@@ -90,11 +90,11 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
         outlier_prob = model_args.outlier_prob
         multiplier = model_args.color_multiplier
 
-        corrected_depth = rendered_depth + (rendered_depth == 0.0) * 1.0
+        corrected_depth = rendered_depth + (rendered_depth == 0.0) * far
         areas = (corrected_depth / fx) * (corrected_depth / fy)
-        # areas_normalized = areas / jnp.sum(areas)
+        areas = areas / jnp.sum(areas)
 
-        return (
+        return jnp.log(
             inlier_score * jnp.sum(inliers * areas) +
             1.0 * jnp.sum(undecided * areas)  +
             outlier_prob * jnp.sum(outliers * areas)
@@ -131,7 +131,8 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
         observed_rgb, observed_depth = image_likelihood(
             rendered_rgb, rendered_depth,
             model_args,
-            renderer.fx, renderer.fy
+            renderer.fx, renderer.fy,
+            1.0
         ) @ "observed_rgb_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model

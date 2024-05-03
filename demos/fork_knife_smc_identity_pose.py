@@ -19,7 +19,7 @@ INPUT = "fork-occluded"
 # INPUT = "knife-occluded"
 
 PORT = 8812
-rr.init(f"fork-knife_{INPUT}")
+rr.init(f"fork-knife2_{INPUT}")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
 
@@ -44,9 +44,42 @@ else:
     raise ValueError(f"Unknown input {INPUT}")
 
 
-T = 0   
+### Build meshes / object library 
 
-scaling_factor = 1
+fork_path = os.path.join(
+    b3d.get_root_path(),
+    "assets/shared_data_bucket/ycb_video_models/models/030_fork/textured.obj",
+)
+knife_path = os.path.join(
+    b3d.get_root_path(),
+    "assets/shared_data_bucket/ycb_video_models/models/032_knife/textured.obj",
+)
+
+FORK_ID = 0; KNIFE_ID = 1
+object_library = b3d.MeshLibrary.make_empty_library()
+object_library.add_trimesh(trimesh.load(fork_path))
+object_library.add_trimesh(trimesh.load(knife_path))
+
+occluder = trimesh.creation.box(extents=np.array([0.15, 0.1, 0.02]))
+occluder_colors = jnp.tile(jnp.array([0.8, 0.8, 0.8])[None,...], (occluder.vertices.shape[0], 1))
+
+_camera_pose = b3d.Pose.from_position_and_target(
+    jnp.array([0.0, 0.2, 0.8]), jnp.array([0.0, 0.0, 0.0]), jnp.array([0.0, 1.0, 0.0])
+)
+occluder_pose_in_camera_frame = _camera_pose.inv() @ b3d.Pose.from_pos(jnp.array([0.0, 0.05, 0.3]))
+
+object_library.add_object(occluder.vertices, occluder.faces, attributes=occluder_colors)
+
+print(f"{object_library.get_num_objects()} objects in library")
+
+
+
+
+
+T = 10
+T = 1
+
+scaling_factor = 2
 image_width, image_height, fx, fy, cx, cy, near, far = (
     jnp.array(video_input.camera_intrinsics_depth) / scaling_factor
 )
@@ -79,24 +112,7 @@ rgb = jnp.clip(
     jax.image.resize(_rgb, (image_height, image_width, 3), "nearest"), 0.0, 1.0
 )
 depth = jax.image.resize(_depth, (image_height, image_width), "nearest")
-
-### Build meshes / object library 
-
-object_library = b3d.MeshLibrary.make_empty_library()
-fork_path = os.path.join(
-    b3d.get_root_path(),
-    "assets/shared_data_bucket/ycb_video_models/models/030_fork/textured.obj",
-)
-knife_path = os.path.join(
-    b3d.get_root_path(),
-    "assets/shared_data_bucket/ycb_video_models/models/032_knife/textured.obj",
-)
-
-FORK_ID = 0; KNIFE_ID = 1
-object_library.add_trimesh(trimesh.load(fork_path))
-object_library.add_trimesh(trimesh.load(knife_path))
-print(f"{object_library.get_num_objects()} objects in library")
-
+rr.log("rgb", rr.Image(rgb))
 
 
 ###############
@@ -141,7 +157,7 @@ rr.log("point_cloud", rr.Points3D(point_cloud))
 
 color_error, depth_error = (60.0, 0.02)
 inlier_score, outlier_prob = (5.0, 0.00001)
-color_multiplier, depth_multiplier = (10000.0, 500.0)
+color_multiplier, depth_multiplier = (5000.0, 500.0)
 model_args = b3d.ModelArgs(
     color_error,
     depth_error,
@@ -168,10 +184,12 @@ trace, _ = importance_jit(
                 # then it is hard to correct a large deviation via gridding, 
                 # which is restricted to contact angles
             ),
+            "object_pose_1": occluder_pose_in_camera_frame,
+            "object_1": 2,
             "observed_rgb_depth": (rgb, depth),
         }
     ),
-    (jnp.arange(1), model_args, object_library),
+    (jnp.arange(2), model_args, object_library),
 )
 
 ### initialize trace corresponding to each object; will do c2f on these
@@ -213,8 +231,8 @@ def gvmf_c2f(trace, key, params):
                 break
     return trace, key
         
-trace_fork, key = gvmf_c2f(trace_fork, init_key, init_params)
-trace_knife, key = gvmf_c2f(trace_knife, init_key, init_params)
+trace_fork, key = gvmf_c2f(trace_fork, key, init_params)
+trace_knife, key = gvmf_c2f(trace_knife, key, init_params)
 b3d.rerun_visualize_trace_t(trace_fork, 0)
 b3d.rerun_visualize_trace_t(trace_knife, 1)
 
@@ -222,8 +240,8 @@ b3d.rerun_visualize_trace_t(trace_knife, 1)
 ### Setup grid for sampling
 delta_cps = jnp.stack(
     jnp.meshgrid(
-        jnp.linspace(-0.3, 0.3, 41),
-        jnp.linspace(-0.3, 0.3, 41),
+        jnp.linspace(-0.05, 0.05, 41),
+        jnp.linspace(-0.05, 0.05, 41),
         jnp.linspace(-jnp.pi, jnp.pi, 71),
     ),
     axis=-1,
@@ -275,31 +293,43 @@ trace_fork, key, test_poses, samples = grid_c2f(trace_fork, key)
 trace_knife, key, test_poses, samples = grid_c2f(trace_knife, key)
 b3d.rerun_visualize_trace_t(trace_fork, 0)
 b3d.rerun_visualize_trace_t(trace_knife, 1)
+print("Normalized scores: ", b3d.normalize_log_scores(jnp.array([trace_fork.get_score(), trace_knife.get_score()])))
+
+# for i in range(2):
+#     rr.log(
+#         f"/3d/mesh/{i}",
+#         rr.Mesh3D(
+#             vertex_positions=(object_library.vertices),
+#             indices=object_library.faces[object_library.ranges[i,0]: object_library.ranges[i,:].sum()],
+#             vertex_colors=object_library.attributes
+#         )
+#     )
 
 
-############
-# visualize samples
-############
 
-for t in range(len(fork_samples)):
+# ############
+# # visualize samples
+# ############
+
+# for t in range(len(fork_samples)):
     
-    # fork posterior samples
-    _fork_viz = b3d.update_choices_jit(
-        trace_fork,
-        key,
-        genjax.Pytree.const(["object_pose_0"]),
-        fork_test_poses[fork_samples[t]],
-    )
-    b3d.rerun_visualize_trace_t(_fork_viz, 2*t)
+#     # fork posterior samples
+#     _fork_viz = b3d.update_choices_jit(
+#         trace_fork,
+#         key,
+#         genjax.Pytree.const(["object_pose_0"]),
+#         fork_test_poses[fork_samples[t]],
+#     )
+#     b3d.rerun_visualize_trace_t(_fork_viz, 2*t)
     
-    # knife posterior samples 
-    _knife_viz = b3d.update_choices_jit(
-        trace_knife,
-        key,
-        genjax.Pytree.const(["object_pose_0"]),
-        knife_test_poses[knife_samples[t]],
-    )
-    b3d.rerun_visualize_trace_t(_knife_viz, 2*t+1)
+#     # knife posterior samples 
+#     _knife_viz = b3d.update_choices_jit(
+#         trace_knife,
+#         key,
+#         genjax.Pytree.const(["object_pose_0"]),
+#         knife_test_poses[knife_samples[t]],
+#     )
+#     b3d.rerun_visualize_trace_t(_knife_viz, 2*t+1)
     
     
-from IPython import embed; embed()
+# from IPython import embed; embed()

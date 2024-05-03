@@ -27,7 +27,7 @@ rr.connect(addr=f"127.0.0.1:{PORT}")
 ## make meshes
 ### occluder mesh
 object_library = b3d.MeshLibrary.make_empty_library()
-occluder = trimesh.creation.box(extents=np.array([0.2, 0.1, 0.02]))
+occluder = trimesh.creation.box(extents=np.array([0.15, 0.1, 0.02]))
 occluder_colors = jnp.tile(jnp.array([0.8, 0.8, 0.8])[None,...], (occluder.vertices.shape[0], 1))
 
 occ_id = 0 # id in library
@@ -119,7 +119,7 @@ rr.log("fork", rr.Image(rgbs_fork[0]))
 rr.log("knife", rr.Image(rgbs_knife[0]))
 
 data_fork = b3d.utils.VideoInput(
-    rgb=(rgbs_knife * 255.0).astype(jnp.uint8),
+    rgb=(rgbs_fork * 255.0).astype(jnp.uint8),
     xyz=jax.vmap(b3d.xyz_from_depth,in_axes=(0,None, None, None, None))(depths_fork, fx, fy, cx, cy),
     camera_positions=jnp.array([camera_pose.pos for _ in range(NUM_IMAGES+1)]),
     camera_quaternions=jnp.array([camera_pose.quat for _ in range(NUM_IMAGES+1)]),

@@ -166,8 +166,8 @@ class PoseTests(unittest.TestCase):
         def sum(poses):
             sum = jnp.zeros(3)
             for pose in poses:
-                sum = sum.at[0:3].add(pose.pos[2])
+                sum = sum.at[0:3].add(pose.pos[0:3])
             return sum
         sum_jit = jax.jit(sum)
 
-        self.assertTrue( jnp.allclose(sum(poses), sum_jit(poses)))
+        self.assertTrue( jnp.allclose(jnp.sum(poses.pos, axis=0), sum_jit(poses)))

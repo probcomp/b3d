@@ -60,11 +60,17 @@ def test_demo():
 
     # Arguments of the generative model.
     # These control the inlier / outlier decision boundary for color error and depth error.
-    color_error, depth_error = (jnp.float32(30.0), jnp.float32(0.02))
-    # TODO: explain
-    inlier_score, outlier_prob = (jnp.float32(5.0), jnp.float32(0.001))
-    # TODO: explain
-    color_multiplier, depth_multiplier = (jnp.float32(5000.0), jnp.float32(3000.0))
+    color_error, depth_error = (60.0, 0.01)
+    inlier_score, outlier_prob = (5.0, 0.00001)
+    color_multiplier, depth_multiplier = (10000.0, 500.0)
+    model_args = b3d.ModelArgs(
+        color_error,
+        depth_error,
+        inlier_score,
+        outlier_prob,
+        color_multiplier,
+        depth_multiplier,
+    )
 
     # Defines the enumeration schedule.
     key = jax.random.PRNGKey(0)
@@ -125,14 +131,6 @@ def test_demo():
 
     # Initial trace for timestep 0
     START_T = 0
-    model_args = b3d.ModelArgs(
-        color_error,
-        depth_error,
-        inlier_score,
-        outlier_prob,
-        color_multiplier,
-        depth_multiplier,
-    )
     trace, _ = importance_jit(
         jax.random.PRNGKey(0),
         genjax.choice_map(

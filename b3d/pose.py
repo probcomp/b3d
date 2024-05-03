@@ -168,6 +168,8 @@ class Pose:
         return self.pos.shape[0]
 
     def __getitem__(self, index):
+        if index >= len(self.pos):
+            raise IndexError
         return Pose(self.pos[index], self.quat[index])
 
     def slice(self, i):

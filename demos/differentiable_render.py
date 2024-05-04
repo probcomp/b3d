@@ -74,6 +74,7 @@ triangle_to_particle_index = triangle_to_particle_index.reshape(-1)
 _, _, triangle_id_image, depth_image = renderer.rasterize(
     Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
 )
+color_image = colors[triangle_id_image - 1]
 rr.log("triangle_id_image", rr.DepthImage(triangle_id_image))
 rr.log("depth_image", rr.DepthImage(depth_image))
 
@@ -81,6 +82,12 @@ point_of_intersection = b3d.xyz_from_depth(depth_image, fx, fy, cx, cy)
 particle_intersected = triangle_to_particle_index[triangle_id_image - 1] * (triangle_id_image > 0) + -1 * (triangle_id_image ==0 )
 
 rr.log("particle_intersected", rr.DepthImage(particle_intersected))
+
+blank_color = jnp.array([0.1, 0.1, 0.1]) # gray for unintersected particles
+extended_colors = jnp.concatenate([jnp.array([blank_color]), particle_colors], axis=0)
+color_image = extended_colors[particle_intersected + 1]
+rr.log("color_image", rr.Image(color_image))
+
 
 WINDOW = 3
 particle_intersected_padded = jnp.pad(
@@ -102,7 +109,7 @@ def ray_from_ij(i,j, fx, fy, cx, cy):
 ij = jnp.array([52,53])
 
 def get_pixel_color_from_ij(
-    ij, particle_centers, particle_width, particle_color, point_of_intersection_padded, particle_intersected_padded
+    ij, particle_centers, particle_width, particle_colors, point_of_intersection_padded, particle_intersected_padded
 ):
     i,j = ij
     particle_intersected_padded_in_window = jax.lax.dynamic_slice(
@@ -126,12 +133,22 @@ def get_pixel_color_from_ij(
         1000.0 * (particle_intersected_padded_in_window == -1)
     )
 
-    weight = 1 / (distances**2 + 1e-3)
+    weight = 1 / (distances**2 + 1e-4)
     weight_normalized = weight / (weight.sum() + 1e-10)
     print(weight_normalized)
 
-    return (point_of_intersection_padded[i, j], particle_intersected_padded[i, j])
+    blank_color = jnp.array([0.1, 0.1, 0.1]) # gray for unintersected particles
+    extended_colors = jnp.concatenate([jnp.array([blank_color]), particle_colors], axis=0)
+    colors_in_window = extended_colors[particle_intersected_padded_in_window + 1]
+    color = (weight_normalized[..., None] * colors_in_window).sum(axis=(0, 1))
+    color = jnp.minimum(color, jnp.ones(3))
+    return color #(point_of_intersection_padded[i, j], particle_intersected_padded[i, j])
 
+def _get_pixel_color_from_ij(ij, args):
+    return get_pixel_color_from_ij(ij, *args)
+
+def all_pairs(X, Y):
+    return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
 
 def render(
     particle_centers,
@@ -158,3 +175,14 @@ def render(
     particle_intersected_padded = jnp.pad(
         particle_intersected, pad_width=[(WINDOW, WINDOW)], constant_values=-1
     )
+    point_of_intersection_padded = jnp.pad(
+        point_of_intersection, pad_width=[(WINDOW, WINDOW), (WINDOW, WINDOW), (0, 0)]
+    )
+    colors = jax.vmap(_get_pixel_color_from_ij, in_axes=(0, None))(
+        all_pairs(image_height, image_width),
+        (particle_centers, particle_widths, particle_colors, point_of_intersection_padded, particle_intersected_padded)
+    ).reshape(image_height, image_width, 3)
+    return colors
+
+colors = render(particle_centers, particle_widths, particle_colors)
+rr.log("softened_image", rr.Image(colors))

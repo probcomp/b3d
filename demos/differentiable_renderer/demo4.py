@@ -23,7 +23,7 @@ from demos.differentiable_renderer.utils import (
     all_pairs
 )
 
-rr.init("signed_dist_weighting_5")
+rr.init("signed_dist_weighting_6")
 rr.connect("127.0.0.1:8812")
 
 particle_centers = jnp.array(
@@ -41,7 +41,7 @@ particle_colors = jnp.array(
 )
 rr_log_gt("gt", particle_centers, particle_widths, particle_colors)
 
-ij = jnp.array([50, 51])
+ij = jnp.array([51, 52])
 
 vertices, faces, colors, triangle_to_particle_index = jax.vmap(
     center_and_width_to_vertices_faces_colors
@@ -69,13 +69,59 @@ particle_intersected_padded_in_window = jax.lax.dynamic_slice(
     (ij[0], ij[1]),
     (2 * WINDOW + 1, 2 * WINDOW + 1),
 )
+rr.log("particle_intersected_padded_in_window", rr.DepthImage(particle_intersected_padded_in_window), timeless=True)
 
 offset_window = all_pairs(2 * WINDOW + 1, 2 * WINDOW + 1)
 ij_window = offset_window + jnp.array([i - 2*WINDOW - 1, j - 2*WINDOW - 1])
 
-signed_dist_from_square_boundary = jax.vmap(get_signed_dist, in_axes=(0, 0, None, None))(
-    ij_window, particle_intersected_padded_in_window.reshape(-1), particle_centers, particle_widths
+signed_dist_from_square_boundary = jax.vmap(get_signed_dist, in_axes=(None, 0, None, None))(
+    ij, particle_intersected_padded_in_window.reshape(-1),
+    particle_centers, particle_widths
 ).reshape(2 * WINDOW + 1, 2 * WINDOW + 1)
+
+
+
+def get_ray_plane_intersection(ij, center):
+    u = ij[0]
+    v = ij[1]
+    z = center[2]
+    x = z * (u - cx) / fx
+    y = z * (v - cy) / fy
+    return jnp.array([x, y, z])
+
+def get_signed_dist_from_int_point(intersection_point, particle_center, particle_width):
+    center = particle_center
+    cenx, ceny = center[0], center[1]
+    x, y = intersection_point[0], intersection_point[1]
+    minx, maxx = cenx - particle_width / 2, cenx + particle_width / 2
+    miny, maxy = ceny - particle_width / 2, ceny + particle_width / 2
+
+    # Positive = point is inside region
+    signed_dist_x = jnp.minimum(x - minx, maxx - x)
+    signed_dist_y = jnp.minimum(y - miny, maxy - y)
+    
+    dist_same_sign = jnp.sqrt(signed_dist_x**2 + signed_dist_y**2)
+
+    both_pos = jnp.logical_and(signed_dist_x > 0, signed_dist_y > 0)
+    both_neg = jnp.logical_and(signed_dist_x < 0, signed_dist_y < 0)
+    same_sign = jnp.logical_or(both_pos, both_neg)
+
+    # Positive = point is inside region
+    signed_dist = jnp.where(
+        same_sign,
+        jnp.where(both_pos, jnp.minimum(signed_dist_x, signed_dist_y), -dist_same_sign),
+        jnp.where(signed_dist_x < 0, signed_dist_x, signed_dist_y),
+    )
+
+    return -signed_dist
+centers = particle_centers[particle_intersected_padded_in_window]
+intersection_points = jax.vmap(get_ray_plane_intersection, in_axes=(None, 0))(
+    ij, centers.reshape(-1, 3)
+).reshape(2 * WINDOW + 1, 2 * WINDOW + 1, 3)
+rr.log("intersection_points", rr.Image(intersection_points/2), timeless=True)
+
+rr.log("sd", rr.DepthImage(signed_dist_from_square_boundary), timeless=True)
+
 
 # (2W + 1, 2W + 1)
 # z_dists = ij_plane_intersections[:, :, 2]

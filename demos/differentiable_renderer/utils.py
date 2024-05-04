@@ -97,6 +97,59 @@ def get_signed_dist(ij, particle_idx, particle_centers, particle_widths):
 
 #############
 
+def get_pixel_color_from_ij_v3(
+    ij, particle_centers, particle_widths, particle_colors, point_of_intersection_padded, particle_intersected_padded
+):
+    i,j = ij
+    particle_intersected_padded_in_window = jax.lax.dynamic_slice(
+        particle_intersected_padded,
+        (ij[0], ij[1]),
+        (2 * WINDOW + 1, 2 * WINDOW + 1),
+    )
+
+    unique_particle_values = jnp.unique(particle_intersected_padded_in_window)
+
+    offset_window = all_pairs(2 * WINDOW + 1, 2 * WINDOW + 1)
+    # ij_window = offset_window + jnp.array([i - 2*WINDOW - 1, j - 2*WINDOW - 1])
+
+    signed_dist_from_square_boundary = jax.vmap(get_signed_dist, in_axes=(None, 0, None, None))(
+        ij, unique_particle_values, particle_centers, particle_widths
+    )
+
+    # (2W + 1, 2W + 1)
+    # z_dists = ij_plane_intersections[:, :, 2]
+
+    # Signed_dist_score 
+    signed_dist_score = 0.5 * (1 - jnp.tanh(50 * (signed_dist_from_square_boundary)))
+
+    signed_dist_score = jnp.where(
+        unique_particle_values == -1,
+        jnp.ones_like(signed_dist_score) * 0.02,
+        signed_dist_score
+    )
+
+    # z score
+    # z_score = 0.5 * 1/(z_dists**2 + 1)
+
+    total_scores = signed_dist_score + 1e-10 # + z_score
+
+    normalized_scores = total_scores / total_scores.sum()
+
+    blank_color = jnp.array([0.1, 0.1, 0.1]) # gray for unintersected particles
+    extended_colors = jnp.concatenate([jnp.array([blank_color]), particle_colors], axis=0)
+    colors_in_window = extended_colors[particle_intersected_padded_in_window + 1]
+    color = (normalized_scores[..., None] * colors_in_window).sum(axis=(0, 1))
+    color = jnp.minimum(color, jnp.ones(3))
+    # color = jnp.where(
+    #     jnp.isnan(color),
+    #     blank_color,
+    #     color
+    # )
+    return color 
+
+
+#############
+
 def get_pixel_color_from_ij_v2(
     ij, particle_centers, particle_widths, particle_colors, point_of_intersection_padded, particle_intersected_padded
 ):

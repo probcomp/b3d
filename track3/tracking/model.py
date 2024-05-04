@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import genjax
 import rerun as rr
+import b3d
 from .dists import gaussian_vmf_2d
 from .mesh import Mesh, rerun_mesh_rep
 
@@ -110,6 +111,11 @@ def get_obs_model(width, height):
             jnp.array([0., 0., 0., DEFAULT_DEPTH])
         )
         observed_image = image_noise(deterministic_image) @ "observed_image"
+        # observed_image = b3d.rgbd_sensor_model(
+        #     deterministic_image[:, :, :3],
+        #     deterministic_image[:, :, 3],
+            
+        # )
         return observed_image
     return obs_model
 

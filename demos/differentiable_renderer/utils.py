@@ -107,7 +107,7 @@ def get_pixel_color_from_ij_v3(
         (2 * WINDOW + 1, 2 * WINDOW + 1),
     )
 
-    unique_particle_values = jnp.unique(particle_intersected_padded_in_window)
+    unique_particle_values = jnp.unique(particle_intersected_padded_in_window, size=4)
 
     offset_window = all_pairs(2 * WINDOW + 1, 2 * WINDOW + 1)
     # ij_window = offset_window + jnp.array([i - 2*WINDOW - 1, j - 2*WINDOW - 1])
@@ -137,8 +137,9 @@ def get_pixel_color_from_ij_v3(
 
     blank_color = jnp.array([0.1, 0.1, 0.1]) # gray for unintersected particles
     extended_colors = jnp.concatenate([jnp.array([blank_color]), particle_colors], axis=0)
-    colors_in_window = extended_colors[particle_intersected_padded_in_window + 1]
-    color = (normalized_scores[..., None] * colors_in_window).sum(axis=(0, 1))
+
+    colors_for_observed_particles = extended_colors[unique_particle_values + 1]
+    color = (normalized_scores[..., None] * colors_for_observed_particles).sum(axis=0)
     color = jnp.minimum(color, jnp.ones(3))
     # color = jnp.where(
     #     jnp.isnan(color),
@@ -146,7 +147,8 @@ def get_pixel_color_from_ij_v3(
     #     color
     # )
     return color 
-
+def _get_pixel_color_from_ij_v3(ij, args):
+    return get_pixel_color_from_ij_v3(ij, *args)
 
 #############
 
@@ -279,7 +281,7 @@ def render(
         point_of_intersection, pad_width=[(WINDOW, WINDOW), (WINDOW, WINDOW), (0, 0)]
     )
 
-    colors = jax.vmap(_get_pixel_color_from_ij_v2, in_axes=(0, None))(
+    colors = jax.vmap(_get_pixel_color_from_ij_v3, in_axes=(0, None))(
         all_pairs(image_height, image_width),
         (particle_centers, particle_widths, particle_colors, point_of_intersection_padded, particle_intersected_padded)
     ).reshape(image_height, image_width, 3)

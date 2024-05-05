@@ -109,8 +109,8 @@ class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
             lambda rgb: laplace_rgb_sensor_model.logpdf(observed_rgb, rgb, laplace_scale)
         )(rgbs)
 
-        uniform_logpdf = jnp.log(probs[0]) + uniform_logpdf
-        laplace_logpdfs = jnp.log(probs[1:]) + laplace_logpdfs
+        uniform_logpdf = jnp.log(probs[0] + 1e-5) + uniform_logpdf
+        laplace_logpdfs = jnp.log(probs[1:] + 1e-5) + laplace_logpdfs
         return jax.scipy.special.logsumexp(jnp.concatenate([uniform_logpdf[None], laplace_logpdfs]))
 mixture_rgb_pixel_model = MixtureRGBPixelModel()
 mixture_rgb_sensor_model = genjax.map_combinator(in_axes=(0, 0, None))(mixture_rgb_pixel_model)

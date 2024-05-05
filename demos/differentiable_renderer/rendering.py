@@ -9,6 +9,7 @@ from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 import rerun as rr
 import functools
+from jax.experimental import checkify
 
 image_width = 100
 image_height = 100
@@ -70,7 +71,7 @@ def get_weights(ij, vertices, faces, triangle_intersected_padded, hyperparams):
         triangle_intersected_padded_in_window, size=triangle_intersected_padded_in_window.size,
         fill_value = -1
     ) - 1
-    unique_triangle_values_safe = jnp.where(unique_triangle_values < 0, 0, unique_triangle_values)
+    unique_triangle_values_safe = jnp.where(unique_triangle_values < 0, unique_triangle_values[0], unique_triangle_values)
     
     signed_dist_values = get_signed_dists(ij, unique_triangle_values_safe, vertices, faces)
     z_values = get_z_values(ij, unique_triangle_values_safe, vertices, faces)
@@ -130,16 +131,11 @@ def get_signed_dist(ij, triangle_idx, vertices, faces):
     d1 = dist_to_line_seg(triangle[0], triangle[1], point_on_plane)
     d2 = dist_to_line_seg(triangle[1], triangle[2], point_on_plane)
     d3 = dist_to_line_seg(triangle[2], triangle[0], point_on_plane)
-    d = jnp.minimum(d1, jnp.minimum(d2, d3))
+    d = jnp.minimum(d1, jnp.minimum(d2, d3)) + 1e-5
 
     in_triangle = get_in_triangle(triangle, point_on_plane)
 
     return jnp.where(in_triangle, d, -d)
-
-def project_pixel_to_plane(ij, triangle):
-    x, y = ij
-    vertex1, vertex2, vertex3 = triangle
-
 
 # From ChatGPT + I fixed a couple bugs in it.
 def project_pixel_to_plane(ij, triangle):
@@ -153,6 +149,8 @@ def project_pixel_to_plane(ij, triangle):
 
     # Camera coordinates to the ray direction vector
     ray_dir = jnp.array([x_c, y_c, z_c])
+    # jax.debug.print("ray_dir = {rd}", rd=ray_dir)
+    # checkify.check(jnp.linalg.norm(ray_dir) > 1e-6, "Ray direction vector {x}", x=ray_dir)
     ray_dir = ray_dir / jnp.linalg.norm(ray_dir)  # Normalize the direction vector
 
     # Calculate the normal vector of the plane defined by the triangle
@@ -172,11 +170,11 @@ def project_pixel_to_plane(ij, triangle):
     # if jnp.abs(denom) < 1e-6:
     #     return None  # No intersection if the ray is parallel to the plane
 
-    t = jnp.dot(normal, vertex1 - ray_origin) / (denom + 1e-10)
+    t = jnp.dot(normal, vertex1 - ray_origin) / (denom + 1e-5)
     intersection_point = ray_origin + t * ray_dir
     
     return jnp.where(
-        denom < 1e-6, -jnp.ones(3), intersection_point
+        denom < 1e-5, -jnp.ones(3), intersection_point
     )
 
 def _get_pixel_color(ij, args):

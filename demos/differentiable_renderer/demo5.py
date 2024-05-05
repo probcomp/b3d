@@ -15,6 +15,10 @@ from b3d import Pose
 import rerun as rr
 import functools
 
+jax.config.update("jax_debug_nans", False)
+jax.config.update("jax_enable_x64", False)
+
+
 from demos.differentiable_renderer.utils import (
     center_and_width_to_vertices_faces_colors, rr_log_gt, ray_from_ij,
     fx, fy, cx, cy
@@ -152,7 +156,7 @@ triangle_intersected_padded = jnp.pad(
     triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
 )
 
-ij = jnp.array([37, 37])
+ij = jnp.array([53, 50])
 def get_pixel_color_from_vertices(ij, vertices):
     return get_pixel_color(
         ij, vertices, faces, triangle_colors, triangle_intersected_padded,
@@ -164,7 +168,9 @@ grads = jax.vmap(
     in_axes=(0, None)
 )(all_pairs(100, 100), vertices_shifted.reshape(-1, 3))
 isnan_img = jnp.any(jnp.isnan(grads), axis=(1, 2)).reshape(100, 100).astype(float)
+rr.log("isnan_img", rr.DepthImage(isnan_img))
 
+jax.grad(get_pixel_color_from_vertices, argnums=1)(ij, vertices_shifted.reshape(-1, 3))
 
 #######
 

@@ -156,7 +156,7 @@ triangle_intersected_padded = jnp.pad(
     triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
 )
 
-ij = jnp.array([53, 50])
+ij = jnp.array([54, 47])
 def get_pixel_color_from_vertices(ij, vertices):
     return get_pixel_color(
         ij, vertices, faces, triangle_colors, triangle_intersected_padded,

@@ -44,6 +44,24 @@ def render(
     
     return colors
 
+def render_to_dist_parameters(
+        vertices, faces, triangle_colors, hyperparams
+):
+    uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+        Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
+    )
+
+    triangle_intersected_padded = jnp.pad(
+        triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
+    )
+
+    (weights, colors) = jax.vmap(_get_pixel_color_dist_parameters, in_axes=(0, None))(
+        all_pairs(image_height, image_width),
+        (vertices, faces, triangle_colors, triangle_intersected_padded, hyperparams)
+    )
+
+    return (weights, colors)
+
 def all_pairs(X, Y):
     return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
 
@@ -108,6 +126,21 @@ def get_pixel_color(
     # colors = colors.at[0, :].set(background_color)
     color = (weights[..., None] * colors).sum(axis=0)
     return jnp.clip(color, 0., 1.)
+
+def get_pixel_color_dist_parameters(
+    ij, vertices, faces, triangle_colors, triangle_intersected_padded,
+    hyperparams
+):
+    """
+    Returns `weights: (N,)`, `colors: (N-1,)` - input to likelihoods.RGBSensorModel.
+    (Weights contains an extra token for the weight assigned to the background.)
+    """
+    unique_triangle_indices, weights = get_weights(ij, vertices, faces, triangle_intersected_padded, hyperparams)
+    unique_triangle_indices = unique_triangle_indices[1:] # remove first value of -10
+    colors = triangle_colors[jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)]
+    return (weights, colors)
+def _get_pixel_color_dist_parameters(ij, args):
+    return get_pixel_color_dist_parameters(ij, *args)
 
 def get_z_values(ij, unique_triangle_values, vertices, faces):
     return jax.vmap(get_z_value, in_axes=(None, 0, None, None))(

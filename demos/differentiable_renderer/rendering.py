@@ -29,6 +29,20 @@ def render(
         triangle_colors,
         hyperparams
 ):
+    """
+    Render a colored image where pixel (i, j)'s color
+    differentiably averages in the colors of triangles visible in
+    pixels near (i, j).
+
+    Args:
+    - vertices: (V, 3)
+    - faces: (F, 3)
+    - triangle_colors: (F, 3)
+    - hyperparams: (SIGMA, GAMMA, EPSILON)
+        Hyperparameters from the softras paper.
+    Returns:
+    - colors: (H, W, 3)
+    """
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
@@ -47,6 +61,32 @@ def render(
 def render_to_dist_parameters(
         vertices, faces, triangle_colors, hyperparams
 ):
+    """
+    Render a scene to obtain a distribution over images.
+    This function returns the parameters of
+    the likelihoods.mixture_rgb_sensor_model distribution
+    for the given scene.
+
+    Args:
+    - vertices: (V, 3)
+    - faces: (F, 3)
+    - triangle_colors: (F, 3)
+    - hyperparams: (SIGMA, GAMMA, EPSILON)
+        Hyperparameters from the softras paper.
+
+    Returns:
+    - weights: (H, W, N)
+    - colors: (H, W, N-1, 3)
+    For each pixel (first 2 dimensions), `weights` is a probability vector.
+    `weights[i, j, 0]` is the probability assigned to hitting no
+    triangle;
+    `weights[i, j, 1 + k]` for k >= 0 is the probability assigned to hitting
+    the k-th triangle in the window around pixel (i, j).
+    `colors[i, j, k]` is the color of the k-th triangle in the window.
+    (There may be fewer than N-1 triangles in the window for a pixel,
+    in which case the colors will  have some arbitrary value,
+    and the weight will be 0 for those triangles.)
+    """
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
@@ -147,6 +187,10 @@ def get_z_values(ij, unique_triangle_values, vertices, faces):
         ij, unique_triangle_values, vertices, faces
     )
 def get_z_value(ij, triangle_idx, vertices, faces):
+    """
+    Project pixel (i, j) to the plane of `triangle_idx`, then
+    compute the z value of the projected point.
+    """
     triangle = vertices[faces[triangle_idx]] # 3 x 3 (face_idx, vertex_idx)
     point_on_plane = project_pixel_to_plane(ij, triangle)
     return point_on_plane[2]
@@ -157,6 +201,12 @@ def get_signed_dists(ij, unique_triangle_values, vertices, faces):
     )
 
 def get_signed_dist(ij, triangle_idx, vertices, faces):
+    """
+    Project pixel (i, j) to the plane of `triangle_idx`, then
+    compute the signed distance within that plane from (i, j)
+    to the boundary of the triangle.  (Positive = inside the triangle,
+    negative = outside the triangle.)
+    """
     triangle = vertices[faces[triangle_idx]] # 3 x 3 (face_idx, vertex_idx)
     point_on_plane = project_pixel_to_plane(ij, triangle)
     
@@ -172,6 +222,12 @@ def get_signed_dist(ij, triangle_idx, vertices, faces):
 
 # From ChatGPT + I fixed a couple bugs in it.
 def project_pixel_to_plane(ij, triangle):
+    """
+    Project pixel ij to the plane defined by the given triangle.
+    Args:
+    - ij: (2,) pixel coordinates
+    - triangle: (3, 3) vertices of the triangle (triangle[f] is one vertex)
+    """
     y, x = ij
     vertex1, vertex2, vertex3 = triangle
 

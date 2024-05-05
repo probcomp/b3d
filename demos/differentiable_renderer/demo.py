@@ -11,9 +11,9 @@ import rerun as rr
 import functools
 import genjax
 
-import demos.differentiable_renderer.clean.utils as utils
-import demos.differentiable_renderer.clean.rendering as rendering
-import demos.differentiable_renderer.clean.likelihoods as likelihoods
+import demos.differentiable_renderer.utils as utils
+import demos.differentiable_renderer.rendering as rendering
+import demos.differentiable_renderer.likelihoods as likelihoods
 
 # Set up 3 squares oriented toward the camera, with different colors
 particle_centers = jnp.array(

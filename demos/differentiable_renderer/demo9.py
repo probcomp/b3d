@@ -209,3 +209,33 @@ do_inference()
 end = time.time()
 print(f"Time: {end - start}")
 
+##### Grid of likelihood scores ###
+
+def value_to_centers(x, y):
+    particle_centers = jnp.array(
+        [
+            [0.0, 0.0, 1.0],
+            [x, y, 2.0],
+            [0., 0., 5.]
+        ]
+    )
+    return particle_centers
+
+@jax.jit
+def value_to_logpdf(xy):
+    x, y = xy
+    particle_centers = value_to_centers(x, y)
+    return compute_logpdf(particle_centers)
+
+x = jnp.linspace(-0.5, 0.5, 200)
+y = jnp.linspace(-0.5, 0.5, 200)
+xy = jnp.stack(jnp.meshgrid(x, y), axis=-1).reshape(-1, 2)
+logpdfs = jnp.array([value_to_logpdf(_xy) for _xy in xy])
+logpdfs = logpdfs.reshape(200, 200)
+rr.log("logpdfs/logpdfs", rr.DepthImage(logpdfs), timeless=True)
+# find index with [0.2, 0.2] in xy
+lt = jnp.linalg.norm(xy - jnp.array([0.2, 0.2]), axis=-1) < 0.01
+idx = jnp.where(lt)[0]
+ij = jnp.unravel_index(idx, (200, 200))
+ij2 = jnp.array([jnp.mean(ij[0]), jnp.mean(ij[0])])
+rr.log("logpdfs/true_position", rr.Points2D(jnp.array([ij2]), radii=1.0, colors=jnp.array([0, 0, 0])), timeless=True)

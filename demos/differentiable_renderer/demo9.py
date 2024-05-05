@@ -172,8 +172,9 @@ for i in range(N_steps):
     print(f"i = {i}")
     # current_centers = current_centers + eps * g
     key, subkey = jax.random.split(key)
-    (acc, current_centers) = MALA_step(subkey, current_centers, 1e-3)
-    n_acc += acc
+    # (acc, current_centers) = MALA_step(subkey, current_centers, 1e-3)
+    current_centers = ULA_step(subkey, current_centers, 1e-3)
+    # n_acc += acc
     rr.set_time_sequence("gd", i)
     rendered = render_from_centers(current_centers)
     rr.log("gd", rr.Image(rendered))
@@ -188,3 +189,23 @@ for i in range(N_steps):
         indices=f)
     )
 print(f"Acceptance fraction: {n_acc / N_steps}")
+
+
+def step(carry, x):
+    key, centers = carry
+    key, subkey = jax.random.split(key)
+    c2 = ULA_step(subkey, centers, 1e-3)
+    return ((key, c2), x)
+
+@jax.jit
+def do_inference():
+    return jax.lax.scan(step, (jax.random.PRNGKey(0), particle_centers_shifted), xs=None, length=300)
+
+do_inference()
+
+import time
+start = time.time()
+do_inference()
+end = time.time()
+print(f"Time: {end - start}")
+

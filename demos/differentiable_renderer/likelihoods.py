@@ -56,6 +56,14 @@ def lab_to_rgb(lab):
 
 laplace = genjax.TFPDistribution(tfp.distributions.Laplace)
 class LaplaceRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+    """
+    Args:
+    - rendered_rgb
+    - rgb_scale (scale for a laplace distribution in LAB color space)
+
+    Returns:
+    - observed_rgb (a value sampled from a laplace distribution in LAB color space, then converted to RGB)
+    """
     def sample(self, key, rendered_rgb, rgb_scale):
         lab = b3d.rgb_to_lab(rendered_rgb)
         lab2 = laplace.sample(key, lab, rgb_scale)
@@ -71,6 +79,12 @@ class LaplaceRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
 laplace_rgb_sensor_model = LaplaceRGBSensorModel()
 
 class UniformRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+    """
+    Args:
+    - rendered_rgb (value doesn't matter -- just need the shape)
+    Returns:
+    - observed_rgb (a value sampled from a uniform distribution in LAB color space, then converted to RGB)
+    """
     def sample(self, key, rendered_rgb):
         lab = b3d.rgb_to_lab(rendered_rgb)
         low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
@@ -90,10 +104,16 @@ uniform_rgb_sensor_model = UniformRGBSensorModel()
 
 class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     """
+    A distribution on RGB which is a mixture of a uniform distribution,
+    and N-1 laplace distributions centered at different colors.
+
     Args:
     - probs: [p_uniform, *p_centered_at_colors] (N,)
     - rgbs: (N-1, 3) 
     - laplace_scale: () [shared across all laplace dists]
+
+    Returns:
+    - observed_rgb (a value sampled from a uniform or laplace distribution in LAB color space, then converted to RGB)
     """
     def sample(self, key, probs, rgbs, laplace_scale):
         key, subkey = jax.random.split(key)
@@ -113,4 +133,11 @@ class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         laplace_logpdfs = jnp.log(probs[1:] + 1e-5) + laplace_logpdfs
         return jax.scipy.special.logsumexp(jnp.concatenate([uniform_logpdf[None], laplace_logpdfs]))
 mixture_rgb_pixel_model = MixtureRGBPixelModel()
+
 mixture_rgb_sensor_model = genjax.map_combinator(in_axes=(0, 0, None))(mixture_rgb_pixel_model)
+mixture_rgb_sensor_model.__doc__ = """
+    `mixture_rgb_sensor_model = genjax.map_combinator(in_axes=(0, 0, None))(mixture_rgb_pixel_model)`
+
+Used for mapping the color distribution over an image.
+See `mixture_rgb_pixel_model` for details.
+"""

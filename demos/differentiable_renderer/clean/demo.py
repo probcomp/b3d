@@ -164,8 +164,8 @@ grad_jit = jax.jit(jax.grad(compute_logpdf))
 # Set up variant of scene misaligned with the real image
 particle_centers_shifted = jnp.array(
     [
-        [0.05, 0.0, 1.0],
-        [0.15, 0.2, 2.0],
+        [0.05, -0.05, .8],
+        [0.45, 0.2, 2.5],
         [0., 0., 5.]
     ]
 )

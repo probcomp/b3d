@@ -39,10 +39,10 @@ particle_colors = jnp.array(
 
 ij = jnp.array([51, 52])
 
-vertices, faces, colors, triangle_to_particle_index = jax.vmap(
+vertices_og, faces, colors, triangle_to_particle_index = jax.vmap(
     center_and_width_to_vertices_faces_colors
 )(jnp.arange(len(particle_centers)), particle_centers, particle_widths, particle_colors)
-vertices = vertices.reshape(-1, 3)
+vertices = vertices_og.reshape(-1, 3)
 faces = faces.reshape(-1, 3)
 colors = colors.reshape(-1, 3)
 triangle_to_particle_index = triangle_to_particle_index.reshape(-1)
@@ -84,7 +84,7 @@ triangle_colors = particle_colors[triangle_to_particle_index]
 
 ####
 
-rr.init("softras_4")
+rr.init("softras_5")
 rr.connect("127.0.0.1:8812")
 
 rr_log_gt("gt", particle_centers, particle_widths, particle_colors)
@@ -97,4 +97,86 @@ rendered_soft = render(vertices, faces, triangle_colors, hyperparams)
 rr.log("c/gt", rr.Image(color_image), timeless=True)
 rr.log("c/rendered", rr.Image(rendered_soft), timeless=True)
 
-ij = jnp.array([55, 55]) 
+###
+
+def compute_error(centers):
+    rendered = render_from_centers(centers)
+    return jnp.sum(jnp.abs((rendered - rendered_soft)))
+
+def render_from_centers(new_particle_centers):
+    particle_center_delta  = new_particle_centers - particle_centers
+    # vertices, faces, colors, triangle_to_particle_index = jax.vmap(
+    #     center_and_width_to_vertices_faces_colors
+    # )(jnp.arange(len(new_particle_centers)), new_particle_centers, particle_widths, particle_colors)
+    # vertices = vertices.reshape(-1, 3)
+    # faces = faces.reshape(-1, 3)
+    # triangle_to_particle_index = triangle_to_particle_index.reshape(-1)
+    new_vertices = vertices_og + jnp.expand_dims(particle_center_delta, 1)
+    return render(new_vertices.reshape(-1, 3), faces.reshape(-1, 3), particle_colors[triangle_to_particle_index], hyperparams)
+
+particle_centers_shifted = jnp.array(
+    [
+        [0.05, 0.0, 1.0],
+        [0.15, 0.2, 2.0],
+        [0., 0., 5.]
+    ]
+)
+rendered_shifted = render_from_centers(particle_centers_shifted)
+rr.log("shifted", rr.Image(rendered_shifted), timeless=True)
+
+print("ERROR:")
+print(compute_error(particle_centers_shifted))
+print("GRAD:")
+g = jax.grad(compute_error)(particle_centers_shifted)
+print(g)
+
+#########
+def compute_error_from_vertices(vertices):
+    rendered = render(vertices.reshape(-1, 3), faces, particle_colors[triangle_to_particle_index], hyperparams)
+    return jnp.sum(jnp.abs((rendered - rendered_soft)))
+
+particle_center_delta  = particle_centers_shifted - particle_centers
+vertices_shifted = vertices_og + jnp.expand_dims(particle_center_delta, 1)
+
+print("ERROR:")
+print(compute_error_from_vertices(vertices_shifted))
+print("GRAD:")
+g = jax.grad(compute_error_from_vertices)(vertices_shifted)
+print(g)
+
+uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+    Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
+)
+
+triangle_intersected_padded = jnp.pad(
+    triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
+)
+
+ij = jnp.array([37, 37])
+def get_pixel_color_from_vertices(ij, vertices):
+    return get_pixel_color(
+        ij, vertices, faces, triangle_colors, triangle_intersected_padded,
+        hyperparams
+    ).sum()
+color = get_pixel_color_from_vertices(vertices_shifted.reshape(-1, 3))
+grads = jax.vmap(
+    jax.grad(get_pixel_color_from_vertices, argnums=1),
+    in_axes=(0, None)
+)(all_pairs(100, 100), vertices_shifted.reshape(-1, 3))
+isnan_img = jnp.any(jnp.isnan(grads), axis=(1, 2)).reshape(100, 100).astype(float)
+
+
+#######
+
+grad_jit = jax.jit(jax.grad(compute_error))
+current_centers = particle_centers_shifted
+eps = 1e-5
+for i in range(40):
+    g = grad_jit(current_centers)
+    current_centers = current_centers - eps * g
+        # rr.log("error", rr.Scalar(compute_error(current_centers)))
+    print(f"ERROR: {compute_error(current_centers)}")
+    rr.set_time_sequence("gd", i)
+    rendered = render_from_centers(current_centers)
+    rr.log("gd", rr.Image(rendered))
+    rr.log("gd-error", rr.Image(jnp.abs((rendered - rendered_soft))))

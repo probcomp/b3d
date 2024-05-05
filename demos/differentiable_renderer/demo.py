@@ -217,9 +217,9 @@ for i in range(100):
     rr.log("/logpdf/ula", rr.Scalar(compute_logpdf(current_centers_ula)))
     rr.log("/logpdf/mala", rr.Scalar(compute_logpdf(current_centers_mala)))
 
-    rr.log("/l1_errorsf/gd", rr.Scalar(jnp.abs(rendered_gd - color_image).sum()))
-    rr.log("/l1_errorsf/ula", rr.Scalar(jnp.abs(rendered_ula - color_image).sum()))
-    rr.log("/l1_errorsf/mala", rr.Scalar(jnp.abs(rendered_mala - color_image).sum()))
+    rr.log("/l1_errors/gd", rr.Scalar(jnp.abs(rendered_gd - color_image).sum()))
+    rr.log("/l1_errors/ula", rr.Scalar(jnp.abs(rendered_ula - color_image).sum()))
+    rr.log("/l1_errors/mala", rr.Scalar(jnp.abs(rendered_mala - color_image).sum()))
 
 print(f"MALA acceptance fraction: {n_acc_mala / N_steps}")
 

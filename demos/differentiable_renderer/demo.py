@@ -164,8 +164,8 @@ grad_jit = jax.jit(jax.grad(compute_logpdf))
 # Set up variant of scene misaligned with the real image
 particle_centers_shifted = jnp.array(
     [
-        [0.05, -0.05, .8],
-        [0.45, 0.2, 2.5],
+        [-0.07, -0.08, 1.02],
+        [0., 0.23, 1.98],
         [0., 0., 5.]
     ]
 )
@@ -174,11 +174,15 @@ current_centers_gd = particle_centers_shifted
 current_centers_ula = particle_centers_shifted
 current_centers_mala = particle_centers_shifted
 
-sigma = 1e-3
+sigma = .004
 key = jax.random.PRNGKey(10)
 n_acc_mala = 0
-N_steps = 40
-for i in range(N_steps):
+N_steps = 100 # 10 steps should be enough to fit it pretty well --
+              # but I'm showing 100 to show how it progresses after this initial fit
+# Note that this is slow due to all the logging, but last time I checked
+# we can run ULA at about 170 fps.  (Possibly closer to 450fps on this scene
+# with some optimizations I think I know how to implement, judging by a quick experiment I ran.)
+for i in range(100):
     print(f"i = {i}")
     key, subkey = jax.random.split(key)
     if i != 0:
@@ -213,8 +217,27 @@ for i in range(N_steps):
     rr.log("/logpdf/ula", rr.Scalar(compute_logpdf(current_centers_ula)))
     rr.log("/logpdf/mala", rr.Scalar(compute_logpdf(current_centers_mala)))
 
-    rr.log("/l1_errors/gd", rr.Scalar(jnp.abs(rendered_gd - color_image).sum()))
-    rr.log("/l1_errors/ula", rr.Scalar(jnp.abs(rendered_ula - color_image).sum()))
-    rr.log("/l1_errors/mala", rr.Scalar(jnp.abs(rendered_mala - color_image).sum()))
+    rr.log("/l1_errorsf/gd", rr.Scalar(jnp.abs(rendered_gd - color_image).sum()))
+    rr.log("/l1_errorsf/ula", rr.Scalar(jnp.abs(rendered_ula - color_image).sum()))
+    rr.log("/l1_errorsf/mala", rr.Scalar(jnp.abs(rendered_mala - color_image).sum()))
 
 print(f"MALA acceptance fraction: {n_acc_mala / N_steps}")
+
+### Timing experiment:
+
+def step(carry, x):
+    key, centers = carry
+    key, subkey = jax.random.split(key)
+    c2 = ULA_step(subkey, centers, 1e-3)
+    return ((key, c2), x)
+@jax.jit
+def do_inference():
+    return jax.lax.scan(step, (jax.random.PRNGKey(0), particle_centers_shifted), xs=None, length=100)
+
+do_inference()
+
+import time
+start = time.time()
+do_inference()
+end = time.time()
+print(f"Time to run 100 steps of ULA: {end - start}s")

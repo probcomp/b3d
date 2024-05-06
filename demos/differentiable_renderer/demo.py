@@ -15,6 +15,17 @@ import b3d.differentiable_renderer as rendering
 import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 
+# Set up OpenGL renderer
+image_width = 100
+image_height = 100
+fx = 50.0
+fy = 50.0
+cx = 50.0
+cy = 50.0
+near = 0.001
+far = 16.0
+renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+
 # Set up 3 squares oriented toward the camera, with different colors
 particle_centers = jnp.array(
     [
@@ -41,14 +52,14 @@ particle_colors = jnp.array(
     vertices, faces, vertex_colors, triangle_colors,
     triangle_to_particle_index, color_image
 ) = utils.get_mesh_and_gt_render(
-    particle_centers, particle_widths, particle_colors
+    renderer, particle_centers, particle_widths, particle_colors
 )
 
 # visualize the scene
 rr.init("differentiable_rendering--scene_and_renders-2")
 rr.connect("127.0.0.1:8812")
 rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
-rr.log("scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)
+rr.log("scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=image_height), timeless=True)
 rr.log("img/opengl_rendering", rr.Image(color_image), timeless=True)
 
 # Stochastic rendering of scene
@@ -58,12 +69,13 @@ def get_render(key, weights, colors):
         key, (weights, colors, lab_color_space_noise_scale)
     ).get_retval().reshape(100, 100, 3)
 
+WINDOW = 3
 SIGMA = 5e-5
 GAMMA = 0.25
 EPSILON = -1
-hyperparams = (SIGMA, GAMMA, EPSILON)
+hyperparams = rendering.DifferentiableRendererHyperparams(WINDOW, SIGMA, GAMMA, EPSILON)
 (weights, colors) = rendering.render_to_dist_params(
-    vertices, faces, vertex_colors, hyperparams
+    renderer, vertices, faces, vertex_colors, hyperparams
 )
 
 # Generate + visualize 100 stochastic renders
@@ -86,6 +98,7 @@ def render_to_dist_from_centers(new_particle_centers):
     particle_center_delta  = new_particle_centers - particle_centers
     new_vertices = vertices.reshape(3, 4, 3) + jnp.expand_dims(particle_center_delta, 1)
     weights, colors = rendering.render_to_dist_params(
+        renderer,
         new_vertices.reshape(-1, 3), faces.reshape(-1, 3),
         vertex_colors, hyperparams
     )
@@ -95,37 +108,38 @@ def render_from_centers(new_particle_centers):
     particle_center_delta  = new_particle_centers - particle_centers
     new_vertices = vertices.reshape(3, 4, 3) + jnp.expand_dims(particle_center_delta, 1)
     return rendering.render_to_average(
+        renderer,
         new_vertices.reshape(-1, 3), faces.reshape(-1, 3),
         vertex_colors,
-        hyperparams,
-        background_attribute=jnp.array([0., 0., 0.])
+        background_attribute=jnp.array([0., 0., 0.]),
+        hyperparams=hyperparams
     )
 
 def compute_logpdf(centers):
     weights, colors = render_to_dist_from_centers(centers)
     return get_img_logpdf(jax.random.PRNGKey(0), color_image, weights, colors)    
 
-@jax.jit
-def square2_pos_to_logpdf(xy):
-    x, y = xy
-    return compute_logpdf(jnp.array([[0.0, 0.0, 1.0],
-                                     [x, y, 2.0],
-                                     [0., 0., 5.]]))
-x = jnp.linspace(-0.4, 0.6, 140)
-y = jnp.linspace(-0.4, 0.6, 140)
-xy = jnp.stack(jnp.meshgrid(x, y), axis=-1).reshape(-1, 2)
-# This may take a couple minutes -- we can't vmap this call yet
-# due to unfinished paths in the opengl renderer
-logpdfs = jnp.array([square2_pos_to_logpdf(_xy) for _xy in xy])
-logpdfs = logpdfs.reshape(140, 140)
-rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/logpdfs", rr.DepthImage(logpdfs), timeless=True)
-lt = jnp.linalg.norm(xy - jnp.array([0.2, 0.2]), axis=-1) < 0.01
+# @jax.jit
+# def square2_pos_to_logpdf(xy):
+#     x, y = xy
+#     return compute_logpdf(jnp.array([[0.0, 0.0, 1.0],
+#                                      [x, y, 2.0],
+#                                      [0., 0., 5.]]))
+# x = jnp.linspace(-0.4, 0.6, 140)
+# y = jnp.linspace(-0.4, 0.6, 140)
+# xy = jnp.stack(jnp.meshgrid(x, y), axis=-1).reshape(-1, 2)
+# # This may take a couple minutes -- we can't vmap this call yet
+# # due to unfinished paths in the opengl renderer
+# logpdfs = jnp.array([square2_pos_to_logpdf(_xy) for _xy in xy])
+# logpdfs = logpdfs.reshape(140, 140)
+# rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/logpdfs", rr.DepthImage(logpdfs), timeless=True)
+# lt = jnp.linalg.norm(xy - jnp.array([0.2, 0.2]), axis=-1) < 0.01
 
-# mark the true position of this square
-idx = jnp.where(lt)[0]
-ij = jnp.unravel_index(idx, (140, 140))
-ij2 = jnp.array([jnp.mean(ij[0]), jnp.mean(ij[0])])
-rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position", rr.Points2D(jnp.array([ij2]), radii=1.0, colors=jnp.array([0, 0, 0])), timeless=True)
+# # mark the true position of this square
+# idx = jnp.where(lt)[0]
+# ij = jnp.unravel_index(idx, (140, 140))
+# ij2 = jnp.array([jnp.mean(ij[0]), jnp.mean(ij[0])])
+# rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position", rr.Points2D(jnp.array([ij2]), radii=1.0, colors=jnp.array([0, 0, 0])), timeless=True)
 
 #####################
 ### Scene fitting ###
@@ -187,6 +201,7 @@ N_steps = 100 # 10 steps should be enough to fit it pretty well --
 # Note that this is slow due to all the logging, but last time I checked
 # we can run ULA at about 170 fps.  (Possibly closer to 450fps on this scene
 # with some optimizations I think I know how to implement, judging by a quick experiment I ran.)
+i = 2
 for i in range(100):
     print(f"i = {i}")
     key, subkey = jax.random.split(key)

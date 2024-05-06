@@ -3,17 +3,6 @@ import jax
 import b3d
 from b3d import Pose
 
-image_width = 100
-image_height = 100
-fx = 50.0
-fy = 50.0
-cx = 50.0
-cy = 50.0
-near = 0.001
-far = 16.0
-renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
-WINDOW = 3
-
 #
 # Note: right now, in RGBD rendering mode,
 # the rendered depth values are get truncated
@@ -25,42 +14,63 @@ WINDOW = 3
 # (which is truncated at the vertices of the triangle.)
 #
 
+class DifferentiableRendererHyperparams:
+    def __init__(self, window, sigma, gamma, epsilon):
+        self.WINDOW = window
+        self.SIGMA = sigma
+        self.GAMMA = gamma
+        self.EPSILON = epsilon
+
+class HyperparamsAndIntrinsics:
+    def __init__(self, hyperparams, fx, fy, cx, cy):
+        self.hyperparams = hyperparams
+        self.fx = fx
+        self.fy = fy
+        self.cx = cx
+        self.cy = cy
+
+DEFAULT_HYPERPARAMS = DifferentiableRendererHyperparams(3, 5e-5, 0.25, -1)
+
 ############################
 ### Stochastic rendering ###
 ############################
 
 def render_to_rgbd_dist_params(
+    renderer: b3d.Renderer,
     vertices,
     faces,
     vertex_rgbs,
-    hyperparams
+    hyperparams=DEFAULT_HYPERPARAMS
 ):
     vertex_depths = vertices[:, 2]
     vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
-    return render_to_dist_params(vertices, faces, vertex_rgbds, hyperparams)
+    return render_to_dist_params(renderer, vertices, faces, vertex_rgbds, hyperparams)
 
-def render_to_dist_params(vertices, faces, vertex_attributes, hyperparams):
+def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=DEFAULT_HYPERPARAMS):
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
 
     triangle_intersected_padded = jnp.pad(
-        triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
+        triangle_id_image, pad_width=[(hyperparams.WINDOW, hyperparams.WINDOW)], constant_values=-1
     )
 
+    h = HyperparamsAndIntrinsics(hyperparams, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     (weights, attributes) = jax.vmap(_get_pixel_attribute_dist_parameters, in_axes=(0, None))(
-        all_pairs(image_height, image_width),
-        (vertices, faces, vertex_attributes, triangle_intersected_padded, hyperparams)
+        all_pairs(renderer.height, renderer.width),
+        (vertices, faces, vertex_attributes, triangle_intersected_padded, h)
     )
 
     return (weights, attributes)
 
 def get_pixel_attribute_dist_parameters(
     ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
-    hyperparams
+    hyperparams_and_intrinsics
 ):
     
-    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams)
+    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(
+        ij, vertices, faces, triangle_intersected_padded, hyperparams_and_intrinsics
+    )
     unique_triangle_indices_safe = jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)
 
     # (U - 1, A)
@@ -85,22 +95,24 @@ def _get_pixel_attribute_dist_parameters(ij, args):
 ##############################
 
 def render_to_average_rgbd(
+    renderer,
     vertices,
     faces,
     vertex_rgbs,
-    hyperparams,
-    background_attribute=jnp.array([0.1, 0.1, 0.1, 0])
+    background_attribute=jnp.array([0.1, 0.1, 0.1, 0]),
+    hyperparams=DEFAULT_HYPERPARAMS,
 ):
     vertex_depths = vertices[:, 2]
     vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
-    return render_to_average(vertices, faces, vertex_rgbds, hyperparams, background_attribute)
+    return render_to_average(renderer, vertices, faces, vertex_rgbds, background_attribute, hyperparams)
 
 def render_to_average(
+        renderer,
         vertices,
         faces,
         vertex_attributes,
-        hyperparams,
-        background_attribute
+        background_attribute,
+        hyperparams=DEFAULT_HYPERPARAMS
 ):
     """
     Render a colored image where pixel (i, j)'s color
@@ -111,35 +123,39 @@ def render_to_average(
     - vertices: (V, 3)
     - faces: (F, 3)
     - vertex_attributes: (F, A) [A=3 for RGB; A=4 for RGBD]
-    - hyperparams: (SIGMA, GAMMA, EPSILON)
-        Hyperparameters from the softras paper.
+    - background_attribute: (A,)
+    - hyperparams
     Returns:
-    - colors: (H, W, 3)
+    - attributes: (H, W, A)
     """
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
 
+    print(hyperparams)
     triangle_intersected_padded = jnp.pad(
-        triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
+        triangle_id_image, pad_width=[(hyperparams.WINDOW, hyperparams.WINDOW)], constant_values=-1
     )
 
+    h = HyperparamsAndIntrinsics(hyperparams, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     attributes = jax.vmap(_get_averaged_pixel_attribute, in_axes=(0, None))(
-        all_pairs(image_height, image_width),
-        (vertices, faces, vertex_attributes, triangle_intersected_padded, hyperparams, background_attribute)
-    ).reshape(image_height, image_width, -1)
+        all_pairs(renderer.height, renderer.width),
+        (vertices, faces, vertex_attributes, triangle_intersected_padded, h, background_attribute)
+    ).reshape(renderer.height, renderer.width, -1)
     
     return attributes
 
 def get_averaged_pixel_attribute(
         ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
-        hyperparams,
+        hyperparams_and_intrinsics,
         background_attribute
     ):
     # TODO: DRY from `get_pixel_attribute_dist_parameters`
 
     # (U,)                   (U,)       (U - 1, 3)
-    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams)
+    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(
+        ij, vertices, faces, triangle_intersected_padded, hyperparams_and_intrinsics
+    )
     unique_triangle_indices_safe = jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)
 
     # (U - 1, A)
@@ -169,7 +185,7 @@ def _get_averaged_pixel_attribute(ij, args):
 def all_pairs(X, Y):
     return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
 
-def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams):
+def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams_and_intrinsics):
     """
     Returns:
     - unique_triangle_indices (U,)
@@ -183,7 +199,8 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
         The interpolated attributes for each triangle (and nothing for the background).
         Will filled with -1s for every triangle where `unique_triangle_indices` is -2.
     """
-    (SIGMA, GAMMA, EPSILON) = hyperparams
+    h = hyperparams_and_intrinsics.hyperparams
+    (WINDOW, SIGMA, GAMMA, EPSILON) = h.WINDOW, h.SIGMA, h.GAMMA, h.EPSILON
 
     triangle_intersected_padded_in_window = jax.lax.dynamic_slice(
         triangle_intersected_padded,
@@ -198,8 +215,10 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
     ) - 1
     unique_triangle_values_safe = jnp.where(unique_triangle_values < 0, unique_triangle_values[0], unique_triangle_values)
     
-    signed_dist_values, barycentric_coords = get_signed_dists_and_barycentric_coords(ij, unique_triangle_values_safe, vertices, faces)
-    z_values = get_z_values(ij, unique_triangle_values_safe, vertices, faces)
+    signed_dist_values, barycentric_coords = get_signed_dists_and_barycentric_coords(
+        ij, unique_triangle_values_safe, vertices, faces, hyperparams_and_intrinsics
+    )
+    z_values = get_z_values(ij, unique_triangle_values_safe, vertices, faces, hyperparams_and_intrinsics)
     z_values = jnp.where(unique_triangle_values >= 0, z_values, z_values.max())
     
     # Math from the softras paper
@@ -237,25 +256,25 @@ def barycentric_interpolation(vertex_indices, vertex_attributes, barycentric_coo
 ### Geometric calculations used in the softras-style scoring ###
 ################################################################
 
-def get_z_values(ij, unique_triangle_values, vertices, faces):
-    return jax.vmap(get_z_value, in_axes=(None, 0, None, None))(
-        ij, unique_triangle_values, vertices, faces
+def get_z_values(ij, unique_triangle_values, vertices, faces, hyperparams_and_intrinsics):
+    return jax.vmap(get_z_value, in_axes=(None, 0, None, None, None))(
+        ij, unique_triangle_values, vertices, faces, hyperparams_and_intrinsics
     )
-def get_z_value(ij, triangle_idx, vertices, faces):
+def get_z_value(ij, triangle_idx, vertices, faces, hyperparams_and_intrinsics):
     """
     Project pixel (i, j) to the plane of `triangle_idx`, then
     compute the z value of the projected point.
     """
     triangle = vertices[faces[triangle_idx]] # 3 x 3 (face_idx, vertex_idx)
-    point_on_plane = project_pixel_to_plane(ij, triangle)
+    point_on_plane = project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics)
     return point_on_plane[2]
 
-def get_signed_dists_and_barycentric_coords(ij, unique_triangle_values, vertices, faces):
-    return jax.vmap(get_signed_dist_and_barycentric_coords, in_axes=(None, 0, None, None))(
-        ij, unique_triangle_values, vertices, faces
+def get_signed_dists_and_barycentric_coords(ij, unique_triangle_values, vertices, faces, hyperparams_and_intrinsics):
+    return jax.vmap(get_signed_dist_and_barycentric_coords, in_axes=(None, 0, None, None, None))(
+        ij, unique_triangle_values, vertices, faces, hyperparams_and_intrinsics
     )
 
-def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces):
+def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces, hyperparams_and_intrinsics):
     """
     Project pixel (i, j) to the plane of `triangle_idx`, obtaining 3D point `p`,
     then compute
@@ -267,7 +286,7 @@ def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces):
         from the 0th, 1st, and 2nd vertices in triangle `triangle_idx`, respectively.
     """
     triangle = vertices[faces[triangle_idx]] # 3 x 3 (face_idx, vertex_idx)
-    point_on_plane = project_pixel_to_plane(ij, triangle)
+    point_on_plane = project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics)
     
     # distances to 3 lines making up the triangle
     d1 = dist_to_line_seg(triangle[0], triangle[1], point_on_plane)
@@ -291,13 +310,14 @@ def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces):
     return (signed_distance, bary)
 
 # From ChatGPT + I fixed a couple bugs in it.
-def project_pixel_to_plane(ij, triangle):
+def project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics):
     """
     Project pixel ij to the plane defined by the given triangle.
     Args:
     - ij: (2,) pixel coordinates
     - triangle: (3, 3) vertices of the triangle (triangle[f] is one vertex)
     """
+    fx, fy, cx, cy = hyperparams_and_intrinsics.fx, hyperparams_and_intrinsics.fy, hyperparams_and_intrinsics.cx, hyperparams_and_intrinsics.cy
     y, x = ij
     vertex1, vertex2, vertex3 = triangle
 

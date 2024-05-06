@@ -10,16 +10,6 @@ from b3d import Pose
 import rerun as rr
 import functools
 
-image_width = 100
-image_height = 100
-fx = 50.0
-fy = 50.0
-cx = 50.0
-cy = 50.0
-near = 0.001
-far = 16.0
-renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)\
-
 def center_and_width_to_vertices_faces_colors(i, center, width, color):
     vertices = (
         jnp.array(
@@ -45,7 +35,7 @@ def center_and_width_to_vertices_faces_colors(i, center, width, color):
     colors = jnp.ones((4, 3)) * color
     return vertices, faces, colors, jnp.ones(len(faces), dtype=jnp.int32) * i
 
-def get_mesh_and_gt_render(particle_centers, particle_widths, particle_colors):
+def get_mesh_and_gt_render(renderer, particle_centers, particle_widths, particle_colors):
     vertices_og, faces, colors, triangle_to_particle_index = jax.vmap(
         center_and_width_to_vertices_faces_colors
     )(jnp.arange(len(particle_centers)), particle_centers, particle_widths, particle_colors)

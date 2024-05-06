@@ -16,6 +16,17 @@ import b3d.differentiable_renderer as rendering
 import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 
+# Set up OpenGL renderer
+image_width = 100
+image_height = 100
+fx = 50.0
+fy = 50.0
+cx = 50.0
+cy = 50.0
+near = 0.001
+far = 16.0
+renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+
 # Set up 3 squares oriented toward the camera, with different colors
 particle_centers = jnp.array(
     [
@@ -80,14 +91,16 @@ GAMMA = 0.25
 EPSILON = -1
 hyperparams = (SIGMA, GAMMA, EPSILON)
 soft_img_old = rendering_old.render(
-    vertices, faces, triangle_colors, hyperparams
+    renderer, vertices, faces, triangle_colors, hyperparams
 )
 
 ### Averaged rendering ###
 
+hyperparams = rendering.DifferentiableRendererHyperparams(3, SIGMA, GAMMA, EPSILON)
 soft_img_rgbd = rendering.render_to_average_rgbd(
-    vertices, faces, vertex_colors, hyperparams,
-    background_attribute = jnp.array([0.1, 0.1, 0.1, 0])
+    renderer, vertices, faces, vertex_colors,
+    background_attribute = jnp.array([0.1, 0.1, 0.1, 0]),
+    hyperparams=hyperparams
 )
 
 # Check that the old and new renderer do the same thing
@@ -99,13 +112,13 @@ rr.log("/img/averaged_depth", rr.DepthImage(soft_img_rgbd[:, :, 3]), timeless=Tr
 
 def get_render(key, weights, colors):
     lab_color_space_noise_scale = 3.0
-    depth_noise_scale = 0.2
+    depth_noise_scale = 0.07
     return likelihoods.mixture_rgbd_sensor_model.simulate(
         key,
         (weights, colors, lab_color_space_noise_scale, depth_noise_scale, 0., 10.)
     ).get_retval().reshape(100, 100, 4)
 (weights, colors) = rendering.render_to_rgbd_dist_params(
-    vertices, faces, vertex_colors, hyperparams
+    renderer, vertices, faces, vertex_colors, hyperparams
 )
 get_render(jax.random.PRNGKey(0), weights, colors)
 

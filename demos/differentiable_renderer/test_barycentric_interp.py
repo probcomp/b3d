@@ -67,7 +67,7 @@ color_image, _ = utils.renderer.render_attribute(
 
 
 # visualize the scene
-rr.init("differentiable_rendering--test_barycentric_interpolation2")
+rr.init("differentiable_rendering--test_barycentric_interpolation3")
 rr.connect("127.0.0.1:8812")
 rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)
@@ -83,18 +83,40 @@ soft_img_old = rendering_old.render(
     vertices, faces, triangle_colors, hyperparams
 )
 
+### Averaged rendering ###
+
 soft_img_rgbd = rendering.render_to_average_rgbd(
     vertices, faces, vertex_colors, hyperparams,
     background_attribute = jnp.array([0.1, 0.1, 0.1, 0])
 )
 
-# soft_img_new = rendering.render_to_averaged_attributes(
-#     vertices, faces, vertex_colors, hyperparams,
-#     background_attribute=jnp.array([0.1, 0.1, 0.1])
-# )
-
 # Check that the old and new renderer do the same thing
 # rr.log("/img/soft_rendering_old", rr.Image(soft_img_old), timeless=True)
-rr.log("/img/rgb", rr.Image(soft_img_rgbd[:, :, :3]), timeless=True)
-rr.log("/img/depth", rr.DepthImage(soft_img_rgbd[:, :, 3]), timeless=True)
+rr.log("/img/averaged_rgb", rr.Image(soft_img_rgbd[:, :, :3]), timeless=True)
+rr.log("/img/averaged_depth", rr.DepthImage(soft_img_rgbd[:, :, 3]), timeless=True)
+
+### Stochastic rendering ###
+
+def get_render(key, weights, colors):
+    lab_color_space_noise_scale = 3.0
+    depth_noise_scale = 0.2
+    return likelihoods.mixture_rgbd_sensor_model.simulate(
+        key,
+        (weights, colors, lab_color_space_noise_scale, depth_noise_scale, 0., 10.)
+    ).get_retval().reshape(100, 100, 4)
+(weights, colors) = rendering.render_to_rgbd_dist_params(
+    vertices, faces, vertex_colors, hyperparams
+)
+get_render(jax.random.PRNGKey(0), weights, colors)
+
+# Generate + visualize 100 stochastic renders
+keys = jax.random.split(jax.random.PRNGKey(0), 100)
+renders = jax.vmap(get_render, in_axes=(0, None, None))(
+    keys, weights, colors
+)
+for t in range(100):
+    rr.set_time_sequence("stochastic_render", t)
+    rr.log("img/stochastic_rgb_render", rr.Image(renders[t, :, :, :3]))
+    rr.log("img/stochastic_depth_render", rr.DepthImage(renders[t, :, :, 3]))
+    rr.log("scene/camera", rr.Image(renders[t, :, :, :3]))
 

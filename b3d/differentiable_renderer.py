@@ -25,6 +25,65 @@ WINDOW = 3
 # (which is truncated at the vertices of the triangle.)
 #
 
+############################
+### Stochastic rendering ###
+############################
+
+def render_to_rgbd_dist_params(
+    vertices,
+    faces,
+    vertex_rgbs,
+    hyperparams
+):
+    vertex_depths = vertices[:, 2]
+    vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
+    return render_to_dist_params(vertices, faces, vertex_rgbds, hyperparams)
+
+def render_to_dist_params(vertices, faces, vertex_attributes, hyperparams):
+    uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+        Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
+    )
+
+    triangle_intersected_padded = jnp.pad(
+        triangle_id_image, pad_width=[(WINDOW, WINDOW)], constant_values=-1
+    )
+
+    (weights, attributes) = jax.vmap(_get_pixel_attribute_dist_parameters, in_axes=(0, None))(
+        all_pairs(image_height, image_width),
+        (vertices, faces, vertex_attributes, triangle_intersected_padded, hyperparams)
+    )
+
+    return (weights, attributes)
+
+def get_pixel_attribute_dist_parameters(
+    ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
+    hyperparams
+):
+    
+    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams)
+    unique_triangle_indices_safe = jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)
+
+    # (U - 1, A)
+    attributes_at_triangles = jax.vmap(barycentric_interpolation, in_axes=(0, None, 0))(
+        faces[unique_triangle_indices_safe[1:]],
+        vertex_attributes,
+        barycentric_coords
+    )
+
+    attributes_at_triangles = jnp.where(
+        unique_triangle_indices[1:, None] < 0, -jnp.ones_like(attributes_at_triangles), attributes_at_triangles
+    )
+
+    return (weights, attributes_at_triangles)
+
+def _get_pixel_attribute_dist_parameters(ij, args):
+    return get_pixel_attribute_dist_parameters(ij, *args)
+
+
+##############################
+### Rendering w/ averaging ### 
+##############################
+
 def render_to_average_rgbd(
     vertices,
     faces,
@@ -71,6 +130,41 @@ def render_to_averaged_attributes(
     ).reshape(image_height, image_width, -1)
     
     return attributes
+
+def get_averaged_pixel_attribute(
+        ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
+        hyperparams,
+        background_attribute
+    ):
+    # TODO: DRY from `get_pixel_attribute_dist_parameters`
+
+    # (U,)                   (U,)       (U - 1, 3)
+    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams)
+    unique_triangle_indices_safe = jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)
+
+    # (U - 1, A)
+    attributes_at_triangles = jax.vmap(barycentric_interpolation, in_axes=(0, None, 0))(
+        faces[unique_triangle_indices_safe[1:]],
+        vertex_attributes,
+        barycentric_coords
+    )
+
+    attributes_at_triangles = jnp.concatenate([
+        jnp.array([background_attribute]),
+        jnp.where(
+            unique_triangle_indices[1:, None] < 0, jnp.array([background_attribute]), attributes_at_triangles
+        )
+    ])
+
+    attribute = (weights[..., None] * attributes_at_triangles).sum(axis=0)
+    return attribute
+
+def _get_averaged_pixel_attribute(ij, args):
+    return get_averaged_pixel_attribute(ij, *args)
+
+###############################################
+# Core weighting & attribute computation math #
+###############################################
 
 def all_pairs(X, Y):
     return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
@@ -128,32 +222,6 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
     barycentric_coords = jnp.where(unique_triangle_values[:, None] >= 0, barycentric_coords, -jnp.ones_like(barycentric_coords))
     return (extended_triangle_indices, weights, barycentric_coords)
 
-def get_averaged_pixel_attribute(
-        ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
-        hyperparams,
-        background_attribute
-    ):
-    # (U,)                   (U,)       (U - 1, 3)
-    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams)
-    unique_triangle_indices_safe = jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)
-
-    # (U - 1, A)
-    attributes_at_triangles = jax.vmap(barycentric_interpolation, in_axes=(0, None, 0))(
-        faces[unique_triangle_indices_safe[1:]],
-        vertex_attributes,
-        barycentric_coords
-    )
-
-    attributes_at_triangles = jnp.concatenate([
-        jnp.array([background_attribute]),
-        jnp.where(
-            unique_triangle_indices[1:, None] < 0, jnp.array([background_attribute]), attributes_at_triangles
-        )
-    ])
-
-    attribute = (weights[..., None] * attributes_at_triangles).sum(axis=0)
-    return attribute
-
 def barycentric_interpolation(vertex_indices, vertex_attributes, barycentric_coords):
     """
     Args:
@@ -164,9 +232,6 @@ def barycentric_interpolation(vertex_indices, vertex_attributes, barycentric_coo
     - interpolated_attributes: (A,) interpolated attributes of the point
     """
     return jnp.dot(barycentric_coords, vertex_attributes[vertex_indices])
-
-def _get_averaged_pixel_attribute(ij, args):
-    return get_averaged_pixel_attribute(ij, *args)
 
 ################################################################
 ### Geometric calculations used in the softras-style scoring ###

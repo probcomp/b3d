@@ -54,8 +54,12 @@ def lab_to_rgb(lab):
 
     return rgb
 
+###################
+# RGB likelihoods #
+###################
+
 laplace = genjax.TFPDistribution(tfp.distributions.Laplace)
-class LaplaceRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+class LaplaceRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, rendered_rgb, rgb_scale):
         lab = b3d.rgb_to_lab(rendered_rgb)
         lab2 = laplace.sample(key, lab, rgb_scale)
@@ -68,9 +72,9 @@ class LaplaceRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         rgb_logpdf = laplace.logpdf(lab2, lab, rgb_scale)
         return rgb_logpdf
 
-laplace_rgb_sensor_model = LaplaceRGBSensorModel()
+laplace_rgb_pixel_model = LaplaceRGBPixelModel()
 
-class UniformRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+class UniformRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, rendered_rgb):
         lab = b3d.rgb_to_lab(rendered_rgb)
         low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
@@ -86,7 +90,7 @@ class UniformRGBSensorModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
         rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
         return rgb_logpdf
-uniform_rgb_sensor_model = UniformRGBSensorModel()
+uniform_rgb_pixel_model = UniformRGBPixelModel()
 
 class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     """
@@ -99,14 +103,14 @@ class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         key, subkey = jax.random.split(key)
         choice = genjax.categorical.sample(subkey, jnp.log(probs))
         key, subkey = jax.random.split(key)
-        uniform_value = uniform_rgb_sensor_model.sample(key, rgbs[0])
-        laplace_value = laplace_rgb_sensor_model.sample(subkey, rgbs[choice-1], laplace_scale)
+        uniform_value = uniform_rgb_pixel_model.sample(key, rgbs[0])
+        laplace_value = laplace_rgb_pixel_model.sample(subkey, rgbs[choice-1], laplace_scale)
         return jnp.where(choice == 0, uniform_value, laplace_value)
     
     def logpdf(self, observed_rgb, probs, rgbs, laplace_scale):
-        uniform_logpdf = uniform_rgb_sensor_model.logpdf(observed_rgb, rgbs[0])
+        uniform_logpdf = uniform_rgb_pixel_model.logpdf(observed_rgb, rgbs[0])
         laplace_logpdfs = jax.vmap(
-            lambda rgb: laplace_rgb_sensor_model.logpdf(observed_rgb, rgb, laplace_scale)
+            lambda rgb: laplace_rgb_pixel_model.logpdf(observed_rgb, rgb, laplace_scale)
         )(rgbs)
 
         uniform_logpdf = jnp.log(probs[0] + 1e-5) + uniform_logpdf
@@ -114,3 +118,88 @@ class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         return jax.scipy.special.logsumexp(jnp.concatenate([uniform_logpdf[None], laplace_logpdfs]))
 mixture_rgb_pixel_model = MixtureRGBPixelModel()
 mixture_rgb_sensor_model = genjax.map_combinator(in_axes=(0, 0, None))(mixture_rgb_pixel_model)
+
+####################
+# RGBD Likelihoods #
+####################
+
+class LaplaceRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+    """
+    Args:
+    - rendered_rgbd (center of laplace dists)
+    - rgb_scale (scale for rgb laplace dist, in LAB color space)
+    - depth_scale (scale for depth laplace dist)
+    """
+    def sample(self, key, rendered_rgbd, rgb_scale, depth_scale):
+        lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
+        lab2 = laplace.sample(key, lab, rgb_scale)
+        rgb = lab_to_rgb(lab2)
+        depth = laplace.sample(key, rendered_rgbd[..., 3], depth_scale)
+        return jnp.concatenate([rgb, jnp.array([depth])])
+
+    def logpdf(self, observed_rgbd, rendered_rgbd, rgb_scale, depth_scale):
+        lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
+        lab2 = b3d.rgb_to_lab(observed_rgbd[..., :3])
+        rgb_logpdf = laplace.logpdf(lab2, lab, rgb_scale)
+        depth_logpdf = laplace.logpdf(observed_rgbd[..., 3], rendered_rgbd[..., 3], depth_scale)
+        return rgb_logpdf + depth_logpdf
+
+laplace_rgbd_pixel_model = LaplaceRGBDPixelModel()
+
+class UniformRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+    """
+    Args:
+    - rendered_rgbd (used for shape only)
+    - mindepth (min value for uniform on depth)
+    - maxdepth (max value for uniform on depth)
+    """
+    def sample(self, key, rendered_rgbd, mindepth, maxdepth):
+        lab = b3d.rgb_to_lab(rendered_rgbd[:3])
+        low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
+        high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
+        lab2 = genjax.uniform.sample(key, low, high)
+        rgb = lab_to_rgb(lab2)
+        depth = genjax.uniform.sample(key, jnp.ones_like(rendered_rgbd[3]) * mindepth, jnp.ones_like(rendered_rgbd[3]) * maxdepth)
+        return jnp.concatenate([rgb, jnp.array([depth])])
+
+    def logpdf(self, observed_rgbd, rendered_rgbd, mindepth, maxdepth):
+        lab = b3d.rgb_to_lab(rendered_rgbd[:3])
+        lab2 = b3d.rgb_to_lab(observed_rgbd[:3])
+        low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
+        high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
+        rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
+        depth_logpdf = genjax.uniform.logpdf(observed_rgbd[3], jnp.ones_like(rendered_rgbd[3]) * mindepth, jnp.ones_like(rendered_rgbd[3]) * maxdepth)
+        return rgb_logpdf + depth_logpdf
+    
+uniform_rgbd_pixel_model = UniformRGBDPixelModel()
+
+class MixtureRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+    """
+    Args:
+    - probs: [p_uniform, *p_centered_at_colors] (N,)
+    - rgbds: (N-1, 4) 
+    - rgb_laplace_scale: () [shared across all laplace dists]
+    - depth_laplace_scale: () [shared across all laplace dists]
+    - mindepth_for_uniform (min value for uniform on depth)
+    - maxdepth_for_uniform (max value for uniform on depth)
+    """
+    def sample(self, key, probs, rgbds, rgb_laplace_scale, depth_laplace_scale, mindepth_for_uniform, maxdepth_for_uniform):
+        key, subkey = jax.random.split(key)
+        choice = genjax.categorical.sample(subkey, jnp.log(probs))
+        key, subkey = jax.random.split(key)
+        uniform_value = uniform_rgbd_pixel_model.sample(key, rgbds[0], mindepth_for_uniform, maxdepth_for_uniform)
+        laplace_value = laplace_rgbd_pixel_model.sample(subkey, rgbds[choice-1], rgb_laplace_scale, depth_laplace_scale)
+        return jnp.where(choice == 0, uniform_value, laplace_value)
+    
+    def logpdf(self, observed_rgbd, probs, rgbds, rgb_laplace_scale, depth_laplace_scale, mindepth_for_uniform, maxdepth_for_uniform):
+        uniform_logpdf = uniform_rgbd_pixel_model.logpdf(observed_rgbd, rgbds[0], mindepth_for_uniform, maxdepth_for_uniform)
+        laplace_logpdfs = jax.vmap(
+            lambda rgbd: laplace_rgbd_pixel_model.logpdf(observed_rgbd, rgbd, rgb_laplace_scale, depth_laplace_scale)
+        )(rgbds)
+
+        uniform_logpdf = jnp.log(probs[0] + 1e-5) + uniform_logpdf
+        laplace_logpdfs = jnp.log(probs[1:] + 1e-5) + laplace_logpdfs
+        return jax.scipy.special.logsumexp(jnp.concatenate([uniform_logpdf[None], laplace_logpdfs]))
+mixture_rgbd_pixel_model = MixtureRGBDPixelModel()
+mixture_rgbd_sensor_model = genjax.map_combinator(in_axes=(0, 0, None, None, None, None))(mixture_rgbd_pixel_model)
+

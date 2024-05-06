@@ -1,15 +1,7 @@
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
-import rerun as rr
-import functools
-from jax.experimental import checkify
 
 image_width = 100
 image_height = 100

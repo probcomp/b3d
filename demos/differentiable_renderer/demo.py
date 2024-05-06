@@ -11,9 +11,9 @@ import rerun as rr
 import functools
 import genjax
 
+import b3d.differentiable_renderer as rendering
+import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
-import demos.differentiable_renderer.rendering as rendering
-import demos.differentiable_renderer.likelihoods as likelihoods
 
 # Set up 3 squares oriented toward the camera, with different colors
 particle_centers = jnp.array(
@@ -125,7 +125,7 @@ rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position",
 #####################
 ### Scene fitting ###
 #####################
-rr.init("differentiable_rendering--scene_fitting3")
+rr.init("differentiable_rendering--scene_fitting4")
 rr.connect("127.0.0.1:8812")
 rr.log("/scene/ground_truth", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("/scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)

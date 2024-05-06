@@ -11,7 +11,6 @@ import rerun as rr
 import functools
 import genjax
 
-import b3d._differentiable_renderer_old as rendering_old
 import b3d.differentiable_renderer as rendering
 import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
@@ -90,9 +89,6 @@ GAMMA = 0.25
 # GAMMA = 1e-4
 EPSILON = -1
 hyperparams = (SIGMA, GAMMA, EPSILON)
-soft_img_old = rendering_old.render(
-    renderer, vertices, faces, triangle_colors, hyperparams
-)
 
 ### Averaged rendering ###
 
@@ -104,7 +100,6 @@ soft_img_rgbd = rendering.render_to_average_rgbd(
 )
 
 # Check that the old and new renderer do the same thing
-# rr.log("/img/soft_rendering_old", rr.Image(soft_img_old), timeless=True)
 rr.log("/img/averaged_rgb", rr.Image(soft_img_rgbd[:, :, :3]), timeless=True)
 rr.log("/img/averaged_depth", rr.DepthImage(soft_img_rgbd[:, :, 3]), timeless=True)
 

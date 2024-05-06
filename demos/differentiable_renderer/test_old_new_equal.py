@@ -60,7 +60,7 @@ hyperparams = (SIGMA, GAMMA, EPSILON)
 soft_img_old = rendering_old.render(
     vertices, faces, triangle_colors, hyperparams
 )
-soft_img_new = rendering.render_to_averaged_attributes(
+soft_img_new = rendering.render_to_average(
     vertices, faces, vertex_colors, hyperparams,
     background_attribute=jnp.array([0.1, 0.1, 0.1])
 )

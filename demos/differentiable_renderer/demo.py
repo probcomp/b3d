@@ -11,7 +11,7 @@ import rerun as rr
 import functools
 import genjax
 
-import b3d._differentiable_renderer_old as rendering
+import b3d.differentiable_renderer as rendering
 import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 
@@ -45,7 +45,7 @@ particle_colors = jnp.array(
 )
 
 # visualize the scene
-rr.init("differentiable_rendering--scene_and_renders")
+rr.init("differentiable_rendering--scene_and_renders-2")
 rr.connect("127.0.0.1:8812")
 rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)
@@ -58,12 +58,12 @@ def get_render(key, weights, colors):
         key, (weights, colors, lab_color_space_noise_scale)
     ).get_retval().reshape(100, 100, 3)
 
-SIGMA = 1e-4
-GAMMA = 0.4
-EPSILON = 1e-5
+SIGMA = 5e-5
+GAMMA = 0.25
+EPSILON = -1
 hyperparams = (SIGMA, GAMMA, EPSILON)
-(weights, colors) = rendering.render_to_dist_parameters(
-    vertices, faces, triangle_colors, hyperparams
+(weights, colors) = rendering.render_to_dist_params(
+    vertices, faces, vertex_colors, hyperparams
 )
 
 # Generate + visualize 100 stochastic renders
@@ -85,16 +85,21 @@ def get_img_logpdf(key, img, weights, colors):
 def render_to_dist_from_centers(new_particle_centers):
     particle_center_delta  = new_particle_centers - particle_centers
     new_vertices = vertices.reshape(3, 4, 3) + jnp.expand_dims(particle_center_delta, 1)
-    weights, colors = rendering.render_to_dist_parameters(
+    weights, colors = rendering.render_to_dist_params(
         new_vertices.reshape(-1, 3), faces.reshape(-1, 3),
-        particle_colors[triangle_to_particle_index], hyperparams
+        vertex_colors, hyperparams
     )
     return weights, colors
 
 def render_from_centers(new_particle_centers):
     particle_center_delta  = new_particle_centers - particle_centers
     new_vertices = vertices.reshape(3, 4, 3) + jnp.expand_dims(particle_center_delta, 1)
-    return rendering.render(new_vertices.reshape(-1, 3), faces.reshape(-1, 3), particle_colors[triangle_to_particle_index], hyperparams)
+    return rendering.render_to_average(
+        new_vertices.reshape(-1, 3), faces.reshape(-1, 3),
+        vertex_colors,
+        hyperparams,
+        background_attribute=jnp.array([0., 0., 0.])
+    )
 
 def compute_logpdf(centers):
     weights, colors = render_to_dist_from_centers(centers)
@@ -125,7 +130,7 @@ rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position",
 #####################
 ### Scene fitting ###
 #####################
-rr.init("differentiable_rendering--scene_fitting4")
+rr.init("differentiable_rendering--scene_fitting5")
 rr.connect("127.0.0.1:8812")
 rr.log("/scene/ground_truth", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("/scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)

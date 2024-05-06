@@ -93,9 +93,9 @@ def render_to_average_rgbd(
 ):
     vertex_depths = vertices[:, 2]
     vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
-    return render_to_averaged_attributes(vertices, faces, vertex_rgbds, hyperparams, background_attribute)
+    return render_to_average(vertices, faces, vertex_rgbds, hyperparams, background_attribute)
 
-def render_to_averaged_attributes(
+def render_to_average(
         vertices,
         faces,
         vertex_attributes,

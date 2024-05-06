@@ -30,7 +30,7 @@ def render_to_average_rgbd(
     faces,
     vertex_rgbs,
     hyperparams,
-    background_attribute=jnp.array([0.1, 0.1, 0.1, far])
+    background_attribute=jnp.array([0.1, 0.1, 0.1, 0])
 ):
     vertex_depths = vertices[:, 2]
     vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
@@ -68,7 +68,7 @@ def render_to_averaged_attributes(
     attributes = jax.vmap(_get_averaged_pixel_attribute, in_axes=(0, None))(
         all_pairs(image_height, image_width),
         (vertices, faces, vertex_attributes, triangle_intersected_padded, hyperparams, background_attribute)
-    ).reshape(image_height, image_width, 3)
+    ).reshape(image_height, image_width, -1)
     
     return attributes
 
@@ -121,7 +121,7 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
 
     # filter out the padding
     unnorm_weights = jnp.where(unique_triangle_values >= 0, unnorm_weights, 0.0)
-    unnorm_weights = jnp.concatenate([jnp.array([EPSILON/GAMMA]), unnorm_weights])
+    unnorm_weights = jnp.concatenate([jnp.array([jnp.exp(EPSILON/GAMMA)]), unnorm_weights])
     weights = unnorm_weights / jnp.sum(unnorm_weights)
     
     extended_triangle_indices = jnp.concatenate([jnp.array([-10]), unique_triangle_values])
@@ -208,11 +208,11 @@ def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces):
     d1 = dist_to_line_seg(triangle[0], triangle[1], point_on_plane)
     d2 = dist_to_line_seg(triangle[1], triangle[2], point_on_plane)
     d3 = dist_to_line_seg(triangle[2], triangle[0], point_on_plane)
-    d = jnp.minimum(d1, jnp.minimum(d2, d3)) + 1e-5
+    d = jnp.minimum(d1, jnp.minimum(d2, d3))
 
-    a = _signed_area_to_point(triangle[0], triangle[1], point_on_plane)
-    b = _signed_area_to_point(triangle[1], triangle[2], point_on_plane)
-    c = _signed_area_to_point(triangle[2], triangle[0], point_on_plane)
+    a = _signed_area_to_point(triangle[1], triangle[2], point_on_plane)
+    b = _signed_area_to_point(triangle[2], triangle[0], point_on_plane)
+    c = _signed_area_to_point(triangle[0], triangle[1], point_on_plane)
     in_triangle = jnp.logical_and(
         jnp.equal(jnp.sign(a), jnp.sign(b)),
         jnp.equal(jnp.sign(b), jnp.sign(c))

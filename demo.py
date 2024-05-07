@@ -61,7 +61,7 @@ def test_demo():
     # Arguments of the generative model.
     # These control the inlier / outlier decision boundary for color error and depth error.
     color_error, depth_error = (60.0, 0.01)
-    inlier_score, outlier_prob = (5.0, 0.00001)
+    inlier_score, outlier_prob = (10.0, 0.01)
     color_multiplier, depth_multiplier = (10000.0, 500.0)
     model_args = b3d.ModelArgs(
         color_error,
@@ -80,9 +80,9 @@ def test_demo():
             jax.vmap(lambda p: Pose.from_translation(p))(
                 jnp.stack(
                     jnp.meshgrid(
-                        jnp.linspace(-0.01, 0.01, 11),
-                        jnp.linspace(-0.01, 0.01, 11),
-                        jnp.linspace(-0.01, 0.01, 11),
+                        jnp.linspace(-0.005, 0.005, 11),
+                        jnp.linspace(-0.005, 0.005, 11),
+                        jnp.linspace(-0.005, 0.005, 11),
                     ),
                     axis=-1,
                 ).reshape(-1, 3)
@@ -96,8 +96,8 @@ def test_demo():
             jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
                 jax.random.split(jax.random.PRNGKey(0), 11 * 11 * 11),
                 Pose.identity(),
-                0.00001,
-                1000.0,
+                0.001,
+                2000.0,
             ),
             Pose.identity()[None, ...],
         ]
@@ -159,6 +159,12 @@ def test_demo():
             key,
             genjax.Pytree.const(["observed_rgb_depth"]),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
+        )
+        trace, key = b3d.enumerate_and_select_best_move(
+            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
+        )
+        trace, key = b3d.enumerate_and_select_best_move(
+            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
         )
         trace, key = b3d.enumerate_and_select_best_move(
             trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
@@ -228,6 +234,18 @@ def test_demo():
             key,
             genjax.Pytree.const(["observed_rgb_depth"]),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
+        )
+        trace, key = b3d.enumerate_and_select_best_move(
+            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
+        )
+        trace, key = b3d.enumerate_and_select_best_move(
+            trace, genjax.Pytree.const([f"object_pose_1"]), key, all_deltas
+        )
+        trace, key = b3d.enumerate_and_select_best_move(
+            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
+        )
+        trace, key = b3d.enumerate_and_select_best_move(
+            trace, genjax.Pytree.const([f"object_pose_1"]), key, all_deltas
         )
         trace, key = b3d.enumerate_and_select_best_move(
             trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas

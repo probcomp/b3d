@@ -10,34 +10,9 @@ from b3d import Pose
 import rerun as rr
 import functools
 
-def center_and_width_to_vertices_faces_colors(i, center, width, color):
-    vertices = (
-        jnp.array(
-            [
-                [-0.5, -0.5, 0.0],
-                [0.5, -0.5, 0.0],
-                [0.5, 0.5, 0.0],
-                [-0.5, 0.5, 0.0],
-            ]
-        )
-        * width
-        + center
-    )
-    faces = (
-        jnp.array(
-            [
-                [0, 1, 2],
-                [0, 2, 3],
-            ]
-        )
-        + 4 * i
-    )
-    colors = jnp.ones((4, 3)) * color
-    return vertices, faces, colors, jnp.ones(len(faces), dtype=jnp.int32) * i
-
 def get_mesh_and_gt_render(renderer, particle_centers, particle_widths, particle_colors):
     vertices_og, faces, colors, triangle_to_particle_index = jax.vmap(
-        center_and_width_to_vertices_faces_colors
+        b3d.particle_center_width_color_to_vertices_faces_colors
     )(jnp.arange(len(particle_centers)), particle_centers, particle_widths, particle_colors)
     
     vertices = vertices_og.reshape(-1, 3)

@@ -171,3 +171,8 @@ class PoseTests(unittest.TestCase):
         sum_jit = jax.jit(sum)
 
         self.assertTrue( jnp.allclose(jnp.sum(poses.pos, axis=0), sum_jit(poses)))
+
+    def test_multiindexing(self):
+        identity_pose = Pose.identity()
+        identity_pose_multiple_dimensions = identity_pose[None,None,...]
+        assert identity_pose_multiple_dimensions.shape == (1,1,), identity_pose_multiple_dimensions.shape

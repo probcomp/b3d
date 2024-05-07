@@ -62,7 +62,7 @@ vertex_colors = vertex_colors.at[6, :].set(jnp.array([1., 1., 1.]))
 
 
 triangle_to_particle_index = triangle_to_particle_index.reshape(-1)
-_, _, triangle_id_image, depth_image = utils.renderer.rasterize(
+_, _, triangle_id_image, depth_image = renderer.rasterize(
     Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
 )
 particle_intersected = triangle_to_particle_index[triangle_id_image - 1] * (triangle_id_image > 0) + -1 * (triangle_id_image ==0 )
@@ -71,7 +71,7 @@ extended_colors = jnp.concatenate([jnp.array([blank_color]), particle_colors], a
 # color_image = extended_colors[particle_intersected + 1]
 triangle_colors = particle_colors[triangle_to_particle_index]
 
-color_image, _ = utils.renderer.render_attribute(
+color_image, _ = renderer.render_attribute(
     Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]]), vertex_colors
 )
 

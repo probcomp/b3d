@@ -90,7 +90,7 @@ for t in range(100):
 
 ### Visualize how the likelihood changes as we move a square around ###
 def get_img_logpdf(key, img, weights, colors):
-    choicemap = genjax.vector_choice_map(genjax.choice(img.reshape(-1, 3)))
+    choicemap = genjax.vector_choice_map(genjax.vector_choice_map(genjax.choice(img)))
     tr, w = likelihoods.mixture_rgb_sensor_model.importance(key, choicemap, (weights, colors, 3.))
     return w
 
@@ -119,27 +119,27 @@ def compute_logpdf(centers):
     weights, colors = render_to_dist_from_centers(centers)
     return get_img_logpdf(jax.random.PRNGKey(0), color_image, weights, colors)    
 
-# @jax.jit
-# def square2_pos_to_logpdf(xy):
-#     x, y = xy
-#     return compute_logpdf(jnp.array([[0.0, 0.0, 1.0],
-#                                      [x, y, 2.0],
-#                                      [0., 0., 5.]]))
-# x = jnp.linspace(-0.4, 0.6, 140)
-# y = jnp.linspace(-0.4, 0.6, 140)
-# xy = jnp.stack(jnp.meshgrid(x, y), axis=-1).reshape(-1, 2)
-# # This may take a couple minutes -- we can't vmap this call yet
-# # due to unfinished paths in the opengl renderer
-# logpdfs = jnp.array([square2_pos_to_logpdf(_xy) for _xy in xy])
-# logpdfs = logpdfs.reshape(140, 140)
-# rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/logpdfs", rr.DepthImage(logpdfs), timeless=True)
-# lt = jnp.linalg.norm(xy - jnp.array([0.2, 0.2]), axis=-1) < 0.01
+@jax.jit
+def square2_pos_to_logpdf(xy):
+    x, y = xy
+    return compute_logpdf(jnp.array([[0.0, 0.0, 1.0],
+                                     [x, y, 2.0],
+                                     [0., 0., 5.]]))
+x = jnp.linspace(-0.4, 0.6, 140)
+y = jnp.linspace(-0.4, 0.6, 140)
+xy = jnp.stack(jnp.meshgrid(x, y), axis=-1).reshape(-1, 2)
+# This may take a couple minutes -- we can't vmap this call yet
+# due to unfinished paths in the opengl renderer
+logpdfs = jnp.array([square2_pos_to_logpdf(_xy) for _xy in xy])
+logpdfs = logpdfs.reshape(140, 140)
+rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/logpdfs", rr.DepthImage(logpdfs), timeless=True)
+lt = jnp.linalg.norm(xy - jnp.array([0.2, 0.2]), axis=-1) < 0.01
 
-# # mark the true position of this square
-# idx = jnp.where(lt)[0]
-# ij = jnp.unravel_index(idx, (140, 140))
-# ij2 = jnp.array([jnp.mean(ij[0]), jnp.mean(ij[0])])
-# rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position", rr.Points2D(jnp.array([ij2]), radii=1.0, colors=jnp.array([0, 0, 0])), timeless=True)
+# mark the true position of this square
+idx = jnp.where(lt)[0]
+ij = jnp.unravel_index(idx, (140, 140))
+ij2 = jnp.array([jnp.mean(ij[0]), jnp.mean(ij[0])])
+rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position", rr.Points2D(jnp.array([ij2]), radii=1.0, colors=jnp.array([0, 0, 0])), timeless=True)
 
 #####################
 ### Scene fitting ###
@@ -147,7 +147,7 @@ def compute_logpdf(centers):
 rr.init("differentiable_rendering--scene_fitting5")
 rr.connect("127.0.0.1:8812")
 rr.log("/scene/ground_truth", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
-rr.log("/scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)
+rr.log("/scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=image_height), timeless=True)
 rr.log("/img/opengl_rendering", rr.Image(color_image), timeless=True)
 
 # ULA & MALA inference moves
@@ -194,7 +194,7 @@ current_centers_ula = particle_centers_shifted
 current_centers_mala = particle_centers_shifted
 
 sigma = .004
-key = jax.random.PRNGKey(10)
+key = jax.random.PRNGKey(11)
 n_acc_mala = 0
 N_steps = 100 # 10 steps should be enough to fit it pretty well --
               # but I'm showing 100 to show how it progresses after this initial fit

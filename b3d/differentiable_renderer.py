@@ -15,6 +15,19 @@ from b3d import Pose
 #
 
 class DifferentiableRendererHyperparams:
+    """
+    Hyperparameters for the differentiable renderer.
+    - WINDOW: specifies the size of the window around each pixel.
+        The window will have size (2 * WINDOW + 1) x (2 * WINDOW + 1).
+    - SIGMA, GAMMA, EPSILON: Hyperparameters for softras-style scoring.
+        See https://arxiv.org/pdf/1904.01786 for details.
+        Decreasing sigma will increase the sharpness of the boundaries.
+        Decreasing gamma will increase the effect of the z value on a triangle's
+        contribution to the pixel.
+        Increasing epsilon will increase the weight of the background (ie. of
+        contributions not corresponding to any triangle).
+        See b3d.differentiable_renderer.DEFAULT_HYPERPARAMS for one suggested set of values.
+    """
     def __init__(self, window, sigma, gamma, epsilon):
         self.WINDOW = window
         self.SIGMA = sigma
@@ -22,6 +35,10 @@ class DifferentiableRendererHyperparams:
         self.EPSILON = epsilon
 
 class HyperparamsAndIntrinsics:
+    """
+    Internal data structure for passing around hyperparameters and camera intrinsics
+    within the differentiable renderer.
+    """
     def __init__(self, hyperparams, fx, fy, cx, cy):
         self.hyperparams = hyperparams
         self.fx = fx
@@ -31,9 +48,9 @@ class HyperparamsAndIntrinsics:
 
 DEFAULT_HYPERPARAMS = DifferentiableRendererHyperparams(3, 5e-5, 0.25, -1)
 
-############################
-### Stochastic rendering ###
-############################
+#####################################
+### Top-level rendering functions ###
+#####################################
 
 def render_to_rgbd_dist_params(
     renderer: b3d.Renderer,
@@ -42,11 +59,33 @@ def render_to_rgbd_dist_params(
     vertex_rgbs,
     hyperparams=DEFAULT_HYPERPARAMS
 ):
+    """
+    Variant of `render_to_dist_params` for rendering RGBD.
+    Accepts RGB vertex attributes and appends depth to them.
+    """
     vertex_depths = vertices[:, 2]
     vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
     return render_to_dist_params(renderer, vertices, faces, vertex_rgbds, hyperparams)
 
 def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=DEFAULT_HYPERPARAMS):
+    """
+    Differentiable rendering to parameters for a per-pixel
+    categorical distribution over attributes (e.g. RGB or RGBD).
+
+    Args:
+    - renderer: b3d.Renderer
+    - vertices: (V, 3)
+    - faces: (F, 3)
+    - vertex_attributes: (F, A) [A=3 for RGB; A=4 for RGBD]
+    - hyperparams: DifferentiableRendererHyperparams
+    Returns:
+    - weights (H, W, U)
+    - attributes (H, W, U-1, A)
+    For each pixel, the first weight is the weight assigned to the background
+    (ie. assigned to not hitting any object).
+    The remaining weights are those assigned to some triangles in the scene.
+    The attributes measured on those triangles are contained in `attributes`.
+    """
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
@@ -60,14 +99,62 @@ def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperpar
         all_pairs(renderer.height, renderer.width),
         (vertices, faces, vertex_attributes, triangle_intersected_padded, h)
     )
+    weights = weights.reshape(renderer.height, renderer.width, -1)
+    attributes = attributes.reshape(renderer.height, renderer.width, -1, vertex_attributes.shape[1])
 
     return (weights, attributes)
+
+def render_to_average_rgbd(
+    renderer,
+    vertices,
+    faces,
+    vertex_rgbs,
+    background_attribute=jnp.array([0.1, 0.1, 0.1, 0]),
+    hyperparams=DEFAULT_HYPERPARAMS,
+):
+    """
+    Variant of `render_to_average` for rendering RGBD.
+    """
+    vertex_depths = vertices[:, 2]
+    vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
+    return render_to_average(renderer, vertices, faces, vertex_rgbds, background_attribute, hyperparams)
+
+def render_to_average(
+        renderer,
+        vertices,
+        faces,
+        vertex_attributes,
+        background_attribute,
+        hyperparams=DEFAULT_HYPERPARAMS
+):
+    """
+    Differentiable rendering to produce an image by averaging
+    the categorical distribution over attributes (e.g. RGB or RGBD)
+    returned by `render_to_dist_params`.
+
+    Args:
+    - renderer: b3d.Renderer
+    - vertices: (V, 3)
+    - faces: (F, 3)
+    - vertex_attributes: (F, A) [A=3 for RGB; A=4 for RGBD]
+    - background_attribute: (A,) attribute to assign to pixels not hitting any object
+    - hyperparams: DifferentiableRendererHyperparams
+    Returns:
+    - image (H, W, A)
+    """
+    weights, attributes = render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=hyperparams)
+    extended_attributes = jnp.concatenate([jnp.tile(background_attribute, (attributes.shape[0], attributes.shape[1], 1, 1)), attributes], axis=2)
+    image = jnp.sum(weights[..., None] * extended_attributes, axis=2)
+    return image
+
+###############################################
+# Core weighting & attribute computation math #
+###############################################
 
 def get_pixel_attribute_dist_parameters(
     ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
     hyperparams_and_intrinsics
 ):
-    
     unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(
         ij, vertices, faces, triangle_intersected_padded, hyperparams_and_intrinsics
     )
@@ -88,99 +175,6 @@ def get_pixel_attribute_dist_parameters(
 
 def _get_pixel_attribute_dist_parameters(ij, args):
     return get_pixel_attribute_dist_parameters(ij, *args)
-
-
-##############################
-### Rendering w/ averaging ### 
-##############################
-
-def render_to_average_rgbd(
-    renderer,
-    vertices,
-    faces,
-    vertex_rgbs,
-    background_attribute=jnp.array([0.1, 0.1, 0.1, 0]),
-    hyperparams=DEFAULT_HYPERPARAMS,
-):
-    vertex_depths = vertices[:, 2]
-    vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
-    return render_to_average(renderer, vertices, faces, vertex_rgbds, background_attribute, hyperparams)
-
-def render_to_average(
-        renderer,
-        vertices,
-        faces,
-        vertex_attributes,
-        background_attribute,
-        hyperparams=DEFAULT_HYPERPARAMS
-):
-    """
-    Render a colored image where pixel (i, j)'s color
-    differentiably averages in the colors of triangles visible in
-    pixels near (i, j).
-
-    Args:
-    - vertices: (V, 3)
-    - faces: (F, 3)
-    - vertex_attributes: (F, A) [A=3 for RGB; A=4 for RGBD]
-    - background_attribute: (A,)
-    - hyperparams
-    Returns:
-    - attributes: (H, W, A)
-    """
-    uvs, _, triangle_id_image, depth_image = renderer.rasterize(
-        Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
-    )
-
-    print(hyperparams)
-    triangle_intersected_padded = jnp.pad(
-        triangle_id_image, pad_width=[(hyperparams.WINDOW, hyperparams.WINDOW)], constant_values=-1
-    )
-
-    h = HyperparamsAndIntrinsics(hyperparams, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
-    attributes = jax.vmap(_get_averaged_pixel_attribute, in_axes=(0, None))(
-        all_pairs(renderer.height, renderer.width),
-        (vertices, faces, vertex_attributes, triangle_intersected_padded, h, background_attribute)
-    ).reshape(renderer.height, renderer.width, -1)
-    
-    return attributes
-
-def get_averaged_pixel_attribute(
-        ij, vertices, faces, vertex_attributes, triangle_intersected_padded,
-        hyperparams_and_intrinsics,
-        background_attribute
-    ):
-    # TODO: DRY from `get_pixel_attribute_dist_parameters`
-
-    # (U,)                   (U,)       (U - 1, 3)
-    unique_triangle_indices, weights, barycentric_coords = get_weights_and_barycentric_coords(
-        ij, vertices, faces, triangle_intersected_padded, hyperparams_and_intrinsics
-    )
-    unique_triangle_indices_safe = jnp.where(unique_triangle_indices < 0, 0, unique_triangle_indices)
-
-    # (U - 1, A)
-    attributes_at_triangles = jax.vmap(barycentric_interpolation, in_axes=(0, None, 0))(
-        faces[unique_triangle_indices_safe[1:]],
-        vertex_attributes,
-        barycentric_coords
-    )
-
-    attributes_at_triangles = jnp.concatenate([
-        jnp.array([background_attribute]),
-        jnp.where(
-            unique_triangle_indices[1:, None] < 0, jnp.array([background_attribute]), attributes_at_triangles
-        )
-    ])
-
-    attribute = (weights[..., None] * attributes_at_triangles).sum(axis=0)
-    return attribute
-
-def _get_averaged_pixel_attribute(ij, args):
-    return get_averaged_pixel_attribute(ij, *args)
-
-###############################################
-# Core weighting & attribute computation math #
-###############################################
 
 def all_pairs(X, Y):
     return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)

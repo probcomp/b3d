@@ -49,7 +49,7 @@ particle_colors = jnp.array(
 
 # Get triangle "mesh" for the scene:
 vertices_og, faces, vertex_colors, triangle_to_particle_index = jax.vmap(
-     b3d.particle_center_width_color_to_vertices_faces_colors
+     b3d.square_center_width_color_to_vertices_faces_colors
 )(jnp.arange(len(particle_centers)), particle_centers, particle_widths, particle_colors)
 
 vertices = vertices_og.reshape(-1, 3)

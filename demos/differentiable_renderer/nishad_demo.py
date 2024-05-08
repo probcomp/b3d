@@ -115,7 +115,7 @@ def render(particle_centers, particle_widths, particle_colors):
     particle_widths = jnp.abs(particle_widths)
     # Get triangle "mesh" for the scene:
     vertices, faces, vertex_colors, triangle_index_to_particle_index = jax.vmap(
-        b3d.particle_center_width_color_to_vertices_faces_colors
+        b3d.square_center_width_color_to_vertices_faces_colors
     )(jnp.arange(len(particle_centers)), particle_centers, particle_widths / 2, particle_colors)
     vertices = vertices.reshape(-1, 3)
     faces = faces.reshape(-1, 3)
@@ -169,7 +169,6 @@ rr.log('depth', rr.DepthImage(gt_depth),timeless=True)
 rr.log('image/reconstruction', rr.Image(rgb_image[...,:3]))
 rr.log('depth/reconstruction', rr.DepthImage(depth_image))
 rr.log('image/triangles', rr.DepthImage(triangle_id_image))
-image.sum()
 
 def loss_func(a,b,c,gt_rgb, gt_depth):
     rgb,depth,_ = render(a,b,c)

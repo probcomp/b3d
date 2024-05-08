@@ -421,7 +421,7 @@ class VideoInput:
             return self.rgb
 
 
-def particle_center_width_color_to_vertices_faces_colors(i, center, width, color):
+def square_center_width_color_to_vertices_faces_colors(i, center, width, color):
     vertices = (
         jnp.array(
             [

@@ -225,7 +225,7 @@ for i in range(100):
 
     for string, centers in [("gd", current_centers_gd), ("ula", current_centers_ula), ("mala", current_centers_mala)]:
         v, f, c, t2pidx = jax.vmap(
-            utils.center_and_width_to_vertices_faces_colors
+            b3d.square_center_width_color_to_vertices_faces_colors
         )(jnp.arange(len(centers)), centers, particle_widths, particle_colors)
         v, f, c = v.reshape(-1, 3), f.reshape(-1, 3), c.reshape(-1, 3)
         rr.log(

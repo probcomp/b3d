@@ -96,7 +96,7 @@ def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperpar
 
     h = HyperparamsAndIntrinsics(hyperparams, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     (weights, attributes) = jax.vmap(_get_pixel_attribute_dist_parameters, in_axes=(0, None))(
-        all_pairs(renderer.height, renderer.width),
+        b3d.all_pairs(renderer.height, renderer.width),
         (vertices, faces, vertex_attributes, triangle_intersected_padded, h)
     )
     weights = weights.reshape(renderer.height, renderer.width, -1)
@@ -176,8 +176,8 @@ def get_pixel_attribute_dist_parameters(
 def _get_pixel_attribute_dist_parameters(ij, args):
     return get_pixel_attribute_dist_parameters(ij, *args)
 
-def all_pairs(X, Y):
-    return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
+
+
 
 def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected_padded, hyperparams_and_intrinsics):
     """

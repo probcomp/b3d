@@ -84,9 +84,10 @@ class Renderer(object):
 
     @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
     def _rasterize(self, pose, pos, tri, ranges, projMatrix, resolution):
-        return _rasterize_fwd_custom_call(
+        a,b = _rasterize_fwd_custom_call(
             self, pose, pos, tri, ranges, projMatrix, resolution
         )
+        return (a,b)
 
     def _rasterize_fwd(self, pose, pos, tri, ranges, projMatrix, resolution):
         rast_out, rast_out_db = _rasterize_fwd_custom_call(
@@ -123,7 +124,7 @@ class Renderer(object):
             dy,
             ddb,
         )
-        return jnp.zeros_like(pose), None, None, None, None, None
+        return jnp.zeros_like(pose), jnp.zeros_like(pos), jnp.zeros_like(tri), None, None, None
 
     _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
 

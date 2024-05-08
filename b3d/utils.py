@@ -419,3 +419,32 @@ class VideoInput:
             return self.rgb / 255.0
         else:
             return self.rgb
+
+
+def square_center_width_color_to_vertices_faces_colors(i, center, width, color):
+    vertices = (
+        jnp.array(
+            [
+                [-0.5, -0.5, 0.0],
+                [0.5, -0.5, 0.0],
+                [0.5, 0.5, 0.0],
+                [-0.5, 0.5, 0.0],
+            ]
+        )
+        * width
+        + center
+    )
+    faces = (
+        jnp.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],
+            ]
+        )
+        + 4 * i
+    )
+    colors = jnp.ones((4, 3)) * color
+    return vertices, faces, colors, jnp.ones(len(faces), dtype=jnp.int32) * i
+
+def all_pairs(X, Y):
+    return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)

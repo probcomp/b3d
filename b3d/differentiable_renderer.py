@@ -96,7 +96,7 @@ def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperpar
 
     h = HyperparamsAndIntrinsics(hyperparams, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     (weights, attributes) = jax.vmap(_get_pixel_attribute_dist_parameters, in_axes=(0, None))(
-        all_pairs(renderer.height, renderer.width),
+        b3d.all_pairs(renderer.height, renderer.width),
         (vertices, faces, vertex_attributes, triangle_intersected_padded, h)
     )
     weights = weights.reshape(renderer.height, renderer.width, -1)

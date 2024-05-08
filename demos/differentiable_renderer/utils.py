@@ -36,6 +36,3 @@ def ray_from_ij(i,j, fx, fy, cx, cy):
     return jnp.array([x, y, 1])
 
 WINDOW = 3
-
-def all_pairs(X, Y):
-    return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)

@@ -3,6 +3,8 @@ import jax
 import b3d
 from b3d import Pose
 
+BIGNUM = 1e6
+
 #
 # Note: right now, in RGBD rendering mode,
 # the rendered depth values are get truncated
@@ -219,8 +221,8 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
     signed_dist_scores = jax.nn.sigmoid(jnp.sign(signed_dist_values) * signed_dist_values ** 2 / SIGMA)
 
     # following https://github.com/kach/softraxterizer/blob/main/softraxterizer.py
-    maxz = jnp.where(unique_triangle_values >= 0, z_values, -jnp.inf).max()
-    minz = jnp.where(unique_triangle_values >= 0, z_values, jnp.inf).min()
+    maxz = jnp.where(unique_triangle_values >= 0, z_values, -BIGNUM).max()
+    minz = jnp.where(unique_triangle_values >= 0, z_values, BIGNUM).min()
     z = (maxz - z_values) / (maxz - minz + 1e-4)
     zexp = jnp.exp(jnp.clip(z / GAMMA, -20., 20.))
 

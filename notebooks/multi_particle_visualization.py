@@ -27,14 +27,23 @@ near=0.001
 far=16.0
 
 class Intrinsics:
-    width=128
-    height=128
-    fx=64.0
-    fy=64.0
-    cx=64.0
-    cy=64.0
-    near=0.001
-    far=16.0
+    def __init__(self, width=128, height=128, fx=64., fy=64., cx=64., cy=64., near=0.001, far=16.):
+        self.width = width
+        self.height = height
+        self.fx = fx
+        self.fy = fy
+        self.cx = cx
+        self.cy = cy
+        self.near = near
+        self.far = far
+    # width=128
+    # height=128
+    # fx=64.0
+    # fy=64.0
+    # cx=64.0
+    # cy=64.0
+    # near=0.001
+    # far=16.0
 
 intrinsics = Intrinsics(
     width=128,
@@ -146,6 +155,17 @@ in_place_rots = b3d.Pose.from_matrix(rots)
 
 
 compound_pose = cam_inv_pose @ in_place_rots #in_place_rot
+
+with open("poses.npy", "wb") as f:
+    jnp.savez(f,
+              object_positions=compound_pose.pos,
+              object_quaternions=compound_pose.quat
+              )
+    
+with open("poses.npy", "rb") as f:
+    data = np.load(f)
+    object_positions = data["object_positions"]
+    object_quaternions = data["object_quaternions"]
 
 rgbs, depths = renderer.render_attribute_many(
     compound_pose[:,None,...],
@@ -268,10 +288,11 @@ center_arr = center_arr.reshape(-1,len(xyzs),3)
 # Visualize surface patch tracks
 num_points = center_arr.shape[0]
 
+t = 0
 for t in range(len(xyzs)):
     rr.set_time_sequence("frame", t)
 
-    points = rr.Points3D(xyzs[t].reshape(-1,3), colors=rgbs[t].reshape(-1,3), radii = 0.0005*np.ones(xyzs[t].reshape(-1,3).shape[0]))
+    points = rr.Points3D(positions=xyzs[t].reshape(-1,3), colors=rgbs[t].reshape(-1,3), radii = 0.0005*np.ones(xyzs[t].reshape(-1,3).shape[0]))
     rr.log("cloud1", points)
 
     points2 = rr.Points3D(center_arr[:,t,:], radii=0.0075*np.ones(center_arr.shape[0]), colors =np.repeat(np.array([0,0,255])[None,...], num_points, axis=0))
@@ -285,3 +306,11 @@ for t in range(len(xyzs)):
             radii= 0.0025*np.ones(num_points))
         )
 
+with open("tracks.npy", "wb") as f:
+    jnp.savez(f, tracks=center_arr, pointcloud_xyzs=xyzs, pointcloud_rgbs=rgbs)
+
+with open("tracks.npy", "rb") as f:
+    data = np.load(f)
+    tracks = data["tracks"]
+    pointcloud_xyzs = data["pointcloud_xyzs"]
+    pointcloud_rgbs = data["pointcloud_rgbs"]

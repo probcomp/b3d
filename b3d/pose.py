@@ -167,6 +167,16 @@ class Pose:
     def __len__(self):
         return self.pos.shape[0]
 
+    def __iter__(self):
+        self.current = 0
+        return self
+
+    def __next__(self):
+        self.current += 1
+        if self.current <= len(self):
+            return self[self.current - 1]
+        raise StopIteration
+
     def __getitem__(self, index):
         return Pose(self.pos[index], self.quat[index])
 

@@ -16,7 +16,7 @@ import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 
 # Set up OpenGL renderer
-image_width = 100
+image_width = 120
 image_height = 100
 fx = 50.0
 fy = 50.0
@@ -111,7 +111,7 @@ def get_render(key, weights, colors):
     return likelihoods.mixture_rgbd_sensor_model.simulate(
         key,
         (weights, colors, lab_color_space_noise_scale, depth_noise_scale, 0., 10.)
-    ).get_retval().reshape(100, 100, 4)
+    ).get_retval().reshape(image_height, image_width, 4)
 (weights, colors) = rendering.render_to_rgbd_dist_params(
     renderer, vertices, faces, vertex_colors, hyperparams
 )
@@ -127,4 +127,3 @@ for t in range(100):
     rr.log("img/stochastic_rgb_render", rr.Image(renders[t, :, :, :3]))
     rr.log("img/stochastic_depth_render", rr.DepthImage(renders[t, :, :, 3]))
     rr.log("scene/camera", rr.Image(renders[t, :, :, :3]))
-

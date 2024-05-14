@@ -145,6 +145,9 @@ def render_to_average(
     - image (H, W, A)
     """
     weights, attributes = render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=hyperparams)
+    return dist_params_to_average(weights, attributes, background_attribute)    
+
+def dist_params_to_average(weights, attributes, background_attribute):
     extended_attributes = jnp.concatenate([jnp.tile(background_attribute, (attributes.shape[0], attributes.shape[1], 1, 1)), attributes], axis=2)
     image = jnp.sum(weights[..., None] * extended_attributes, axis=2)
     return image
@@ -349,7 +352,7 @@ def project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics):
     intersection_point = ray_origin + t * ray_dir
     
     return jnp.where(
-        denom < 1e-5, -jnp.ones(3), intersection_point
+        jnp.abs(denom) < 1e-6, -jnp.ones(3), intersection_point
     )
 
 # The functions below here are following

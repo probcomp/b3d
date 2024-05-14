@@ -189,6 +189,155 @@ def get_rgb_pil_image(image, max=1.0):
     return img
 
 
+import tempfile
+import subprocess
+import os
+def make_video_from_pil_images(images, output_filename, fps=5.0):
+    # Generate a random tmp directory name
+    tmp_dir = tempfile.mkdtemp()
+
+    # Write files into the tmp directory
+    for i, img in enumerate(images):
+        img.convert("RGB").save(os.path.join(tmp_dir, "%07d.png" % i))
+
+    subprocess.call(["ffmpeg", "-hide_banner -loglevel error", "-y", "-r", str(fps), "-i", os.path.join(tmp_dir, "%07d.png"), output_filename])
+
+
+from PIL import Image, ImageDraw, ImageFont
+
+def multi_panel(
+    images,
+    labels=None,
+    title=None,
+    bottom_text=None,
+    title_fontsize=40,
+    label_fontsize=30,
+    bottom_fontsize=20,
+    middle_width=10,
+):
+    """Combine multiple images into a single image.
+
+    Args:
+        images (list): List of PIL images.
+        labels (list): List of labels for each image.
+        title (str): Title for image.
+        bottom_text (str): Text for bottom of image.
+        title_fontsize (int): Font size for title.
+        label_fontsize (int): Font size for labels.
+        bottom_fontsize (int): Font size for bottom text.
+        middle_width (int): Width of border between images.
+    Returns:
+        PIL.Image: Combined image.
+    """
+    num_images = len(images)
+    w = images[0].width
+    h = images[0].height
+
+    sum_of_widths = np.sum([img.width for img in images])
+
+    dst = Image.new(
+        "RGBA",
+        (sum_of_widths + (num_images - 1) * middle_width, h),
+        (255, 255, 255, 255),
+    )
+
+    drawer = ImageDraw.Draw(dst)
+    font_bottom = ImageFont.truetype(
+        os.path.join(
+            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+        ),
+        bottom_fontsize,
+    )
+    font_label = ImageFont.truetype(
+        os.path.join(
+            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+        ),
+        label_fontsize,
+    )
+    font_title = ImageFont.truetype(
+        os.path.join(
+            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+        ),
+        title_fontsize,
+    )
+
+    bottom_border = 0
+    title_border = 0
+    label_border = 0
+    if bottom_text is not None:
+        msg = bottom_text
+        _, _, text_w, text_h = drawer.textbbox((0, 0), msg, font=font_bottom)
+        bottom_border = text_h
+    if title is not None:
+        msg = title
+        _, _, text_w, text_h = drawer.textbbox((0, 0), msg, font=font_title)
+        title_border = text_h
+    if labels is not None:
+        for msg in labels:
+            _, _, text_w, text_h = drawer.textbbox((0, 0), msg, font=font_label)
+            label_border = max(text_h, label_border)
+
+    bottom_border += 0
+    title_border += 20
+    label_border += 20
+
+    dst = Image.new(
+        "RGBA",
+        (
+            sum_of_widths + (num_images - 1) * middle_width,
+            h + title_border + label_border + bottom_border,
+        ),
+        (255, 255, 255, 255),
+    )
+    drawer = ImageDraw.Draw(dst)
+
+    width_counter = 0
+    for j, img in enumerate(images):
+        dst.paste(img, (width_counter + j * middle_width, title_border + label_border))
+        width_counter += img.width
+
+    if title is not None:
+        msg = title
+        _, _, text_w, text_h = drawer.textbbox((0, 0), msg, font=font_title)
+        drawer.text(
+            (
+                (sum_of_widths + (num_images - 1) * middle_width) / 2.0 - text_w / 2,
+                title_border / 2 - text_h / 2,
+            ),
+            msg,
+            font=font_title,
+            fill="black",
+        )
+
+    width_counter = 0
+    if labels is not None:
+        for i, msg in enumerate(labels):
+            w = images[i].width
+            _, _, text_w, text_h = drawer.textbbox((0, 0), msg, font=font_label)
+            drawer.text(
+                (
+                    width_counter + i * middle_width + w / 2 - text_w / 2,
+                    title_border + label_border / 2 - text_h / 2,
+                ),
+                msg,
+                font=font_label,
+                fill="black",
+            )
+            width_counter += w
+
+    if bottom_text is not None:
+        msg = bottom_text
+        _, _, text_w, text_h = drawer.textbbox((0, 0), msg, font=font_bottom)
+        drawer.text(
+            (5, title_border + label_border + h + 5),
+            msg,
+            font=font_bottom,
+            fill="black",
+        )
+
+    return dst
+
+
 def make_onehot(n, i, hot=1, cold=0):
     return tuple(cold if j != i else hot for j in range(n))
 
@@ -447,4 +596,7 @@ def square_center_width_color_to_vertices_faces_colors(i, center, width, color):
     return vertices, faces, colors, jnp.ones(len(faces), dtype=jnp.int32) * i
 
 def all_pairs(X, Y):
-    return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
+    return jnp.swapaxes(
+        jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1),
+        0, 1
+    ).reshape(-1, 2)

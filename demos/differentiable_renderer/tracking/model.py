@@ -28,6 +28,8 @@ def model_singleobject_gl_factory(renderer,
         weights, attributes = rendering.render_to_rgbd_dist_params(
             renderer, vertices_C, faces, vertex_colors, hyperparams
         )
+        # Increase the probability that pixel values are drawn from uniform by the outlier_prob.
+        # (It will already be high if the pixel only hit the background.)
         weights = weights.at[:, :, 0].set(weights[:, :, 0] + outlier_prob)
         weights = jax.vmap(normalize, in_axes=(0,))(weights.reshape(-1, weights.shape[-1])).reshape(weights.shape)
 

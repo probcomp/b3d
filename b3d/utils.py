@@ -63,6 +63,11 @@ def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
     return xyz
 
+def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
+    x = fx * xyz[..., 0] / xyz[..., 2] + cx
+    y = fy * xyz[..., 1] / xyz[..., 2] + cy
+    return jnp.stack([y, x], axis=-1)
+
 
 @partial(jnp.vectorize, signature="(k)->(k)")
 def rgb_to_lab(rgb):

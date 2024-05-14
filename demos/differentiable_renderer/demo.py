@@ -16,7 +16,7 @@ import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 
 # Set up OpenGL renderer
-image_width = 100
+image_width = 120
 image_height = 100
 fx = 50.0
 fy = 50.0
@@ -29,8 +29,8 @@ renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
 # Set up 3 squares oriented toward the camera, with different colors
 particle_centers = jnp.array(
     [
-        [0.0, 0.0, 1.0],
-        [0.2, 0.2, 2.0],
+        [0.1, 0.0, 1.0],
+        [0.25, 0.2, 2.0],
         [0., 0., 5.]
     ]
 )
@@ -56,7 +56,7 @@ particle_colors = jnp.array(
 )
 
 # visualize the scene
-rr.init("differentiable_rendering--scene_and_renders-2")
+rr.init("differentiable_rendering--scene_and_renders-3")
 rr.connect("127.0.0.1:8812")
 rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=image_height), timeless=True)
@@ -67,7 +67,7 @@ def get_render(key, weights, colors):
     lab_color_space_noise_scale = 3.0
     return likelihoods.mixture_rgb_sensor_model.simulate(
         key, (weights, colors, lab_color_space_noise_scale)
-    ).get_retval().reshape(100, 100, 3)
+    ).get_retval().reshape(image_height, image_width, 3)
 
 WINDOW = 3
 SIGMA = 5e-5
@@ -85,6 +85,7 @@ renders = jax.vmap(get_render, in_axes=(0, None, None))(
 )
 for t in range(100):
     rr.set_time_sequence("stochastic_render", t)
+    rr.log("img/opengl_render", rr.Image(color_image))
     rr.log("img/stochastic_render", rr.Image(renders[t, ...]))
     rr.log("scene/camera", rr.Image(renders[t, ...]))
 
@@ -122,29 +123,35 @@ def compute_logpdf(centers):
 @jax.jit
 def square2_pos_to_logpdf(xy):
     x, y = xy
-    return compute_logpdf(jnp.array([[0.0, 0.0, 1.0],
-                                     [x, y, 2.0],
-                                     [0., 0., 5.]]))
-x = jnp.linspace(-0.4, 0.6, 140)
-y = jnp.linspace(-0.4, 0.6, 140)
+    pc = particle_centers.at[1, 0].set(x).at[1, 1].set(y)
+    return compute_logpdf(pc)
+
+gradation = 50
+x = jnp.linspace(-0.4, 0.6, gradation)
+y = jnp.linspace(-0.4, 0.6, gradation)
 xy = jnp.stack(jnp.meshgrid(x, y), axis=-1).reshape(-1, 2)
 # This may take a couple minutes -- we can't vmap this call yet
 # due to unfinished paths in the opengl renderer
 logpdfs = jnp.array([square2_pos_to_logpdf(_xy) for _xy in xy])
-logpdfs = logpdfs.reshape(140, 140)
+logpdfs = logpdfs.reshape(gradation, gradation)
 rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/logpdfs", rr.DepthImage(logpdfs), timeless=True)
-lt = jnp.linalg.norm(xy - jnp.array([0.2, 0.2]), axis=-1) < 0.01
+lt = jnp.linalg.norm(xy - jnp.array([0.25, 0.2]), axis=-1) < 0.01
 
 # mark the true position of this square
 idx = jnp.where(lt)[0]
-ij = jnp.unravel_index(idx, (140, 140))
+ij = jnp.unravel_index(idx, (50, 50))
 ij2 = jnp.array([jnp.mean(ij[0]), jnp.mean(ij[0])])
 rr.log("logpdfs_of_opengl_rendering_as_green_square_moves/true_object_position", rr.Points2D(jnp.array([ij2]), radii=1.0, colors=jnp.array([0, 0, 0])), timeless=True)
+
+maxpos = xy[jnp.argmax(logpdfs)]
+particle_centers2 = particle_centers.at[1, 0].set(maxpos[0]).at[1, 1].set(maxpos[1])
+rendered = render_from_centers(particle_centers2)
+rr.log("img/bestfit", rr.Image(rendered), timeless=True)
 
 #####################
 ### Scene fitting ###
 #####################
-rr.init("differentiable_rendering--scene_fitting5")
+rr.init("differentiable_rendering--scene_fitting7")
 rr.connect("127.0.0.1:8812")
 rr.log("/scene/ground_truth", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("/scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=image_height), timeless=True)
@@ -183,7 +190,7 @@ grad_jit = jax.jit(jax.grad(compute_logpdf))
 # Set up variant of scene misaligned with the real image
 particle_centers_shifted = jnp.array(
     [
-        [-0.07, -0.08, 1.02],
+        [0.03, -0.08, 1.02],
         [0., 0.23, 1.98],
         [0., 0., 5.]
     ]
@@ -202,7 +209,7 @@ N_steps = 100 # 10 steps should be enough to fit it pretty well --
 # we can run ULA at about 170 fps.  (Possibly closer to 450fps on this scene
 # with some optimizations I think I know how to implement, judging by a quick experiment I ran.)
 i = 2
-for i in range(100):
+for i in range(20):
     print(f"i = {i}")
     key, subkey = jax.random.split(key)
     if i != 0:

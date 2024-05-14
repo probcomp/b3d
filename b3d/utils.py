@@ -447,4 +447,7 @@ def square_center_width_color_to_vertices_faces_colors(i, center, width, color):
     return vertices, faces, colors, jnp.ones(len(faces), dtype=jnp.int32) * i
 
 def all_pairs(X, Y):
-    return jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1).reshape(-1, 2)
+    return jnp.swapaxes(
+        jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1),
+        0, 1
+    ).reshape(-1, 2)

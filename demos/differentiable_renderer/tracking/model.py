@@ -7,6 +7,7 @@ import b3d
 from b3d import Pose
 from b3d.model import uniform_pose
 import rerun as rr
+import demos.differentiable_renderer.tracking.utils as utils
 
 def normalize(v):
     return v / jnp.sum(v)
@@ -15,7 +16,9 @@ def model_singleobject_gl_factory(renderer,
                                   lab_noise_scale=3.0,
                                   depth_noise_scale=0.07,
                                   outlier_prob = 0.05,
-                                  hyperparams = rendering.DEFAULT_HYPERPARAMS
+                                  hyperparams = rendering.DEFAULT_HYPERPARAMS,
+                                  mindepth=0.,
+                                  maxdepth=20.
                                 ):
     @genjax.static_gen_fn
     def model(vertices_O, faces, vertex_colors):
@@ -35,7 +38,7 @@ def model_singleobject_gl_factory(renderer,
 
         observed_rgbd = likelihoods.mixture_rgbd_sensor_model(
             weights, attributes,
-            lab_noise_scale, depth_noise_scale, 0., 10.
+            lab_noise_scale, depth_noise_scale, mindepth, maxdepth
         ) @ "observed_rgbd"
         average_rgbd = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
         return (observed_rgbd, average_rgbd)
@@ -65,4 +68,12 @@ def rr_viz_trace(trace, renderer):
             principal_point=jnp.array([renderer.cx, renderer.cy]),
             )
         )
+    xyzs_C = utils.unproject_depth(observed_rgbd[:, :, 3], renderer)
+    xyzs_W = cam_pose.apply(xyzs_C)
+    rr.log("/3D/gt_pointcloud", rr.Points3D(
+        positions=xyzs_W.reshape(-1,3),
+        colors=observed_rgbd[:, :, :3].reshape(-1,3),
+        radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))
+    )
+
     rr.log("/trace/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))

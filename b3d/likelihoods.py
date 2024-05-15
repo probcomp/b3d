@@ -1,3 +1,11 @@
+"""
+WARNING: The docstrings and argnames in this file are currently wrong!
+The docstrings reference things happening in LAB color space, but I have
+switched to do this in RGB space, to avoid NaN errors occurring in the
+LAB<>RGB conversion code.
+Eventually I plan to switch back to LAB.
+"""
+
 import genjax
 import b3d
 import jax.numpy as jnp
@@ -183,7 +191,7 @@ class LaplaceRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         # lab2 = laplace.sample(key, lab, color_scale)
         # rgb = lab_to_rgb(lab2)
         rgb = laplace.sample(key, rendered_rgbd[..., :3], color_scale/100.)
-        depth = laplace.sample(key, rendered_rgbd[..., 3], depth_scale)
+        depth = genjax.normal.sample(key, rendered_rgbd[..., 3], depth_scale)
         return jnp.concatenate([rgb, jnp.array([depth])])
 
     def logpdf(self, observed_rgbd, rendered_rgbd, color_scale, depth_scale):
@@ -191,7 +199,7 @@ class LaplaceRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         # lab2 = b3d.rgb_to_lab(observed_rgbd[..., :3])
         # rgb_logpdf = laplace.logpdf(lab2, lab, color_scale)
         rgb_logpdf = laplace.logpdf(observed_rgbd[..., :3], rendered_rgbd[..., :3], color_scale/100.)
-        depth_logpdf = laplace.logpdf(observed_rgbd[..., 3], rendered_rgbd[..., 3], depth_scale)
+        depth_logpdf = genjax.normal.logpdf(observed_rgbd[..., 3], rendered_rgbd[..., 3], depth_scale)
         return rgb_logpdf + depth_logpdf
 
 laplace_rgbd_pixel_model = LaplaceRGBDPixelModel()
@@ -206,20 +214,26 @@ class UniformRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     - rgbd (4,)
     """
     def sample(self, key, rendered_rgbd, mindepth, maxdepth):
-        lab = b3d.rgb_to_lab(rendered_rgbd[:3])
-        low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        lab2 = genjax.uniform.sample(key, low, high)
-        rgb = lab_to_rgb(lab2)
+        # lab = b3d.rgb_to_lab(rendered_rgbd[:3])
+        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
+        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
+        # lab2 = genjax.uniform.sample(key, low, high)
+        # rgb = lab_to_rgb(lab2)
+        low = jnp.zeros_like(rendered_rgbd[:3])
+        high = jnp.ones_like(rendered_rgbd[:3])
+        rgb = genjax.uniform.sample(key, low, high)
         depth = genjax.uniform.sample(key, jnp.ones_like(rendered_rgbd[3]) * mindepth, jnp.ones_like(rendered_rgbd[3]) * maxdepth)
         return jnp.concatenate([rgb, jnp.array([depth])])
 
     def logpdf(self, observed_rgbd, rendered_rgbd, mindepth, maxdepth):
-        lab = b3d.rgb_to_lab(rendered_rgbd[:3])
-        lab2 = b3d.rgb_to_lab(observed_rgbd[:3])
-        low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
+        # lab = b3d.rgb_to_lab(rendered_rgbd[:3])
+        # lab2 = b3d.rgb_to_lab(observed_rgbd[:3])
+        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
+        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
+        # rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
+        low = jnp.zeros_like(rendered_rgbd[:3])
+        high = jnp.ones_like(rendered_rgbd[:3])
+        rgb_logpdf = genjax.uniform.logpdf(observed_rgbd[:3], low, high)
         depth_logpdf = genjax.uniform.logpdf(observed_rgbd[3], jnp.ones_like(rendered_rgbd[3]) * mindepth, jnp.ones_like(rendered_rgbd[3]) * maxdepth)
         return rgb_logpdf + depth_logpdf
     

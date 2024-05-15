@@ -16,7 +16,7 @@ import demos.differentiable_renderer.tracking.model as m
 import b3d.likelihoods as likelihoods
 import b3d.differentiable_renderer as r
 
-rr.init("track_test-2")
+rr.init("track_test-3")
 rr.connect("127.0.0.1:8812")
 
 width = 100

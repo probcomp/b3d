@@ -67,10 +67,10 @@ class TestMugHandlePosterior:
         )
 
         cps_to_test = [
-            jnp.array([0.0, 0.0, jnp.pi]),  # Hidden
             jnp.array([0.0, 0.0, -jnp.pi / 2]),  # Side
             jnp.array([0.0, 0.0, 0.0]),  # Front
             jnp.array([0.0, 0.0, +jnp.pi / 2]),  # Side
+            jnp.array([0.0, 0.0, jnp.pi]),  # Hidden
         ]
 
         sampled_degree_range_bounds = [

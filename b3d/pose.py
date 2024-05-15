@@ -230,10 +230,10 @@ class Pose:
         return self.compose(pose)
 
     @staticmethod
-    def concatenate_poses(pose_list):
+    def concatenate_poses(pose_list, axis=0):
         return Pose(
-            jnp.concatenate([pose.pos for pose in pose_list], axis=0),
-            jnp.concatenate([pose.quat for pose in pose_list], axis=0),
+            jnp.concatenate([pose.pos for pose in pose_list], axis=axis),
+            jnp.concatenate([pose.quat for pose in pose_list], axis=axis),
         )
 
     @staticmethod

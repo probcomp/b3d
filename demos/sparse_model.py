@@ -25,23 +25,15 @@ rr.init("demo")
 rr.connect("127.0.0.1:8812")
 
 def model(params, fx, fy, cx, cy):
-    xyz_in_camera_frame = b3d.Pose(params["position"], params["quaternion"]).apply(params["xyz"])
+    xyz_in_camera_frame = jax.vmap(lambda i: b3d.Pose(params["position"][i], params["quaternion"][i]).apply(params["xyz"]))(jnp.arange(params["position"].shape[0]))
     pixel_coords = b3d.xyz_to_pixel_coordinates(xyz_in_camera_frame, fx, fy, cx, cy)
     return pixel_coords
 
-def pixel_coordinates_to_image(pixel_coords, image_height, image_width):
+def _pixel_coordinates_to_image(pixel_coords, image_height, image_width):
     img = jnp.zeros((image_height, image_width))
-    img = img.at[ jnp.round(pixel_coords[:, 0]).astype(jnp.int32), jnp.round(pixel_coords[:, 1]).astype(jnp.int32)].set(jnp.arange(len(pixel_coords))+1 )
+    img = img.at[jnp.round(pixel_coords[:, 0]).astype(jnp.int32), jnp.round(pixel_coords[:, 1]).astype(jnp.int32)].set(jnp.arange(len(pixel_coords))+1 )
     return img
-
-
-
-xyz = box_vertices
-gt_pose = b3d.Pose.sample_gaussian_vmf_pose(jax.random.PRNGKey(10), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 3.0])), 0.001, 1.0)
-gt_pixel_coordinates = model({"xyz": xyz, "position": gt_pose.pos, "quaternion": gt_pose.quat}, fx,fy, cx,cy)
-
-
-pose = b3d.Pose.sample_gaussian_vmf_pose(jax.random.PRNGKey(111), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 3.0])), 0.001, 1.0)
+pixel_coordinates_to_image = jax.vmap(_pixel_coordinates_to_image, in_axes=(0, None, None))
 
 def loss_function(params, gt_pixel_coordinates):
     pixel_coords = model(params, fx,fy, cx,cy)
@@ -56,6 +48,12 @@ def update_params(tx, params, gt_image, state):
     return params, state, loss
 
 
+xyz = box_vertices
+gt_pose = b3d.Pose.sample_gaussian_vmf_pose(jax.random.PRNGKey(10), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 3.0])), 0.001, 1.0)
+gt_pixel_coordinates = model({"xyz": xyz, "position": jnp.array([gt_pose.pos]), "quaternion": jnp.array([gt_pose.quat])}, fx,fy, cx,cy)
+pose = b3d.Pose.sample_gaussian_vmf_pose(jax.random.PRNGKey(111), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 3.0])), 0.001, 1.0)
+
+
 tx = optax.multi_transform(
     {
         'xyz': optax.sgd(0.0),
@@ -66,16 +64,16 @@ tx = optax.multi_transform(
 )
 params = {
     "xyz": xyz,
-    "position": pose.pos,
-    "quaternion": pose.quat,
+    "position": jnp.array([pose.pos]),
+    "quaternion": jnp.array([pose.quat]),
 }
 state = tx.init(params)
 
 pixel_coords = model(params, fx,fy, cx,cy)
 print(jnp.abs(pixel_coords - gt_pixel_coordinates))
 
-rr.log("gt", rr.DepthImage(pixel_coordinates_to_image(gt_pixel_coordinates, image_height, image_width)), timeless=True)
-rr.log("overlay", rr.DepthImage(pixel_coordinates_to_image(gt_pixel_coordinates, image_height, image_width)), timeless=True)
+rr.log("gt", rr.DepthImage(pixel_coordinates_to_image(gt_pixel_coordinates, image_height, image_width)[0]), timeless=True)
+rr.log("overlay", rr.DepthImage(pixel_coordinates_to_image(gt_pixel_coordinates, image_height, image_width)[0]), timeless=True)
 
 pbar = tqdm(range(300))
 for t in pbar:
@@ -83,9 +81,9 @@ for t in pbar:
     pbar.set_description(f"Loss: {loss}")
     rr.set_time_sequence("frame", t)
     pixel_coords = model(params, fx,fy, cx,cy)
-    rr.log("reconstruction", rr.DepthImage(pixel_coordinates_to_image(pixel_coords, image_height, image_width)))
-    rr.log("overlay/reconstruction", rr.DepthImage(pixel_coordinates_to_image(pixel_coords, image_height, image_width)))
+    reconstruction = pixel_coordinates_to_image(pixel_coords, image_height, image_width)[0]
+    rr.log("reconstruction", rr.DepthImage(reconstruction))
+    rr.log("overlay/reconstruction", rr.DepthImage(reconstruction))
 
 print(jnp.abs(pixel_coords - gt_pixel_coordinates))
 print(jnp.abs(pixel_coords - gt_pixel_coordinates).max())
-

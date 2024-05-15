@@ -233,7 +233,7 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
 
     # filter out the padding
     unnorm_weights = jnp.where(unique_triangle_values >= 0, unnorm_weights, 0.0)
-    unnorm_weights = jnp.concatenate([jnp.array([jnp.exp(EPSILON/GAMMA)]), unnorm_weights])
+    unnorm_weights = jnp.concatenate([jnp.array([jnp.exp(jnp.clip(EPSILON/GAMMA, -20, 20))]), unnorm_weights])
     weights = unnorm_weights / jnp.sum(unnorm_weights)
     
     extended_triangle_indices = jnp.concatenate([jnp.array([-10]), unique_triangle_values])

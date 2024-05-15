@@ -136,5 +136,3 @@ renders = jax.vmap(get_render, in_axes=(0, None, None))(
 for t in range(100):
     rr.set_time_sequence("stochastic_render", t)
     rr.log("/img/rendered/stochastic_rgb", rr.Image(renders[t, :, :, :3]))
-
-###

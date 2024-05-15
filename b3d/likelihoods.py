@@ -35,7 +35,7 @@ def lab_to_rgb(lab):
     z = y - lab[2] / 200
 
     xyz = jnp.stack([x, y, z], axis=-1)
-    mask = xyz > 0.2068966
+    mask = xyz > 0.2068966 # 6/29
     xyz_cubed = jnp.power(xyz, 3)
     xyz = jnp.where(mask, xyz_cubed, (xyz - 16 / 116) / 7.787)
     xyz = xyz * xyz_ref
@@ -71,15 +71,17 @@ class LaplaceRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     - rgb
     """
     def sample(self, key, rendered_rgb, scale):
-        lab = b3d.rgb_to_lab(rendered_rgb)
-        lab2 = laplace.sample(key, lab, scale)
-        rgb = lab_to_rgb(lab2)
+        # lab = b3d.rgb_to_lab(rendered_rgb)
+        # lab2 = laplace.sample(key, lab, scale)
+        # rgb = lab_to_rgb(lab2)
+        rgb = laplace.sample(key, rendered_rgb, scale/100.)
         return rgb
 
     def logpdf(self, observed_rgb, rendered_rgb, scale):
-        lab = b3d.rgb_to_lab(rendered_rgb)
-        lab2 = b3d.rgb_to_lab(observed_rgb)
-        rgb_logpdf = laplace.logpdf(lab2, lab, scale)
+        # lab = b3d.rgb_to_lab(rendered_rgb)
+        # lab2 = b3d.rgb_to_lab(observed_rgb)
+        # rgb_logpdf = laplace.logpdf(lab2, lab, scale)
+        rgb_logpdf = laplace.logpdf(observed_rgb, rendered_rgb, scale/100.)
         return rgb_logpdf
 
 laplace_rgb_pixel_model = LaplaceRGBPixelModel()
@@ -94,19 +96,27 @@ class UniformRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     - rgb sampled from a uniform distribution in LAB color space
     """
     def sample(self, key, rendered_rgb):
-        lab = b3d.rgb_to_lab(rendered_rgb)
-        low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        lab2 = genjax.uniform.sample(key, low, high)
-        rgb = lab_to_rgb(lab2)
+        # lab = b3d.rgb_to_lab(rendered_rgb)
+        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
+        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
+        low = jnp.zeros_like(rendered_rgb)
+        high = jnp.ones_like(rendered_rgb)
+        rgb = genjax.uniform.sample(key, low, high)
         return rgb
+        # lab2 = genjax.uniform.sample(key, low, high)
+        # rgb = lab_to_rgb(lab2)
+        # return rgb
 
     def logpdf(self, observed_rgb, rendered_rgb):
-        lab = b3d.rgb_to_lab(rendered_rgb)
-        lab2 = b3d.rgb_to_lab(observed_rgb)
-        low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
+        # lab = b3d.rgb_to_lab(rendered_rgb)
+        # lab2 = b3d.rgb_to_lab(observed_rgb)
+        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
+        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
+        # rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
+        # return rgb_logpdf
+        low = jnp.zeros_like(rendered_rgb)
+        high = jnp.ones_like(rendered_rgb)
+        rgb_logpdf = genjax.uniform.logpdf(observed_rgb, low, high)
         return rgb_logpdf
 uniform_rgb_pixel_model = UniformRGBPixelModel()
 
@@ -169,16 +179,18 @@ class LaplaceRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     - rgbd (4,)
     """
     def sample(self, key, rendered_rgbd, color_scale, depth_scale):
-        lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
-        lab2 = laplace.sample(key, lab, color_scale)
-        rgb = lab_to_rgb(lab2)
+        # lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
+        # lab2 = laplace.sample(key, lab, color_scale)
+        # rgb = lab_to_rgb(lab2)
+        rgb = laplace.sample(key, rendered_rgbd[..., :3], color_scale/100.)
         depth = laplace.sample(key, rendered_rgbd[..., 3], depth_scale)
         return jnp.concatenate([rgb, jnp.array([depth])])
 
     def logpdf(self, observed_rgbd, rendered_rgbd, color_scale, depth_scale):
-        lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
-        lab2 = b3d.rgb_to_lab(observed_rgbd[..., :3])
-        rgb_logpdf = laplace.logpdf(lab2, lab, color_scale)
+        # lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
+        # lab2 = b3d.rgb_to_lab(observed_rgbd[..., :3])
+        # rgb_logpdf = laplace.logpdf(lab2, lab, color_scale)
+        rgb_logpdf = laplace.logpdf(observed_rgbd[..., :3], rendered_rgbd[..., :3], color_scale/100.)
         depth_logpdf = laplace.logpdf(observed_rgbd[..., 3], rendered_rgbd[..., 3], depth_scale)
         return rgb_logpdf + depth_logpdf
 

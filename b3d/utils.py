@@ -205,7 +205,7 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
     for i, img in enumerate(images):
         img.convert("RGB").save(os.path.join(tmp_dir, "%07d.png" % i))
 
-    subprocess.call(["ffmpeg", "-hide_banner -loglevel error", "-y", "-r", str(fps), "-i", os.path.join(tmp_dir, "%07d.png"), output_filename])
+    subprocess.call(["ffmpeg", "-hide_banner", "-loglevel",  "error", "-y", "-r", str(fps), "-i", os.path.join(tmp_dir, "%07d.png"), output_filename])
 
 
 from PIL import Image, ImageDraw, ImageFont

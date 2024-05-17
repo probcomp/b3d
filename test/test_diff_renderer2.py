@@ -155,7 +155,6 @@ for (title, tx, params) in test_cases:
     state = tx.init(params)
     for t in pbar:
         params, state, loss = update_params(tx, params, gt_image, state)
-        print(loss)
         pbar.set_description(f"Loss: {loss}")
 
 

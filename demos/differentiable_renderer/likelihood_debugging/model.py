@@ -14,7 +14,7 @@ def normalize(v):
 
 def single_object_model_factory(
         renderer, likelihood,
-        renderer_hyperparams, get_example_rgbd
+        renderer_hyperparams
     ):
     """
     Args:
@@ -39,11 +39,52 @@ def single_object_model_factory(
             renderer, vertices_C, faces, vertex_colors, renderer_hyperparams
         )
 
-        print(weights.shape, attributes.shape)
-        print(likelihood_args)
-        print(likelihood)
         observed_rgbd = likelihood(weights, attributes) @ "observed_rgbd"
-        # example_rgbd = get_example_rgbd(weights, attributes, likelihood_args)
         return (observed_rgbd, weights, attributes)
-        return observed_rgbd
     return model
+
+def rr_log_trace(trace, renderer):
+    # 2D:
+    (observed_rgbd, weights, attributes) = trace.get_retval()
+    rr.log("/trace/rgb/observed", rr.Image(observed_rgbd[:, :, :3]))
+    rr.log("/trace/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]))
+    avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
+    rr.log("/trace/rgb/average_render", rr.Image(avg_obs[:, :, :3]))
+    rr.log("/trace/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]))
+
+    # 3D:
+    (vertices, faces, vertex_colors, _) = trace.get_args()
+    pose = trace["pose"]
+    cam_pose = trace["camera_pose"]
+    # vetex_colors_with_alpha = jnp.concatenate([vertex_colors, alpha*jnp.ones((vertex_colors.shape[0], 1))], axis=1)
+    
+    rr.log("3D/trace/mesh", rr.Mesh3D(
+        vertex_positions=pose.apply(vertices),
+        indices=faces,
+        vertex_colors=vertex_colors
+    ))
+    # rr.log("/3D/trace/meshpoints",
+    #     rr.Points3D(
+    #         pose.apply(vertices), colors=vertex_colors, radii = 0.002 * jnp.ones(vertices.shape[0])
+    #     )
+    # )
+
+    rr.log("/trace/camera",
+        rr.Pinhole(
+            focal_length=renderer.fx,
+            width=renderer.width,
+            height=renderer.height,
+            principal_point=jnp.array([renderer.cx, renderer.cy]),
+            )
+        )
+    rr.log("/trace/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))
+    xyzs_C = utils.unproject_depth(observed_rgbd[:, :, 3], renderer)
+    xyzs_W = cam_pose.apply(xyzs_C)
+    # c = observed_rgbd[:, :, :3].reshape(-1,3)
+    # ca = jnp.concatenate([c, alpha*jnp.ones((c.shape[0], 1))], axis=1)
+    rr.log("/3D/trace/gt_pointcloud", rr.Points3D(
+        positions=xyzs_W.reshape(-1,3),
+        colors=observed_rgbd[:, :, :3].reshape(-1,3),
+        radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))
+    )
+

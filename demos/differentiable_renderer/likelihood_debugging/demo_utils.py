@@ -58,7 +58,7 @@ def get_renderer_boxdata_and_patch():
     patch_points_C = jax.lax.dynamic_slice(xyzs_C[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix,2*del_pix,3)).reshape(-1,3)
     patch_rgbs = jax.lax.dynamic_slice(rgbs[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix,2*del_pix,3)).reshape(-1,3)
     patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
-        patch_points_C, patch_rgbs, patch_points_C[:,2] / fx * 2.0
+        patch_points_C, patch_rgbs, patch_points_C[:,2] / fx
     )
     X_CP = Pose.from_translation(patch_vertices_C.mean(0))
     patch_vertices_P = X_CP.inv().apply(patch_vertices_C)

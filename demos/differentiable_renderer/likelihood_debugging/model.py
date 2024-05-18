@@ -56,18 +56,12 @@ def rr_log_trace(trace, renderer):
     (vertices, faces, vertex_colors, _) = trace.get_args()
     pose = trace["pose"]
     cam_pose = trace["camera_pose"]
-    # vetex_colors_with_alpha = jnp.concatenate([vertex_colors, alpha*jnp.ones((vertex_colors.shape[0], 1))], axis=1)
     
     rr.log("3D/trace/mesh", rr.Mesh3D(
         vertex_positions=pose.apply(vertices),
         indices=faces,
         vertex_colors=vertex_colors
     ))
-    # rr.log("/3D/trace/meshpoints",
-    #     rr.Points3D(
-    #         pose.apply(vertices), colors=vertex_colors, radii = 0.002 * jnp.ones(vertices.shape[0])
-    #     )
-    # )
 
     rr.log("/trace/camera",
         rr.Pinhole(

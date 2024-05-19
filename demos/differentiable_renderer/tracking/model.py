@@ -163,3 +163,16 @@ def rr_viz_multiobject_trace(trace, renderer):
         radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))
     )
 
+# patch_vertices_W = X_WP.inv().apply(patch_vertices_P)
+# vertices = patch_vertices_W
+# faces = patch_faces
+# vertex_colors = patch_vertex_colors
+# alpha = 3.0
+# vetex_colors_with_alpha = jnp.concatenate([vertex_colors, alpha*jnp.ones((vertex_colors.shape[0], 1))], axis=1)
+
+
+# rr.log("mymesh", rr.Mesh3D(
+#     vertex_positions=vertices,
+#     indices=faces,
+#     vertex_colors=vetex_colors_with_alpha
+# ))

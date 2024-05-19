@@ -149,7 +149,7 @@ class VmapMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
         logprobs = jax.vmap(
             lambda component: self.dist.logpdf(observed, *[jtu.tree_map(lambda x: x[component], a) for a in args])
         )(jnp.arange(probs.shape[0]))
-        jax.debug.print("logprobs = {logprobs}; probs = {probs}", logprobs=logprobs, probs=probs)
+        # jax.debug.print("logprobs = {logprobs}; probs = {probs}", logprobs=logprobs, probs=probs)
         return jax.scipy.special.logsumexp(logprobs + jnp.log(probs + 1e-3))
 
 multilaplace_pixel_model = ArgMap(
@@ -207,7 +207,7 @@ class PythonMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction)
             assert lp.shape == ()
             logprobs.append(lp)
         logprobs = jnp.stack(logprobs)
-        jax.debug.print("lps = {lps}", lps=logprobs)
+        # jax.debug.print("lps = {lps}", lps=logprobs)
         return jax.scipy.special.logsumexp(logprobs) #  + jnp.log(probs + 1e-6), axis=0)
 
 uniform_multilaplace_mixture = ArgMap(

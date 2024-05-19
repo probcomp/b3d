@@ -53,7 +53,7 @@ def get_renderer_boxdata_and_patch():
     box_data = (observed_rgbds, rots)
 
     # Get patch
-    center_y, center_x = 45, 65
+    center_y, center_x = 45, 40
     del_pix = 5
     patch_points_C = jax.lax.dynamic_slice(xyzs_C[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix,2*del_pix,3)).reshape(-1,3)
     patch_rgbs = jax.lax.dynamic_slice(rgbs[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix,2*del_pix,3)).reshape(-1,3)

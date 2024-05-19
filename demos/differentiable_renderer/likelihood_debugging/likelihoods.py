@@ -6,9 +6,9 @@ from tensorflow_probability.substrates import jax as tfp
 
 def normalize(l):
     return jnp.where(
-        jnp.sum(l) < 1e-6,
-        jnp.zeros_like(l),
-        l / jnp.sum(l, axis=-1)[..., None]
+        jnp.sum(l, axis=-1) < 1e-6,
+        jnp.ones_like(l) / l.shape[-1],
+        l / (jnp.sum(l, axis=-1)[..., None] + 1e-8)
     )
 
 class ArgMap(genjax.ExactDensity,genjax.JAXGenerativeFunction):
@@ -149,7 +149,8 @@ class VmapMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
         logprobs = jax.vmap(
             lambda component: self.dist.logpdf(observed, *[jtu.tree_map(lambda x: x[component], a) for a in args])
         )(jnp.arange(probs.shape[0]))
-        return jax.scipy.special.logsumexp(logprobs + jnp.log(probs), axis=0)
+        jax.debug.print("logprobs = {logprobs}; probs = {probs}", logprobs=logprobs, probs=probs)
+        return jax.scipy.special.logsumexp(logprobs + jnp.log(probs + 1e-3))
 
 multilaplace_pixel_model = ArgMap(
     VmapMixturePixelModel(laplace_rgbd_pixel_model),
@@ -206,7 +207,8 @@ class PythonMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction)
             assert lp.shape == ()
             logprobs.append(lp)
         logprobs = jnp.stack(logprobs)
-        return jax.scipy.special.logsumexp(logprobs + jnp.log(probs + 1e-10), axis=0)
+        jax.debug.print("lps = {lps}", lps=logprobs)
+        return jax.scipy.special.logsumexp(logprobs) #  + jnp.log(probs + 1e-6), axis=0)
 
 uniform_multilaplace_mixture = ArgMap(
     PythonMixturePixelModel([uniform_rgbd_pixel_model, multilaplace_pixel_model]),
@@ -229,13 +231,13 @@ s5 = uniform_multilaplace_mixture.sample(
     jax.random.PRNGKey(0),
     jnp.array([0.2, 0.3, 0.5]),
     jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
-    (0.1,), (0.9,), 0.0, 2.0
+    (0.1,), (0.1,), 0.0, 2.0
 )
 score = uniform_multilaplace_mixture.logpdf(
     s5,
     jnp.array([0.2, 0.3, 0.5]),
     jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
-    (0.1,), (0.9,), 0.0, 2.0
+    (0.1,), (0.1,), 0.0, 2.0
 )
 assert score > -jnp.inf
 

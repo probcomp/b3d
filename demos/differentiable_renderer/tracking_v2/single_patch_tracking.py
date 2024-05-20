@@ -12,6 +12,7 @@ import demos.differentiable_renderer.tracking_v2.likelihoods as l
 import b3d.differentiable_renderer as r
 import matplotlib.pyplot as plt
 import numpy as np
+import b3d
 import optax
 
 rr.init("single_patch_tracking")
@@ -79,6 +80,8 @@ def importance_from_pos_quat_v3(pos, quat, timestep):
     )
     return trace, weight
 
+trace, wt = importance_from_pos_quat_v3(X_WP._position, X_WP._quaternion, 0)
+
 def weight_from_pos_quat_v3(pos, quat, timestep):
     return importance_from_pos_quat_v3(pos, quat, timestep)[1]
 
@@ -136,3 +139,88 @@ for timestep in tqdm(range(30)):
 #     tr, weight = importance_from_pos_quat_v3(pos, quat, timestep)
 #     rr.set_time_sequence("tracking-frame-10", timestep)
 #     m.rr_log_trace(tr, renderer)
+
+### Gaussian VMF MH patch tracking ###
+def mh_drift_update(key, tr, pos_std, rot_concentration):
+    key, subkey = jax.random.split(key)
+    newpose = b3d.model.gaussian_vmf_pose.sample(
+        subkey, tr["pose"], pos_std, rot_concentration
+    )
+    q_fwd = b3d.model.gaussian_vmf_pose.logpdf(
+        newpose, tr["pose"], pos_std, rot_concentration
+    )
+    q_bwd = b3d.model.gaussian_vmf_pose.logpdf(
+        tr["pose"], newpose, pos_std, rot_concentration
+    )
+
+    key, subkey = jax.random.split(key)
+    proposed_trace, p_ratio, _, _ = tr.update(
+        subkey,
+        genjax.choice_map({"pose": newpose}),
+        genjax.Diff.tree_diff_no_change(tr.get_args())
+    )
+
+    log_full_ratio = p_ratio + q_bwd - q_fwd
+    alpha = jnp.minimum(jnp.exp(p_ratio), 1.0)
+    key, subkey = jax.random.split(key)
+    accept = jax.random.bernoulli(subkey, alpha)
+
+    new_trace = jax.lax.cond(
+        accept,
+        lambda _: proposed_trace,
+        lambda _: tr,
+        None
+    )
+
+    metadata = {
+        "accept": accept,
+        "log_p_ratio": p_ratio,
+        "log_q_fwd": q_fwd,
+        "log_q_bwd": q_bwd,
+        "log_full_ratio": log_full_ratio,
+        "alpha": alpha
+    }
+
+    return (new_trace, metadata)
+
+@jax.jit
+def mh_kernel(st, i):
+    key, tr, pos_std, rot_conc = st
+    key, subkey = jax.random.split(key)
+    new_tr, metadata = mh_drift_update(subkey, tr, pos_std, rot_conc)
+    return (key, new_tr, pos_std, rot_conc), metadata
+
+(_, new_tr, _, _), metadata = mh_kernel((key, trace, 0.01, 0.1), 0)
+
+@jax.jit
+def unfold_mh_100_steps(st):
+    ret_st, metadata = jax.lax.scan(mh_kernel, st, jnp.arange(100))
+    return ret_st, metadata
+
+@jax.jit
+def unfold_mh_400_steps(st):
+    ret_st, metadata = jax.lax.scan(mh_kernel, st, jnp.arange(400))
+    return ret_st, metadata
+
+@jax.jit
+def unfold_mh_1000_steps(st):
+    ret_st, metadata = jax.lax.scan(mh_kernel, st, jnp.arange(1000))
+    return ret_st, metadata
+
+tr = trace
+for timestep in tqdm(range(10)):
+    key, subkey = jax.random.split(key)
+    tr, wt, _, _ = tr.update(
+        subkey,
+        genjax.choice_map({"observed_rgbd": observed_rgbds[timestep]}),
+        genjax.Diff.tree_diff_no_change(trace.get_args())
+    )
+
+    key, subkey = jax.random.split(key)
+    (_, tr, _, _), metadata = unfold_mh_1000_steps((subkey, tr, 0.00005, 0.00005))
+    n_accepted = jnp.sum(metadata["accept"])
+    rr.set_time_sequence("frame--tracking-5[ablation]", timestep)
+    m.rr_log_trace(tr, renderer)
+    rr.log("n_accepted", rr.Scalar(n_accepted))
+
+### MH patch tracking, separately on position and rotation ###

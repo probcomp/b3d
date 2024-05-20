@@ -2,9 +2,6 @@
 
 import jax.numpy as jnp
 import jax
-import os
-import trimesh
-import b3d
 from b3d import Pose
 import rerun as rr
 import genjax
@@ -109,7 +106,7 @@ opt_state_pos = optimizer_pos.init(X_WP._position)
 opt_state_quat = optimizer_quat.init(X_WP._quaternion)
 pos = X_WP._position
 quat = X_WP._quaternion
-for timestep in range(30):
+for timestep in tqdm(range(30)):
     opt_state_pos = optimizer_pos.init(pos)
     opt_state_quat = optimizer_quat.init(quat)
     (opt_state_pos, opt_state_quat, pos, quat, _) = unfold_100_steps(

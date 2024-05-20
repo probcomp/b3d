@@ -11,14 +11,14 @@ from b3d import Pose
 import rerun as rr
 import genjax
 from tqdm import tqdm
-import demos.differentiable_renderer.tracking.utils as utils
-import demos.differentiable_renderer.tracking.model as m
+import demos.differentiable_renderer.tracking_v1.utils as utils
+import demos.differentiable_renderer.tracking_v1.model as m
 import b3d.likelihoods as likelihoods
 import b3d.differentiable_renderer as r
 
 ###
 rendering = r
-from demos.differentiable_renderer.tracking.model import uniform_pose, normalize
+from demos.differentiable_renderer.tracking_v1.model import uniform_pose, normalize
 
 ####
 

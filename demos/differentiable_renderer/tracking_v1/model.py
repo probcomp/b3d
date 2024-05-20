@@ -7,7 +7,7 @@ import b3d
 from b3d import Pose
 from b3d.model import uniform_pose
 import rerun as rr
-import demos.differentiable_renderer.tracking.utils as utils
+import demos.differentiable_renderer.tracking_v1.utils as utils
 
 def normalize(v):
     return v / jnp.sum(v)

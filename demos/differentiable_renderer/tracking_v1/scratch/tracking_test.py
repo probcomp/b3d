@@ -11,8 +11,8 @@ from b3d import Pose
 import rerun as rr
 import genjax
 from tqdm import tqdm
-import demos.differentiable_renderer.tracking.utils as utils
-import demos.differentiable_renderer.tracking.model as m
+import demos.differentiable_renderer.tracking_v1.utils as utils
+import demos.differentiable_renderer.tracking_v1.model as m
 
 rr.init("tracking_test_4")
 rr.connect("127.0.0.1:8812")

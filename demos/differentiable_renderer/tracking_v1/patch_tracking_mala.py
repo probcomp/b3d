@@ -11,8 +11,8 @@ from b3d import Pose
 import rerun as rr
 import genjax
 from tqdm import tqdm
-import demos.differentiable_renderer.tracking.utils as utils
-import demos.differentiable_renderer.tracking.model as m
+import demos.differentiable_renderer.tracking_v1.utils as utils
+import demos.differentiable_renderer.tracking_v1.model as m
 import b3d.likelihoods as likelihoods
 import b3d.differentiable_renderer as r
 
@@ -124,38 +124,68 @@ def pos_quat_to_weight(position, quaternion, observed_rgbd):
 
 pos_quat_grad_jitted = jax.grad(pos_quat_to_weight, argnums=(0, 1))
 step_pos = 1e-7
-step_quat = 1e-7
+step_quat = 1e-6
 CLIP_STEP = 0.001
 CLIP_QUAT = 0.001
 @jax.jit
-def step_pose(position, quaternion, observed_rgbd):
+def step_pose(position, quaternion, observed_rgbd, sigma):
     gp, gq = pos_quat_grad_jitted(position, quaternion, observed_rgbd)
-    p_inc = step_pos * gp
-    p_inc = jnp.where(jnp.linalg.norm(p_inc) > CLIP_STEP, p_inc / jnp.linalg.norm(p_inc) * CLIP_STEP, p_inc)
-    q_inc = step_quat * gq
-    q_inc = jnp.where(jnp.linalg.norm(q_inc) > CLIP_QUAT, q_inc / jnp.linalg.norm(q_inc) * CLIP_QUAT, q_inc)    
+    # p_inc = step_pos * gp
+    # p_inc = jnp.where(jnp.linalg.norm(p_inc) > CLIP_STEP, p_inc / jnp.linalg.norm(p_inc) * CLIP_STEP, p_inc)
+    # q_inc = step_quat * gq
+    # q_inc = jnp.where(jnp.linalg.norm(q_inc) > CLIP_QUAT, q_inc / jnp.linalg.norm(q_inc) * CLIP_QUAT, q_inc)    
+    p_inc = sigma**2 * gp #gp/jnp.linalg.norm(gp)
+    q_inc = sigma**2 * gq # gq/jnp.linalg.norm(gq)
     position = position + p_inc
     quaternion = quaternion + q_inc
     quaternion = quaternion / jnp.linalg.norm(quaternion)
     return position, quaternion
+
+@jax.jit
+def MALA_step(key, position, quaternion, observed_rgbd, sigma):
+    pos2, quat2 = step_pose(position, quaternion, observed_rgbd, sigma)
+    pos3 = genjax.normal.sample(key, pos2, jnp.sqrt(2) * sigma)
+    quat3 = genjax.normal.sample(key, quat2, jnp.sqrt(2) * sigma)
+    
+    # compute acceptance probability
+    logpdf_current = pos_quat_to_weight(position, quaternion, observed_rgbd)
+    logpdf_stepped = pos_quat_to_weight(pos3, quat3, observed_rgbd)
+    p_ratio = logpdf_stepped - logpdf_current
+
+    q_fwd = genjax.normal.logpdf(pos3, pos2, jnp.sqrt(2) * sigma)
+    q_fwd += genjax.normal.logpdf(quat3, quat2, jnp.sqrt(2) * sigma)
+
+    pos4, quat4 = step_pose(pos3, quat3, observed_rgbd, sigma)
+    q_bwd = genjax.normal.logpdf(position, pos4, jnp.sqrt(2) * sigma)
+    q_bwd += genjax.normal.logpdf(quaternion, quat4, jnp.sqrt(2) * sigma)
+    q_ratio = q_bwd - q_fwd
+
+    alpha = jnp.minimum(jnp.exp(p_ratio + q_ratio), 1.0)
+
+    accept = genjax.bernoulli.sample(key, alpha)
+    newpos = jnp.where(accept, pos3, position)
+    newquat = jnp.where(accept, quat3, quaternion)
+    return (accept, (newpos, newquat))
+
+MALA_step(jax.random.PRNGKey(12), X_WP.pos, X_WP._quaternion, observed_rgbds[0], 1e-2)
 
 position = X_WP.pos + jnp.array([0.0001, 0.002, -0.0031])
 quaternion = X_WP._quaternion
 STEPS_PER_FRAME=50
 key = jax.random.PRNGKey(12)
 for fr in tqdm(range(observed_rgbds.shape[0])):
+    n_acc = 0
     for step in tqdm(range(STEPS_PER_FRAME)):
         if step > 0:
             # position, quaternion = step_pose(position, quaternion, observed_rgbds[fr])
             key, subkey = jax.random.split(key)
-            (position, quaternion) = step_pose(position, quaternion, observed_rgbds[fr])
+            acc, (position, quaternion) = MALA_step(subkey, position, quaternion, observed_rgbds[fr], 1e-3)
+            n_acc += acc
         trace, weight = pos_quat_to_trace_and_weight(position, quaternion, observed_rgbds[fr])
-        rr.set_time_sequence("gradient_ascent_step1", fr*STEPS_PER_FRAME + step)
+        rr.set_time_sequence("gradient_ascent_step8", fr*STEPS_PER_FRAME + step)
         m.rr_viz_trace(trace, renderer)
         rr.log("/trace/logpdf", rr.Scalar(trace.get_score()))
-
-    rr.set_time_sequence("frames_gradient_tracking", fr)
-    m.rr_viz_trace(trace, renderer)
+    print(f"Acceptance rate at frame {fr}: {n_acc/STEPS_PER_FRAME}")
 
 # position = X_WP.pos
 # quaternion = X_WP._quaternion

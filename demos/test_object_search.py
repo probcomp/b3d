@@ -231,7 +231,7 @@ test_poses = jax.vmap(
 )(
     jnp.stack(
         jnp.meshgrid(
-            jnp.linspace(-0.2, 0.2, 50), jnp.linspace(-0.2, 0.2, 50), indexing="ij"
+            jnp.linspace(-0.3, 0.3, 50), jnp.linspace(-0.3, 0.3, 50), indexing="ij"
         ),
         axis=-1,
     ).reshape(-1, 2)
@@ -244,30 +244,40 @@ for T_observed_image in tqdm(range(len(rgbs))):
     trace = b3d.update_choices_jit(
         trace,
         key,
-        genjax.Pytree.const(["observed_rgb_depth"]),
-        (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
+        genjax.Pytree.const(["observed_rgb_depth", "camera_pose", "object_1"]),
+        (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]), 
+        poses[T_observed_image],
+        1
     )
-    trace = b3d.update_choices_jit(
-        trace,
-        key,
-        genjax.Pytree.const(["camera_pose"]),
-        poses[T_observed_image]
-    )
-
     scores = b3d.enumerate_choices_get_scores_jit(
         trace,
         key,
         genjax.Pytree.const(["object_pose_1"]),
-        test_poses
+        test_poses,
     )
     samples = jax.random.categorical(key, scores, shape=(300,))
 
-    t = T_observed_image
+    trace = b3d.update_choices_jit(
+        trace,
+        key,
+        genjax.Pytree.const(["object_1"]),
+        -1
+    )
     b3d.rerun_visualize_trace_t(trace, t, modes=["rgb", "3d"])
-    rendered_images = jax.vmap(lambda pose: b3d.update_choices(trace, key, genjax.Pytree.const(["object_pose_1", "object_0"]), pose, -1).get_retval()[0][1])(test_poses[samples])
+
+    t = T_observed_image
+    rendered_images = jax.vmap(lambda pose: b3d.update_choices(trace, key, genjax.Pytree.const(["object_pose_1", "object_0", "object_1"]), pose, -1, 1).get_retval()[0][1])(test_poses[samples])
     rendered_images = rendered_images.max(0)
     rr.log("/image/hidden_object", rr.Image(rendered_images))
     test_poses = test_poses[samples]
 
 
 
+
+trace = b3d.update_choices_jit(
+    trace,
+    key,
+    genjax.Pytree.const(["object_1", "object_pose_1"]),
+    1, test_poses[0]
+)
+b3d.rerun_visualize_trace_t(trace, t, modes=["rgb", "3d"])

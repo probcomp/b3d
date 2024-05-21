@@ -171,17 +171,33 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
         rr.log("/image/rgb_rendering", rr.Image(rendered_rgb))
 
     if "depth" in modes:
-        rr.log("/image/depth", rr.DepthImage(observed_depth))
-        rr.log("/image/depth_rendering", rr.DepthImage(rendered_depth))
+        rr.log("/image/depth/", rr.DepthImage(observed_depth))
+        rr.log("/image/depth/rendering", rr.DepthImage(rendered_depth))
 
     info_string = f"# Score : {trace.get_score()}"
 
     if "inliers" in modes:
         (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask) = b3d.get_rgb_depth_inliers_from_trace(trace)
-        rr.log("/image/inliers", rr.DepthImage(inliers * 1.0))
-        rr.log("/image/outliers", rr.DepthImage(outliers * 1.0))
-        rr.log("/image/undecided", rr.DepthImage(undecided * 1.0))
+        rr.log("/image/overlay/inliers", rr.DepthImage(inliers * 1.0))
+        rr.log("/image/overlay/outliers", rr.DepthImage(outliers * 1.0))
+        rr.log("/image/overlay/undecided", rr.DepthImage(undecided * 1.0))
         info_string += f"\n # Inliers : {jnp.sum(inliers)}"
         info_string += f"\n # Outliers : {jnp.sum(outliers)}"
         info_string += f"\n # Undecided : {jnp.sum(undecided)}"
     rr.log("/info", rr.TextDocument(info_string))
+
+    if "3d" in modes:
+        poses = b3d.get_poses_from_trace(trace)
+        ids = b3d.get_object_ids_from_trace(trace)
+        object_library = trace.get_args()[2]
+        for idx, (i,pose) in enumerate(zip(ids, poses)):
+            mask = object_library.vertex_index_to_object == i
+            vertices = object_library.vertices[mask]
+            attributes = object_library.attributes[mask]
+            rr.log(
+                f"object_{idx}",
+                rr.Points3D(
+                    pose.apply(vertices),
+                    colors=(attributes * 255).astype(jnp.uint8),
+                ),
+            )

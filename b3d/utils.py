@@ -17,6 +17,7 @@ import os
 import trimesh
 from b3d import Pose
 import rerun as rr
+import distinctipy
 
 from dataclasses import dataclass
 
@@ -205,7 +206,7 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
     for i, img in enumerate(images):
         img.convert("RGB").save(os.path.join(tmp_dir, "%07d.png" % i))
 
-    subprocess.call(["ffmpeg", "-hide_banner -loglevel error", "-y", "-r", str(fps), "-i", os.path.join(tmp_dir, "%07d.png"), output_filename])
+    subprocess.call(["ffmpeg", "-hide_banner", "-loglevel",  "error", "-y", "-r", str(fps), "-i", os.path.join(tmp_dir, "%07d.png"), output_filename])
 
 
 from PIL import Image, ImageDraw, ImageFont
@@ -605,3 +606,18 @@ def all_pairs(X, Y):
         jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1),
         0, 1
     ).reshape(-1, 2)
+
+
+def distinct_colors(num_colors, pastel_factor=0.5):
+    """Get a list of distinct colors.
+
+    Args:
+        num_colors (int): Number of colors to generate.
+        pastel_factor (float): Pastel factor.
+    Returns:
+        list: List of colors.
+    """
+    return [
+        np.array(i)
+        for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
+    ]

@@ -61,7 +61,8 @@ setuptools.setup(
         "torch==2.2.2",
         "torchaudio==2.2.2",
         "torchvision==0.17.2",
-        "jax[cuda12_pip]==0.4.26",
+        "jax[cuda12_pip]",
+        "natsort",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

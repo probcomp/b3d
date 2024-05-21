@@ -4,10 +4,17 @@
   <img src="https://github.com/probcomp/b3d/assets/66085644/53d4f644-530e-41b9-87f9-814064f12230" alt="animated" width="150%" />
 </p>
 
+## Requirements
+- NVIDIA CUDA 12.3+
+- Python 3.10+
+
+## Installing b3d
+```
+./install.sh
+```
 
 
-## Installation
-### NVIDIA GPU with CUDA 12.3+
+### Installing CUDA 12.3+
 Run `nvidia-smi`
 ```
 +-----------------------------------------------------------------------------------------+
@@ -26,20 +33,6 @@ If the above commands fail, then first uninstall the existing driver by running 
 /opt/deeplearning/uninstall-driver.sh
 sudo reboot
 ```
-
-### Python Environment
-```
-conda create -n b3d python=3.10
-conda activate b3d
-```
-
-### Install b3d
-
-Run
-```
-bash install.sh
-```
-Verify install succeeded by running `python demo.py` which should display a `demo` visualization log in Rerun viewer that shows data corresponding to the gif at the top of this README!
 
 ### Environment Variables
 Add the following to your bash_rc:

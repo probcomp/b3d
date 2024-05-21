@@ -1,294 +1,398 @@
 """
-WARNING: The docstrings and argnames in this file are currently wrong!
-The docstrings reference things happening in LAB color space, but I have
-switched to do this in RGB space, to avoid NaN errors occurring in the
-LAB<>RGB conversion code.
-Eventually I plan to switch back to LAB.
+This file defines several likelihoods over RGBD images.
 """
 
-import genjax
-import b3d
 import jax.numpy as jnp
-
 import jax
-from jax import jit
-from functools import partial
-
+import jax.tree_util as jtu
+import genjax
 from tensorflow_probability.substrates import jax as tfp
 
-# Note: This function implementation is
-# from ChatGPT and I'm not totally sure it's right.
-# This test passes:
-# for i in range(100):
-#     subkey, key = jax.random.split(key)
-#     rgb = jax.random.uniform(subkey, (3,))
-#     lab = rgb_to_lab(rgb)
-#     rgb2 = lab_to_rgb(lab)
-#     assert jnp.allclose(rgb, rgb2, atol=1e-3), f"{rgb} != {rgb2}"
-# But this test fails:
-# for i in range(100):
-#     subkey, key = jax.random.split(key)
-#     lab = jax.random.uniform(subkey, (3,))
-#     lab = lab * jnp.array([100.0, 256.0, 256.0]) - jnp.array([0.0, 128.0, 128.0])
-#     rgb = lab_to_rgb(lab)
-#     lab2 = rgb_to_lab(rgb)
-#     assert jnp.allclose(lab, lab2, atol=4), f"{lab} != {lab2}"
-@partial(jnp.vectorize, signature="(k)->(k)")
-def lab_to_rgb(lab):
-    # LAB to XYZ
-    # D65 white point
-    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])
-    y = (lab[0] + 16) / 116
-    x = lab[1] / 500 + y
-    z = y - lab[2] / 200
+def normalize(l):
+    return jnp.where(
+        jnp.sum(l, axis=-1) < 1e-6,
+        jnp.ones_like(l) / l.shape[-1],
+        l / (jnp.sum(l, axis=-1)[..., None] + 1e-8)
+    )
 
-    xyz = jnp.stack([x, y, z], axis=-1)
-    mask = xyz > 0.2068966 # 6/29
-    xyz_cubed = jnp.power(xyz, 3)
-    xyz = jnp.where(mask, xyz_cubed, (xyz - 16 / 116) / 7.787)
-    xyz = xyz * xyz_ref
-
-    # XYZ to linear RGB
-    xyz_to_rgb = jnp.array([
-        [ 3.2404542, -1.5371385, -0.4985314],
-        [-0.9692660,  1.8760108,  0.0415560],
-        [ 0.0556434, -0.2040259,  1.0572252],
-    ])
-    rgb = jnp.dot(xyz, xyz_to_rgb.T)
-
-    # Linear RGB to sRGB
-    mask = rgb > 0.0031308
-    rgb = jnp.where(mask, 1.055 * jnp.power(rgb, 1 / 2.4) - 0.055, 12.92 * rgb)
-    rgb = jnp.clip(rgb, 0, 1)
-
-    return rgb
-
-###################
-# RGB likelihoods #
-###################
-
-laplace = genjax.TFPDistribution(tfp.distributions.Laplace)
-class LaplaceRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+class ArgMap(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     """
-    Distribution over an RGB value.  This is a Laplace distribution, applied in LAB
-    color space.
-    Args:
-    - rendered_rgb: the mean of the Laplace distribution (e.g. from a deterministic renderer)
-    - scale: the scale of the Laplace distribution (in LAB color space)
-    Returns:
-    - rgb
+    `ArgMap(dist : genjax.ExactDensity, argmap : function)(*args)`
+    is the distribution which samples from `dist(*argmap(*args))`.
     """
-    def sample(self, key, rendered_rgb, scale):
-        # lab = b3d.rgb_to_lab(rendered_rgb)
-        # lab2 = laplace.sample(key, lab, scale)
-        # rgb = lab_to_rgb(lab2)
-        rgb = laplace.sample(key, rendered_rgb, scale/100.)
-        return rgb
+    dist : any  = genjax.Pytree.static()
+    argmap : any = genjax.Pytree.static()
 
-    def logpdf(self, observed_rgb, rendered_rgb, scale):
-        # lab = b3d.rgb_to_lab(rendered_rgb)
-        # lab2 = b3d.rgb_to_lab(observed_rgb)
-        # rgb_logpdf = laplace.logpdf(lab2, lab, scale)
-        rgb_logpdf = laplace.logpdf(observed_rgb, rendered_rgb, scale/100.)
-        return rgb_logpdf
-
-laplace_rgb_pixel_model = LaplaceRGBPixelModel()
-
-class UniformRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
-    """
-    Uniform distribution over an RGB value.
-    (Uniform is applied in LAB color space.)
-    Args:
-    - rendered_rgb (just used for its shape)  [[possible TODO: remove this arg]]
-    Returns:
-    - rgb sampled from a uniform distribution in LAB color space
-    """
-    def sample(self, key, rendered_rgb):
-        # lab = b3d.rgb_to_lab(rendered_rgb)
-        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        low = jnp.zeros_like(rendered_rgb)
-        high = jnp.ones_like(rendered_rgb)
-        rgb = genjax.uniform.sample(key, low, high)
-        return rgb
-        # lab2 = genjax.uniform.sample(key, low, high)
-        # rgb = lab_to_rgb(lab2)
-        # return rgb
-
-    def logpdf(self, observed_rgb, rendered_rgb):
-        # lab = b3d.rgb_to_lab(rendered_rgb)
-        # lab2 = b3d.rgb_to_lab(observed_rgb)
-        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        # rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
-        # return rgb_logpdf
-        low = jnp.zeros_like(rendered_rgb)
-        high = jnp.ones_like(rendered_rgb)
-        rgb_logpdf = genjax.uniform.logpdf(observed_rgb, low, high)
-        return rgb_logpdf
-uniform_rgb_pixel_model = UniformRGBPixelModel()
-
-class MixtureRGBPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
-    """
-    RGB-only variant of MixtureRGBDPixelModel.
-    Args:
-    - probs: [p_uniform, *p_for_the_laplace_dists] (N,)
-    - rgbs: (N-1, 3) 
-    - laplace_scale: () [shared across all laplace dists]
-    """
-    def sample(self, key, probs, rgbs, laplace_scale):
-        key, subkey = jax.random.split(key)
-        choice = genjax.categorical.sample(subkey, jnp.log(probs))
-        key, subkey = jax.random.split(key)
-        uniform_value = uniform_rgb_pixel_model.sample(key, rgbs[0])
-        laplace_value = laplace_rgb_pixel_model.sample(subkey, rgbs[choice-1], laplace_scale)
-        return jnp.where(choice == 0, uniform_value, laplace_value)
+    def sample(self, key, *args):
+        return self.dist.sample(key, *self.argmap(*args))
     
-    def logpdf(self, observed_rgb, probs, rgbs, laplace_scale):
-        uniform_logpdf = uniform_rgb_pixel_model.logpdf(observed_rgb, rgbs[0])
-        laplace_logpdfs = jax.vmap(
-            lambda rgb: laplace_rgb_pixel_model.logpdf(observed_rgb, rgb, laplace_scale)
-        )(rgbs)
+    def logpdf(self, observed, *args):
+        return self.dist.logpdf(observed, *self.argmap(*args))
 
-        uniform_logpdf = jnp.log(probs[0] + 1e-5) + uniform_logpdf
-        laplace_logpdfs = jnp.log(probs[1:] + 1e-5) + laplace_logpdfs
-        return jax.scipy.special.logsumexp(jnp.concatenate([uniform_logpdf[None], laplace_logpdfs]))
-mixture_rgb_pixel_model = MixtureRGBPixelModel()
-mixture_rgb_sensor_model = genjax.map_combinator(in_axes=(0, 0, None))(
-                           genjax.map_combinator(in_axes=(0, 0, None))(
-                               mixture_rgb_pixel_model
-                            ))
-# mixture_rgb_sensor_model.__doc__ = """
-#     The mixture_rgb_sensor_model is a distribution on RGB images,
-#     from mapping mixture_rgb_sensor_model over the height and width dimensions.
+class ImageDistFromPixelDist(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+    """
+    Given a distribution on a pixel's value, returns a distribution on an image.
+    Constructor args:
+    - pixel_dist: Dist on pixel value (e.g. on an RGB or RGBD value)
+    - map_args: [bool] (N,) whether the nth arg should be mapped over
+        along the width and height axes (otherwise all pixels will have
+        the same value for that arg)
+    Distribution args:
+    - height
+    - width 
+    - *pixel_dist_args
+    """
+    pixel_dist : any = genjax.Pytree.static()
+    map_args : any = genjax.Pytree.static()
+
+    def _flattened_args(self, args):
+        return [
+            jtu.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), arg) if do_map else arg
+            for (arg, do_map) in zip(args, self.map_args)
+        ]
+    def _vmap_in_axes(self):
+        return (0, *[0 if a else None for a in self.map_args])
     
-#     Args:
-#     - probs: (H, W, N,)
-#     - rgbds: (H, W, N-1, 3) 
-#     - color_laplace_scale: () 
-#     Returns
-#     - rgb (H, W, 3)
-# """
+    def sample(self, key, height, width, *pixel_dist_args):
+        keys = jax.random.split(key, height*width)
+        
+        pixels = jax.vmap(
+            lambda key, *args: self.pixel_dist.sample(key, *args),
+            in_axes=self._vmap_in_axes()
+        )(keys, *(self._flattened_args(pixel_dist_args)))
+        return pixels.reshape((height, width, -1))
 
-####################
-# RGBD Likelihoods #
-####################
-
-class LaplaceRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
-    """
-    Distribution over an RGBD value.  Applies a separate Laplace
-    distribution to the RGB and depth values.
-    Color Laplace is applied in LAB color space.
-    Args:
-    - rendered_rgbd (4,): the mean of the Laplace distributions (e.g. from a deterministic renderer)
-    - color_scale (): the scale of the Laplace distribution (in LAB color space)
-    - depth_scale (): the scale of the Laplace distribution (in depth space)
-    Returns:
-    - rgbd (4,)
-    """
-    def sample(self, key, rendered_rgbd, color_scale, depth_scale):
-        # lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
-        # lab2 = laplace.sample(key, lab, color_scale)
-        # rgb = lab_to_rgb(lab2)
-        rgb = laplace.sample(key, rendered_rgbd[..., :3], color_scale/100.)
-        depth = genjax.normal.sample(key, rendered_rgbd[..., 3], depth_scale)
-        return jnp.concatenate([rgb, jnp.array([depth])])
-
-    def logpdf(self, observed_rgbd, rendered_rgbd, color_scale, depth_scale):
-        # lab = b3d.rgb_to_lab(rendered_rgbd[..., :3])
-        # lab2 = b3d.rgb_to_lab(observed_rgbd[..., :3])
-        # rgb_logpdf = laplace.logpdf(lab2, lab, color_scale)
-        rgb_logpdf = laplace.logpdf(observed_rgbd[..., :3], rendered_rgbd[..., :3], color_scale/100.)
-        depth_logpdf = genjax.normal.logpdf(observed_rgbd[..., 3], rendered_rgbd[..., 3], depth_scale)
-        return rgb_logpdf + depth_logpdf
-
-laplace_rgbd_pixel_model = LaplaceRGBDPixelModel()
+    def logpdf(self, observed_image, height, width, *pixel_dist_args):
+        if observed_image.shape[:2] != (height, width):
+            print("Warning: unequal shapes in ImageDistFromPixelDist.logpdf")
+            return -jnp.inf
+        logpdfs = jax.vmap(
+            lambda pixel, *args: self.pixel_dist.logpdf(pixel, *args),
+            in_axes=self._vmap_in_axes()
+        )(observed_image.reshape(-1, observed_image.shape[-1]), *self._flattened_args(pixel_dist_args))
+        return logpdfs.sum()
 
 class UniformRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     """
     Args:
-    - rendered_rgbd (4,) (used for shape only)
     - mindepth () (min value for uniform on depth)
     - maxdepth () (max value for uniform on depth)
     Returns:
     - rgbd (4,)
     """
-    def sample(self, key, rendered_rgbd, mindepth, maxdepth):
-        # lab = b3d.rgb_to_lab(rendered_rgbd[:3])
-        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        # lab2 = genjax.uniform.sample(key, low, high)
-        # rgb = lab_to_rgb(lab2)
-        low = jnp.zeros_like(rendered_rgbd[:3])
-        high = jnp.ones_like(rendered_rgbd[:3])
+    def sample(self, key, mindepth, maxdepth):
+        low = jnp.zeros(3)
+        high = jnp.ones(3)
         rgb = genjax.uniform.sample(key, low, high)
-        depth = genjax.uniform.sample(key, jnp.ones_like(rendered_rgbd[3]) * mindepth, jnp.ones_like(rendered_rgbd[3]) * maxdepth)
+        depth = genjax.uniform.sample(key, mindepth, maxdepth)
         return jnp.concatenate([rgb, jnp.array([depth])])
 
-    def logpdf(self, observed_rgbd, rendered_rgbd, mindepth, maxdepth):
-        # lab = b3d.rgb_to_lab(rendered_rgbd[:3])
-        # lab2 = b3d.rgb_to_lab(observed_rgbd[:3])
-        # low = jnp.ones_like(lab) * jnp.array([0., -128., -128.])
-        # high = jnp.ones_like(lab) * jnp.array([100., 127., 127.])
-        # rgb_logpdf = genjax.uniform.logpdf(lab2, low, high)
-        low = jnp.zeros_like(rendered_rgbd[:3])
-        high = jnp.ones_like(rendered_rgbd[:3])
-        rgb_logpdf = genjax.uniform.logpdf(observed_rgbd[:3], low, high)
-        depth_logpdf = genjax.uniform.logpdf(observed_rgbd[3], jnp.ones_like(rendered_rgbd[3]) * mindepth, jnp.ones_like(rendered_rgbd[3]) * maxdepth)
-        return rgb_logpdf + depth_logpdf
-    
+    def logpdf(self, observed_rgbd, mindepth, maxdepth):
+        return (
+            genjax.uniform.logpdf(observed_rgbd[:3], jnp.zeros(3), jnp.ones(3)) +
+            genjax.uniform.logpdf(observed_rgbd[3], mindepth, maxdepth)
+        )
+        
 uniform_rgbd_pixel_model = UniformRGBDPixelModel()
 
-class MixtureRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
-    """
-    A distribution on an RGBD value.
-    This is a mixture of a uniform distribution and N-1 laplace distributions
-    with shared scales but potentially different means.
-    (Specifically, the internal distributions are LaplaceRGBDPixelModel and UniformRGBDPixelModel.)
+uniform_rgbd_image_model = ImageDistFromPixelDist(uniform_rgbd_pixel_model, [False, False])
+image_sample = uniform_rgbd_image_model.sample(jax.random.PRNGKey(0), 120, 100, 0.1, 0.9)
+score = uniform_rgbd_image_model.logpdf(image_sample, 120, 100, 0.1, 0.9)
+assert jnp.abs(score - 120*100 * (-jnp.log(.9 - .1))) < 1e-3
+assert image_sample.shape == (120, 100, 4)
+assert image_sample[:, :, 3].min() >= 0.1
+assert image_sample[:, :, 3].max() <= 0.9
+assert image_sample[:, :, :3].min() >= 0
+assert image_sample[:, :, :3].max() <= 1
 
-    Args:
-    - probs: [p_uniform, *p_for_the_laplace_dists] (N,)
-    - rgbds: (N-1, 4) 
-    - color_laplace_scale: () [shared across all laplace dists; this is the scale in LAB color space]
-    - depth_laplace_scale: () [shared across all laplace dists]
-    - mindepth_for_uniform (min value for uniform on depth)
-    - maxdepth_for_uniform (max value for uniform on depth)
-    Returns:
-    - rgbd (4,)
-    """
-    def sample(self, key, probs, rgbds, color_laplace_scale, depth_laplace_scale, mindepth_for_uniform, maxdepth_for_uniform):
-        key, subkey = jax.random.split(key)
-        choice = genjax.categorical.sample(subkey, jnp.log(probs))
-        key, subkey = jax.random.split(key)
-        uniform_value = uniform_rgbd_pixel_model.sample(key, rgbds[0], mindepth_for_uniform, maxdepth_for_uniform)
-        laplace_value = laplace_rgbd_pixel_model.sample(subkey, rgbds[choice-1], color_laplace_scale, depth_laplace_scale)
-        return jnp.where(choice == 0, uniform_value, laplace_value)
-    
-    def logpdf(self, observed_rgbd, probs, rgbds, color_laplace_scale, depth_laplace_scale, mindepth_for_uniform, maxdepth_for_uniform):
-        uniform_logpdf = uniform_rgbd_pixel_model.logpdf(observed_rgbd, rgbds[0], mindepth_for_uniform, maxdepth_for_uniform)
-        laplace_logpdfs = jax.vmap(
-            lambda rgbd: laplace_rgbd_pixel_model.logpdf(observed_rgbd, rgbd, color_laplace_scale, depth_laplace_scale)
-        )(rgbds)
 
-        uniform_logpdf = jnp.log(probs[0] + 1e-5) + uniform_logpdf
-        laplace_logpdfs = jnp.log(probs[1:] + 1e-5) + laplace_logpdfs
-        return jax.scipy.special.logsumexp(jnp.concatenate([uniform_logpdf[None], laplace_logpdfs]))
-mixture_rgbd_pixel_model = MixtureRGBDPixelModel()
-mixture_rgbd_sensor_model = genjax.map_combinator(in_axes=(0, 0, None, None, None, None))(
-                            genjax.map_combinator(in_axes=(0, 0, None, None, None, None))(
-                                mixture_rgbd_pixel_model
-                            ))
-# mixture_rgbd_sensor_model.__doc__ = """
-#     The mixture_rgbd_sensor_model is a distribution on RGBD images,
-#     from mapping mixture_rgbd_pixel_model over the height and width dimensions.
+laplace = genjax.TFPDistribution(tfp.distributions.Laplace)
+
+class RGBDPixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+    """
+    Combine a model on an RGB value and a model on a depth value, each
+    centered at a given value, into a model on a RGB-Depth value.
     
-#     Args:
-#     - probs: (H, W, N,)
-#     - rgbds: (H, W, N-1, 4) 
-#     - color_laplace_scale: () 
-#     - depth_laplace_scale: () 
-#     - mindepth_for_uniform ()
-#     - maxdepth_for_uniform ()
-#     Returns
-#     - rgbd (H, W, 4)
-# """
+    Constructor args:
+    - depth_pixel_model : genjax.ExactDensity
+    - color_pixel_model : genjax.ExactDensity
+
+    Distribution args:
+    - rendered_rgbd : a (4,) array around which the RGBD value will be sampled
+    - depth_args : tuple of arguments so that `(rgb, *depth_args)` is accepted
+        by `depth_pixel_model`
+    - color_args : tuple of arguments so that `(rgb, *color_args)` is accepted
+        by `color_pixel_model`
+    """
+    depth_pixel_model : any = genjax.Pytree.static()
+    color_pixel_model : any = genjax.Pytree.static()
+
+    def sample(self, key, rendered_rgbd, depth_args, color_args):
+        key, subkey = jax.random.split(key)
+        color = self.color_pixel_model.sample(key, rendered_rgbd[:3], *color_args)
+        depth = self.depth_pixel_model.sample(subkey, rendered_rgbd[3], *depth_args)
+        return jnp.concatenate([color, jnp.array([depth])])
+    
+    def logpdf(self, observed_rgbd, rendered_rgbd, depth_args, color_args):
+        rgb_logpdf = self.color_pixel_model.logpdf(observed_rgbd[:3], rendered_rgbd[:3], *color_args)
+        depth_logpdf = self.depth_pixel_model.logpdf(observed_rgbd[3], rendered_rgbd[3], *depth_args)
+        return rgb_logpdf + depth_logpdf
+
+laplace_rgbd_pixel_model = RGBDPixelModel(laplace, laplace)
+laplace_rgb_uniform_depth_pixel_model = RGBDPixelModel(
+    ArgMap(genjax.uniform, lambda r, low, high: (low, high)),
+    laplace
+)
+uniform_rgb_laplace_depth_pixel_model = RGBDPixelModel(
+    laplace,
+    ArgMap(genjax.uniform, lambda r: (jnp.zeros(3), jnp.ones(3)))
+)
+s1 = laplace_rgbd_pixel_model.sample(jax.random.PRNGKey(0), jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), (0.9,))
+score = laplace_rgbd_pixel_model.logpdf(s1, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), (0.9,))
+assert score > -jnp.inf
+s2 = laplace_rgb_uniform_depth_pixel_model.sample(jax.random.PRNGKey(0), jnp.array([0.5, 0.5, 0.5, 1.5]), (0., 2.0), (0.9,))
+score = laplace_rgb_uniform_depth_pixel_model.logpdf(s2, jnp.array([0.5, 0.5, 0.5, 1.5]), (0., 2.0), (0.9,))
+assert score > -jnp.inf
+s3 = uniform_rgb_laplace_depth_pixel_model.sample(jax.random.PRNGKey(0), jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), ())
+score = uniform_rgb_laplace_depth_pixel_model.logpdf(s3, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), ())
+assert score > -jnp.inf
+
+class VmapMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+    """
+    A distribution which is a mixture of `dist` on different arguments.
+    
+    Constructor args:
+    - dist : genjax.ExactDensity
+
+    Distribution args:
+    - probs : (N,) array of probabilities
+    - *args : list of arguments so that `dist.sample(key, *args[i])` is valid
+        for each i
+    """
+    dist : any = genjax.Pytree.static()
+
+    def sample(self, key, probs, *args):
+        key, subkey = jax.random.split(key)
+        component = genjax.categorical.sample(subkey, jnp.log(probs))
+        return self.dist.sample(key, *[jtu.tree_map(lambda x: x[component], a) for a in args])
+    
+    def logpdf(self, observed, probs, *args):
+        logprobs = jax.vmap(
+            lambda component: self.dist.logpdf(observed, *[jtu.tree_map(lambda x: x[component], a) for a in args])
+        )(jnp.arange(probs.shape[0]))
+        # jax.debug.print("logprobs = {logprobs}; probs = {probs}", logprobs=logprobs, probs=probs)
+        return jax.scipy.special.logsumexp(logprobs + jnp.log(probs + 1e-3))
+
+multilaplace_pixel_model = ArgMap(
+    VmapMixturePixelModel(laplace_rgbd_pixel_model),
+    lambda probs, rgbds, depth_scale, color_scale: (
+        probs, rgbds,
+        (depth_scale[0] * jnp.ones(probs.size),),
+        (color_scale[0] * jnp.ones(probs.size),)
+    ))
+s4 = multilaplace_pixel_model.sample(
+    jax.random.PRNGKey(0),
+    jnp.array([0.2, 0.8]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    (0.1,), (0.9,)
+)
+score = multilaplace_pixel_model.logpdf(
+    s4,
+    jnp.array([0.2, 0.8]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    (0.1,), (0.9,)
+)
+assert score > -jnp.inf
+
+multi_uniform_rgb_depth_laplace = ArgMap(
+    VmapMixturePixelModel(uniform_rgb_laplace_depth_pixel_model),
+    lambda probs, rgbds, depth_scale: (
+        probs, rgbds,
+        (depth_scale * jnp.ones(probs.shape[0]),),
+        ()
+    ))
+multi_uniform_rgb_depth_laplace.sample(
+    jax.random.PRNGKey(0),
+    jnp.array([0.2, 0.8]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    0.1
+)
+
+class PythonMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+    """
+    Mixture of different distributions.
+    Constructor:
+    - dists : list of genjax.ExactDensity
+
+    Distribution args:
+    - probs : (N,) array of probabilities
+    - args : list of arguments so that `dists[i].sample(key, *args[i])` is valid
+        for each i
+    """
+    dists : any = genjax.Pytree.static()
+
+    def sample(self, key, probs, args):
+        values = []
+        for (i, dist) in enumerate(self.dists):
+            key, subkey = jax.random.split(key)
+            values.append(dist.sample(subkey, *args[i]))
+        values = jnp.array(values)
+        key, subkey = jax.random.split(key)
+        component = genjax.categorical.sample(subkey, jnp.log(probs))
+        return values[component]
+    
+    def logpdf(self, observed, probs, args):
+        logprobs = []
+        for (i, dist) in enumerate(self.dists):
+            lp = dist.logpdf(observed, *args[i])
+            assert lp.shape == ()
+            logprobs.append(lp)
+        logprobs = jnp.stack(logprobs)
+        # jax.debug.print("lps = {lps}", lps=logprobs)
+        return jax.scipy.special.logsumexp(logprobs) #  + jnp.log(probs + 1e-6), axis=0)
+
+uniform_multilaplace_mixture = ArgMap(
+    PythonMixturePixelModel([uniform_rgbd_pixel_model, multilaplace_pixel_model]),
+    lambda probs, rgbds, depth_scale, color_scale, mindepth, maxdepth: (
+        jnp.array([probs[0], jnp.sum(probs[1:])]),
+        [ (mindepth, maxdepth),
+          (normalize(probs[1:]), rgbds, depth_scale, color_scale) ]
+    )
+)
+
+mixture_of_uniform_and_multi_uniformrgb_laplacedepth = ArgMap(
+    PythonMixturePixelModel([uniform_rgbd_pixel_model, multi_uniform_rgb_depth_laplace]),
+    lambda probs, rgbds, depth_scale, mindepth, maxdepth: (
+        jnp.array([probs[0], jnp.sum(probs[1:])]),
+        [ (mindepth, maxdepth),
+          (normalize(probs[1:]), rgbds, depth_scale) ]
+    ))
+
+s5 = uniform_multilaplace_mixture.sample(
+    jax.random.PRNGKey(0),
+    jnp.array([0.2, 0.3, 0.5]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    (0.1,), (0.1,), 0.0, 2.0
+)
+score = uniform_multilaplace_mixture.logpdf(
+    s5,
+    jnp.array([0.2, 0.3, 0.5]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    (0.1,), (0.1,), 0.0, 2.0
+)
+assert score > -jnp.inf
+
+s6 = mixture_of_uniform_and_multi_uniformrgb_laplacedepth.sample(
+    jax.random.PRNGKey(0),
+    jnp.array([0.2, 0.3, 0.5]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    0.1, 0.0, 2.0
+)
+score = mixture_of_uniform_and_multi_uniformrgb_laplacedepth.logpdf(
+    s6,
+    jnp.array([0.2, 0.3, 0.5]),
+    jnp.array([[0.5, 0.5, 0.5, 1.5], [0.2, 0.2, 0.2, 1.0]]),
+    0.1, 0.0, 2.0
+)
+assert score > -jnp.inf
+
+def get_uniform_multilaplace_image_dist_with_fixed_params(
+        height, width, depth_scale, color_scale, mindepth, maxdepth
+    ):
+    """
+    Get a distribution on images in which each pixel's value is generated
+    independently, from a distribution on RGBD values which is a mixture
+    of a uniform and N laplace distributions with different centers.
+
+    Function arguments:
+    - height
+    - width
+    - depth_scale : () scale for the laplaces on depth
+    - color_scale : () scale for the laplaces on RGB
+    - mindepth : () min value for uniform on depth
+    - maxdepth : () max value for uniform on depth
+
+    Distribution arguments:
+    - weights : (N + 1,) array of probabilities. The first weight is the probability
+        assigned to the uniform distribution.
+    - rgbds : (N, 4) array of RGBD values: the centers for the N laplace distributions.
+    """
+    return ArgMap(
+        ImageDistFromPixelDist(
+            uniform_multilaplace_mixture,
+            [True, True, False, False, False, False]
+        ),
+        lambda weights, rgbds: ( height, width, weights, rgbds,
+                                (depth_scale,), (color_scale,), mindepth, maxdepth )
+    )
+
+### Some RGB only likelihoods:
+multilaplace_pixel_model_rgb_only = ArgMap(
+    VmapMixturePixelModel(laplace),
+    lambda probs, rgbs, color_scale: (
+        probs, rgbs,
+        (color_scale * jnp.ones(probs.size),)
+    ))
+
+uniform_multilaplace_mixture_rgb_only = ArgMap(
+    PythonMixturePixelModel([genjax.uniform, multilaplace_pixel_model_rgb_only]),
+    lambda probs, rgbs, color_scale: (
+        jnp.array([probs[0], jnp.sum(probs[1:])]),
+        [ (jnp.zeros(3), jnp.ones(3)),
+          (normalize(probs[1:]), rgbs, color_scale) ]
+    )
+)
+
+s1 = multilaplace_pixel_model_rgb_only.sample(
+    jax.random.PRNGKey(0),
+    jnp.array([0.2, 0.8]),
+    jnp.array([[0.5, 0.5, 0.5], [0.2, 0.2, 0.2]]),
+    0.1
+)
+score = multilaplace_pixel_model_rgb_only.logpdf(
+    s1,
+    jnp.array([0.2, 0.8]),
+    jnp.array([[0.5, 0.5, 0.5], [0.2, 0.2, 0.2]]),
+    0.1
+)
+assert score > -jnp.inf
+
+s2 = uniform_multilaplace_mixture_rgb_only.sample(
+    jax.random.PRNGKey(0),
+    jnp.array([0.2, 0.3, 0.5]),
+    jnp.array([[0.5, 0.5, 0.5], [0.2, 0.2, 0.2]]),
+    0.1
+)
+score = uniform_multilaplace_mixture_rgb_only.logpdf(
+    s2,
+    jnp.array([0.2, 0.3, 0.5]),
+    jnp.array([[0.5, 0.5, 0.5], [0.2, 0.2, 0.2]]),
+    0.1
+)
+assert score > -jnp.inf
+
+def get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
+        height, width, color_scale
+    ):
+    """
+    Get a distribution on images in which each pixel's value is generated
+    independently, from a distribution on RGB values which is a mixture
+    of a uniform and N laplace distributions with different centers.
+
+    Function arguments:
+    - height
+    - width
+    - color_scale : () scale for the laplaces on RGB
+    
+    Distribution arguments:
+    - weights : (N + 1,) array of probabilities. The first weight is the probability
+        assigned to the uniform distribution.
+    - rgbds : (N, 4) array of RGBD values: the centers for the N laplace distributions.
+    """
+    return ArgMap(
+        ImageDistFromPixelDist(
+            uniform_multilaplace_mixture_rgb_only,
+            [True, True, False]
+        ),
+        lambda weights, rgbs: ( height, width, weights, rgbs, color_scale)
+    )

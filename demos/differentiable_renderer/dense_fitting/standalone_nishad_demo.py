@@ -1,3 +1,5 @@
+# Note: this uses a custom differentiable renderer defined inline in this script.
+
 import jax.numpy as jnp
 import jax
 import matplotlib.pyplot as plt
@@ -10,10 +12,6 @@ from b3d import Pose
 import rerun as rr
 import functools
 import genjax
-
-import b3d.differentiable_renderer as rendering
-import b3d.likelihoods as likelihoods
-import demos.differentiable_renderer.utils as utils
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
@@ -185,6 +183,3 @@ for t in range(100):
     rgb_image, depth_image = render_jit(particle_centers, particle_widths, particle_colors)[:2]
     rr.log('image/reconstruction', rr.Image(rgb_image[...,:3]))
     rr.log('depth/reconstruction', rr.DepthImage(depth_image))
-
-
-

@@ -29,13 +29,21 @@ class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
         position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
         return position_score.sum() + jnp.pi**2
 
-class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, mean_pose, variance, concentration):
-        return sample_gaussian_vmf_pose(key, mean_pose, variance, concentration)
+class VMF(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, mean, concentration):
+        return tfp.distributions.VonMisesFisher(mean, concentration).sample(seed=key)
 
-    def logpdf(self, pose, mean_pose, variance, concentration):
+    def logpdf(self, x, mean, concentration):
+        return tfp.distributions.VonMisesFisher(mean, concentration).log_prob(x)
+vmf = VMF()
+
+class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, mean_pose, std, concentration):
+        return sample_gaussian_vmf_pose(key, mean_pose, std, concentration)
+
+    def logpdf(self, pose, mean_pose, std, concentration):
         translation_score = tfp.distributions.MultivariateNormalDiag(
-        mean_pose.pos, jnp.ones(3) * variance).log_prob(pose.pos)
+        mean_pose.pos, jnp.ones(3) * std).log_prob(pose.pos)
         quaternion_score = tfp.distributions.VonMisesFisher(
             mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
         ).log_prob(pose.quat)
@@ -94,6 +102,7 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
         areas = (corrected_depth / fx) * (corrected_depth / fy)
 
         return jnp.log(
+            # This is leaving out a 1/A (which does depend upon the scene)
             inlier_score * jnp.sum(inliers * areas) +
             1.0 * jnp.sum(undecided * areas)  +
             outlier_prob * jnp.sum(outliers * areas)

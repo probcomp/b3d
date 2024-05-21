@@ -63,10 +63,14 @@ rr.log("scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=ima
 rr.log("img/opengl_rendering", rr.Image(color_image), timeless=True)
 
 # Stochastic rendering of scene
+color_scale = 0.05
+likelihood = likelihoods.get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
+    renderer.height, renderer.width, color_scale
+)
+
 def get_render(key, weights, colors):
-    lab_color_space_noise_scale = 3.0
-    return likelihoods.mixture_rgb_sensor_model.simulate(
-        key, (weights, colors, lab_color_space_noise_scale)
+    return likelihood.simulate(
+        key, (weights, colors)
     ).get_retval().reshape(image_height, image_width, 3)
 
 WINDOW = 3
@@ -90,11 +94,6 @@ for t in range(100):
     rr.log("scene/camera", rr.Image(renders[t, ...]))
 
 ### Visualize how the likelihood changes as we move a square around ###
-def get_img_logpdf(key, img, weights, colors):
-    choicemap = genjax.vector_choice_map(genjax.vector_choice_map(genjax.choice(img)))
-    tr, w = likelihoods.mixture_rgb_sensor_model.importance(key, choicemap, (weights, colors, 3.))
-    return w
-
 def render_to_dist_from_centers(new_particle_centers):
     particle_center_delta  = new_particle_centers - particle_centers
     new_vertices = vertices.reshape(3, 4, 3) + jnp.expand_dims(particle_center_delta, 1)
@@ -118,7 +117,7 @@ def render_from_centers(new_particle_centers):
 
 def compute_logpdf(centers):
     weights, colors = render_to_dist_from_centers(centers)
-    return get_img_logpdf(jax.random.PRNGKey(0), color_image, weights, colors)    
+    return likelihood.logpdf(color_image, weights, colors)    
 
 @jax.jit
 def square2_pos_to_logpdf(xy):

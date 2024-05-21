@@ -7,9 +7,9 @@ import b3d
 import rerun as rr
 import genjax
 from tqdm import tqdm
-import demos.differentiable_renderer.tracking_v2.demo_utils as du
-import demos.differentiable_renderer.tracking_v2.model as m
-import demos.differentiable_renderer.tracking_v2.likelihoods as l
+import demos.differentiable_renderer.patch_tracking.demo_utils as du
+import demos.differentiable_renderer.patch_tracking.model as m
+import b3d.likelihoods as l
 import b3d.differentiable_renderer as r
 import os
 import trimesh
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optax
 
-rr.init("multiple_patch_tracking-4")
+rr.init("multiple_patch_tracking")
 rr.connect("127.0.0.1:8812")
 
 width = 100
@@ -104,13 +104,8 @@ depth_scale = 0.0001
 color_scale = 0.002
 mindepth = -1.0
 maxdepth = 2.0
-likelihood = l.ArgMap(
-    l.ImageDistFromPixelDist(
-        l.uniform_multilaplace_mixture,
-        [True, True, False, False, False, False]
-    ),
-    lambda weights, rgbds: ( renderer.height, renderer.width,
-                            weights, rgbds, (depth_scale,), (color_scale,), mindepth, maxdepth )
+likelihood = l.get_uniform_multilaplace_image_dist_with_fixed_params(
+    renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
 )
 
 model = m.multiple_object_model_factory(
@@ -119,7 +114,7 @@ model = m.multiple_object_model_factory(
     hyperparams
 )
 
-key = jax.random.PRNGKey(2)
+key = jax.random.PRNGKey(3)
 
 trace, weight = model.importance(
     key,

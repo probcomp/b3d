@@ -42,7 +42,7 @@ def logpdf_uniform_pose(pose, low, high):
     return position_score.sum() + jnp.pi**2
 
 
-def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
+def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     """
     Samples poses from the product of a diagonal normal distribution (for position) and
     a generalized von Mises-Fisher distribution (for quaternion).
@@ -57,7 +57,7 @@ def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
     """
     translation = tfp.distributions.MultivariateNormalDiag(
-        jnp.zeros(3), jnp.ones(3) * variance
+        jnp.zeros(3), jnp.ones(3) * std
     ).sample(seed=key)
     key = jax.random.split(key, 1)[0]
     quat = tfp.distributions.VonMisesFisher(

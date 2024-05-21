@@ -193,11 +193,11 @@ for timestep in tqdm(range(30)):
     tr, weight = importance_from_pos_quat_v3(pos, quat, timestep)
     positions.append(pos)
     quaternions.append(quat)
-    rr.set_time_sequence("frame--tracking-5", timestep)
+    rr.set_time_sequence("frame--tracking", timestep)
     m.rr_log_multiobject_trace(tr, renderer)
 
 for i in range(observed_rgbds.shape[0]):
-    rr.set_time_sequence("frame--tracking-5", i)
+    rr.set_time_sequence("frame--tracking", i)
     rr.log("/3D/tracked_points", rr.Points3D(
         positions = positions[i],
         radii=0.0075*np.ones(positions[i].shape[0]),

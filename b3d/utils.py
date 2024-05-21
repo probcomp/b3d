@@ -17,6 +17,7 @@ import os
 import trimesh
 from b3d import Pose
 import rerun as rr
+import distinctipy
 
 from dataclasses import dataclass
 
@@ -605,3 +606,18 @@ def all_pairs(X, Y):
         jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1),
         0, 1
     ).reshape(-1, 2)
+
+
+def distinct_colors(num_colors, pastel_factor=0.5):
+    """Get a list of distinct colors.
+
+    Args:
+        num_colors (int): Number of colors to generate.
+        pastel_factor (float): Pastel factor.
+    Returns:
+        list: List of colors.
+    """
+    return [
+        np.array(i)
+        for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
+    ]

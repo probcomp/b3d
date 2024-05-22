@@ -42,27 +42,27 @@ def single_object_model_factory(
         return (observed_rgbd, weights, attributes)
     return model
 
-def rr_log_trace(trace, renderer):
+def rr_log_trace(trace, renderer, prefix="trace"):
     # 2D:
     (observed_rgbd, weights, attributes) = trace.get_retval()
-    rr.log("/trace/rgb/observed", rr.Image(observed_rgbd[:, :, :3]))
-    rr.log("/trace/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]))
+    rr.log(f"/{prefix}/rgb/observed", rr.Image(observed_rgbd[:, :, :3]))
+    rr.log(f"/{prefix}/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]))
     avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
-    rr.log("/trace/rgb/average_render", rr.Image(avg_obs[:, :, :3]))
-    rr.log("/trace/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]))
+    rr.log(f"/{prefix}/rgb/average_render", rr.Image(avg_obs[:, :, :3]))
+    rr.log(f"/{prefix}/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]))
 
     # 3D:
     (vertices, faces, vertex_colors, _) = trace.get_args()
     pose = trace["pose"]
     cam_pose = trace["camera_pose"]
     
-    rr.log("3D/trace/mesh", rr.Mesh3D(
+    rr.log(f"3D/{prefix}/mesh", rr.Mesh3D(
         vertex_positions=pose.apply(vertices),
         indices=faces,
         vertex_colors=vertex_colors
     ))
 
-    rr.log("/trace/camera",
+    rr.log("3D/{prefix}/camera",
         rr.Pinhole(
             focal_length=renderer.fx,
             width=renderer.width,
@@ -70,10 +70,10 @@ def rr_log_trace(trace, renderer):
             principal_point=jnp.array([renderer.cx, renderer.cy]),
             )
         )
-    rr.log("/trace/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))
+    rr.log("3D/{prefix}/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))
     xyzs_C = utils.unproject_depth(observed_rgbd[:, :, 3], renderer)
     xyzs_W = cam_pose.apply(xyzs_C)
-    rr.log("/3D/trace/gt_pointcloud", rr.Points3D(
+    rr.log("/3D/{prefix}/gt_pointcloud", rr.Points3D(
         positions=xyzs_W.reshape(-1,3),
         colors=observed_rgbd[:, :, :3].reshape(-1,3),
         radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))

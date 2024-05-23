@@ -80,7 +80,10 @@ color_image, _ = renderer.render_attribute(
 rr.init("differentiable_rendering--test_barycentric_interpolation3")
 rr.connect("127.0.0.1:8812")
 rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
-rr.log("scene/camera", rr.Pinhole(focal_length=rendering.fx, width=rendering.image_width, height=rendering.image_height), timeless=True)
+rr.log("scene/camera", rr.Pinhole(
+    focal_length=renderer.fx, width=renderer.width, height=renderer.height),
+    timeless=True
+)
 rr.log("/img/opengl_rendering", rr.Image(color_image), timeless=True)
 
 # Soft rendering of scene
@@ -106,12 +109,14 @@ rr.log("/img/averaged_depth", rr.DepthImage(soft_img_rgbd[:, :, 3]), timeless=Tr
 ### Stochastic rendering ###
 
 def get_render(key, weights, colors):
-    lab_color_space_noise_scale = 3.0
-    depth_noise_scale = 0.07
-    return likelihoods.mixture_rgbd_sensor_model.simulate(
-        key,
-        (weights, colors, lab_color_space_noise_scale, depth_noise_scale, 0., 10.)
-    ).get_retval().reshape(image_height, image_width, 4)
+    color_scale = .05
+    depth_scale = 0.07
+    mindepth = -10.
+    maxdepth = 10.
+    likelihood = likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
+        renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
+    )
+    return likelihood.sample(key, weights, colors).reshape(image_height, image_width, 4)
 (weights, colors) = rendering.render_to_rgbd_dist_params(
     renderer, vertices, faces, vertex_colors, hyperparams
 )

@@ -5,6 +5,9 @@
 # and any modifications thereto.  Any use, reproduction, disclosure or
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
+
+from importlib import metadata
+
 from .renderer import *
 from .pose import *
 from .utils import *
@@ -12,3 +15,5 @@ from .model import *
 from .mesh_library import *
 from .scene_graph import *
 from .enumerative_proposals import *
+
+__version__ = metadata.version("genjax")

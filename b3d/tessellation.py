@@ -71,6 +71,8 @@ def triangle2D_to_integer_points(triangle, max_step_x, max_step_y):
     These should be set to the smallest possible values where it is guaranteed
     all integral coordinates falling within `triangle` fall in a max_step_x x max_step_y grid.
     """
+    v1, v2, v3 = triangle
+    triangle = jnp.array([[v1[1], v1[0]], [v2[1], v2[0]], [v3[1], v3[0]]])
     def sign(p1, p2, p3):
         return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
 

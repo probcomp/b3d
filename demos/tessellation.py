@@ -16,7 +16,7 @@ path = os.path.join(
 )
 video_input = b3d.VideoInput.load(path)
 image_width, image_height, fx, fy, cx, cy, near, far = jnp.array(
-    video_input.camera_intrinsics_depth
+    video_input.camera_intrinsics_rgb
 )
 image_width, image_height = int(image_width), int(image_height)
 fx, fy, cx, cy, near, far = (
@@ -32,7 +32,10 @@ rgbs = video_input.rgb[::4] / 255.0
 vertices_2D, faces, triangle_colors = t.generate_tessellated_2D_mesh_from_rgb_image(rgbs[0])
 key = jax.random.PRNGKey(0)
 depth = genjax.uniform.sample(key, 0.2, 200.0)
-vertices_3D = jnp.hstack(((vertices_2D  - jnp.array([cx, cy])) * depth / fx , jnp.ones((vertices_2D.shape[0], 1)) * depth))
+vertices_3D = jnp.hstack(
+    ((vertices_2D  - jnp.array([cx, cy])) * depth / jnp.array([fx, fy]) ,
+     jnp.ones((vertices_2D.shape[0], 1)) * depth)
+    )
 
 _v, _f, _vertex_colors = u.triangle_color_mesh_to_vertex_color_mesh(vertices_3D, faces, triangle_colors)
 rr.log("3D/tessellated_poster_board", rr.Mesh3D(
@@ -47,9 +50,22 @@ rr.log("3D/camera", rr.Pinhole(
     principal_point = jnp.array([cx, cy])
 ))
 
+image_width, image_height, fx, fy, cx, cy, near, far = jnp.array(
+    video_input.camera_intrinsics_depth
+)
+image_width, image_height = int(image_width), int(image_height)
+fx, fy, cx, cy, near, far = (
+    float(fx),
+    float(fy),
+    float(cx),
+    float(cy),
+    float(near),
+    float(far),
+)
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
 rendering, _ = renderer.render_attribute(
     b3d.Pose.identity()[None, ...], _v, _f, jnp.array([[0, len(_f)]]), _vertex_colors
 )
 
-rr.log("rendering", rr.Image(rendering))
+rr.log("/img/og_rgb", rr.Image(rgbs[0]))
+rr.log("/img/rendering", rr.Image(rendering))

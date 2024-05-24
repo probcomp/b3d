@@ -18,7 +18,6 @@ RasterizeGLStateWrapper::RasterizeGLStateWrapper(bool enableDB, bool automatic_,
     cudaDeviceIdx = cudaDeviceIdx_;
     memset(pState, 0, sizeof(RasterizeGLState));
     pState->enableDB = enableDB ? 1 : 0;
-    std::cout << "initialization" << std::endl;
     rasterizeInitGLContext(NVDR_CTX_PARAMS, *pState, cudaDeviceIdx_);
     releaseGLContext();
 }
@@ -63,10 +62,8 @@ void jax_rasterize_fwd_original_gl(cudaStream_t stream,
     resolution.resize(2);
     int ranges[2*d.num_objects];
 
-    cudaStreamSynchronize(stream);
     NVDR_CHECK_CUDA_ERROR(cudaMemcpy(&resolution[0], _resolution, 2 * sizeof(int), cudaMemcpyDeviceToHost));
     NVDR_CHECK_CUDA_ERROR(cudaMemcpy(&ranges[0], _ranges, 2 * d.num_objects * sizeof(int), cudaMemcpyDeviceToHost));
-    cudaStreamSynchronize(stream);
 \
     // std::cout << "num_images: " << d.num_images << std::endl;
     // std::cout << "num_objects: " << d.num_objects << std::endl;
@@ -89,7 +86,7 @@ void jax_rasterize_fwd_original_gl(cudaStream_t stream,
     // const at::cuda::OptionalCUDAGuard device_guard(at::device_of(pos));
     RasterizeGLState& s = *stateWrapper.pState;
 
-    
+
     int posCount = 4 * d.num_images * d.num_vertices;
     int triCount = 3 * d.num_triangles;
 
@@ -109,7 +106,7 @@ void jax_rasterize_fwd_original_gl(cudaStream_t stream,
     const int32_t* rangesPtr = 0;
     const int32_t* triPtr = tri;
     int vtxPerInstance = d.num_vertices;
-    rasterizeRender(NVDR_CTX_PARAMS, s, stream, posPtr, posCount, vtxPerInstance, triPtr, triCount, rangesPtr, width, height, depth, peeling_idx);
+    rasterizeRender(NVDR_CTX_PARAMS, s, stream, posPtr, posCount, vtxPerInstance, triPtr, triCount, ranges, width, height, depth, peeling_idx);
 
     // std::cout << "render" << std::endl;
 

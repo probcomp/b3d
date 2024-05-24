@@ -106,7 +106,7 @@ void jax_rasterize_fwd_original_gl(cudaStream_t stream,
     const int32_t* rangesPtr = 0;
     const int32_t* triPtr = tri;
     int vtxPerInstance = d.num_vertices;
-    rasterizeRender(NVDR_CTX_PARAMS, s, stream, posPtr, posCount, vtxPerInstance, triPtr, triCount, ranges, width, height, depth, peeling_idx);
+    rasterizeRender(NVDR_CTX_PARAMS, s, stream, posPtr, posCount, vtxPerInstance, triPtr, triCount, rangesPtr, width, height, depth, peeling_idx);
 
     // std::cout << "render" << std::endl;
 

@@ -621,3 +621,28 @@ def distinct_colors(num_colors, pastel_factor=0.5):
         np.array(i)
         for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
     ]
+
+### Triangle color mesh -> vertex color mesh ###
+def separate_shared_vertices(vertices, faces):
+    """
+    Given a mesh where multiple faces are using the same vertex,
+    return a mesh where each vertex is unique to a face.
+    (This will therefore duplicate some vertices.)
+    """
+    # Flatten the faces array and use it to index into the vertices array
+    flat_faces = faces.ravel()
+    unique_vertices = vertices[flat_faces]
+
+    # Reshape the unique_vertices array to match the faces structure
+    new_faces = jnp.arange(unique_vertices.shape[0]).reshape(faces.shape)
+
+    return unique_vertices, new_faces
+
+def triangle_color_mesh_to_vertex_color_mesh(vertices, faces, triangle_colors):
+    """
+    Given a mesh with the provided `vertices, faces, triangle_colors`,
+    return an equivalent mesh `(vertices, faces, vertex_colors)`.
+    """
+    vertices_2, faces_2 = separate_shared_vertices(vertices, faces)
+    vertex_colors_2 = jnp.repeat(triangle_colors, 3, axis=0)
+    return vertices_2, faces_2, vertex_colors_2

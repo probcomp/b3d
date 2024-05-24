@@ -4,6 +4,7 @@ import os
 import pytorch3d.transforms
 import rerun as rr
 import torch
+import torch.utils._pytree as pytree_utils
 import trimesh
 from tqdm import tqdm
 
@@ -146,6 +147,13 @@ class Pose:
         return Pose(self.position[index], self.quaternion[index])
 
 
+pytree_utils.register_pytree_node(
+    Pose,
+    lambda pose: ((pose.position, pose.quaternion), None),
+    lambda pos_and_quat, _: Pose(*pos_and_quat),
+)
+
+
 def apply_projection(P, points):
     points = torch.cat([points, torch.ones_like(points[..., :1])], dim=-1)
     return torch.einsum("ij,...j->...i", P, points)
@@ -163,20 +171,33 @@ vertex_colors = torch.tensor(mesh.visual.to_color().vertex_colors)[..., :3] / 25
 
 glctx = dr.RasterizeGLContext()  # if use_opengl else dr.RasterizeCudaContext()
 
-
-def render(pose, vertices, faces, vertex_colors, P, height, width):
-    clip_space = apply_projection(P, pose.apply(vertices))
-    rast_out, _ = dr.rasterize(
-        glctx, clip_space.contiguous(), faces, resolution=[height, width]
-    )
-    color, _ = dr.interpolate(vertex_colors, rast_out, faces)
-    return color
-
-
 pose = Pose.from_look_at(
     torch.tensor([0.0, 6.3, 0.5]),
     torch.tensor([0.0, 0.0, 0.0]),
 ).inv()
+
+
+def render_single(pose, vertices, faces, vertex_colors, P, height, width):
+    # since the original renderer was implemented with batch support, we'll
+    # have to use add/remove a fake leading batch dimension
+    clip_space = apply_projection(P, pose.apply(vertices))
+    rast_out, _ = dr.rasterize(
+        glctx, clip_space.contiguous()[None, ...], faces, resolution=[height, width]
+    )
+    color, _ = dr.interpolate(vertex_colors, rast_out, faces)
+    return color[0]
+
+
+render_batch = torch.vmap(
+    render_single, in_dims=(0, None, None, None, None, None, None)
+)
+
+# # sanity checks
+# image = render_single(pose, vertices, faces, vertex_colors, P, height, width)
+# images = render_batch(
+#     pose[None, ...], vertices, faces, vertex_colors, P, height, width
+# )
+
 
 delta_pose = Pose.identity()
 delta_pose.position = torch.normal(delta_pose.position, 0.02)
@@ -186,11 +207,12 @@ images = []
 poses = []
 for t in range(100):
     pose = pose.compose(delta_pose)
+    # print(pose)
     poses.append(pose)
-    color = render(pose[None, ...], vertices, faces, vertex_colors, P, height, width)
+    color = render_single(pose, vertices, faces, vertex_colors, P, height, width)
     images.append(color)
     rr.set_time_sequence("frame", t)
-    rr.log(f"img", rr.Image(color.cpu().numpy()[0, ...]))
+    rr.log("img", rr.Image(color.cpu().numpy()))
 
 translation_deltas = Pose(
     torch.stack(
@@ -209,15 +231,27 @@ rotation_deltas = Pose(
 )
 
 
+def score_single(pose, gt_image):
+    color = render_single(pose, vertices, faces, vertex_colors, P, height, width)
+    error = torch.mean((color - gt_image) ** 2)
+    return error
+
+
+score_batch = torch.vmap(score_single, in_dims=(0, None))
+# sanity checks
+# error = score_single(poses[0], images[0])
+# errors = score_batch(pose.compose(translation_deltas), image)
+
+
+# @torch.compile  # <- this should run, but it doesn't seem to improve the performance
 def update(pose_estimate, gt_image):
     pose_hypotheses = pose_estimate.compose(translation_deltas)
-    color = render(pose_hypotheses, vertices, faces, vertex_colors, P, height, width)
-    error = torch.mean((color - gt_image) ** 2, dim=(1, 2, 3))
-    pose_estimate = pose_hypotheses[torch.argmin(error)]
+    errors = score_batch(pose_hypotheses, gt_image)
+    pose_estimate = pose_hypotheses[torch.argmin(errors)]
+
     pose_hypotheses = pose_estimate.compose(rotation_deltas)
-    color = render(pose_hypotheses, vertices, faces, vertex_colors, P, height, width)
-    error = torch.mean((color - gt_image) ** 2, dim=(1, 2, 3))
-    pose_estimate = pose_hypotheses[torch.argmin(error)]
+    errors = score_batch(pose_hypotheses, gt_image)
+    pose_estimate = pose_hypotheses[torch.argmin(errors)]
     return pose_estimate
 
 
@@ -226,7 +260,7 @@ pose_estimate = poses[0]
 for t in tqdm(range(100)):
     pose_estimate = update(pose_estimate, images[t])
     rr.set_time_sequence("frame", t)
-    color = render(
-        pose_estimate[None, ...], vertices, faces, vertex_colors, P, height, width
+    color = render_single(
+        pose_estimate, vertices, faces, vertex_colors, P, height, width
     )
-    rr.log(f"img/overlay", rr.Image(color.cpu().numpy()[0, ...]))
+    rr.log("img/overlay", rr.Image(color.cpu().numpy()))

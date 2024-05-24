@@ -8,8 +8,9 @@
 
 import importlib
 import logging
-import numpy as np
 import os
+
+import numpy as np
 import torch
 import torch.utils.cpp_extension
 
@@ -240,15 +241,21 @@ class RasterizeGLContext:
 #----------------------------------------------------------------------------
 
 class _rasterize_func(torch.autograd.Function):
+    # generate_vmap_rule = True
     @staticmethod
-    def forward(ctx, raster_ctx, pos, tri, resolution, ranges, grad_db, peeling_idx):
+    def forward(raster_ctx, pos, tri, resolution, ranges, grad_db, peeling_idx):
         if isinstance(raster_ctx, RasterizeGLContext):
             out, out_db = _get_plugin(gl=True).rasterize_fwd_gl(raster_ctx.cpp_wrapper, pos, tri, resolution, ranges, peeling_idx)
         else:
             out, out_db = _get_plugin().rasterize_fwd_cuda(raster_ctx.cpp_wrapper, pos, tri, resolution, ranges, peeling_idx)
+        return out, out_db
+    
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        _, pos, tri, _, _, grad_db, _ = inputs
+        out, _ = output
         ctx.save_for_backward(pos, tri, out)
         ctx.saved_grad_db = grad_db
-        return out, out_db
 
     @staticmethod
     def backward(ctx, dy, ddb):
@@ -258,6 +265,38 @@ class _rasterize_func(torch.autograd.Function):
         else:
             g_pos = _get_plugin().rasterize_grad(pos, tri, out, dy)
         return None, g_pos, None, None, None, None, None
+    
+    # The signature of the vmap staticmethod is:
+    # vmap(info, in_dims: Tuple[Optional[int]], *args)
+    # where *args is the same as the arguments to `forward`.
+    @staticmethod
+    def vmap(info, in_dims, raster_ctx, pos, tri, resolution, ranges, grad_db, peeling_idx):
+        # For every input, in_dims stores an Optional[int] that is:
+        # - None if the input is not being vmapped over or if the input
+        #   is not a Tensor
+        # - an integer if the input is being vmapped over that represents
+        #   the index of the dimension being vmapped over.
+        # For simplicity, let's assume that we will only vmap over pos
+        pos_bdim = in_dims[1]
+        assert pos_bdim is not None
+        
+        # A "vmap rule" is the logic of how to perform the operation given
+        # inputs with one additional dimension.
+        # Since the rasterizer already has a built-in support for batch op,
+        # we just need to reshape the tensor 
+        batch_shape = pos.shape[:-2]
+        pos = pos.flatten(start_dim=0, end_dim=-3) # (B, N, 4)
+        out, out_db = _rasterize_func.apply(raster_ctx, pos, tri, resolution, ranges, grad_db, peeling_idx)
+        
+        # The vmap rule must return a tuple of two things
+        # 1. the output. Should be the same amount of things
+        #    as returned by the forward().
+        # 2. one Optional[int] for each output specifying if each output
+        # is being vmapped over, and if so, the index of the
+        # dimension being vmapped over.
+        out = out.reshape(*batch_shape, *out.shape[1:])
+        out_db = out_db.reshape(*batch_shape, *out_db.shape[1:])
+        return (out, out_db), (pos_bdim, pos_bdim)
 
 # Op wrapper.
 def rasterize(glctx, pos, tri, resolution, ranges=None, grad_db=True):
@@ -402,16 +441,36 @@ class _interpolate_func_da(torch.autograd.Function):
 # No pixel differential for any attribute.
 class _interpolate_func(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, attr, rast, tri):
+    def forward(attr, rast, tri):
         out, out_da = _get_plugin().interpolate_fwd(attr, rast, tri)
-        ctx.save_for_backward(attr, rast, tri)
         return out, out_da
+    
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        attr, rast, tri = inputs
+        ctx.save_for_backward(attr, rast, tri)
 
     @staticmethod
     def backward(ctx, dy, _):
         attr, rast, tri = ctx.saved_tensors
         g_attr, g_rast = _get_plugin().interpolate_grad(attr, rast, tri, dy)
         return g_attr, g_rast, None
+    
+    # See _rasterize_func.vmap to learn about the signature of vmap
+    @staticmethod
+    def vmap(info, in_dims, attr, rast, tri):
+        rast_bdim = in_dims[1]
+        assert rast_bdim is not None
+        
+        # Since the interpolate function already has a built-in support for
+        # batch op, we just need to reshape the tensor 
+        batch_shape = rast.shape[:-3]
+        rast = rast.flatten(start_dim=0, end_dim=-4) # (B, W, H, 4)
+        out, out_da = _interpolate_func.apply(attr, rast, tri)
+        
+        out = out.reshape(*batch_shape, *out.shape[1:])
+        out_da = out_da.reshape(*batch_shape, *out_da.shape[1:])
+        return (out, out_da), (rast_bdim, rast_bdim)
 
 # Op wrapper.
 def interpolate(attr, rast, tri, rast_db=None, diff_attrs=None):

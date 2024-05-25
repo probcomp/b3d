@@ -217,17 +217,17 @@ for t in range(100):
 translation_deltas = Pose(
     torch.stack(
         torch.meshgrid(
-            torch.linspace(-0.01, 0.01, 11),
-            torch.linspace(-0.01, 0.01, 11),
-            torch.linspace(-0.01, 0.01, 11),
+            torch.linspace(-0.01, 0.01, 5),
+            torch.linspace(-0.01, 0.01, 5),
+            torch.linspace(-0.01, 0.01, 5),
         ),
         dim=-1,
     ).reshape(-1, 3),
-    torch.tile(torch.tensor([1.0, 0.0, 0.0, 0.0], device=device), (11 * 11 * 11, 1)),
+    torch.tile(torch.tensor([1.0, 0.0, 0.0, 0.0], device=device), (5 * 5 * 5, 1)),
 )
 rotation_deltas = Pose(
-    torch.zeros((11 * 11 * 11, 3), device=device),
-    torch.normal(0.0, 0.03, (11 * 11 * 11, 4), device=device) + Pose.unit_quaternion(),
+    torch.zeros((100, 3), device=device),
+    torch.normal(0.0, 0.03, (100, 4), device=device) + Pose.unit_quaternion(),
 )
 
 
@@ -243,7 +243,7 @@ score_batch = torch.vmap(score_single, in_dims=(0, None))
 # errors = score_batch(pose.compose(translation_deltas), image)
 
 
-# @torch.compile  # <- this should run, but it doesn't seem to improve the performance
+@torch.compile  # <- this should run, but it doesn't seem to improve the performance
 def update(pose_estimate, gt_image):
     pose_hypotheses = pose_estimate.compose(translation_deltas)
     errors = score_batch(pose_hypotheses, gt_image)
@@ -256,11 +256,14 @@ def update(pose_estimate, gt_image):
 
 
 pose_estimate = poses[0]
+pose_estimate = update(pose_estimate, images[t])
 
-for t in tqdm(range(100)):
+
+pose_estimate = poses[0]
+import time
+start = time.time()
+for t in tqdm(range(len(images))):
     pose_estimate = update(pose_estimate, images[t])
-    rr.set_time_sequence("frame", t)
-    color = render_single(
-        pose_estimate, vertices, faces, vertex_colors, P, height, width
-    )
-    rr.log("img/overlay", rr.Image(color.cpu().numpy()))
+end = time.time()
+print("Time elapsed:", end - start)
+print("FPS:", len(images) / (end - start))

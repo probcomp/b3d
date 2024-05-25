@@ -225,17 +225,17 @@ for t in range(100):
 translation_deltas = Pose(
     torch.stack(
         torch.meshgrid(
-            torch.linspace(-0.01, 0.01, 11),
-            torch.linspace(-0.01, 0.01, 11),
-            torch.linspace(-0.01, 0.01, 11),
+            torch.linspace(-0.01, 0.01, 5),
+            torch.linspace(-0.01, 0.01, 5),
+            torch.linspace(-0.01, 0.01, 5),
         ),
         dim=-1,
     ).reshape(-1, 3),
-    torch.tile(torch.tensor([1.0, 0.0, 0.0, 0.0], device=device), (11 * 11 * 11, 1)),
+    torch.tile(torch.tensor([1.0, 0.0, 0.0, 0.0], device=device), (5 * 5 * 5, 1)),
 )
 rotation_deltas = Pose(
-    torch.zeros((11 * 11 * 11, 3), device=device),
-    torch.normal(0.0, 0.03, (11 * 11 * 11, 4), device=device) + Pose.unit_quaternion()
+    torch.zeros((5 * 5 * 5, 3), device=device),
+    torch.normal(0.0, 0.03, (5 * 5 * 5, 4), device=device) + Pose.unit_quaternion()
 )
 
 import torch.jit as jit

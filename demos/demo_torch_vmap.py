@@ -76,29 +76,28 @@ class Pose:
             torch.tile(Pose.unit_quaternion(), (*translation.shape[:-1], 1)),
         )
 
-    def apply(self, xyz):
+    def apply_single(self, xyz):
         quaternion = self.quaternion
         position = self.position
         Rs = pytorch3d.transforms.quaternion_to_matrix(quaternion)
+
+        def _single_R_and_p(R, p):
+            return R @ xyz + p
+
         if len(Rs.shape) == 2:
-            return (
-                torch.einsum(
-                    "ij,...j->...i",
-                    Rs,
-                    xyz,
-                )
-                + position
-            )
+            return _single_R_and_p(Rs, position)
         else:
-            return torch.einsum(
-                "bij,...j->b...i",
-                Rs,
-                xyz,
-            ) + position.reshape((len(position), *(1,) * (len(xyz.shape) - 1), -1))
+            return torch.vmap(_single_R_and_p)(Rs, position)
+
+    def apply(self, xyzs):
+        if xyzs.dim() == 1:
+            return self.apply_single(xyzs)
+        else:
+            return torch.vmap(self.apply)(xyzs)
 
     def compose(self, pose):
         return Pose(
-            self.apply(pose.position[None, ...])[0],
+            self.apply(pose.position),
             pytorch3d.transforms.quaternion_multiply(self.quaternion, pose.quaternion),
         )
 
@@ -106,10 +105,10 @@ class Pose:
         z = target - position
         z = z / torch.linalg.norm(z)
 
-        x = torch.cross(z, up)
+        x = torch.cross(z, up, dim=0)
         x = x / torch.linalg.norm(x)
 
-        y = torch.cross(z, x)
+        y = torch.cross(z, x, dim=0)
         y = y / torch.linalg.norm(y)
 
         rotation_matrix = torch.hstack(
@@ -154,9 +153,12 @@ pytree_utils.register_pytree_node(
 )
 
 
-def apply_projection(P, points):
-    points = torch.cat([points, torch.ones_like(points[..., :1])], dim=-1)
-    return torch.einsum("ij,...j->...i", P, points)
+def apply_single_projection(P, xyz):
+    xyzw = torch.cat([xyz, torch.ones(1, dtype=xyz.dtype)])
+    return P @ xyzw
+
+
+apply_projection = torch.vmap(apply_single_projection, in_dims=(None, 0))
 
 
 mesh_path = os.path.join(
@@ -220,6 +222,7 @@ translation_deltas = Pose(
             torch.linspace(-0.01, 0.01, 5),
             torch.linspace(-0.01, 0.01, 5),
             torch.linspace(-0.01, 0.01, 5),
+            indexing="xy",
         ),
         dim=-1,
     ).reshape(-1, 3),
@@ -239,7 +242,7 @@ def score_single(pose, gt_image):
 
 score_batch = torch.vmap(score_single, in_dims=(0, None))
 # sanity checks
-# error = score_single(poses[0], images[0])
+# error = score_single(pose, image)
 # errors = score_batch(pose.compose(translation_deltas), image)
 
 
@@ -261,6 +264,7 @@ pose_estimate = update(pose_estimate, images[t])
 
 pose_estimate = poses[0]
 import time
+
 start = time.time()
 for t in tqdm(range(len(images))):
     pose_estimate = update(pose_estimate, images[t])

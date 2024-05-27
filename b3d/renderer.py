@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 from jax import core, dtypes
 from jax.core import ShapedArray
-from jax.interpreters import batching, mlir, xla
+from jax.interpreters import batching, mlir, xla, ad
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import functools
@@ -68,8 +68,6 @@ class Renderer(object):
         """
         self.renderer_env = dr.RasterizeGLContext(output_db=True)
         self.num_layers = num_layers
-        self._rasterize_partial = jax.tree_util.Partial(self._rasterize, self)
-
         self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
@@ -82,51 +80,11 @@ class Renderer(object):
             width, height, fx, fy, cx, cy, near, far
         )
 
-    @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
-    def _rasterize(self, pose, pos, tri, ranges, projMatrix, resolution):
-        a,b = _rasterize_fwd_custom_call(
-            self, pose, pos, tri, ranges, projMatrix, resolution
-        )
-        return (a,b)
-
-    def _rasterize_fwd(self, pose, pos, tri, ranges, projMatrix, resolution):
-        rast_out, rast_out_db = _rasterize_fwd_custom_call(
-            self, pose, pos, tri, ranges, projMatrix, resolution
-        )
-        saved_tensors = (
-            pose,
-            pos,
-            tri,
-            ranges,
-            projMatrix,
-            resolution,
-            rast_out,
-            rast_out_db,
-        )
-        return (rast_out, rast_out_db), saved_tensors
-
-    def _rasterize_bwd(self, saved_tensors, diffs):
-        pose, pos, tri, ranges, projMatrix, resolution, rast_out, rast_out_db = (
-            saved_tensors
-        )
-        dy, ddb = diffs
-
-        grads = _rasterize_bwd_custom_call(
-            self,
-            pose,
-            pos,
-            tri,
-            ranges,
-            projMatrix,
-            resolution,
-            rast_out,
-            rast_out_db,
-            dy,
-            ddb,
-        )
-        return jnp.zeros_like(pose), jnp.zeros_like(pos), jnp.zeros_like(tri), None, None, None
-
-    _rasterize.defvjp(_rasterize_fwd, _rasterize_bwd)
+    # def _rasterize(self, pose, pos, tri, ranges, projMatrix, resolution):
+    #     a,b = _rasterize_fwd_custom_call(
+    #         self, pose, pos, tri, ranges, projMatrix, resolution
+    #     )
+    #     return (a,b)
 
     def interpolate_many(self, attributes, uvs, triangle_ids, faces):
         return _interpolate_fwd_custom_call(self, attributes, uvs, triangle_ids, faces)[
@@ -168,7 +126,8 @@ class Renderer(object):
         vertices_h = jnp.concatenate(
             [vertices, jnp.ones((vertices.shape[0], 1))], axis=-1
         )
-        rast_out, rast_out_aux = self._rasterize_partial(
+        rast_out, rast_out_aux = _rasterize_fwd_custom_call(
+            self,
             poses.as_matrix(),
             vertices_h,
             faces,
@@ -462,6 +421,18 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     mlir.register_lowering(_rasterize_prim, _rasterize_fwd_lowering, platform="gpu")
     batching.primitive_batchers[_rasterize_prim] = _render_batch
 
+
+    def _rasterize_fwd_jvp(args, tangents):
+        poses, pos, tri, ranges, projection_matrix, resolution = args
+
+        output1, output2 = _rasterize_prim.bind(poses, pos, tri, ranges, projection_matrix, resolution)
+
+        return (
+            (output1, output2),
+            (jnp.zeros_like(output1), jnp.zeros_like(output2))
+        )
+
+    ad.primitive_jvps[_rasterize_prim] = _rasterize_fwd_jvp
     return _rasterize_prim
 
 

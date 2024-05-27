@@ -94,7 +94,6 @@ def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperpar
         __t[None, ...], __v, __f, jnp.array([[0, len(__f)]])
     )
     vertices = transform.apply(vertices)
-    vertices = transform.apply(vertices)
 
     triangle_intersected_padded = jnp.pad(
         triangle_id_image, pad_width=[(hyperparams.WINDOW, hyperparams.WINDOW)], constant_values=-1
@@ -213,7 +212,7 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
     # This will have the value -2 in slots we should ignore
     # and -1 in slots which hit the background.
     unique_triangle_values = jnp.unique(
-        triangle_intersected_padded_in_window, size=min(8, triangle_intersected_padded_in_window.size),
+        triangle_intersected_padded_in_window, size=triangle_intersected_padded_in_window.size,
         fill_value = -1
     ) - 1
     unique_triangle_values_safe = jnp.where(unique_triangle_values < 0, unique_triangle_values[0], unique_triangle_values)

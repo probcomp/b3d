@@ -1,6 +1,6 @@
 import b3d
 import jax.numpy as jnp
-import jax
+
 
 def test_renderer_full(renderer):
     vertices = jnp.array(
@@ -34,13 +34,3 @@ def test_renderer_full(renderer):
         poses, vertices, faces, jnp.array([[0, len(faces)]]), vertex_colors
     )
     b3d.get_rgb_pil_image(rgb).save(b3d.get_root_path() / "assets/test_results/test_renderer.png")
-    
-
-    def f(vertices):
-        return renderer.rasterize_many(poses[None,...], vertices, faces, jnp.array([[0, len(faces)]]))[0].mean()
-
-    jax.grad(f)(vertices)
-    jax.hessian(f)(vertices)
-    jax.jacfwd(f)(vertices)
-    jax.jacrev(f)(vertices)
-

@@ -94,6 +94,7 @@ def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperpar
         __t[None, ...], __v, __f, jnp.array([[0, len(__f)]])
     )
     vertices = transform.apply(vertices)
+    vertices = transform.apply(vertices)
 
     triangle_intersected_padded = jnp.pad(
         triangle_id_image, pad_width=[(hyperparams.WINDOW, hyperparams.WINDOW)], constant_values=-1

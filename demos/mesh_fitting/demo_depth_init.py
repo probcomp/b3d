@@ -33,7 +33,7 @@ rgbs = jnp.clip(
 depths = video_input.xyz[::4][:, :, :, 3]
 rgbds = jnp.concatenate([rgbs, depths[..., None]], axis=-1)
 
-vertices_2D, faces, triangle_rgbds = t.generate_tessellated_2D_mesh_from_rgb_image(rgbds[0])
+vertices_2D, faces, triangle_rgbds = t.generate_tessellated_2D_mesh_from_rgb_image(rgbds[0], scaledown=2)
 
 MAX_N_FACES = 7
 def get_faces_for_vertex(i):

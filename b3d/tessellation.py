@@ -140,11 +140,11 @@ def triangle2D_to_color(triangle, rgb_image, max_step_x, max_step_y):
     j_safe = jnp.clip(ij[1], 0, rgb_image.shape[1] - 1)
     return jnp.where(
         ij[0] == -10000,
-        jnp.zeros(3),
+        jnp.zeros_like(rgb_image[0, 0]),
         rgb_image[i_safe, j_safe]
     )
 
-def generate_tessellated_2D_mesh_from_rgb_image(rgb_image):
+def generate_tessellated_2D_mesh_from_rgb_image(rgb_image, scaledown=1):
     """
     Tesselate the plane with equilateral triangles and color each triangle
     based on the provided RGB image.
@@ -161,7 +161,8 @@ def generate_tessellated_2D_mesh_from_rgb_image(rgb_image):
     - triangle_colors: (F, 3) array of colors for each triangle
     """
     height, width, _ = rgb_image.shape
-    vertices, faces = tessellate(width // 3, height // 3)
-    vertices = vertices * 3.0
-    triangle_colors = jax.vmap(triangle2D_to_color, in_axes=(0, None, None, None))(vertices[faces], rgb_image, 5, 5)
+    div = 3 * scaledown
+    vertices, faces = tessellate(width // div, height // div)
+    vertices = vertices * div
+    triangle_colors = jax.vmap(triangle2D_to_color, in_axes=(0, None, None, None))(vertices[faces], rgb_image, 5 * scaledown, 5 * scaledown)
     return (vertices, faces, triangle_colors)

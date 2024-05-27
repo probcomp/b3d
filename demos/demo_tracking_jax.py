@@ -19,7 +19,7 @@ cy=50.0
 near=0.001
 far=6.0
 
-num_frames = 60
+num_frames = 100
 
 renderer = b3d.Renderer(height, width, fx, fy, cx, cy, near, far)
 poses = [b3d.Pose.from_translation(jnp.array([-3.0, 0.0, 3.5]))]
@@ -47,14 +47,15 @@ from b3d import Pose
 # Defines the enumeration schedule.
 key = jax.random.PRNGKey(0)
 # Gridding on translation only.
+N = 5
 translation_deltas = Pose.concatenate_poses(
     [
         jax.vmap(lambda p: Pose.from_translation(p))(
             jnp.stack(
                 jnp.meshgrid(
-                    jnp.linspace(-0.01, 0.01, 5),
-                    jnp.linspace(-0.01, 0.01, 5),
-                    jnp.linspace(-0.01, 0.01, 5),
+                    jnp.linspace(-0.01, 0.01, N),
+                    jnp.linspace(-0.01, 0.01, N),
+                    jnp.linspace(-0.01, 0.01, N),
                 ),
                 axis=-1,
             ).reshape(-1, 3)
@@ -66,7 +67,7 @@ translation_deltas = Pose.concatenate_poses(
 rotation_deltas = Pose.concatenate_poses(
     [
         jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
-            jax.random.split(jax.random.PRNGKey(0), 100),
+            jax.random.split(jax.random.PRNGKey(0), N*N*N),
             Pose.identity(),
             0.00001,
             1000.0,

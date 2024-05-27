@@ -83,7 +83,7 @@ def from_look_at(position, target, up=None):
 def identity_quaternion():
     return torch.tensor([1.0, 0.0, 0.0, 0.0])
 
-N = 11
+N = 1
 translations = torch.stack(
         torch.meshgrid(
         torch.linspace(-0.02, 0.02, N),
@@ -131,14 +131,23 @@ def update(pose_estimate, gt_image):
         pose_estimate = potential_poses[torch.argmin(error)]
     return pose_estimate
 
+
 pose_estimate = torch.tensor(poses[0], requires_grad=True)
 
 import time
 sum_total = 0.0
-pose_esimates = []
+pose_estimates = []
 start = time.time()
 for t in tqdm(range(len(images))):
     pose_estimate= update(pose_estimate, images[t])
+    pose_estimates.append(pose_estimate)
 end = time.time()
 print("Time elapsed:", end - start)
 print("FPS:", len(images) / (end - start))
+
+for t in range(len(images)):
+    rr.set_time_sequence("frame", t)
+    clip_space = b3d.torch.renderutils.xfm_points(vertices[None,...], Proj @ pose_estimates[t][None,...])
+    rast_out, _ = dr.rasterize(glctx, clip_space, faces, resolution=[height, width])
+    color   , _ = dr.interpolate(vertex_colors, rast_out, faces)
+    rr.log(f"img/reconstruct", rr.Image(color.detach().cpu().numpy()[0, ...]))

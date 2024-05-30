@@ -10,9 +10,8 @@ from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import functools
 import os
-import b3d.nvdiffrast_original.jax as dr
 import b3d
-
+import b3d.nvdiffrast_jax.nvdiffrast.jax as dr
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
@@ -67,7 +66,7 @@ class RendererOriginal(object):
             num_layers: int
                 Number of layers in the depth buffer.
         """
-        self.renderer_env = dr.RasterizeGLContext(output_db=True)
+        self.renderer_env = dr.RasterizeGLContext(output_db=False)
         self.num_layers = num_layers
         self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
@@ -84,9 +83,13 @@ class RendererOriginal(object):
 
     def rasterize(self, pos, tri):
         return _rasterize_fwd_custom_call(
-            self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, jnp.array([[0,0]]), self.resolution
+            self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
         )
 
+    def rasterize_original(self, pos, tri):
+        return _rasterize_fwd_custom_call(
+            self, pos, tri, self.resolution
+        )
 
 # XLA array layout in memory
 def default_layouts(*shapes):
@@ -107,13 +110,8 @@ def _register_custom_calls():
 #### FORWARD ####
 
 # @functools.partial(jax.jit, static_argnums=(0,))
-def _rasterize_fwd_custom_call(
-    r: "Renderer", pos, tri, ranges, resolution
-):
-    return _build_rasterize_fwd_primitive(r).bind(
-        pos, tri, ranges, resolution
-    )
-
+def _rasterize_fwd_custom_call(r: "Renderer", pos, tri, resolution):
+    return _build_rasterize_fwd_primitive(r).bind(pos, tri, resolution)
 
 @functools.lru_cache(maxsize=None)
 def _build_rasterize_fwd_primitive(r: "Renderer"):
@@ -121,75 +119,79 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     # For JIT compilation we need a function to evaluate the shape and dtype of the
     # outputs of our op for some given inputs
 
-    def _rasterize_fwd_abstract(pos, tri, ranges, resolution):
-        dtype = dtypes.canonicalize_dtype(pos.dtype)
-        int_dtype = dtypes.canonicalize_dtype(np.int32)
+    def _rasterize_fwd_abstract(pos, tri, resolution):
+        if len(pos.shape) != 3 or pos.shape[-1] != 4:
+            raise ValueError(
+                "Pass in a [num_images, num_vertices, 4] sized first input"
+            )
         num_images = pos.shape[0]
 
+        dtype = dtypes.canonicalize_dtype(pos.dtype)
+
         return [
-            ShapedArray((num_images, r.height, r.width, 4), dtype),
+            ShapedArray(
+                (num_images, r.height, r.width, 4), dtype
+            )
         ]
 
     # Provide an MLIR "lowering" of the rasterize primitive.
-    def _rasterize_fwd_lowering(
-        ctx, pos, tri, ranges, resolution
-    ):
+    def _rasterize_fwd_lowering(ctx, pos, tri, resolution):
         """
         Single-object (one obj represented by tri) rasterization with
         multiple poses (first dimension fo pos)
         dr.rasterize(glctx, pos, tri, resolution=resolution)
         """
         # Extract the numpy type of the inputs
-        (
-            pos_aval,
-            tri_aval,
-            ranges_aval,
-            resolution_aval,
-        ) = ctx.avals_in
+        poses_aval, tri_aval, resolution_aval = ctx.avals_in
+        if poses_aval.ndim != 3:
+            raise NotImplementedError(
+                f"Only 3D vtx position inputs supported: got {poses_aval.shape}"
+            )
+        if tri_aval.ndim != 2:
+            raise NotImplementedError(
+                f"Only 2D triangle inputs supported: got {tri_aval.shape}"
+            )
+        if resolution_aval.shape[0] != 2:
+            raise NotImplementedError(
+                f"Only 2D resolutions supported: got {resolution_aval.shape}"
+            )
 
-        np_dtype = np.dtype(pos_aval.dtype)
+        np_dtype = np.dtype(poses_aval.dtype)
         if np_dtype != np.float32:
             raise NotImplementedError(f"Unsupported vtx positions dtype {np_dtype}")
         if np.dtype(tri_aval.dtype) != np.int32:
             raise NotImplementedError(f"Unsupported triangles dtype {tri_aval.dtype}")
 
-        num_images = pos_aval.shape[0]
-        num_objects = ranges_aval.shape[0]
-        num_vertices = pos_aval.shape[1]
+        num_images, num_vertices = poses_aval.shape[:2]
         num_triangles = tri_aval.shape[0]
         out_shp_dtype = mlir.ir.RankedTensorType.get(
             [num_images, r.height, r.width, 4],
             mlir.dtype_to_ir_type(np_dtype),
         )
+
         opaque = dr._get_plugin(gl=True).build_diff_rasterize_fwd_descriptor(
-            r.renderer_env.cpp_wrapper,
-            [num_images, num_objects, num_vertices, num_triangles, 1],
+            r.renderer_env.cpp_wrapper, [num_images, num_vertices, num_triangles]
         )
 
-        op_name = "jax_rasterize_fwd_original_gl"
+        op_name = "jax_rasterize_fwd_gl"
 
         return custom_call(
             op_name,
             # Output types
-            result_types=[out_shp_dtype,],
+            result_types=[out_shp_dtype],
             # The inputs:
-            operands=[pos, tri, ranges, resolution],
+            operands=[pos, tri, resolution],
             backend_config=opaque,
-            operand_layouts=[
-                *default_layouts(
-                    pos_aval.shape,
-                    tri_aval.shape,
-                    ranges_aval.shape,
-                    resolution_aval.shape,
-                ),
-            ],
+            operand_layouts=default_layouts(
+                poses_aval.shape, tri_aval.shape, resolution_aval.shape
+            ),
             result_layouts=default_layouts(
                 (
                     num_images,
                     r.height,
                     r.width,
                     4,
-                )
+                ),
             ),
         ).results
 
@@ -205,4 +207,3 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     mlir.register_lowering(_rasterize_prim, _rasterize_fwd_lowering, platform="gpu")
 
     return _rasterize_prim
-

@@ -63,6 +63,9 @@ setuptools.setup(
         "torchvision==0.17.2",
         "jax[cuda12]==0.4.28",
         "natsort",
+        "distinctipy",
+        "nvidia-cuda-nvcc-cu12==12.3.52",
+        "nvidia-nvjitlink-cu12==12.3.52",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

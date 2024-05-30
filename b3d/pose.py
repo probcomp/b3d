@@ -90,6 +90,53 @@ def camera_from_position_and_target(
     rotation_matrix = jnp.hstack([x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1)])
     return Pose(position, Rot.from_matrix(rotation_matrix).as_quat())
 
+def rotation_from_axis_angle(axis, angle):
+    """Creates a rotation matrix from an axis and angle.
+
+    Args:
+        axis (jnp.ndarray): The axis vector. Shape (3,)
+        angle (float): The angle in radians.
+    Returns:
+        jnp.ndarray: The rotation matrix. Shape (3, 3)
+    """
+    sina = jnp.sin(angle)
+    cosa = jnp.cos(angle)
+    direction = axis / jnp.linalg.norm(axis)
+    # rotation matrix around unit vector
+    R = jnp.diag(jnp.array([cosa, cosa, cosa]))
+    R = R + jnp.outer(direction, direction) * (1.0 - cosa)
+    direction = direction * sina
+    R = R + jnp.array(
+        [
+            [0.0, -direction[2], direction[1]],
+            [direction[2], 0.0, -direction[0]],
+            [-direction[1], direction[0], 0.0],
+        ]
+    )
+    return R
+
+def from_rot(rotation):
+    """Creates a pose matrix from a rotation matrix.
+
+    Args:
+        rotation (jnp.ndarray): The rotation matrix. Shape (3, 3)
+    Returns:
+        Pose object
+    """
+    return Pose.from_matrix(jnp.vstack(
+        [jnp.hstack([rotation, jnp.zeros((3, 1))]), jnp.array([0.0, 0.0, 0.0, 1.0])]
+    ))
+
+def from_axis_angle(axis, angle):
+    """Creates a pose matrix from an axis and angle.
+
+    Args:
+        axis (jnp.ndarray): The axis vector. Shape (3,)
+        angle (float): The angle in radians.
+    Returns:
+        Pose object
+    """
+    return from_rot(rotation_from_axis_angle(axis, angle))
 
 @register_pytree_node_class
 class Pose:

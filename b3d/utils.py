@@ -139,6 +139,9 @@ def aabb(object_points):
     center = (maxs + mins) / 2
     return dims, b3d.Pose.from_translation(center)
 
+def pad_with_1(x):
+    return jnp.concatenate((x, jnp.ones((*x.shape[:-1], 1))), axis=-1)
+
 
 def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolutions):
     box_mesh = trimesh.creation.box(jnp.ones(3))

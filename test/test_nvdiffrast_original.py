@@ -1,39 +1,52 @@
-# from b3d.renderer_original import Renderer
-# import jax.numpy as jnp
-# import b3d.nvdiffrast_original.torch as dr
+from b3d.renderer_original import RendererOriginal
+import b3d.nvdiffrast_original.torch as dr
+import jax.numpy as jnp
+import b3d
+import os
+import trimesh
 
-# renderer = Renderer(100,159, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0)
+width = 200
+height = 100
+fx = 200.0
+fy = 200.0
+cx = 100.0
+cy = 50.0
+near = 0.001
+far = 16.0
+renderer = RendererOriginal(width, height, fx, fy, cx, cy, near, far)
 
-# vertices = jnp.array([
-#         [0.0, 0.0, 0.0, 1.0],
-#         [1.0, 0.0, 0.0, 1.0],
-#         [0.0, 1.0, 0.0, 1.0],
-# ]
-# )[None,...]
-# faces = jnp.array([[0,1,2]], dtype=jnp.int32)
-# vertex_colors = jnp.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, 1.0]])
-# resolution = jnp.array([100, 150]).astype(jnp.int32)
+mesh_path = os.path.join(
+    b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+)
+mesh = trimesh.load(mesh_path)
+vertices = jnp.array(mesh.vertices)
+vertices = vertices - jnp.mean(vertices, axis=0)
+faces = jnp.array(mesh.faces)
+vertex_colors = vertices * 0.0 + jnp.array([1.0, 0.0, 0.0])
+vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
 
-# output, = renderer.rasterize(
-#     vertices, faces, jnp.array([[0, len(faces)]]), resolution
-# )
-# print(output.sum())
+vertices_tiled =  jnp.tile(vertices[None,...], (1000, 1,1) )+ jnp.array([0.0, 0.0, 0.3])
+output, = renderer.rasterize(
+    vertices_tiled, faces
+)
+print(output[0].sum())
+print(output[-1].sum())
+b3d.get_rgb_pil_image(output[0,...,:3]).save("1.png")
 
-# print("Torch")
-# resolutions = [1024, 512, 256, 128, 64, 32]
-# for resolution in resolutions:
-#     rast_out, _ = dr.rasterize(glctx, vertices[None,...], faces, resolution=[resolution, resolution])
-#     color   , _ = dr.interpolate(vertex_colors, rast_out, faces)
-#     rr.log("torch", rr.Image(color.cpu().numpy()[0]))
 
-#     num_timestep = 1000
-#     start = time.time()
-#     for _ in range(num_timestep):
-#         rast_out, _ = dr.rasterize(glctx, vertices[None,...], faces, resolution=[resolution, resolution])
-#         print(rast_out.sum())
-#     end = time.time()
+glctx = dr.RasterizeGLContext()
 
-#     print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
+import torch
+import numpy as np
+vertices_tiled_projected = b3d.pad_with_1(vertices_tiled) @ renderer.projection_matrix_t
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+vertices_torch = torch.tensor(np.array(vertices_tiled_projected), device=device)
+faces_torch = torch.tensor(np.array(faces), device=device,dtype=torch.int32)
+
+
+rast_out, _ = dr.rasterize(glctx, vertices_torch, faces_torch, resolution=[height, width])
+print(rast_out[0].sum())
+print(rast_out[1].sum())
 
 
 
@@ -41,3 +54,5 @@
 # rr.init("demo")
 # rr.connect("127.0.0.1:8812")
 # rr.log("torch", rr.Image(output[0,...,:3]))
+
+

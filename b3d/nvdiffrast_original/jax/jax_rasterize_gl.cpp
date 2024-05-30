@@ -18,7 +18,7 @@ RasterizeGLStateWrapper::RasterizeGLStateWrapper(bool enableDB, bool automatic_,
     cudaDeviceIdx = cudaDeviceIdx_;
     memset(pState, 0, sizeof(RasterizeGLState));
     pState->enableDB = enableDB ? 1 : 0;
-    std::cout << "initialization" << std::endl;
+    // std::cout << "initialization" << std::endl;
     rasterizeInitGLContext(NVDR_CTX_PARAMS, *pState, cudaDeviceIdx_);
     releaseGLContext();
 }

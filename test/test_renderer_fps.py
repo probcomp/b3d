@@ -29,6 +29,8 @@ faces = torch.tensor(np.array(faces), device=device,dtype=torch.int32)
 vertex_colors = torch.tensor(np.array(vertex_colors), device=device)
 
 
+
+
 # vertices = torch.tensor(
 #     [
 #         [0.0, 0.0, 0.0, 1.0],

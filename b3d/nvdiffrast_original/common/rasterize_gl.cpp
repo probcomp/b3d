@@ -431,6 +431,14 @@ void rasterizeResizeBuffers(NVDR_CTX_ARGS, RasterizeGLState& s, bool& changes, i
 
 void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, const float* posPtr, int posCount, int vtxPerInstance, const int32_t* triPtr, int triCount, const int32_t* rangesPtr, int width, int height, int depth, int peeling_idx)
 {
+    // std::cout << "posCount " << posCount << std::endl;
+    // std::cout << "vtxPerInstance " << vtxPerInstance << std::endl;
+    // std::cout << "triCount " << triCount << std::endl;
+    // std::cout << "rangesPtr " << rangesPtr << std::endl;
+    // std::cout << "width " << width << std::endl;
+    // std::cout << "height " << height << std::endl;
+    // std::cout << "depth " << depth << std::endl;
+
     // Only copy inputs if we are on first iteration of depth peeling or not doing it at all.
     if (peeling_idx < 1)
     {
@@ -526,6 +534,7 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, co
     {
         // Populate a buffer for draw commands and execute it.
         std::vector<GLDrawCmd> drawCmdBuffer(depth);
+
 
         if (!rangesPtr)
         {

@@ -210,7 +210,7 @@ for T_observed_image in tqdm(range(len(rgbs))):
         genjax.Pytree.const(["observed_rgb_depth"]),
         (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
     )
-    trace, key = b3d.enumerate_and_select_best_move(
+    trace, key = b3d.enumerate_and_select_best_move_jit(
         trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
     )
     b3d.rerun_visualize_trace_t(trace, T_observed_image)
@@ -263,7 +263,7 @@ for T_observed_image in tqdm(range(len(rgbs))):
         genjax.Pytree.const(["object_1"]),
         -1
     )
-    b3d.rerun_visualize_trace_t(trace, t, modes=["rgb", "3d"])
+    b3d.rerun_visualize_trace_t(trace, T_observed_image, modes=["rgb", "3d"])
 
     t = T_observed_image
     rendered_images = jax.vmap(lambda pose: b3d.update_choices(trace, key, genjax.Pytree.const(["object_pose_1", "object_0", "object_1"]), pose, -1, 1).get_retval()[0][1])(test_poses[samples])

@@ -11,6 +11,7 @@ from jaxlib.hlo_helpers import custom_call
 import functools
 import os
 import b3d.nvdiffrast_original.jax as dr
+import b3d
 
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
@@ -41,7 +42,7 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     return orth @ persp @ view
 
 
-class Renderer(object):
+class RendererOriginal(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=2048):
         """
         Triangle mesh renderer.
@@ -79,11 +80,13 @@ class Renderer(object):
         self.projection_matrix = projection_matrix_from_intrinsics(
             width, height, fx, fy, cx, cy, near, far
         )
+        self.projection_matrix_t = jnp.transpose(self.projection_matrix)
 
-    def rasterize(self, pos, tri, ranges, resolution):
+    def rasterize(self, pos, tri):
         return _rasterize_fwd_custom_call(
-            self, pos, tri, ranges, resolution
+            self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, jnp.array([[0,0]]), self.resolution
         )
+
 
 # XLA array layout in memory
 def default_layouts(*shapes):

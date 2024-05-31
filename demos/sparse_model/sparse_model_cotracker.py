@@ -46,8 +46,6 @@ path = os.path.join(
 video_input = b3d.VideoInput.load(path)
 data = jnp.load(path + "cotracker_output.npz")
 
-
-
 first_frame_rgb = (video_input.rgb[0] / 255.0)
 
 # Get intrinsics
@@ -64,16 +62,9 @@ fx, fy, cx, cy, near, far = (
     float(far),
 )
 
-
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
 
-
-def model(params, fx, fy, cx, cy):
-    xyz_in_camera_frame = jax.vmap(lambda i: b3d.Pose(params["position"][i], params["quaternion"][i]).apply(params["xyz"]))(jnp.arange(params["position"].shape[0]))
-    pixel_coords = b3d.xyz_to_pixel_coordinates(xyz_in_camera_frame, fx, fy, cx, cy)
-    return pixel_coords
-model_jit = jax.jit(model)
 
 def _pixel_coordinates_to_image(pixel_coords, image_height, image_width):
     img = jnp.zeros((image_height, image_width))
@@ -82,35 +73,98 @@ def _pixel_coordinates_to_image(pixel_coords, image_height, image_width):
 pixel_coordinates_to_image = jax.vmap(_pixel_coordinates_to_image, in_axes=(0, None, None))
 pixel_coordinates_to_image_jit = jax.jit(pixel_coordinates_to_image)
 
-def loss_function(params, gt_info):
+sample_gaussian_vmf_multiple = jax.jit(jax.vmap(b3d.Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None)))
+
+
+STRIDE = 5
+pred_tracks = jnp.array(data["pred_tracks"])[0]
+pred_visibility = jnp.array(data["pred_visibility"])[0]
+gt_pixel_coordinates = pred_tracks[:,...,jnp.array([1,0])][::STRIDE]
+gt_pixel_coordinate_colors = first_frame_rgb[
+    jnp.round(gt_pixel_coordinates[0, :, 0]).astype(jnp.int32),
+    jnp.round(gt_pixel_coordinates[0, :, 1]).astype(jnp.int32),
+]
+gt_visibility = pred_visibility[::STRIDE]
+num_timesteps, num_keypoints = gt_pixel_coordinates.shape[:2]
+yes le
+
+
+def _model(params, cluster_assignments, fx, fy, cx, cy):
+    xyz_relative_positions = params["xyz"]
+
+    object_positions = params["object_positions"]
+    object_quaternions = params["object_quaternions"]
+
+    num_timesteps, num_clusters, _ = object_positions.shape
+
+    object_positions_expanded = jnp.concatenate([jnp.zeros((num_timesteps, 1, 3)), object_positions], axis=1)
+    object_quaternions_expanded = jnp.concatenate([jnp.tile(jnp.array([0.0, 0.0, 0.0, 1.0]), (num_timesteps, 1,1)), object_quaternions], axis=1)
+
+    object_poses_over_time = b3d.Pose(object_positions_expanded, object_quaternions_expanded)
+    xyz_in_world_frame_over_time = object_poses_over_time[:, cluster_assignments].apply(xyz_relative_positions)
+
+    camera_poses_over_time = b3d.Pose(params["camera_positions"], params["camera_quaternions"]).reshape((-1,1))
+    xyz_in_camera_frame_over_time = camera_poses_over_time.inv().apply(xyz_in_world_frame_over_time)
+    pixel_coords = b3d.xyz_to_pixel_coordinates(xyz_in_camera_frame_over_time, fx, fy, cx, cy)
+    return pixel_coords, xyz_in_world_frame_over_time
+_model_jit = jax.jit(_model)
+def model(params, cluster_assignments, fx, fy, cx, cy):
+    return _model(params, cluster_assignments, fx, fy, cx, cy)[0]
+model_jit = jax.jit(model)
+
+def loss_function(params, cluster_assignments, gt_info):
     gt_pixel_coordinates, gt_visibility = gt_info
-    pixel_coords = model(params, fx,fy, cx,cy)
+    pixel_coords = model(params, cluster_assignments, fx,fy, cx,cy)
     return jnp.mean(gt_visibility[...,None] * (pixel_coords - gt_pixel_coordinates)**2)
 loss_func_grad = jax.jit(jax.value_and_grad(loss_function, argnums=(0,)))
 
 @partial(jax.jit, static_argnums=(0,))
-def update_params(tx, params, gt_image, state):
-    loss, (gradients,) = loss_func_grad(params, gt_image)
+def update_params(tx, params, cluster_assignments, gt_image, state):
+    loss, (gradients,) = loss_func_grad(params, cluster_assignments, gt_image)
     updates, state = tx.update(gradients, state, params)
     params = optax.apply_updates(params, updates)
     return params, state, loss
 
-pred_tracks = jnp.array(data["pred_tracks"])[0]
-pred_visibility = jnp.array(data["pred_visibility"])[0]
+
+def viz_params(params):
+    num_timesteps, num_clusters = params["object_positions"].shape[:2]
+    _, xyz_in_world_frame_over_time = _model(params, cluster_assignments, fx,fy, cx,cy)
+    for t in range(num_timesteps):
+        for c in range(num_clusters):
+            rr.set_time_sequence("frame", t)
+            b3d.rr_log_pose(
+                f"/object_{c}",
+                b3d.Pose(params["object_positions"][t,c], params["object_quaternions"][t,c]),
+            )
+        rr.set_time_sequence("frame", t)
+
+
+        camera_pose = b3d.Pose(params["camera_positions"][t], params["camera_quaternions"][t])
+        rr.log(
+            f"/camera",
+            rr.Transform3D(translation=camera_pose.position, rotation=rr.Quaternion(xyzw=camera_pose.xyzw)),
+        )
+        rr.log(
+            f"/camera",
+            rr.Pinhole(
+                resolution=[0.1,0.1],
+                focal_length=0.1,
+            ),
+        )
+        rr.log("xyz", rr.Points3D(xyz_in_world_frame_over_time[t], colors = gt_pixel_coordinate_colors))
+
 
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
 
-colors = colormaps["rainbow"](jnp.linspace(0, 1, len(pred_tracks[0])))
-colors = colormaps["rainbow"](jnp.linspace(0, 1, len(pred_tracks[0])))
-for t in range(len(pred_tracks)):
-    rr.set_time_sequence("input", t)
-    rr.log("rgb", rr.Image(video_input.rgb[::3][t] / 255.0))
-    rr.log("rgb/points", rr.Points2D(jnp.transpose(pred_tracks[t,...,jnp.array([0,1])],(1,0)),
-                                 colors=colors * pred_visibility[t][:,None] + (1.0 - pred_visibility[t])[:,None]))
+# colors = colormaps["rainbow"](jnp.linspace(0, 1, len(pred_tracks[0])))
+# for t in range(len(pred_tracks)):
+#     rr.set_time_sequence("input", t)
+#     rr.log("rgb", rr.Image(video_input.rgb[::3][t] / 255.0))
+#     rr.log("rgb/points", rr.Points2D(jnp.transpose(pred_tracks[t,...,jnp.array([0,1])],(1,0)),
+#                                  colors=colors * pred_visibility[t][:,None] + (1.0 - pred_visibility[t])[:,None]))
 
 
-T = 5
 
 
 # pil_images = [
@@ -118,80 +172,69 @@ T = 5
 #     for rgb in video_input.rgb[:200][::T]
 # ]
 # b3d.make_video_from_pil_images(pil_images, "video.mp4")
-gt_pixel_coordinates = pred_tracks[:,...,jnp.array([1,0])][::T]
-gt_pixel_coordinate_colors = first_frame_rgb[
-    jnp.round(gt_pixel_coordinates[0, :, 0]).astype(jnp.int32),
-    jnp.round(gt_pixel_coordinates[0, :, 1]).astype(jnp.int32),
-]
-gt_visibility = pred_visibility[::T]
 
-sample_gaussian_vmf_multiple = jax.jit(jax.vmap(b3d.Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None)))
-N = len(gt_pixel_coordinates)
-
-
-
-poses = sample_gaussian_vmf_multiple(jax.random.split(jax.random.PRNGKey(1111110), N), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 6.0])), 0.01, 0.01)
+num_clusters = 1
+camera_poses = sample_gaussian_vmf_multiple(jax.random.split(jax.random.PRNGKey(1111110), num_timesteps), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 6.0])), 0.01, 0.01).inv()
+object_poses_over_time = sample_gaussian_vmf_multiple(jax.random.split(jax.random.PRNGKey(1111110), num_timesteps*num_clusters), b3d.Pose.from_translation(jnp.array([0.0, 0.0, 0.0])), 0.01, 0.01).reshape((num_timesteps, num_clusters))
+cluster_assignments =  jnp.zeros((num_keypoints,), dtype=jnp.int32)
+params = {
+    "xyz": jax.random.uniform(jax.random.PRNGKey(1000), (num_keypoints, 3))*0.1,
+    "camera_positions": camera_poses.pos,
+    "camera_quaternions": camera_poses.quat,
+    "object_positions": object_poses_over_time.pos,
+    "object_quaternions": object_poses_over_time.quat,
+}
 
 tx = optax.multi_transform(
     {
-        'xyz': optax.adam(2e-2),
-        'position': optax.adam(1e-2),
-        'quaternion': optax.adam(1e-2),
+        'xyz': optax.adam(2e-3),
+        'camera_positions': optax.adam(1e-2),
+        'camera_quaternions': optax.adam(1e-2),
+        'object_positions': optax.adam(1e-2),
+        'object_quaternions': optax.adam(1e-2),
     },
     label_fn
 )
-params = {
-    "xyz": jax.random.uniform(jax.random.PRNGKey(1000), (len(gt_pixel_coordinates[0]),3))*0.1,
-    "position": poses.pos,
-    "quaternion": poses.quat,
-}
+
 state = tx.init(params)
 
-pixel_coords = model(params, fx,fy, cx,cy)
-print(jnp.abs(pixel_coords - gt_pixel_coordinates))
 
-rr.set_time_sequence("frame", 0)
-rr.log("gt", rr.DepthImage(pixel_coordinates_to_image(gt_pixel_coordinates, image_height, image_width)[0]), timeless=True)
-rr.log("overlay", rr.DepthImage(pixel_coordinates_to_image(gt_pixel_coordinates, image_height, image_width)[0]), timeless=True)
-
-
+gt_info = (gt_pixel_coordinates, gt_visibility)
 
 params_over_time = [params]
-pbar = tqdm(range(2000))
+pbar = tqdm(range(4000))
 for t in pbar:
-    params, state, loss = update_params(tx, params, (gt_pixel_coordinates, gt_visibility), state)
-    # pbar.set_description(f"Loss: {loss}")
-    # params_over_time.append(params)
+    params, state, loss = update_params(tx, params, cluster_assignments, (gt_pixel_coordinates, gt_visibility), state)
+    pbar.set_description(f"Loss: {loss}")
+    params_over_time.append(params)
 
 
-rr.log("/", rr.ViewCoordinates.RIGHT_HAND_X_UP, timeless=True)
+pixel_coords = model_jit(params, cluster_assignments, fx,fy, cx,cy)
+reconstruction = pixel_coordinates_to_image(pixel_coords, image_height, image_width)[0]
+error = jnp.abs(pixel_coords - gt_pixel_coordinates).sum(-1) * gt_visibility
+average_error = error.sum(0) / gt_visibility.sum(0)
+top_indices = jnp.argsort(-average_error)[:150]
+rr.log("xyz/grouping", rr.Points3D(params["xyz"][top_indices], colors = gt_pixel_coordinate_colors[top_indices]))
 
-STRIDE = 10
-for (t, params) in enumerate(params_over_time[::STRIDE]):
-    rr.set_time_sequence("frame", t)
-    pixel_coords = model_jit(params, fx,fy, cx,cy)
-    reconstruction = pixel_coordinates_to_image(pixel_coords, image_height, image_width)[0]
-    error = jnp.abs(pixel_coords - gt_pixel_coordinates).sum(-1) * gt_visibility
-    average_error = error.sum(0) / gt_visibility.sum(0)
-    # rr.log("reconstruction", rr.DepthImage(reconstruction))
-    # rr.log("overlay/reconstruction", rr.DepthImage(reconstruction))
-    # i = 0
-    normalized_error = (average_error - average_error.min()) / (average_error.max() - average_error.min())
-    rr.log("xyz/overlay", rr.Points3D(params["xyz"], colors = gt_pixel_coordinate_colors))
+print(loss_function(params, cluster_assignments, gt_info))
+viz_params(params)
 
-    rr.log("xyz/overlay/outliers", rr.Points3D(params["xyz"], colors = colormaps["jet"](normalized_error)))
+cluster_assignments = cluster_assignments.at[top_indices].set(cluster_assignments.max() + 1)
+mean_xyz = params["xyz"][top_indices].mean(0)
+params["xyz"] = params["xyz"].at[top_indices].set(params["xyz"][top_indices] - mean_xyz)
+params["object_positions"]= params["object_positions"].at[:,0,:].set(mean_xyz)
+params["object_quaternions"]= params["object_quaternions"].at[:,0,:].set(jnp.array([0.0, 0.0, 0.0, 1.0]))
 
-    for camera_id in range(params["position"].shape[0]):
-        camera_pose = b3d.Pose(params["position"][camera_id], params["quaternion"][camera_id]).inv()
-        rr.log(
-            f"/camera/{camera_id}/",
-            rr.Transform3D(translation=camera_pose.position, rotation=rr.Quaternion(xyzw=camera_pose.xyzw)),
-        )
-        rr.log(
-            f"/camera/{camera_id}/",
-            rr.Pinhole(
-                resolution=[0.1,0.1],
-                focal_length=0.1,
-            ),
-        )
+print(loss_function(params, cluster_assignments, gt_info))
+viz_params(params)
 
+state = tx.init(params)
+pbar = tqdm(range(4000))
+for t in pbar:
+    params, state, loss = update_params(tx, params, cluster_assignments, (gt_pixel_coordinates, gt_visibility), state)
+    pbar.set_description(f"Loss: {loss}")
+    params_over_time.append(params)
+
+viz_params(params)
+
+rr.log("/", rr.ViewCoordinates.RIGHT_HAND_Y_UP, timeless=True)

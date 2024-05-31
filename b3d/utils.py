@@ -421,13 +421,13 @@ def nn_background_segmentation(images):
     return masks
 
 
-def rr_log_pose(channel, pose):
+def rr_log_pose(channel, pose, scale=0.1):
     origins = jnp.tile(pose.pos[None, ...], (3, 1))
     vectors = jnp.eye(3)
     colors = jnp.eye(3)
     rr.log(
         channel,
-        rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T, colors=colors),
+        rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors),
     )
 
 

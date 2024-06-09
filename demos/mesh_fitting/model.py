@@ -98,3 +98,24 @@ def rr_log_trace(
         vertex_positions=v_, indices=f_, vertex_colors=vc_
     ))
 
+def get_rgb_only_model(renderer, initial_mesh):
+    mindepth, maxdepth = -1000., 1000.
+    color_scale = 0.05
+    outlier_prob = 0.05
+    def normalize(x):
+        return x / jnp.sum(x)
+    likelihood = b3d.likelihoods.ArgMap(
+        b3d.likelihoods.get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
+            renderer.height, renderer.width, color_scale
+        ),
+        lambda weights, attributes:(
+            normalize(jnp.concatenate([weights[:1] + outlier_prob, weights[1:]])),
+            attributes
+        )
+    )
+    hyperparams = b3d.differentiable_renderer.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
+    model = model_factory(
+        renderer, likelihood, hyperparams, mindepth, maxdepth, 1,
+        initial_mesh[0].shape[0], initial_mesh[1].shape[0]
+    )
+    return model

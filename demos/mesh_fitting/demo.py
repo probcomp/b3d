@@ -105,7 +105,7 @@ trace, weight = jax.jit(model.importance)(
 )
 weight
 
-rr.init("mesh_fitting-3")
+rr.init("mesh_fitting-4")
 rr.connect("127.0.0.1:8812")
 m.rr_log_trace(trace, renderer, frames_images_to_visualize=[0, 1], frames_cameras_to_visualize=[0, 1])
 
@@ -147,10 +147,10 @@ for dt in tqdm(range(1000)):
     colors = optax.apply_updates(colors, updates_colors)
     colors = jnp.clip(colors, 0, 1)
     vertices = optax.apply_updates(vertices, updates_vertices)
-    if timestep % 10 == 0:
+    if timestep % 10 == 1:
         rr.set_time_sequence("mesh_fitting_step-8", timestep)
         rr.log("logpdf", rr.Scalar(score))
-    if timestep % 100 == 0:
+    if timestep % 30 == 1:
         trace, _ = importance_from_vertices_colors(vertices, colors)
         m.rr_log_trace(trace,
                        renderer,
@@ -159,6 +159,3 @@ for dt in tqdm(range(1000)):
                     )
         if jnp.isinf(score) or jnp.isnan(score):
             print(f"Score: {score}")
-
-trace, weight = importance_from_vertices_colors(initial_mesh[0], initial_mesh[2])
-rr.set_time_sequence("mesh_fitting_step-8", 0)

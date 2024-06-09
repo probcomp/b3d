@@ -1,7 +1,10 @@
 import jax.numpy as jnp
 import b3d
-from test.task_tests.tasks.triangle_posterior_identification import TrianglePosteriorIdentificationTask, DEFAULT_INTRINSICS
-TPIT = TrianglePosteriorIdentificationTask
+import test.task_tests.tasks.triangle_posterior_identification as tpi
+import importlib
+
+importlib.reload(tpi)
+TPIT = tpi.TrianglePosteriorIdentificationTask
 
 TASK_CONFIG = {
     "name": "monochrome-background--no-motion--oneframe",
@@ -23,3 +26,4 @@ TASK_CONFIG = {
 
 task = TPIT(**TASK_CONFIG["task_args"])
 task.visualize_scene()
+

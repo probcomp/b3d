@@ -41,6 +41,27 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     return orth @ persp @ view
 
 
+
+@functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
+def rasterize(self, pos, tri):
+    output, = _rasterize_fwd_custom_call(
+        self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
+    )
+    return output
+
+def rasterize_fwd(self, pos, tri):
+    output, = _rasterize_fwd_custom_call(
+        self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
+    )
+    return output, (pos, tri)
+
+def rasterize_bwd(self, saved_tensors, diffs):
+    pos, tri = saved_tensors
+    return jnp.zeros_like(pos), jnp.zeros_like(tri)
+
+rasterize.defvjp(rasterize_fwd, rasterize_bwd)
+
+
 class RendererOriginal(object):
     def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=2048):
         """
@@ -82,9 +103,7 @@ class RendererOriginal(object):
         self.projection_matrix_t = jnp.transpose(self.projection_matrix)
 
     def rasterize(self, pos, tri):
-        return _rasterize_fwd_custom_call(
-            self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
-        )
+        return rasterize(self, pos, tri)
 
     def rasterize_original(self, pos, tri):
         return _rasterize_fwd_custom_call(

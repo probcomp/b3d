@@ -86,7 +86,6 @@ gt_pixel_coordinate_colors = first_frame_rgb[
 ]
 gt_visibility = pred_visibility[::STRIDE]
 num_timesteps, num_keypoints = gt_pixel_coordinates.shape[:2]
-yes le
 
 
 def _model(params, cluster_assignments, fx, fy, cx, cy):
@@ -107,6 +106,7 @@ def _model(params, cluster_assignments, fx, fy, cx, cy):
     xyz_in_camera_frame_over_time = camera_poses_over_time.inv().apply(xyz_in_world_frame_over_time)
     pixel_coords = b3d.xyz_to_pixel_coordinates(xyz_in_camera_frame_over_time, fx, fy, cx, cy)
     return pixel_coords, xyz_in_world_frame_over_time
+
 _model_jit = jax.jit(_model)
 def model(params, cluster_assignments, fx, fy, cx, cy):
     return _model(params, cluster_assignments, fx, fy, cx, cy)[0]

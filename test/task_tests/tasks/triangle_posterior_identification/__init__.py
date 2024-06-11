@@ -38,22 +38,40 @@ class TrianglePosteriorIdentificationTask(Task):
         return task_input, other_input_to_scorer
 
     def score(self, task_input, baseline, solution):
-        pass
+        """
+        The `solution` should be a data structure containing different
+        algorithms for approximating the posterior.
+        It can contain the following keys:
+        - "laplace"
+        - "grid"
+        - "mala"
+        - "multi_initialized_mala"
+        """
+        return {
+            "laplace": self.score_laplace_approximation(task_input, baseline, solution["laplace"]),
+            "grid": self.score_grid_approximation(task_input, baseline, solution["grid"]),
+            "mala": self.score_mala(task_input, baseline, solution["mala"]),
+            "multi_initialized_mala": self.score_multi_initialized_mala(task_input, baseline, solution["multi_initialized_mala"])
+        }
 
     def assert_passing(self, tester, metrics):
         pass
 
     ### Sub-tests ###
-    def laplace_approximation_test(self):
+    def score_laplace_approximation(self, task_input, baseline, solution):
+        """
+        solution: (mean, covariance) tuple for a laplace approximation to the
+        distribution over the triangle's 3D pose as a 7D [*pos, *xyzw] vector.
+        """
         pass
 
-    def grid_approximation_test(self):
+    def score_grid_approximation(self, task_input, baseline, solution):
         pass
 
-    def mala_test(self):
+    def score_mala(self, task_input, baseline, solution):
         pass
 
-    def multi_initialized_mala_test(self):
+    def score_multi_initialized_mala(self, task_input, baseline, solution):
         pass
 
     ### Helpers ###

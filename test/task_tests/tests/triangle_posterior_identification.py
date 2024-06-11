@@ -27,3 +27,4 @@ TASK_CONFIG = {
 task = TPIT(**TASK_CONFIG["task_args"])
 task.visualize_scene()
 
+video = task.get_video()

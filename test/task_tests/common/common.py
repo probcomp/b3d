@@ -262,7 +262,7 @@ def serialize_results_dict(d:dict)->list:
         if isinstance(v, primitive_types) or v is None:
             new_v = v
         elif isinstance(v, dict):
-            new_v = serialize_results_dict({v})
+            new_v = serialize_results_dict(v)
         elif isinstance(v, (jnp.ndarray, np.ndarray)): 
             # likely the most common scenario
             if np.prod(v.shape) == 1: new_v = v.item()

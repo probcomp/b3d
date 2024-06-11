@@ -30,8 +30,8 @@ class TrianglePosteriorIdentificationTask(Task):
     def get_test_pair(self):
         video = self.get_video()
         tri_color = self.foreground_triangle["color"]
-        tri_shape = self._get_triangle_angles()
-        initial_2d_point = self._get_projection_of_triangle_center()
+        tri_shape = None # TODO self._get_triangle_angles()
+        initial_2d_point = None # TODO self._get_projection_of_triangle_center()
         task_input = (video, (tri_color, tri_shape, initial_2d_point))
         other_input_to_scorer = None # no loading needed -- can just get the info off `self`
 
@@ -55,24 +55,51 @@ class TrianglePosteriorIdentificationTask(Task):
         }
 
     def assert_passing(self, tester, metrics):
-        pass
+        tester.assertLess(metrics["grid"]["mass_assigned_outside_expected_region"], 0.001)
+        tester.assertLess(metrics["grid"]["divergence_from_uniform_in_expected_region"], 0.2)
 
     ### Sub-tests ###
     def score_laplace_approximation(self, task_input, baseline, solution):
-        """
-        solution: (mean, covariance) tuple for a laplace approximation to the
-        distribution over the triangle's 3D pose as a 7D [*pos, *xyzw] vector.
-        """
-        pass
+        return {}
 
     def score_grid_approximation(self, task_input, baseline, solution):
-        pass
+        """
+        `solution` should be a function with the following signature:
+        - Input: `partition`: a (P,) array of floats, defining a partition of a subset
+            of the real line.
+        - Output: `depth_posterior_approximation`: a (P-1,) array of floats, where
+            `depth_posterior_approximation[i]` is an approximation to 
+            `P(there is a point on the triangle with 
+             y value in the world frame in [partition[i], partition[i+1]) | data)`.
+        """
+        background_y = jnp.max(self.scene_background[0][:, 1])
+        camera_y = self.camera_path[0].pos[1]
+
+        partition = jnp.linspace(camera_y - 1.0, background_y, 100)
+        posterior_approximation = solution(partition)
+
+        max_idx_before_region = jnp.argmax(camera_y < partition)
+        min_idx_after_region = jnp.argmax(background_y < partition)
+        mass_assigned_outside_expected_region = \
+            jnp.sum(posterior_approximation[:max_idx_before_region]) + \
+            jnp.sum(posterior_approximation[min_idx_after_region:])
+        posterior_in_expected_region = posterior_approximation[max_idx_before_region:min_idx_after_region]
+        posterior_in_expected_region = posterior_in_expected_region / jnp.sum(posterior_in_expected_region)
+        divergence_from_uniform = _kl(
+            jnp.ones_like(posterior_in_expected_region) / len(posterior_in_expected_region),
+            posterior_in_expected_region
+        )
+        
+        return {
+            "mass_assigned_outside_expected_region": mass_assigned_outside_expected_region,
+            "divergence_from_uniform_in_expected_region": divergence_from_uniform
+        }
 
     def score_mala(self, task_input, baseline, solution):
-        pass
+        return {}
 
     def score_multi_initialized_mala(self, task_input, baseline, solution):
-        pass
+        return {}
 
     ### Helpers ###
     def n_frames(self):
@@ -168,3 +195,6 @@ class TrianglePosteriorIdentificationTask(Task):
         image_width = 120; image_height = 100; fx = 50.0; fy = 50.0
         cx = 50.0; cy = 50.0; near = 0.001; far = 16.0
         return b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+
+def _kl(p, q):
+    return jnp.sum(p * jnp.log(p / q))

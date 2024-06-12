@@ -289,7 +289,16 @@ def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces, hy
     """
     triangle = vertices[faces[triangle_idx]] # 3 x 3 (face_idx, vertex_idx)
     point_on_plane = project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics)
+    (in_triangle, (a, b, c, d)) = pt_is_in_plane(triangle, point_on_plane)
+    signed_distance = jnp.where(in_triangle, d, -d)
+
+    bary = jnp.array([a, b, c]) / (a + b + c + 1e-6)
+    bary = jnp.clip(bary, 0., 1.)
+    bary = bary / (jnp.sum(bary) + 1e-6)
     
+    return (signed_distance, bary)
+
+def pt_is_in_plane(triangle, point_on_plane):
     # distances to 3 lines making up the triangle
     d1 = dist_to_line_seg(triangle[0], triangle[1], point_on_plane)
     d2 = dist_to_line_seg(triangle[1], triangle[2], point_on_plane)
@@ -299,19 +308,13 @@ def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces, hy
     a = _signed_area_to_point(triangle[1], triangle[2], point_on_plane)
     b = _signed_area_to_point(triangle[2], triangle[0], point_on_plane)
     c = _signed_area_to_point(triangle[0], triangle[1], point_on_plane)
-    in_triangle = jnp.logical_and(
+    is_in_plane = jnp.logical_and(
         jnp.equal(jnp.sign(a), jnp.sign(b)),
         jnp.equal(jnp.sign(b), jnp.sign(c))
     )
-    signed_distance = jnp.where(in_triangle, d, -d)
 
-    bary = jnp.array([a, b, c]) / (a + b + c + 1e-6)
-    bary = jnp.clip(bary, 0., 1.)
-    bary = bary / (jnp.sum(bary) + 1e-6)
-    
-    return (signed_distance, bary)
+    return (is_in_plane, (a, b, c, d))
 
-# From ChatGPT + I fixed a couple bugs in it.
 def project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics):
     """
     Project pixel ij to the plane defined by the given triangle.
@@ -321,17 +324,15 @@ def project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics):
     """
     fx, fy, cx, cy = hyperparams_and_intrinsics.fx, hyperparams_and_intrinsics.fy, hyperparams_and_intrinsics.cx, hyperparams_and_intrinsics.cy
     y, x = ij
-    vertex1, vertex2, vertex3 = triangle
-
-    # Convert pixel coordinates to normalized camera coordinates
     x_c = (x - cx) / fx
     y_c = (y - cy) / fy
     z_c = 1.0  # Assume the camera looks along the +z axis
-
-    # Camera coordinates to the ray direction vector
     ray_dir = jnp.array([x_c, y_c, z_c])
-    # jax.debug.print("ray_dir = {rd}", rd=ray_dir)
-    # checkify.check(jnp.linalg.norm(ray_dir) > 1e-6, "Ray direction vector {x}", x=ray_dir)
+    ray_origin = jnp.array([0.0, 0.0, 0.0])
+    return project_ray_to_plane(ray_origin, ray_dir, triangle)
+
+def project_ray_to_plane(ray_origin, ray_dir, triangle):
+    vertex1, vertex2, vertex3 = triangle
     ray_dir = ray_dir / jnp.linalg.norm(ray_dir)  # Normalize the direction vector
 
     # Calculate the normal vector of the plane defined by the triangle
@@ -346,7 +347,6 @@ def project_pixel_to_plane(ij, triangle, hyperparams_and_intrinsics):
     # So the equation simplifies to: t * ray_dir = X
     # Substitute in plane equation: normal . (t * ray_dir - vertex1) = 0
     # t = normal . vertex1 / (normal . ray_dir)
-    ray_origin = jnp.array([0.0, 0.0, 0.0])
     denom = jnp.dot(normal, ray_dir)
     # if jnp.abs(denom) < 1e-6:
     #     return None  # No intersection if the ray is parallel to the plane

@@ -1,4 +1,6 @@
+import b3d.differentiable_renderer
 from test.task_tests.common import Task
+import jax
 import jax.numpy as jnp
 import b3d
 import rerun as rr
@@ -9,7 +11,7 @@ class TrianglePosteriorIdentificationTask(Task):
     def __init__(self,
                  scene_background, foreground_triangle, triangle_path, camera_path,
                  renderer=None,
-                 taskname=None
+                 taskname=""
                 ):
         """
         scene_background: (vertices, faces, face_colors) for background
@@ -119,18 +121,17 @@ class TrianglePosteriorIdentificationTask(Task):
             of the real line.
         - Output: `depth_posterior_approximation`: a (P-1,) array of floats, where
             `depth_posterior_approximation[i]` is an approximation to 
-            `P(there is a point on the triangle with 
-             y value in the world frame in [partition[i], partition[i+1]) | data)`.
+            `P(there is a point on the triangle with, such that the first triangle vertex's
+                z value in the camera frame is in [partition[i], partition[i+1]) | data)`.
+            By the "first vertex", I mean the first vetex listed in task_input["triangle"]["vertices"]
         """
         if self.n_frames() == 1:
-            background_y = jnp.max(self.scene_background[0][:, 1])
-            camera_y = self.camera_path[0].pos[1]
-
-            partition = jnp.linspace(camera_y - 1.0, background_y + 1.0, 100)
+            partition, background_z = self._get_grid_partition()
             posterior_approximation = solution(partition)
 
-            max_idx_before_region = jnp.argmax(camera_y < partition)
-            min_idx_after_region = jnp.argmax(background_y < partition)
+            # STEP 3: compute the metrics
+            max_idx_before_region = jnp.argmax(0. < partition)
+            min_idx_after_region = jnp.argmax(background_z < partition)
             mass_assigned_outside_expected_region = \
                 jnp.sum(posterior_approximation[:max_idx_before_region]) + \
                 jnp.sum(posterior_approximation[min_idx_after_region:])
@@ -141,6 +142,9 @@ class TrianglePosteriorIdentificationTask(Task):
                 posterior_in_expected_region
             )
             
+            # VIZ
+            self.visualize_grid_approximation(posterior_approximation)
+
             return {
                 "mass_assigned_outside_expected_region": mass_assigned_outside_expected_region,
                 "divergence_from_uniform_in_expected_region": divergence_from_uniform
@@ -148,6 +152,29 @@ class TrianglePosteriorIdentificationTask(Task):
         else:
             # TODO
             return {}
+        
+    def _get_grid_partition(self):
+        X_WC = self.camera_path[0]
+        triangle_C = X_WC.inv().apply(self.foreground_triangle["vertices"])
+        background_vertices_C = X_WC.inv().apply(self.scene_background[0])
+        background_faces = self.scene_background[1]
+        def get_int_z(face_idx):
+            int_pt = b3d.differentiable_renderer.project_ray_to_plane(jnp.zeros(3), triangle_C[0], background_vertices_C[background_faces[face_idx]])
+            # print(int_pt.shape)
+            # print(background_vertices_C[background_faces[face_idx]].shape)
+            is_in_triangle, _ = b3d.differentiable_renderer.pt_is_in_plane(background_vertices_C[background_faces[face_idx]], int_pt)
+            # set z to infinity if the intersection point is not in the triangle
+            return jnp.where(
+                is_in_triangle,
+                int_pt[2],
+                jnp.inf
+            )
+        int_pts_C = jax.vmap(get_int_z)(jnp.arange(background_faces.shape[0]))
+        background_z = jnp.min(int_pts_C)
+        jax.experimental.checkify.check(not jnp.isinf(background_z), "No intersection found")
+
+        partition = jnp.linspace(- 1.0, background_z + 1.0, 100)
+        return partition, background_z
 
     def score_mala(self, task_input, baseline, solution):
         return {}
@@ -159,6 +186,31 @@ class TrianglePosteriorIdentificationTask(Task):
     def n_frames(self):
         return self.triangle_path.shape[0]
     
+    def visualize_grid_approximation(self, posterior_approximation):
+        self.maybe_initialize_rerun()
+        partition, background_z = self._get_grid_partition()
+        pts_C = partition[:, None] * jnp.array([[0., 0., 1.]])
+        X_WC = self.camera_path[0]
+        pts_W = X_WC.apply(pts_C)
+        posterior_approximation = jnp.ones_like(partition[:-1]) / len(partition[:-1])
+        rr.log(
+            "/3D/grid_posterior_approximation/camera_z_partition/partition",
+            rr.LineStrips3D(
+                [jnp.array([pts_W[i], pts_W[i+1]]) for i in range(len(pts_W) - 1)],
+                colors=[[a, a, a] for a in jnp.clip(posterior_approximation, 0., 1.)]
+            )
+        )
+
+        max_idx_before_region = jnp.argmax(0. < partition)
+        min_idx_after_region = jnp.argmax(background_z < partition)
+        rr.log(
+            "/3D/grid_posterior_approximation/camera_z_partition/possible_region",
+            rr.LineStrips3D(
+                [[pts_W[max_idx_before_region + 1], pts_W[min_idx_after_region - 1]]],
+                colors=[[0., 1., 1.]]
+            )
+        )
+
     def get_camera_frame_scene(self, frame_idx):
         # background
         b_vertices, b_faces, b_triangle_colors = self.scene_background

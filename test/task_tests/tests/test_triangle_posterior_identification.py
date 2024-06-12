@@ -30,6 +30,11 @@ SOLVER_CONFIGS = [
         "name": "dummy_solver",
         "solver": dummy_solver,
         "solver_args": {}
+    },
+    {
+        "name": "importance_sampling_solver_w_gt_knowledge",
+        "solver": gtiis.importance_solver,
+        "solver_args": {}
     }
 ]
 
@@ -47,17 +52,60 @@ class TrianglePosteriorIdentificationTest(common.TestCase):
     def test(self, solver, task, *args, **kwargs):
         task.run_tests(self, solver, *args, **kwargs)
 
-###
-# importlib.reload(gtiis)
+### 
+
+# import rerun as rr
+
 # task = tasks[0]
-# key = jax.random.PRNGKey(0)
 # task_input, baseline = task.get_test_pair()
-# renderer = task_input["renderer"]
+# task.visualize_scene()
+
+
+# task.score_grid_approximation(task_input, baseline, solvers[0](task_input)["grid"])
+
+
+
+
+# partition, _ = task._get_grid_partition()
+# pts_C = partition[:, None] * jnp.array([[0., 0., 1.]])
+# X_WC = task.camera_path[0]
+# pts_W = X_WC.apply(pts_C)
+# posterior_approximation = jnp.ones_like(partition[:-1]) / len(partition[:-1])
+# rr.log(
+#     "/3D/grid_posterior_approximation/camera_z_partition",
+#     rr.LineStrips3D(
+#         [jnp.array([pts_W[i], pts_W[i+1]]) for i in range(len(pts_W) - 1)],
+#         colors=[[a, a, a] for a in jnp.clip(posterior_approximation, 0., 1.)]
+#     )
+# )
+
+
+
+###
+import test.task_tests.solvers.triangle_posterior_identification.model as m
+key = jax.random.PRNGKey(0)
+
+importlib.reload(gtiis)
+importlib.reload(m)
+task = tasks[0]
+key, = jax.random.split(key, 1)
+
+task = tasks[0]
+task_input, baseline = task.get_test_pair()
+
+renderer = task_input["renderer"]
 # model = gtiis.model_factory(
 #     renderer, gtiis.get_likelihood(renderer), gtiis.RENDERER_HYPERPARAMS
 # )
 # trace, weight = gtiis.importance_sample_with_depth_in_partition(
-#     key, task.foreground_triangle["vertices"],
-#     task_input,
-#     model, -1., 10.0
+#     key, task_input, model, -1., 2.0
 # )
+
+# dist = gtiis.importance_solver(task_input)["grid"](task._get_grid_partition()[0])
+
+task.visualize_scene()
+task.score_grid_approximation(task_input, baseline, gtiis.importance_solver(task_input)["grid"])
+
+# task.maybe_initialize_rerun()
+# m.rr_log_trace(trace, task.renderer)
+# task.visualize_scene()

@@ -69,7 +69,7 @@ def render_to_rgbd_dist_params(
     vertex_rgbds = jnp.concatenate([vertex_rgbs, vertex_depths[:, None]], axis=1)
     return render_to_dist_params(renderer, vertices, faces, vertex_rgbds, hyperparams)
 
-def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=DEFAULT_HYPERPARAMS):
+def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=DEFAULT_HYPERPARAMS, transform=Pose.identity()):
     """
     Differentiable rendering to parameters for a per-pixel
     categorical distribution over attributes (e.g. RGB or RGBD).
@@ -88,9 +88,12 @@ def render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperpar
     The remaining weights are those assigned to some triangles in the scene.
     The attributes measured on those triangles are contained in `attributes`.
     """
+    __t = jax.lax.stop_gradient(transform)
+    __v, __f = jax.lax.stop_gradient(vertices), jax.lax.stop_gradient(faces)
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
-        Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
+        __t[None, ...], __v, __f, jnp.array([[0, len(__f)]])
     )
+    vertices = transform.apply(vertices)
 
     triangle_intersected_padded = jnp.pad(
         triangle_id_image, pad_width=[(hyperparams.WINDOW, hyperparams.WINDOW)], constant_values=-1

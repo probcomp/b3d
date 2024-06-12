@@ -8,10 +8,14 @@ class TrianglePosteriorIdentificationTask(Task):
     """
     def __init__(self,
                  scene_background, foreground_triangle, triangle_path, camera_path,
-                 renderer=None
+                 renderer=None,
+                 taskname=None
                 ):
         """
         scene_background: (vertices, faces, face_colors) for background
+            vertices: (N, 3) array of vertex positions
+            faces: (M, 3) array of vertex indices
+            face_colors: (M, 3) array of rgb colors
         foreground_triangle: dict with keys "color" (rgb array) and "vertices" (3x3 array)
         triangle_path: 3D path of the triangle. Batched Pose object.
         camera_path: 3D path of the camera. Batched Pose object.
@@ -25,17 +29,62 @@ class TrianglePosteriorIdentificationTask(Task):
             renderer = TrianglePosteriorIdentificationTask.get_default_renderer()
         self.renderer = renderer
 
+        self.taskname = taskname
         self._rr_initialized = False
+
+    ### Constructor-related functionality ###
+    @classmethod
+    def generate_unichromatic_background_single_frame_taskargs(
+        cls, background_color, triangle_color, taskname=None
+    ):
+        return {
+                "scene_background": cls.get_monochrome_room_background(
+                    background_color
+                ),
+                "foreground_triangle": {
+                    "color": triangle_color,
+                    "vertices": jnp.array([
+                        [5, 3, 7], [6, 1.5, 7], [6, 1.5, 8]
+                    ], dtype=float)
+                },
+                "triangle_path": b3d.Pose.identity()[None, ...],
+                "camera_path": b3d.camera_from_position_and_target(
+                    position=jnp.array([5., -0.5, 6.]),
+                    target=jnp.array([5, 3, 7.])
+                )[None, ...],
+                "taskname": taskname
+            }
+
+    ### Task interface ###
 
     def get_test_pair(self):
         video = self.get_video()
-        tri_color = self.foreground_triangle["color"]
-        tri_shape = None # TODO self._get_triangle_angles()
-        initial_2d_point = None # TODO self._get_projection_of_triangle_center()
-        task_input = (video, (tri_color, tri_shape, initial_2d_point))
-        other_input_to_scorer = None # no loading needed -- can just get the info off `self`
+        
+        # Remove ground truth depth and size information from triangle,
+        # by making the first vertex [0, 0, 0], and making
+        # the edge v0->v1 have length 1
+        triangle = self.foreground_triangle["vertices"]
+        triangle = triangle - triangle[0]
+        triangle = triangle / jnp.linalg.norm(triangle[1])
 
-        return task_input, other_input_to_scorer
+        task_input = {
+            "video": video,
+            "triangle": {
+                "vertices": triangle,
+                "color": self.foreground_triangle["color"]
+            },
+            "background_mesh": self.scene_background,
+            "renderer": self.renderer,
+            "camera_path": self.camera_path,
+            "cheating_info": {
+                "triangle_vertices": self.foreground_triangle["vertices"]
+            }
+        }
+        # TODO: should we actually try to have the cheating_info
+        # in the baseline?
+        baseline = None # no loading needed -- can just get the info off `self`
+
+        return task_input, baseline
 
     def score(self, task_input, baseline, solution):
         """
@@ -47,6 +96,7 @@ class TrianglePosteriorIdentificationTask(Task):
         - "mala"
         - "multi_initialized_mala"
         """
+        self.visualize_scene()
         return {
             "laplace": self.score_laplace_approximation(task_input, baseline, solution["laplace"]),
             "grid": self.score_grid_approximation(task_input, baseline, solution["grid"]),
@@ -72,28 +122,32 @@ class TrianglePosteriorIdentificationTask(Task):
             `P(there is a point on the triangle with 
              y value in the world frame in [partition[i], partition[i+1]) | data)`.
         """
-        background_y = jnp.max(self.scene_background[0][:, 1])
-        camera_y = self.camera_path[0].pos[1]
+        if self.n_frames() == 1:
+            background_y = jnp.max(self.scene_background[0][:, 1])
+            camera_y = self.camera_path[0].pos[1]
 
-        partition = jnp.linspace(camera_y - 1.0, background_y, 100)
-        posterior_approximation = solution(partition)
+            partition = jnp.linspace(camera_y - 1.0, background_y + 1.0, 100)
+            posterior_approximation = solution(partition)
 
-        max_idx_before_region = jnp.argmax(camera_y < partition)
-        min_idx_after_region = jnp.argmax(background_y < partition)
-        mass_assigned_outside_expected_region = \
-            jnp.sum(posterior_approximation[:max_idx_before_region]) + \
-            jnp.sum(posterior_approximation[min_idx_after_region:])
-        posterior_in_expected_region = posterior_approximation[max_idx_before_region:min_idx_after_region]
-        posterior_in_expected_region = posterior_in_expected_region / jnp.sum(posterior_in_expected_region)
-        divergence_from_uniform = _kl(
-            jnp.ones_like(posterior_in_expected_region) / len(posterior_in_expected_region),
-            posterior_in_expected_region
-        )
-        
-        return {
-            "mass_assigned_outside_expected_region": mass_assigned_outside_expected_region,
-            "divergence_from_uniform_in_expected_region": divergence_from_uniform
-        }
+            max_idx_before_region = jnp.argmax(camera_y < partition)
+            min_idx_after_region = jnp.argmax(background_y < partition)
+            mass_assigned_outside_expected_region = \
+                jnp.sum(posterior_approximation[:max_idx_before_region]) + \
+                jnp.sum(posterior_approximation[min_idx_after_region:])
+            posterior_in_expected_region = posterior_approximation[max_idx_before_region:min_idx_after_region]
+            posterior_in_expected_region = posterior_in_expected_region / jnp.sum(posterior_in_expected_region)
+            divergence_from_uniform = _kl(
+                jnp.ones_like(posterior_in_expected_region) / len(posterior_in_expected_region),
+                posterior_in_expected_region
+            )
+            
+            return {
+                "mass_assigned_outside_expected_region": mass_assigned_outside_expected_region,
+                "divergence_from_uniform_in_expected_region": divergence_from_uniform
+            }
+        else:
+            # TODO
+            return {}
 
     def score_mala(self, task_input, baseline, solution):
         return {}
@@ -163,7 +217,7 @@ class TrianglePosteriorIdentificationTask(Task):
     # TODO: is there a way to get the task config `name` in here?
     def maybe_initialize_rerun(self):
         if not self._rr_initialized:
-            rr.init("triangle_posterior_identification")
+            rr.init(f"triangle_posterior_identification--{self.taskname}")
             rr.connect("127.0.0.1:8812")
             self._rr_initialized = True
 

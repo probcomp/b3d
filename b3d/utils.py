@@ -139,6 +139,9 @@ def aabb(object_points):
     center = (maxs + mins) / 2
     return dims, b3d.Pose.from_translation(center)
 
+def pad_with_1(x):
+    return jnp.concatenate((x, jnp.ones((*x.shape[:-1], 1))), axis=-1)
+
 
 def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolutions):
     box_mesh = trimesh.creation.box(jnp.ones(3))
@@ -418,13 +421,13 @@ def nn_background_segmentation(images):
     return masks
 
 
-def rr_log_pose(channel, pose):
+def rr_log_pose(channel, pose, scale=0.1):
     origins = jnp.tile(pose.pos[None, ...], (3, 1))
     vectors = jnp.eye(3)
     colors = jnp.eye(3)
     rr.log(
         channel,
-        rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T, colors=colors),
+        rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors),
     )
 
 

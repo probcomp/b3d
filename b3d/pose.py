@@ -164,6 +164,9 @@ class Pose:
     def shape(self):
         return self.pos.shape[:-1]
 
+    def reshape(self, shape):
+        return Pose(self.pos.reshape(shape + (3,)), self.quat.reshape(shape + (4,)))
+
     def __len__(self):
         return self.pos.shape[0]
 

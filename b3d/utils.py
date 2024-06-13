@@ -54,7 +54,7 @@ def get_shared() -> Path:
 
 
 def get_gcloud_bucket_ref() -> str:
-    return "gs://hgps_data_bucket"
+    return "gs://b3d_bucket"
 
 
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):

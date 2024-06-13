@@ -43,7 +43,7 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
 
 
 @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
-def rasterize(self, pos, tri):
+def rasterize_prim(self, pos, tri):
     output, = _rasterize_fwd_custom_call(
         self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
     )
@@ -59,7 +59,28 @@ def rasterize_bwd(self, saved_tensors, diffs):
     pos, tri = saved_tensors
     return jnp.zeros_like(pos), jnp.zeros_like(tri)
 
-rasterize.defvjp(rasterize_fwd, rasterize_bwd)
+rasterize_prim.defvjp(rasterize_fwd, rasterize_bwd)
+
+
+@functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
+def interpolate_prim(self, attr, rast, faces):
+    output, = _interpolate_fwd_custom_call(
+        self, attr, rast, faces
+    )
+    return output
+
+def interpolate_fwd(self, attr, rast, faces):
+    output, = _interpolate_fwd_custom_call(
+        self, attr, rast, faces
+    )
+    return output, (attr, rast, faces)
+
+def interpolate_bwd(self, saved_tensors, diffs):
+    attr, rast, faces = saved_tensors
+    return jnp.zeros_like(pos), jnp.zeros_like(tri)
+
+interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)
+
 
 
 class RendererOriginal(object):
@@ -102,13 +123,31 @@ class RendererOriginal(object):
         )
         self.projection_matrix_t = jnp.transpose(self.projection_matrix)
 
+    def rasterize_many(self, pos, tri):
+        return rasterize_prim(self, pos, tri)
+
     def rasterize(self, pos, tri):
-        return rasterize(self, pos, tri)
+        return self.rasterize_many(pos[None,...], tri)[0]
 
     def rasterize_original(self, pos, tri):
         return _rasterize_fwd_custom_call(
             self, pos, tri, self.resolution
         )
+
+    def interpolate_many(self, attr, rast, faces):
+        return interpolate_prim(self, attr, rast, faces)
+
+    def interpolate(self, attr, rast, faces):
+        return self.interpolate_many(attr, rast[None,...], faces)[0]
+
+    def render_many(self, pos, tri, attr):
+        rast = self.rasterize_many(pos, tri)
+        return self.interpolate_many(attr, rast, tri)
+    
+    def render(self, pos, tri, attr):
+        rast = self.rasterize(pos, tri)
+        return self.interpolate(attr, rast, tri)
+
 
 # XLA array layout in memory
 def default_layouts(*shapes):
@@ -120,6 +159,8 @@ def default_layouts(*shapes):
 def _register_custom_calls():
     for _name, _value in dr._get_plugin(gl=True).registrations().items():
         xla_client.register_custom_call_target(_name, _value, platform="gpu")
+
+
 
 
 # ================================================================================================
@@ -226,3 +267,103 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     mlir.register_lowering(_rasterize_prim, _rasterize_fwd_lowering, platform="gpu")
 
     return _rasterize_prim
+
+
+# @functools.partial(jax.jit, static_argnums=(0,))
+def _interpolate_fwd_custom_call(
+    r: "Renderer",
+    attributes,
+    rast,
+    faces,
+):
+    return _build_interpolate_fwd_primitive(r).bind(
+        attributes,
+        rast,
+        faces,
+    )
+
+# @functools.lru_cache(maxsize=None)
+def _build_interpolate_fwd_primitive(r: "Renderer"):
+    _register_custom_calls()
+    # For JIT compilation we need a function to evaluate the shape and dtype of the
+    # outputs of our op for some given inputs
+
+    def _interpolate_fwd_abstract(
+        attributes,
+        rast,
+        faces,
+    ):
+        num_vertices, num_attributes = attributes.shape
+        num_images, height, width, _ = rast.shape
+        num_tri, _ = faces.shape
+
+        dtype = dtypes.canonicalize_dtype(attributes.dtype)
+
+        out_abstract = ShapedArray((num_images, height, width, num_attributes), dtype)
+        return [out_abstract]
+
+    # Provide an MLIR "lowering" of the interpolate primitive.
+    def _interpolate_fwd_lowering(
+        ctx,
+        attributes,
+        rast,
+        faces,
+    ):
+        # Extract the numpy type of the inputs
+        (attributes_aval, rast_aval, faces_aval) = ctx.avals_in
+
+        num_vertices, num_attributes = attributes_aval.shape
+        num_images, height, width = rast_aval.shape[:3]
+        num_triangles = faces_aval.shape[0]
+
+        np_dtype = np.dtype(rast_aval.dtype)
+
+        out_shp_dtype = mlir.ir.RankedTensorType.get(
+            [num_images, height, width, num_attributes], mlir.dtype_to_ir_type(np_dtype)
+        )
+
+        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
+            [num_images, num_vertices, num_attributes],
+            [num_images, height, width],
+            [num_triangles],
+            0
+        )
+
+        op_name = "jax_interpolate_fwd"
+
+        return custom_call(
+            op_name,
+            # Output types
+            result_types=[out_shp_dtype],
+            # The inputs:
+            operands=[attributes, rast, faces],
+            backend_config=opaque,
+            operand_layouts=default_layouts(
+                attributes_aval.shape,
+                rast_aval.shape,
+                faces_aval.shape,
+            ),
+            result_layouts=default_layouts(
+                (
+                    num_images,
+                    height,
+                    width,
+                    num_attributes,
+                )
+            ),
+        ).results
+
+    # *********************************************
+    # *  REGISTER THE OP WITH JAX  *
+    # *********************************************
+    _interpolate_prim = core.Primitive(f"interpolate_multiple_fwd_{id(r)}")
+    _interpolate_prim.multiple_results = True
+    _interpolate_prim.def_impl(
+        functools.partial(xla.apply_primitive, _interpolate_prim)
+    )
+    _interpolate_prim.def_abstract_eval(_interpolate_fwd_abstract)
+
+    # # Connect the XLA translation rules for JIT compilation
+    mlir.register_lowering(_interpolate_prim, _interpolate_fwd_lowering, platform="gpu")
+
+    return _interpolate_prim

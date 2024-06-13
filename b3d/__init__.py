@@ -9,6 +9,7 @@
 from importlib import metadata
 
 from .renderer import *
+from .renderer_original import *
 from .pose import *
 from .utils import *
 from .model import *

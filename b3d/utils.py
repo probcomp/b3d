@@ -197,6 +197,33 @@ def get_rgb_pil_image(image, max=1.0):
     ).convert("RGB")
     return img
 
+def overlay_image(img_1, img_2, alpha=0.5):
+    """Overlay two images.
+
+    Args:
+        img_1 (PIL.Image): First image.
+        img_2 (PIL.Image): Second image.
+        alpha (float): Alpha value for blending.
+    Returns:
+        PIL.Image: Overlayed image.
+    """
+    return Image.blend(img_1, img_2, alpha=alpha)
+
+def make_gif_from_pil_images(images, filename):
+    """Save a list of PIL images as a GIF.
+
+    Args:
+        images (list): List of PIL images.
+        filename (str): Filename to save GIF to.
+    """
+    images[0].save(
+        fp=filename,
+        format="GIF",
+        append_images=images,
+        save_all=True,
+        duration=100,
+        loop=0,
+    )
 
 import tempfile
 import subprocess

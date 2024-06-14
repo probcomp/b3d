@@ -293,7 +293,7 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
         rast,
         faces,
     ):
-        num_vertices, num_attributes = attributes.shape
+        _, num_vertices, num_attributes = attributes.shape
         num_images, height, width, _ = rast.shape
         num_tri, _ = faces.shape
 
@@ -312,7 +312,7 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
         # Extract the numpy type of the inputs
         (attributes_aval, rast_aval, faces_aval) = ctx.avals_in
 
-        num_vertices, num_attributes = attributes_aval.shape
+        _, num_vertices, num_attributes = attributes_aval.shape
         num_images, height, width = rast_aval.shape[:3]
         num_triangles = faces_aval.shape[0]
 

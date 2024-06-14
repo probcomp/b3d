@@ -19,7 +19,7 @@ path = args.input
 #     "assets/shared_data_bucket/input_data/royce_static_to_dynamic.r3d.video_input.npz",
 # )
 video_input = b3d.VideoInput.load(path)
-frames = np.array(video_input.rgb)[::3]
+frames = np.array(video_input.rgb)[::4]
 print(frames.shape)
 
 device = 'cuda'

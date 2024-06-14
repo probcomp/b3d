@@ -105,11 +105,8 @@ void jax_interpolate_fwd(cudaStream_t stream,
     const float *attr = reinterpret_cast<const float *> (buffers[0]);
     const float *rast_out = reinterpret_cast<const float *> (buffers[1]);
     const int *tri = reinterpret_cast<const int *> (buffers[2]);
-    const float *rast_db = reinterpret_cast<const float *> (buffers[3]);
-    const int *diff_attrs = reinterpret_cast<const int *> (buffers[4]);
 
-    float *out = reinterpret_cast<float *> (buffers[5]);
-    float *out_da = reinterpret_cast<float *> (buffers[6]);
+    float *out = reinterpret_cast<float *> (buffers[3]);
 
     auto opts = torch::dtype(torch::kFloat32).device(torch::kCUDA);
 
@@ -130,26 +127,27 @@ void jax_interpolate_fwd(cudaStream_t stream,
     bool diff_attrs_all = (num_diff_attrs == d.num_attributes);
 
     std::vector<int> diff_attrs_vec;
+    diff_attrs_vec.resize(0);
 
-    if (diff_attrs_all){
-        diff_attrs_vec.resize(0);
-    }else{
-        NVDR_CHECK_CUDA_ERROR(cudaMemcpy(&diff_attrs_vec[0], diff_attrs, num_diff_attrs * sizeof(int), cudaMemcpyDeviceToHost));
-    }
+    // if (diff_attrs_all){
+    //     diff_attrs_vec.resize(0);
+    // }else{
+    //     NVDR_CHECK_CUDA_ERROR(cudaMemcpy(&diff_attrs_vec[0], diff_attrs, num_diff_attrs * sizeof(int), cudaMemcpyDeviceToHost));
+    // }
 
     cudaStreamSynchronize(stream);
     _interpolate_fwd_da(stream,
                     attr,
                     rast_out,
                     tri,
-                    rast_db,
+                    NULL,
                     diff_attrs_all,
                     diff_attrs_vec,
                     attr_shape,
                     rast_shape,
                     tri_shape,
                     out,
-                    out_da
+                    NULL
                     );
     cudaStreamSynchronize(stream);
 }

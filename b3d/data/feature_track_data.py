@@ -11,34 +11,35 @@ class FeatureTrackData:
     Feature track data class. Note: Spatial units are measured in meters.
 
     Args:
-            latent_keypoint_positions:    (T, N, 3) Float Array OR None
-            latent_keypoint_quaternions:  (T, N, 4) Float Array OR None
             observed_keypoints_positions: (T, N, 2) Float Array
-            observed_features:            (T, N, F) Float Array
-            rgb_imgs:                     (T, H, W, 3) Float Array
-            latent_keypoint_visibility:   (T, N) Boolean Array OR None
-            object_assignments:           (N,) Int Array OR None
-            camera_position:              (T, 3) Float Array
-            camera_quaternion:            (T, 4) Float Array
-            camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
+            observed_features: (T, N, F) Float Array
+            keypoint_visibility: (T, N) Boolean Array
+            camera_intrinsics: (8,) Float Array of camera intrinsics, see `camera.py`.
+            rgb_imgs: (T, H, W, 3) Float Array
+            latent_keypoint_positions (optional): (T, N, 3) Float Array OR None
+            latent_keypoint_quaternions (optional): (T, N, 4) Float Array OR None
+            object_assignments (optional): (N,) Int Array OR None
+            camera_position (optional): (T, 3) Float Array OR None
+            camera_quaternion (optional): (T, 4) Float Array OR None
     """
-
-    latent_keypoint_positions: Array
-    latent_keypoint_quaternions: Optional[Array]
+    # Required fields: Observed Data
     observed_keypoints_positions: Array
     observed_features: Array
-    rgb_imgs: Array
-    latent_keypoint_visibility: Array
-    object_assignments: Array
-    camera_position: Array
-    camera_quaternion: Array
+    keypoint_visibility: Array
     camera_intrinsics: Array
+    rgb_imgs: Array
+    # Optional fields: Ground truth data
+    latent_keypoint_positions: Optional[Array]
+    latent_keypoint_quaternions: Optional[Array]
+    object_assignments: Optional[Array]
+    camera_position: Optional[Array]
+    camera_quaternion: Optional[Array]
 
     @property
     def uv(self): self.observed_keypoints_positions
 
     @property
-    def visibility(self): self.latent_keypoint_visibility
+    def visibility(self): self.keypoint_visibility
 
     @property
     def rgb(self): self.latent_keypoint_positions
@@ -59,7 +60,7 @@ class FeatureTrackData:
             observed_keypoints_positions=self.observed_keypoints_positions,
             observed_features=self.observed_features,
             rgb_imgs=self.rgb_imgs,
-            latent_keypoint_visibility=self.latent_keypoint_visibility,
+            keypoint_visibility=self.keypoint_visibility,
             object_assignments=self.object_assignments,
             camera_position=self.camera_position,
             camera_quaternion=self.camera_quaternion,
@@ -92,8 +93,8 @@ class FeatureTrackData:
                 ),
                 observed_features=get_or_none(data, "observed_features"),
                 rgb_imgs=get_or_none(data, "rgb_imgs"),
-                latent_keypoint_visibility=get_or_none(
-                    data, "latent_keypoint_visibility"
+                keypoint_visibility=get_or_none(
+                    data, "keypoint_visibility"
                 ),
                 object_assignments=get_or_none(data, "object_assignments"),
                 camera_position=get_or_none(data, "camera_position"),

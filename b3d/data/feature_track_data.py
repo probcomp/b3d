@@ -12,10 +12,10 @@ class FeatureTrackData:
 
     Args:
             observed_keypoints_positions: (T, N, 2) Float Array
-            observed_features: (T, N, F) Float Array
             keypoint_visibility: (T, N) Boolean Array
             camera_intrinsics: (8,) Float Array of camera intrinsics, see `camera.py`.
-            rgb_imgs: (T, H, W, 3) Float Array
+            rgbd_imgs: (T, H, W, 4) Float Array
+            observed_features (optional): (T, N, F) Float Array OR None
             latent_keypoint_positions (optional): (T, N, 3) Float Array OR None
             latent_keypoint_quaternions (optional): (T, N, 4) Float Array OR None
             object_assignments (optional): (N,) Int Array OR None
@@ -24,11 +24,11 @@ class FeatureTrackData:
     """
     # Required fields: Observed Data
     observed_keypoints_positions: Array
-    observed_features: Array
     keypoint_visibility: Array
     camera_intrinsics: Array
-    rgb_imgs: Array
+    rgbd_imgs: Array
     # Optional fields: Ground truth data
+    observed_features: Optional[Array]
     latent_keypoint_positions: Optional[Array]
     latent_keypoint_quaternions: Optional[Array]
     object_assignments: Optional[Array]
@@ -37,10 +37,10 @@ class FeatureTrackData:
 
     def __init__(self,
                 observed_keypoints_positions: Array,
-                observed_features: Array,
                 keypoint_visibility: Array,
-                camera_intrinsics: Array,
                 rgb_imgs: Array,
+                camera_intrinsics: Array,
+                observed_features: Optional[Array] = None,
                 latent_keypoint_positions: Optional[Array] = None,
                 latent_keypoint_quaternions: Optional[Array] = None,
                 object_assignments: Optional[Array] = None,

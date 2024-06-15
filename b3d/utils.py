@@ -21,6 +21,8 @@ import distinctipy
 
 from dataclasses import dataclass
 
+from b3d.hgps_utils import keysplit, load_video_to_numpy
+
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])

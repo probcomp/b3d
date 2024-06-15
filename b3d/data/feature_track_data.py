@@ -35,17 +35,39 @@ class FeatureTrackData:
     camera_position: Optional[Array]
     camera_quaternion: Optional[Array]
 
-    @property
-    def uv(self): self.observed_keypoints_positions
+    def __init__(self,
+                observed_keypoints_positions: Array,
+                observed_features: Array,
+                keypoint_visibility: Array,
+                camera_intrinsics: Array,
+                rgb_imgs: Array,
+                latent_keypoint_positions: Optional[Array] = None,
+                latent_keypoint_quaternions: Optional[Array] = None,
+                object_assignments: Optional[Array] = None,
+                camera_position: Optional[Array] = None,
+                camera_quaternion: Optional[Array] = None):
+        self.observed_keypoints_positions = observed_keypoints_positions
+        self.observed_features = observed_features
+        self.keypoint_visibility = keypoint_visibility
+        self.camera_intrinsics = camera_intrinsics
+        self.rgb_imgs = rgb_imgs
+        self.latent_keypoint_positions = latent_keypoint_positions
+        self.latent_keypoint_quaternions = latent_keypoint_quaternions
+        self.object_assignments = object_assignments
+        self.camera_position = camera_position
+        self.camera_quaternion = camera_quaternion
 
     @property
-    def visibility(self): self.keypoint_visibility
+    def uv(self): return self.observed_keypoints_positions
 
     @property
-    def rgb(self): self.latent_keypoint_positions
+    def visibility(self): return self.keypoint_visibility
 
     @property
-    def camera_poses(self): Pose(self.camera_position, self.camera_quaternion)
+    def rgb(self): return self.latent_keypoint_positions
+
+    @property
+    def camera_poses(self): return Pose(self.camera_position, self.camera_quaternion)
 
     @property
     def intrinsics(self):

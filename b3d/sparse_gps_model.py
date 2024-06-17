@@ -3,8 +3,23 @@ import jax.numpy as jnp
 import genjax
 from b3d.pose import Pose
 from b3d.gps_utils import cov_from_dq_composition
-from hgps.dynamic_gps import DynamicGPS
+from b3d.dynamic_gps import DynamicGPS
 from typing import Any, TypeAlias
+from b3d.camera import screen_from_world
+
+
+@genjax.static_gen_fn
+def minimal_observation_model(
+        vis,
+        particle_poses,
+        camera_pose,
+        intr,
+        sigma
+    ):
+    """Simple observation model for debugging."""
+    uv = screen_from_world(particle_poses.pos, camera_pose, intr)
+    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "uv"
+    return uv_
 
 
 # TODO: Test this code
@@ -49,18 +64,17 @@ def make_sparse_gps_model(
         `object_pose_prior_args`: Arguments for the object cluster pose prior
         `camera_pose_prior`: Camera pose prior model `(*args) -> pose`.
         `camera_pose_prior_args`: Arguments for the camera pose prior.
-        `observation_model`: Observation model `(nums: Array: Array, mus, covs, cam, *args) -> observations`.
+        `observation_model`: Observation model `(vis: Array: Array, mus, cam, intr, *args) -> observations`.
         `observation_model_args`: Arguments for the observation model
         `object_motion_model`: Object motion model `(poses, *args) -> poses`.
         `object_motion_model_args`: Arguments for the object motion model
         `camera_motion_model`: Camera motion model `(pose, *args) -> pose`.
         `camera_motion_model_args`: Arguments for the camera motion model
     """
-
     @genjax.unfold_combinator(max_length=T - 1)
     @genjax.static_gen_fn
     def unfolded_kernel(
-        state, object_assignments, relative_particle_poses, particle_jitter, intr
+        state, object_assignments, relative_particle_poses, intr
     ):
         """Kernel modelling the time evolution a scene."""
         t, object_poses, camera_pose = state
@@ -76,21 +90,24 @@ def make_sparse_gps_model(
         absolute_particle_poses = new_object_poses[object_assignments].compose(
             relative_particle_poses
         )
-        particle_positions = absolute_particle_poses.pos
-        particle_covariances = jax.vmap(cov_from_dq_composition)(
-            particle_jitter, absolute_particle_poses.quat
-        )
 
         # Updated camera pose in world coordinates
         new_camera_pose = (
-            camera_motion_model(camera_pose, *camera_motion_model_args) @ "camera_pose"
+            camera_motion_model(camera_pose, *camera_motion_model_args) 
+            @ "camera_pose"
         )
 
-        _observed_2d_keypoints = (
+        # Visibility mask
+        vis_mask = (
+            genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(jnp.repeat(jax.scipy.special.logit(0.5), N))
+            @ "visibility"
+        )
+        
+        _observation = (
             observation_model(
                 vis_mask,
-                particle_poses,
-                camera_pose,
+                absolute_particle_poses,
+                new_camera_pose,
                 intr,
                 *observation_model_args,
             )
@@ -110,22 +127,8 @@ def make_sparse_gps_model(
             @ "particle_poses"
         )
 
-        # Particle jitter encodes uncertainty of the particles 3d position as
-        # a diagonal covariance matrix for which we sample the diagonal entries here.
-        # TODO: Should we sample the jitter from a different distribution?
-        particle_jitter = (
-            genjax.normal(jnp.zeros((N, 3)), jitter_sigma * jnp.ones((N, 3)))
-            @ "particle_jitter"
-        )
-        particle_jitter = particle_jitter**2
-
-        # NOTE: Not used at the moment
-        # TODO: Incorporate particle features into observation model
-        _particle_features = (
-            genjax.normal(jnp.zeros((N, F)), jnp.ones((N, F))) @ "particle_features"
-        )
-
         # Each particle is associated with an object cluster
+        # NOTE: this could also vary for each partile
         # TODO: How should we handle empty clusters?
         object_assignments = (
             genjax.map_combinator(in_axes=(0,))(genjax.categorical)(jnp.zeros((N, K)))
@@ -142,26 +145,26 @@ def make_sparse_gps_model(
         absolute_particle_poses = initial_object_poses[object_assignments].compose(
             relative_particle_poses
         )
-        particle_positions = absolute_particle_poses.pos
-        particle_covariances = jax.vmap(cov_from_dq_composition)(
-            particle_jitter, absolute_particle_poses.quat
-        )
 
         # Initial camera pose in world coordinates
         initial_camera_pose = (
             camera_pose_prior(*camera_pose_prior_args) @ "initial_camera_pose"
         )
 
-        _observed_2d_particles = (
+        initial_vis_mask = (
+            genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(jnp.repeat(jax.scipy.special.logit(0.5), N))
+            @ "initial_visibility"
+        )
+
+        _initial_observation = (
             observation_model(
-                jnp.arange(N),
-                particle_positions,
-                particle_covariances,
+                initial_vis_mask,
+                absolute_particle_poses,
                 initial_camera_pose,
                 intr,
                 *observation_model_args,
             )
-            @ "initial_observation"
+            @ "observation"
         )
 
         state0 = (0, initial_object_poses, initial_camera_pose)
@@ -171,12 +174,12 @@ def make_sparse_gps_model(
                 state0,
                 object_assignments,
                 relative_particle_poses,
-                particle_jitter,
                 intr,
             )
             @ "chain"
         )
 
+        # Combine the initial state with the chain of states
         object_poses = Pose(
             jnp.concatenate([state0[1][None, :].pos, states[1].pos], axis=0),
             jnp.concatenate([state0[1][None, :].quat, states[1].quat], axis=0),
@@ -207,70 +210,73 @@ def make_sparse_gps_model(
 #   Quick access utils
 #
 # # # # # # # # # # # # # # # # # # # # # #
-SparseGPSModelTrace: TypeAlias = Any
+# SparseGPSModelTrace: TypeAlias = Any
 
 
-def get_inner_val(tr, addr, *rest):
-    """Hack till PR is merged."""
-    inner_val = None
-    if hasattr(tr[addr], "inner"):
-        if hasattr(tr[addr].inner, "value"):
-            inner_val = tr[addr].inner.value
-        else:
-            inner_val = tr[addr].inner
-    else:
-        inner_val = tr[addr]
+# def get_inner_val(tr, addr, *rest):
+#     """Hack till PR is merged."""
+#     inner_val = None
+#     if hasattr(tr[addr], "inner"):
+#         if hasattr(tr[addr].inner, "value"):
+#             inner_val = tr[addr].inner.value
+#         else:
+#             inner_val = tr[addr].inner
+#     else:
+#         inner_val = tr[addr]
 
-    if len(rest) == 0:
-        return inner_val
-    else:
-        return get_inner_val(inner_val, *rest)
-
-
-def get_particles(tr: SparseGPSModelTrace):
-    """Returns the particle poses, covariances, and features from a SparseGPSModelTrace."""
-    return (
-        get_inner_val(tr, "particle_poses"),
-        tr["particle_jitter"],
-        tr["particle_features"],
-    )
+#     if len(rest) == 0:
+#         return inner_val
+#     else:
+#         return get_inner_val(inner_val, *rest)
 
 
-def get_assignments(tr: SparseGPSModelTrace):
-    return get_inner_val(tr, "object_assignments")
+# def get_particles(tr: SparseGPSModelTrace):
+#     """Returns the particle poses, covariances, and features from a SparseGPSModelTrace."""
+#     return (
+#         get_inner_val(tr, "particle_poses"),
+#         tr["particle_jitter"],
+#         tr["particle_features"],
+#     )
 
 
-def get_object_poses(tr: SparseGPSModelTrace):
-    return get_inner_val(tr, "initial_object_poses")[None, :].concat(
-        get_inner_val(tr, "chain", "object_poses"), axis=0
-    )
+# def get_assignments(tr: SparseGPSModelTrace):
+#     return get_inner_val(tr, "object_assignments")
 
 
-def get_cameras(tr: SparseGPSModelTrace):
-    return get_inner_val(tr, "initial_camera_pose")[None, :].concat(
-        get_inner_val(tr, "chain", "camera_pose")
-    )
+# def get_object_poses(tr: SparseGPSModelTrace):
+#     return get_inner_val(tr, "initial_object_poses")[None, :].concat(
+#         get_inner_val(tr, "chain", "object_poses"), axis=0
+#     )
 
 
-def get_2d_particle_positions(tr: SparseGPSModelTrace):
-    return jnp.concatenate(
-        [
-            get_inner_val(tr, "initial_observation", "2d_particle_position")[None],
-            get_inner_val(tr, "chain", "observation", "2d_particle_position"),
-        ],
-        axis=0,
-    )
+# def get_cameras(tr: SparseGPSModelTrace):
+#     return get_inner_val(tr, "initial_camera_pose")[None, :].concat(
+#         get_inner_val(tr, "chain", "camera_pose")
+#     )
 
 
-def get_dynamic_gps(tr: SparseGPSModelTrace):
-    """Gets the DynamicGPS object from a SparseGPSModelTrace."""
-    return DynamicGPS.from_pose_data(
-        *get_particles(tr), get_assignments(tr), get_object_poses(tr)
-    )
+# def get_2d_particle_positions(tr: SparseGPSModelTrace):
+#     return jnp.concatenate(
+#         [
+#             get_inner_val(tr, "initial_observation", "2d_particle_position")[None],
+#             get_inner_val(tr, "chain", "observation", "2d_particle_position"),
+#         ],
+#         axis=0,
+#     )
 
 
-# # # # # # # # # # # # # # # # # # # # # #
-#
-#   Pre-configured model factory
-#
-# # # # # # # # # # # # # # # # # # # # # #
+# def get_dynamic_gps(tr: SparseGPSModelTrace):
+#     """Gets the DynamicGPS object from a SparseGPSModelTrace."""
+#     return DynamicGPS.from_pose_data(
+#         *get_particles(tr), get_assignments(tr), get_object_poses(tr)
+#     )
+
+
+# # # # # # # # # # # # # # # # # # # # # # #
+# #
+# #   Pre-configured model factory
+# #
+# # # # # # # # # # # # # # # # # # # # # # #
+
+
+

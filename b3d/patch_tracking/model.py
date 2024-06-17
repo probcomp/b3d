@@ -4,7 +4,7 @@ import genjax
 import b3d.differentiable_renderer as rendering
 from b3d.model import uniform_pose
 import rerun as rr
-import b3d.patch_tracking.utils as utils
+import b3d.utils as utils
 
 def normalize(v):
     return v / jnp.sum(v)
@@ -68,7 +68,7 @@ def rr_log_trace(trace, renderer, prefix="trace"):
             )
         )
     rr.log("3D/{prefix}/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))
-    xyzs_C = utils.unproject_depth(observed_rgbd[:, :, 3], renderer)
+    xyzs_C = utils.xyz_from_depth(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = cam_pose.apply(xyzs_C)
     rr.log("/3D/{prefix}/gt_pointcloud", rr.Points3D(
         positions=xyzs_W.reshape(-1,3),
@@ -153,7 +153,7 @@ def rr_log_multiobject_trace(trace, renderer):
             )
         )
     rr.log("/trace/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))
-    xyzs_C = utils.unproject_depth(observed_rgbd[:, :, 3], renderer)
+    xyzs_C = utils.xyz_from_depth(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = cam_pose.apply(xyzs_C)
     rr.log("/3D/trace/gt_pointcloud", rr.Points3D(
         positions=xyzs_W.reshape(-1,3),

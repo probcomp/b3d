@@ -1,5 +1,5 @@
 import dataclasses
-from hgps.types import Array
+from b3d.types import Array
 import jax.numpy as jnp
 from typing import Optional
 

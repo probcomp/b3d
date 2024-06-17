@@ -51,7 +51,7 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
 
     Example:
     ```
-    from hgps.pose_grids import uniform_samples_from_SE3_around_identity
+    from b3d.pose_utils import uniform_samples_from_SE3_around_identity
     import numpy as np
     import jax
     import viser

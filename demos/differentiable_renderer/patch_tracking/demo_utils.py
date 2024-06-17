@@ -56,26 +56,6 @@ def transform_from_axis_angle(axis, angle):
     """
     return transform_from_rot(rotation_from_axis_angle(axis, angle))
 
-
-def unproject_depth(depth, intrinsics):
-    """Unprojects a depth image into a point cloud.
-
-    Args:
-        depth (jnp.ndarray): The depth image. Shape (H, W)
-        intrinsics (b.camera.Intrinsics): The camera intrinsics.
-    Returns:
-        jnp.ndarray: The point cloud. Shape (H, W, 3)
-    """
-    mask = (depth < intrinsics.far) * (depth > intrinsics.near)
-    depth = depth * mask + intrinsics.far * (1.0 - mask)
-    y, x = jnp.mgrid[: depth.shape[0], : depth.shape[1]]
-    x = (x - intrinsics.cx) / intrinsics.fx
-    y = (y - intrinsics.cy) / intrinsics.fy
-    point_cloud_image = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * depth[:, :, None]
-    return point_cloud_image
-
-unproject_depth_vec = jax.vmap(unproject_depth, (0, None))
-
 # calculate sequence of pose transformations
 r_mat = transform_from_axis_angle(jnp.array([0,0,1]), jnp.pi/2)
 vec_transform_axis_angle = jax.vmap(transform_from_axis_angle, (None, 0))
@@ -136,3 +116,30 @@ def get_renderer_boxdata_and_patch():
     patch_data = ((patch_vertices_P, patch_faces, patch_vertex_colors), X_WP)
 
     return (renderer, box_data, patch_data, X_WC)
+
+def get_rotating_box_data(renderer):
+    mesh_path = os.path.join(b3d.get_root_path(),
+        "assets/shared_data_bucket/ycb_video_models/models/003_cracker_box/textured_simple.obj")
+    mesh = trimesh.load(mesh_path)
+    cheezit_object_library = b3d.MeshLibrary.make_empty_library()
+    cheezit_object_library.add_trimesh(mesh)
+    rots = vec_transform_axis_angle(jnp.array([0,0,1]), jnp.linspace(jnp.pi/4, 3*jnp.pi/4, 30))
+    in_place_rots = b3d.Pose.from_matrix(rots)
+    cam_pose = b3d.Pose.from_position_and_target(
+        jnp.array([0.15, 0.15, 0.0]),
+        jnp.array([0.0, 0.0, 0.0])
+    )
+    X_WC = cam_pose
+    compound_pose = X_WC.inv() @ in_place_rots
+    rgbs, depths = renderer.render_attribute_many(
+        compound_pose[:,None,...],
+        cheezit_object_library.vertices,
+        cheezit_object_library.faces,
+        jnp.array([[0, len(cheezit_object_library.faces)]]),
+        cheezit_object_library.attributes
+    )
+    observed_rgbds = jnp.concatenate([rgbs, depths[...,None]], axis=-1)
+    xyzs_C = b3d.patch_tracking.utils.unproject_depth_vec(depths, renderer)
+    xyzs_W = X_WC.apply(xyzs_C)
+    
+    return (X_WC, rgbs, xyzs_W, observed_rgbds)

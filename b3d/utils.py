@@ -22,7 +22,7 @@ import distinctipy
 from dataclasses import dataclass
 
 from b3d.hgps_utils import keysplit, load_video_to_numpy
-from b3d.data import VideoInput
+from b3d.io import VideoInput
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])

@@ -140,7 +140,11 @@ def get_rotating_box_data(renderer):
         cheezit_object_library.attributes
     )
     observed_rgbds = jnp.concatenate([rgbs, depths[...,None]], axis=-1)
+<<<<<<< HEAD
     xyzs_C = ptutils.unproject_depth_vec(depths, renderer)
+=======
+    xyzs_C = b3d.patch_tracking.utils.unproject_depth_vec(depths, renderer)
+>>>>>>> 7f05f7e (progress)
     xyzs_W = X_WC.apply(xyzs_C)
     
     return (X_WC, rgbs, xyzs_W, observed_rgbds)

@@ -81,7 +81,7 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
     return Pose(xs, qs)
 
 
-class UniformPose(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+class UniformPoseInBall(genjax.ExactDensity, genjax.JAXGenerativeFunction):
     def sample(self, key, p0: Pose, rx, rq):
         p1 = uniform_samples_from_SE3_around_identity(key, 1, rx, rq)[0]
         return p0.compose(p1)
@@ -94,46 +94,4 @@ class UniformPose(genjax.ExactDensity, genjax.JAXGenerativeFunction):
             volume_of_cap_around_north_pole(rq)
         )
 
-
-uniform_pose = UniformPose()
-
-
-class VMF(genjax.ExactDensity, genjax.JAXGenerativeFunction):
-    def sample(self, key, mean, concentration):
-        return tfp.distributions.VonMisesFisher(mean, concentration).sample(seed=key)
-
-    def logpdf(self, x, mean, concentration):
-        return tfp.distributions.VonMisesFisher(mean, concentration).log_prob(x)
-
-
-vmf = VMF()
-
-
-class GaussianVMFPose(genjax.ExactDensity, genjax.JAXGenerativeFunction):
-    """
-    Samples a pose from the product of a diagonal normal distribution (for position) and
-    a generalized von Mises-Fisher distribution (for quaternion).
-
-    Note:
-    One can view the von Mises–Fisher distribution over the n-sphere
-    as the restriction of the normal distribution on R^{n+1}
-    to the n-sphere. From this viewpoint the concentration is
-    approximateley the inverse of the variance.
-
-    See:
-    > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
-    """
-
-    def sample(self, key, p0: Pose, x_var, q_con):
-        _, keys = keysplit(key, 1, 2)
-        x = jax.random.multivariate_normal(keys[0], p0.pos, x_var * jnp.eye(3))
-        q = vmf.sample(keys[1], p0.quat, q_con)
-        return Pose(x, q)
-
-    def logpdf(self, p, p0: Pose, x_var, q_con):
-        x_logp = jax.scipy.stats.norm.logpdf(p.pos, p0.pos, jnp.ones(3) * x_var)
-        q_logp = vmf.logpdf(p.quat, p0.quat, q_con)
-        return x_logp + q_logp
-
-
-gaussian_vmf_pose = GaussianVMFPose()
+uniform_pose_in_ball = UniformPoseInBall()

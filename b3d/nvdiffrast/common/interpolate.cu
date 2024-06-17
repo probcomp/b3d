@@ -57,13 +57,13 @@ static __forceinline__ __device__ void InterpolateFwdKernelTemplate(const Interp
         vi2 < 0 || vi2 >= p.numVertices)
         return;
 
-    // In instance mode, adjust vertex indices by minibatch index unless broadcasting.
-    if (p.instance_mode && !p.attrBC)
-    {
-        vi0 += pz * p.numVertices;
-        vi1 += pz * p.numVertices;
-        vi2 += pz * p.numVertices;
-    }
+    // // In instance mode, adjust vertex indices by minibatch index unless broadcasting.
+    // if (p.instance_mode && !p.attrBC)
+    // {
+    //     vi0 += pz * p.numVertices;
+    //     vi1 += pz * p.numVertices;
+    //     vi2 += pz * p.numVertices;
+    // }
 
     // Pointers to attributes.
     const float* a0 = p.attributes + vi0 * p.numAttr;

@@ -81,10 +81,8 @@ def interpolate_bwd(self, saved_tensors, diffs):
 
 interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)
 
-
-
 class RendererOriginal(object):
-    def __init__(self, width, height, fx, fy, cx, cy, near, far, num_layers=2048):
+    def __init__(self, width=200, height=200, fx=150.0, fy=150.0, cx=100.0, cy=100.0, near=0.001, far=10.0):
         """
         Triangle mesh renderer.
 
@@ -109,7 +107,6 @@ class RendererOriginal(object):
                 Number of layers in the depth buffer.
         """
         self.renderer_env = dr.RasterizeGLContext(output_db=False)
-        self.num_layers = num_layers
         self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
@@ -138,16 +135,26 @@ class RendererOriginal(object):
         return interpolate_prim(self, attr, rast, faces)
 
     def interpolate(self, attr, rast, faces):
-        return self.interpolate_many(attr, rast[None,...], faces)[0]
+        return self.interpolate_many(attr[None,...], rast[None,...], faces)[0]
 
     def render_many(self, pos, tri, attr):
         rast = self.rasterize_many(pos, tri)
         return self.interpolate_many(attr, rast, tri)
     
     def render(self, pos, tri, attr):
-        rast = self.rasterize(pos, tri)
-        return self.interpolate(attr, rast, tri)
+        return self.render_many(pos[None,...], tri, attr[None,...])[0]
 
+    def render_rgbd_many(self, pos, tri, attr):
+        return self.render_many(
+            pos, tri,
+            jnp.concatenate([attr, pos[...,-1:]],axis=-1)
+        )
+
+    def render_rgbd(self, pos, tri, attr):
+        return self.render_rgbd_many(
+            pos[None,...], tri,
+            attr[None,...]
+        )[0]
 
 # XLA array layout in memory
 def default_layouts(*shapes):

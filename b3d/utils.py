@@ -63,6 +63,7 @@ def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     y = (v - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
     return xyz
+xyz_from_depth_vectorized = jnp.vectorize(xyz_from_depth, excluded=(1,2,3,4,), signature='(h,w)->(h,w,3)')
 
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
     x = fx * xyz[..., 0] / xyz[..., 2] + cx
@@ -175,6 +176,12 @@ def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolut
     face_colors = jnp.concatenate(face_colors_, axis=0)
     return vertices, faces, vertex_colors, face_colors
 
+def get_vertices_faces_colors_from_mesh(mesh):
+    vertices = jnp.array(mesh.vertices)
+    vertices = vertices - jnp.mean(vertices, axis=0)
+    faces = jnp.array(mesh.faces)
+    vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
+    return vertices, faces, vertex_colors    
 
 def get_rgb_pil_image(image, max=1.0):
     """Convert an RGB image to a PIL image.
@@ -456,6 +463,11 @@ def rr_log_pose(channel, pose, scale=0.1):
         channel,
         rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors),
     )
+
+def rr_init(name="demo"):
+    rr.init(name)
+    rr.connect("127.0.0.1:8812")
+
 
 
 def normalize_log_scores(log_p):

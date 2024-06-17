@@ -94,7 +94,7 @@ def _get_plugin(gl=False):
         )
 
     # Try to detect if a stray lock file is left in cache directory and show a warning. This sometimes happens on Windows if the build is interrupted at just the right moment.
-    plugin_name = "nvdiffrast_plugin_differentiable" + ("_gl" if gl else "")
+    plugin_name = "nvdiffrast_plugin_differentiable_modified" + ("_gl" if gl else "")
     try:
         lock_fn = os.path.join(
             torch.utils.cpp_extension._get_build_directory(plugin_name, False), "lock"

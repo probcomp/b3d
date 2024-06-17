@@ -40,7 +40,7 @@ def chisight_dense_likelihood(xyz_in_camera_frame):
     return dense_image_likelihood(mesh, xyz_in_camera_frame[i])
 
 
-renderer = b3d.RenderOriginal
+renderer = b3d.RenderOriginal(trace)
 
 
     return xyz_relative

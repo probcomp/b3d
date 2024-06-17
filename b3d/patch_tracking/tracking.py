@@ -4,6 +4,8 @@ from b3d import Pose
 import b3d
 import genjax
 import b3d.differentiable_renderer as r
+import b3d.patch_tracking.model as m
+import b3d.likelihoods as likelihoods
 import optax
 
 def all_pairs_2(X, Y):
@@ -47,7 +49,8 @@ def get_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors,
         At time 0, `new_observed_rgbd` should be the observed_rgbd for the frame at t=0.
     """
     @jax.jit
-    def importance_from_pos_quat(key, positions, quaternions, observed_rgbd):
+    def importance_from_pos_quat(positions, quaternions, observed_rgbd):
+        key = jax.random.PRNGKey(0) # This value shouldn't matter, in the current model version.
         poses = jax.vmap(lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])), in_axes=(0, 0))(positions, quaternions)
         trace, weight = model.importance(
             key,
@@ -92,7 +95,7 @@ def get_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors,
         return tracker_state
     
     def update_tracker_state(tracker_state, new_observed_rgbd):
-        updated_tracker_state = (*tracker_state[:-1], new_observed_rgbd)
+        updated_tracker_state = (*tracker_state[:4], new_observed_rgbd)
         (opt_state_pos, opt_state_quat, pos, quat, _) = unfold_300_steps(updated_tracker_state)
         return (pos, quat), (opt_state_pos, opt_state_quat, pos, quat, new_observed_rgbd)
     
@@ -100,9 +103,9 @@ def get_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors,
 
 def get_default_multiobject_model_for_patchtracking(renderer):
     depth_scale, color_scale, mindepth, maxdepth = 0.0001, 0.002, -20.0, 20.0
-    model = b3d.patch_tracking.model.multiple_object_model_factory(
+    model = m.multiple_object_model_factory(
         renderer,
-        b3d.likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
+        likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
             renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
         ),
         r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)

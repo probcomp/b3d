@@ -4,6 +4,7 @@ import os
 import trimesh
 import b3d
 from b3d import Pose
+import b3d.patch_tracking.utils as ptutils
 
 ### Utils ###
 
@@ -139,7 +140,7 @@ def get_rotating_box_data(renderer):
         cheezit_object_library.attributes
     )
     observed_rgbds = jnp.concatenate([rgbs, depths[...,None]], axis=-1)
-    xyzs_C = b3d.patch_tracking.utils.unproject_depth_vec(depths, renderer)
+    xyzs_C = ptutils.unproject_depth_vec(depths, renderer)
     xyzs_W = X_WC.apply(xyzs_C)
     
     return (X_WC, rgbs, xyzs_W, observed_rgbds)

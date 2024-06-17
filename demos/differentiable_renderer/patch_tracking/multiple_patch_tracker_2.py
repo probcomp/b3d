@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 from b3d import Pose
 import b3d
 import rerun as rr
@@ -25,10 +26,15 @@ model = tracking.get_default_multiobject_model_for_patchtracking(renderer)
 
 tracker_state = get_initial_tracker_state(Xs_WP)
 
+((p, q), ts2) = update_tracker_state(tracker_state, observed_rgbds[0])
+((p3, p3), ts3) = update_tracker_state(ts2, observed_rgbds[1])
+
 # Run the tracker over each frame
 all_positions = []
 all_quaternions = []
-for timestep in tqdm(range(30)):
+
+
+for timestep in tqdm(range(8)):
     (pos, quats), tracker_state = update_tracker_state(tracker_state, observed_rgbds[timestep])
     all_positions.append(pos)
     all_quaternions.append(quats)
@@ -36,6 +42,13 @@ for timestep in tqdm(range(30)):
 # Visualize the result
 for i in range(observed_rgbds.shape[0]):
     rr.set_time_sequence("frame--tracking", i)
+
+    rr.log("/3D/gt_pointcloud", rr.Points3D(
+        positions=xyzs_W[i].reshape(-1,3),
+        colors=observed_rgbds[i, :, :, :3].reshape(-1,3),
+        radii = 0.001*jnp.ones(xyzs_W[i].reshape(-1,3).shape[0]))
+    )
+
     rr.log("/3D/tracked_points", rr.Points3D(
         positions = all_positions[i],
         radii=0.0075*np.ones(all_positions[i].shape[0]),

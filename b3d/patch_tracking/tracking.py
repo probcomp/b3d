@@ -37,8 +37,15 @@ def get_patches_with_default_centers(rgbs, xyzs_W, X_WC, fx):
     centers = all_pairs_2(height_gradations, width_gradations)
     return get_patches(centers, rgbs, xyzs_W, X_WC, fx)
 
-def get_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors, X_WC=Pose.identity()):
+def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors, X_WC=Pose.identity()):
     """
+    Args:
+        - model: instance of the multiple object model from b3d.patch_tracking.model
+        - patch_vertices_P: The vertices of the patch in the patch's local frame. Shape (N, V, 3)
+        - patch_faces: The faces of the patch. Shape (N, F, 3)
+        - patch_vertex_colors: The vertex colors of the patch. Shape (N, V, 3)
+        - X_WC: The camera pose. Default is the identity pose.
+        
     Returns:
     - get_initial_tracker_state:
         A function from the initial patch poses, Xs_WP, to an initial state object `tracker_state` for the patch tracker.
@@ -74,11 +81,18 @@ def get_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors,
     @jax.jit
     def optimizer_kernel(st, i):
         opt_state_pos, opt_state_quat, pos, quat, observed_rgbd = st
+        # og_pos, og_quat = pos, quat
+        # weight = weight_from_pos_quat(pos, quat, observed_rgbd)
         grad_pos, grad_quat = grad_jitted(pos, quat, observed_rgbd)
         updates_pos, opt_state_pos = optimizer_pos.update(-grad_pos, opt_state_pos)
         updates_quat, opt_state_quat = optimizer_quat.update(-grad_quat, opt_state_quat)
         pos = optax.apply_updates(pos, updates_pos)
         quat = optax.apply_updates(quat, updates_quat)
+        # jax.debug.print("Weight: {x}", x=weight)
+        # jax.debug.print("Pos grad magnitude: {x}", x=jnp.linalg.norm(grad_pos))
+        # jax.debug.print("Quat grad magnitude: {x}", x=jnp.linalg.norm(grad_quat))
+        # jax.debug.print("Position change: {x}", x=jnp.linalg.norm(og_pos - pos))
+        # jax.debug.print("Quaternion change: {x}", x=jnp.linalg.norm(og_quat - quat))
         return (opt_state_pos, opt_state_quat, pos, quat, observed_rgbd), (pos, quat)
 
     @jax.jit

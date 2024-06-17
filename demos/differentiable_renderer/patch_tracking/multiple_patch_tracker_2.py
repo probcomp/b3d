@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-from b3d import Pose
 import b3d
 import rerun as rr
 import numpy as np
@@ -20,27 +19,26 @@ X_WC, rgbs, xyzs_W, observed_rgbds = du.get_rotating_box_data(renderer)
 
 # Get a patch tracker
 model = tracking.get_default_multiobject_model_for_patchtracking(renderer)
-(get_initial_tracker_state, update_tracker_state) = tracking.get_patch_tracker(
-    model, patch_vertices_P, patch_faces, patch_vertex_colors, X_WC=Pose.identity()
+
+(get_initial_tracker_state, update_tracker_state) = tracking.get_adam_optimization_patch_tracker(
+    model, patch_vertices_P, patch_faces, patch_vertex_colors,
+    X_WC=X_WC
 )
 
 tracker_state = get_initial_tracker_state(Xs_WP)
-
-((p, q), ts2) = update_tracker_state(tracker_state, observed_rgbds[0])
-((p3, p3), ts3) = update_tracker_state(ts2, observed_rgbds[1])
 
 # Run the tracker over each frame
 all_positions = []
 all_quaternions = []
 
-
-for timestep in tqdm(range(8)):
+N_FRAMES = observed_rgbds.shape[0]
+for timestep in tqdm(range(N_FRAMES)):
     (pos, quats), tracker_state = update_tracker_state(tracker_state, observed_rgbds[timestep])
     all_positions.append(pos)
     all_quaternions.append(quats)
 
 # Visualize the result
-for i in range(observed_rgbds.shape[0]):
+for i in range(N_FRAMES):
     rr.set_time_sequence("frame--tracking", i)
 
     rr.log("/3D/gt_pointcloud", rr.Points3D(

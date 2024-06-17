@@ -21,15 +21,15 @@ class FeatureTrackData:
 
     Args:
             observed_keypoints_positions: (T, N, 2) Float Array
-            keypoint_visibility: (T, N) Boolean Array
-            camera_intrinsics: (8,) Float Array of camera intrinsics, see `camera.py`.
-            rgbd_images: (T, H, W, 4) Float Array
-            observed_features (optional): (T, N, F) Float Array OR None
-            latent_keypoint_positions (optional): (T, N, 3) Float Array OR None
-            latent_keypoint_quaternions (optional): (T, N, 4) Float Array OR None
-            object_assignments (optional): (N,) Int Array OR None
-            camera_position (optional): (T, 3) Float Array OR None
-            camera_quaternion (optional): (T, 4) Float Array OR None
+            keypoint_visibility:          (T, N) Boolean Array
+            camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
+            rgbd_images:                  (T, H, W, 4) Float Array
+            (optional) observed_features :           (T, N, F) Float Array OR None
+            (optional) latent_keypoint_positions :   (T, N, 3) Float Array OR None
+            (optional) latent_keypoint_quaternions : (T, N, 4) Float Array OR None
+            (optional) object_assignments:           (N,) Int Array OR None
+            (optional) camera_position:              (T, 3) Float Array OR None
+            (optional) camera_quaternion:            (T, 4) Float Array OR None
 
     Example:
     ```

@@ -27,6 +27,28 @@ def multiply_quat_and_vec(q, vs):
     return Rot.from_quat(q).apply(vs)
 
 
+def choose_good_quat(q):
+    """
+    If the real part of the quaternion is negative, return the antipodal quaternion,
+    which represents the same rotation. If the real part is zero, there is still ambiguity,
+    so we'll iteratively resolve that as well.
+
+    Recall that SO(3) is isomorphic to  S^3/x~-x and
+    also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+    """
+    return jnp.where(
+        q[..., [3]] != 0,
+        jnp.sign(q[..., [3]]) * q,
+        jnp.where(
+            q[..., [0]] != 0,
+            jnp.sign(q[..., [0]]) * q,
+            jnp.where(
+                q[..., [1]] != 0, jnp.sign(q[..., [1]]) * q, jnp.sign(q[..., [2]]) * q
+            ),
+        ),
+    )
+
+
 def sample_uniform_pose(key, low, high):
     keys = jax.random.split(key, 2)
     pos = jax.random.uniform(keys[0], (3,)) * (high - low) + low
@@ -202,6 +224,7 @@ class Pose:
         return Pose(jnp.zeros(3), jnp.array([0.0, 0.0, 0.0, 1.0]))
 
     eye = identity
+    id = identity
 
     def apply(self, vec: Array) -> Array:
         """Apply pose to vectors."""
@@ -216,12 +239,15 @@ class Pose:
         return Pose(self.apply(pose.pos), multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: "Pose") -> "Pose":
+        # NOTE: this is useful for gradient updates.
         return Pose(self.pos + pose.pos, self.quat + pose.quat)
 
     def __sub__(self, pose: "Pose") -> "Pose":
+        # NOTE: this is useful for gradient updates.
         return Pose(self.pos - pose.pos, self.quat - pose.quat)
 
     def scale(self, scale: Float) -> "Pose":
+        # NOTE: this is useful for gradient updates.
         return Pose(self.pos * scale, self.quat * scale)
 
     def __mul__(self, scale: Float) -> "Pose":
@@ -237,6 +263,12 @@ class Pose:
         return Pose(
             jnp.concatenate([pose.pos for pose in pose_list], axis=0),
             jnp.concatenate([pose.quat for pose in pose_list], axis=0),
+        )
+
+    def concat(self, poses, axis=0):
+        return Pose(
+            jnp.concatenate([self.pos, poses.pos], axis=axis),
+            jnp.concatenate([self.quat, poses.quat], axis=axis),
         )
 
     @staticmethod
@@ -306,6 +338,11 @@ class Pose:
             posxyzw: Jax array with shape (7,)
         """
         return Pose(posxyzw[:3], posxyzw[3:])
+
+    @staticmethod
+    def from_pos_matrix(pos, matrix):
+        """Create an Pose from a position and a 3x3 matrix."""
+        return Pose(pos[..., :3], Rot.from_matrix(matrix[..., :3, :3]).as_quat())
 
     # TODO: Should we keep that on the Pose class?
     from_position_and_target = camera_from_position_and_target

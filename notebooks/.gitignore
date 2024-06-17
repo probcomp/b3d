@@ -1,0 +1,8 @@
+# Files with a leading underscore `_files.*` are private,
+# helps keeping the repo clean while prototyping
+**/_*/
+**/_*
+**/_*.*
+!**/__*__.py
+**/.DS_Store
+data

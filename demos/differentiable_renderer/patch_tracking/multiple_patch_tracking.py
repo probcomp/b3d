@@ -198,6 +198,7 @@ for timestep in tqdm(range(30)):
 
 for i in range(observed_rgbds.shape[0]):
     rr.set_time_sequence("frame--tracking", i)
+
     rr.log("/3D/tracked_points", rr.Points3D(
         positions = positions[i],
         radii=0.0075*np.ones(positions[i].shape[0]),

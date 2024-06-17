@@ -1,9 +1,9 @@
-import jax.numpy as jnp
 import b3d
 import rerun as rr
 import numpy as np
 from tqdm import tqdm
-import b3d.patch_tracking.tracking as tracking
+import b3d.chisight.dense.patch_tracking as tracking
+from b3d.chisight.dense.model import rr_log_uniformpose_meshes_to_image_model_trace
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 
 rr.init("multiple_patch_tracking_2")
@@ -20,7 +20,7 @@ X_WC, rgbs, xyzs_W, observed_rgbds = du.get_rotating_box_data(renderer)
 # Get a patch tracker
 model = tracking.get_default_multiobject_model_for_patchtracking(renderer)
 
-(get_initial_tracker_state, update_tracker_state) = tracking.get_adam_optimization_patch_tracker(
+(get_initial_tracker_state, update_tracker_state, get_trace) = tracking.get_adam_optimization_patch_tracker(
     model, patch_vertices_P, patch_faces, patch_vertex_colors,
     X_WC=X_WC
 )
@@ -31,7 +31,7 @@ tracker_state = get_initial_tracker_state(Xs_WP)
 all_positions = []
 all_quaternions = []
 
-N_FRAMES = observed_rgbds.shape[0]
+N_FRAMES = 6 #observed_rgbds.shape[0]
 for timestep in tqdm(range(N_FRAMES)):
     (pos, quats), tracker_state = update_tracker_state(tracker_state, observed_rgbds[timestep])
     all_positions.append(pos)
@@ -41,11 +41,9 @@ for timestep in tqdm(range(N_FRAMES)):
 for i in range(N_FRAMES):
     rr.set_time_sequence("frame--tracking", i)
 
-    rr.log("/3D/gt_pointcloud", rr.Points3D(
-        positions=xyzs_W[i].reshape(-1,3),
-        colors=observed_rgbds[i, :, :, :3].reshape(-1,3),
-        radii = 0.001*jnp.ones(xyzs_W[i].reshape(-1,3).shape[0]))
-    )
+    # Log the inferred dense model trace from this timestep
+    trace = get_trace(all_positions[i], all_quaternions[i], observed_rgbds[i])
+    rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer)
 
     rr.log("/3D/tracked_points", rr.Points3D(
         positions = all_positions[i],

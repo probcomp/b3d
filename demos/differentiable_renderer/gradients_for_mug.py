@@ -15,7 +15,6 @@ import jax
 import jax.numpy as jnp
 import optax
 import b3d.differentiable_renderer as rendering
-import b3d.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 from functools import partial
 

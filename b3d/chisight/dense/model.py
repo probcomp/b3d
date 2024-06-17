@@ -6,7 +6,7 @@ import b3d.utils as utils
 import b3d.differentiable_renderer as rendering
 import rerun as rr
 
-def uniformpose_meshes_to_image_model__factory(renderer, likelihood, renderer_hyperparams):
+def uniformpose_meshes_to_image_model__factory(likelihood):
     """
     This factory returns a generative function which
     (1) samples a camera pose uniformly from a spatial region,
@@ -16,7 +16,7 @@ def uniformpose_meshes_to_image_model__factory(renderer, likelihood, renderer_hy
 
     The factory function accepts the same argument signature as `meshes_to_image_model__factory`.
     """
-    meshes_to_image_model = meshes_to_image_model__factory(renderer, likelihood, renderer_hyperparams)
+    meshes_to_image_model = meshes_to_image_model__factory(likelihood)
 
     @genjax.static_gen_fn
     def uniformpose_meshes_to_image_model(vertices_O, faces, vertex_colors):
@@ -27,14 +27,12 @@ def uniformpose_meshes_to_image_model__factory(renderer, likelihood, renderer_hy
             jnp.ones((N, 3))*-10.0, jnp.ones((N, 3))*10.0
         ) @ "poses"
 
-        (observed_rgbd, (weights, attributes)) = meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors) @ "observed_image"
-        return (observed_rgbd, (weights, attributes))
+        (observed_image, likelihood_metadata) = meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors) @ "observed_image"
+        return (observed_image, likelihood_metadata)
 
     return uniformpose_meshes_to_image_model
 
-def meshes_to_image_model__factory(
-        renderer, likelihood, renderer_hyperparams
-    ):
+def meshes_to_image_model__factory(likelihood):
     """
     This factory returns a generative function with one address, "observed_image", which
     generates an image of a collection of meshes with given poses, from a given camera pose.
@@ -42,8 +40,9 @@ def meshes_to_image_model__factory(
     Factory arguments:
     - renderer: b3d.Renderer object
     - likelihood
-        Should be a distribution on images.
-        Should accept (weights, attributes) as input.
+        Should be a generative function with one random choice, "obs", of a random image.
+        Should accept (vertices, faces, vertex_colors) as input.
+        Should return (observed_image, metadata).
     - renderer_hyperparams: last argument for the likelihood
     """
     @genjax.static_gen_fn
@@ -64,12 +63,10 @@ def meshes_to_image_model__factory(
         f = jax.vmap(lambda i, f: f + i*vertices_O.shape[1], in_axes=(0, 0))(jnp.arange(N), faces)
         f = f.reshape(-1, 3)
 
-        weights, attributes = rendering.render_to_rgbd_dist_params(
-            renderer, v, f, vc, renderer_hyperparams
-        )
-        observed_rgbd = likelihood(weights, attributes) @ "observed_image"
+        observed_image, likelihood_metadata = likelihood(v, f, vc) @ "observed_image"
 
-        return (observed_rgbd, (weights, attributes))
+        return (observed_image, likelihood_metadata)
+
     return meshes_to_image_model
 
 ### Visualization code
@@ -94,12 +91,17 @@ def rr_log_meshes_to_image_model_trace(
     and should produce arguments of the form accepted by `meshes_to_image_model`.
     """
     # 2D:
-    (observed_rgbd, (weights, attributes)) = trace.get_retval()
+    (observed_rgbd, metadata) = trace.get_retval()
     rr.log("/trace/rgb/observed", rr.Image(observed_rgbd[:, :, :3]))
     rr.log("/trace/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]))
-    avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
-    rr.log("/trace/rgb/average_render", rr.Image(avg_obs[:, :, :3]))
-    rr.log("/trace/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]))
+    
+    # Visualization path for the average render,
+    # if the likelihood metadata contains the output of the differentiable renderer.
+    if "diffrend_output" in metadata:
+        weights, attributes = metadata["diffrend_output"]
+        avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
+        rr.log("/trace/rgb/average_render", rr.Image(avg_obs[:, :, :3]))
+        rr.log("/trace/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]))
 
     # 3D:
     (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(trace.get_args())

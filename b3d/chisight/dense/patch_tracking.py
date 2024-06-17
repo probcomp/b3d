@@ -5,8 +5,10 @@ import b3d
 import genjax
 import b3d.differentiable_renderer as r
 import b3d.chisight.dense.model as m
-import b3d.likelihoods as likelihoods
+import b3d.chisight.dense.likelihoods as likelihoods
 import optax
+
+import b3d.differentiable_renderer
 
 def all_pairs_2(X, Y):
     return jnp.swapaxes(
@@ -64,7 +66,7 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
             genjax.choice_map({
                 "poses": genjax.vector_choice_map(genjax.choice(poses)),
                 "camera_pose": X_WC,
-                "observed_image": genjax.choice_map({"observed_image": observed_rgbd})
+                "observed_image": genjax.choice_map({"observed_image": genjax.choice_map({"obs": observed_rgbd})})
             }),
             (patch_vertices_P, patch_faces, patch_vertex_colors)
         )
@@ -121,12 +123,17 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
 
 def get_default_multiobject_model_for_patchtracking(renderer):
     depth_scale, color_scale, mindepth, maxdepth = 0.0001, 0.002, -20.0, 20.0
-    model = m.uniformpose_meshes_to_image_model__factory(
-        renderer,
-        likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
+    likelihood = likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
             renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
-        ),
-        r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
     )
-
+    @genjax.static_gen_fn
+    def wrapped_likelihood(vertices, faces, vertex_colors):
+        weights, attributes = b3d.differentiable_renderer.render_to_rgbd_dist_params(
+            renderer, vertices, faces, vertex_colors,
+            r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
+        )
+        obs = likelihood(weights, attributes) @ "obs"
+        return obs, {"diffrend_output": (weights, attributes)}
+    
+    model = m.uniformpose_meshes_to_image_model__factory(wrapped_likelihood)
     return model

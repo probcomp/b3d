@@ -8,7 +8,7 @@ import genjax
 from tqdm import tqdm
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
-import b3d.likelihoods as l
+import b3d.chisight.dense.likelihoods as l
 import b3d.differentiable_renderer as r
 import matplotlib.pyplot as plt
 import numpy as np

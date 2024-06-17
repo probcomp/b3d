@@ -18,7 +18,7 @@ def minimal_observation_model(
     ):
     """Simple observation model for debugging."""
     uv = screen_from_world(particle_poses.pos, camera_pose, intr)
-    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "uv"
+    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "sensor_coordinates"
     return uv_
 
 
@@ -210,73 +210,82 @@ def make_sparse_gps_model(
 #   Quick access utils
 #
 # # # # # # # # # # # # # # # # # # # # # #
-# SparseGPSModelTrace: TypeAlias = Any
+SparseGPSModelTrace: TypeAlias = Any
 
 
-# def get_inner_val(tr, addr, *rest):
-#     """Hack till PR is merged."""
-#     inner_val = None
-#     if hasattr(tr[addr], "inner"):
-#         if hasattr(tr[addr].inner, "value"):
-#             inner_val = tr[addr].inner.value
-#         else:
-#             inner_val = tr[addr].inner
-#     else:
-#         inner_val = tr[addr]
+def get_inner_val(tr, addr, *rest):
+    """Hack till PR is merged."""
+    inner_val = None
+    if hasattr(tr[addr], "inner"):
+        if hasattr(tr[addr].inner, "value"):
+            inner_val = tr[addr].inner.value
+        else:
+            inner_val = tr[addr].inner
+    else:
+        inner_val = tr[addr]
 
-#     if len(rest) == 0:
-#         return inner_val
-#     else:
-#         return get_inner_val(inner_val, *rest)
-
-
-# def get_particles(tr: SparseGPSModelTrace):
-#     """Returns the particle poses, covariances, and features from a SparseGPSModelTrace."""
-#     return (
-#         get_inner_val(tr, "particle_poses"),
-#         tr["particle_jitter"],
-#         tr["particle_features"],
-#     )
+    if len(rest) == 0:
+        return inner_val
+    else:
+        return get_inner_val(inner_val, *rest)
 
 
-# def get_assignments(tr: SparseGPSModelTrace):
-#     return get_inner_val(tr, "object_assignments")
+def get_particle_poses(tr: SparseGPSModelTrace):
+    return (
+        get_inner_val(tr, "particle_poses")
+    )
 
 
-# def get_object_poses(tr: SparseGPSModelTrace):
-#     return get_inner_val(tr, "initial_object_poses")[None, :].concat(
-#         get_inner_val(tr, "chain", "object_poses"), axis=0
-#     )
+def get_assignments(tr: SparseGPSModelTrace):
+    return get_inner_val(tr, "object_assignments")
 
 
-# def get_cameras(tr: SparseGPSModelTrace):
-#     return get_inner_val(tr, "initial_camera_pose")[None, :].concat(
-#         get_inner_val(tr, "chain", "camera_pose")
-#     )
+def get_object_poses(tr: SparseGPSModelTrace):
+    return get_inner_val(tr, "initial_object_poses")[None, :].concat(
+        get_inner_val(tr, "chain", "object_poses"), axis=0
+    )
 
 
-# def get_2d_particle_positions(tr: SparseGPSModelTrace):
-#     return jnp.concatenate(
-#         [
-#             get_inner_val(tr, "initial_observation", "2d_particle_position")[None],
-#             get_inner_val(tr, "chain", "observation", "2d_particle_position"),
-#         ],
-#         axis=0,
-#     )
+def get_cameras(tr: SparseGPSModelTrace):
+    return get_inner_val(tr, "initial_camera_pose")[None, :].concat(
+        get_inner_val(tr, "chain", "camera_pose")
+    )
 
 
-# def get_dynamic_gps(tr: SparseGPSModelTrace):
-#     """Gets the DynamicGPS object from a SparseGPSModelTrace."""
-#     return DynamicGPS.from_pose_data(
-#         *get_particles(tr), get_assignments(tr), get_object_poses(tr)
-#     )
+def get_2d_particle_positions(tr: SparseGPSModelTrace):
+    return jnp.concatenate(
+        [
+            get_inner_val(tr, "initial_observation", "sensor_coordinates")[None],
+            get_inner_val(tr, "chain", "observation", "sensor_coordinates"),
+        ],
+        axis=0,
+    )
 
 
-# # # # # # # # # # # # # # # # # # # # # # #
-# #
-# #   Pre-configured model factory
-# #
-# # # # # # # # # # # # # # # # # # # # # # #
+def get_dynamic_gps(tr: SparseGPSModelTrace):
+    """Gets the DynamicGPS object from a SparseGPSModelTrace."""
+    ps = get_particle_poses(tr)
+    qs = get_object_poses(tr)
+
+    T = qs.shape[0]
+    N = ps.shape[0]
+
+    pos  = jnp.tile(ps.pos, (T,1,1))
+    quat = jnp.tile(ps.quat, (T,1,1))
+    ps = Pose(pos, quat)
+
+    diag = jnp.ones((N, 3))
+
+    return DynamicGPS.from_pose_data(
+        ps, diag, jnp.zeros((N,1)), get_assignments(tr), qs
+    )
+
+
+# # # # # # # # # # # # # # # # # # # # # #
+#
+#   Pre-configured model factory
+#
+# # # # # # # # # # # # # # # # # # # # # #
 
 
 

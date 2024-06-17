@@ -7,6 +7,15 @@ import b3d.differentiable_renderer as rendering
 import rerun as rr
 
 def uniformpose_meshes_to_image_model__factory(renderer, likelihood, renderer_hyperparams):
+    """
+    This factory returns a generative function which
+    (1) samples a camera pose uniformly from a spatial region,
+    (2) samples a collection of object poses uniformly from a spatial region,
+    and
+    (3) generates an image of the collection of meshes with the given poses, from the given camera pose.
+
+    The factory function accepts the same argument signature as `meshes_to_image_model__factory`.
+    """
     meshes_to_image_model = meshes_to_image_model__factory(renderer, likelihood, renderer_hyperparams)
 
     @genjax.static_gen_fn
@@ -27,12 +36,15 @@ def meshes_to_image_model__factory(
         renderer, likelihood, renderer_hyperparams
     ):
     """
-    Args:
-    - renderer
+    This factory returns a generative function with one address, "observed_image", which
+    generates an image of a collection of meshes with given poses, from a given camera pose.
+
+    Factory arguments:
+    - renderer: b3d.Renderer object
     - likelihood
         Should be a distribution on images.
-        Should accept (weights, attributes, *likelihood_args) as input.
-    - renderer_hyperparams
+        Should accept (weights, attributes) as input.
+    - renderer_hyperparams: last argument for the likelihood
     """
     @genjax.static_gen_fn
     def meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors):
@@ -63,7 +75,7 @@ def meshes_to_image_model__factory(
 ### Visualization code
 def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer):
     """
-    Visualize a trace from `uniformpose_meshes_to_image_model`.
+    Log to rerun a visualization of a trace from `uniformpose_meshes_to_image_model`.
     """
     return rr_log_meshes_to_image_model_trace(trace, renderer, model_args_to_densemodel_args=(
         lambda args: (trace["camera_pose"], trace["poses"], *args)
@@ -74,7 +86,12 @@ def rr_log_meshes_to_image_model_trace(
         model_args_to_densemodel_args=(lambda x: x)
     ):
     """
-    Visualize a trace from `meshes_to_image_model`.
+    Log to rerun a visualization of a trace from `meshes_to_image_model`.
+
+    The optional argument `model_args_to_densemodel_args` can be used to enable this function
+    to visualize traces from other models that have the same return value as `meshes_to_image_model`.
+    This function will call `model_args_to_densemodel_args` on the arguments of the given trace,
+    and should produce arguments of the form accepted by `meshes_to_image_model`.
     """
     # 2D:
     (observed_rgbd, (weights, attributes)) = trace.get_retval()

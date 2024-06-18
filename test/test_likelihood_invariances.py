@@ -255,3 +255,10 @@ def test_patch_orientation_invariance(renderer):
 
     assert jnp.isclose(flat_score, tilt_score, rtol=0.05)
 
+
+def test_patch_posterior_samples(renderer):
+    sum = 0
+
+    
+
+    assert sum >= 0

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import os
 import trimesh
 import b3d
+import b3d.bayes3d as bayes3d
 from b3d import Pose
 import rerun as rr
 from tqdm import tqdm
@@ -51,7 +52,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
 
         ## load desired mesh and add to library
         MESH_PATH = os.path.join(
-            b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+            b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
         )
         mesh = trimesh.load(MESH_PATH)
 
@@ -61,7 +62,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         vertex_colors = vertices * 0.0 + jnp.array([1.0, 0.0, 0.0])
         vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
         ranges = jnp.array([[0, len(faces)]])
-        self.object_library = b3d.MeshLibrary.make_empty_library()
+        self.object_library = bayes3d.MeshLibrary.make_empty_library()
         self.object_library.add_object(vertices, faces, vertex_colors)
         print(f"{self.object_library.get_num_objects()} object(s) in library")
 
@@ -246,7 +247,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         acquires posterior samples from those scores.
         """
 
-        model = b3d.model_multiobject_gl_factory(self.renderer)
+        model = bayes3d.model_multiobject_gl_factory(self.renderer)
         key = jax.random.PRNGKey(0)
 
         ## sampling grid
@@ -267,7 +268,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         cp_delta_poses = jax.vmap(cp_to_pose)(delta_cps)
         print(f"{cp_delta_poses.shape[0]} enums")
 
-        model_args = b3d.model.ModelArgs(
+        model_args = bayes3d.model.ModelArgs(
             color_error,
             depth_error,
             inlier_score,
@@ -290,14 +291,14 @@ class TestImgResolutionInvariance(unittest.TestCase):
             ),
             arguments,
         )
-        b3d.rerun_visualize_trace_t(gt_trace, 0)
+        bayes3d.rerun_visualize_trace_t(gt_trace, 0)
 
         ## get IS scores over the enum grid
         test_poses = gt_trace["object_pose_0"] @ cp_delta_poses
         test_poses_batches = test_poses.split(10)
         scores = jnp.concatenate(
             [
-                b3d.enumerate_choices_get_scores_jit(
+                bayes3d.enumerate_choices_get_scores_jit(
                     gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses
                 )
                 for poses in test_poses_batches
@@ -334,13 +335,13 @@ class TestImgResolutionInvariance(unittest.TestCase):
             )
 
             for t in tqdm(range(len(samples))):
-                trace_ = b3d.update_choices_jit(
+                trace_ = bayes3d.update_choices_jit(
                     gt_trace,
                     key,
                     genjax.Pytree.const(["object_pose_0"]),
                     test_poses[samples[t]],
                 )
-                b3d.rerun_visualize_trace_t(trace_, t)
+                bayes3d.rerun_visualize_trace_t(trace_, t)
                 rr.set_time_sequence("frame", t)
                 rr.log("alternate_view_image", rr.Image(alternate_view_images[t, ...]))
                 rr.log("alternate_view_image/gt", rr.Image(alternate_view_gt_image))

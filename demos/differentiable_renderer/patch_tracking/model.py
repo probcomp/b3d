@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import genjax
-import b3d.differentiable_renderer as rendering
+import b3d.chisight.dense.differentiable_renderer as rendering
 import b3d
 from b3d import Pose
 from b3d.model import uniform_pose

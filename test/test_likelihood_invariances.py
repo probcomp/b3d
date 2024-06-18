@@ -1,4 +1,5 @@
 import b3d
+import b3d.bayes3d as bayes3d
 import os
 import jax.numpy as jnp
 import rerun as rr
@@ -13,12 +14,12 @@ def test_resolution_invariance(renderer):
     import trimesh
 
     mesh_path = os.path.join(
-        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+        b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
     )
     mesh = trimesh.load(mesh_path)
     mesh.vertices = mesh.vertices - mesh.vertices.mean(axis=0)
 
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     object_library.add_trimesh(mesh)
 
     image_width = 200
@@ -46,7 +47,7 @@ def test_resolution_invariance(renderer):
     color_error, depth_error = (50.0, 0.01)
     inlier_score, outlier_prob = (4.0, 0.000001)
     color_multiplier, depth_multiplier = (10000.0, 1.0)
-    model_args = b3d.ModelArgs(
+    model_args = bayes3d.ModelArgs(
         color_error,
         depth_error,
         inlier_score,
@@ -55,7 +56,7 @@ def test_resolution_invariance(renderer):
         depth_multiplier,
     )
 
-    logpdf = b3d.rgbd_sensor_model.logpdf(
+    logpdf = bayes3d.rgbd_sensor_model.logpdf(
         (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, 1.0
     )
 
@@ -70,7 +71,7 @@ def test_resolution_invariance(renderer):
             (depth_near.shape[0] * SCALING_FACTOR, depth_near.shape[1] * SCALING_FACTOR),
             "nearest"
         )
-        scaled_up_logpdf = b3d.rgbd_sensor_model.logpdf(
+        scaled_up_logpdf = bayes3d.rgbd_sensor_model.logpdf(
             (rgb_resized, depth_resized), rgb_resized, depth_resized, model_args, fx * SCALING_FACTOR, fy * SCALING_FACTOR, 1.0
         )
         assert jnp.isclose(logpdf, scaled_up_logpdf, rtol=0.01)
@@ -78,18 +79,18 @@ def test_resolution_invariance(renderer):
 def test_distance_to_camera_invarance(renderer):
 
     mesh_path = os.path.join(
-        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+        b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
     )
     mesh = trimesh.load(mesh_path)
     mesh.vertices = mesh.vertices - mesh.vertices.mean(axis=0)
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     object_library.add_trimesh(mesh)
 
 
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     occluder = trimesh.creation.box(extents=jnp.array([0.15, 0.1, 0.1]))
     occluder_colors = jnp.tile(jnp.array([0.8, 0.8, 0.8])[None,...], (occluder.vertices.shape[0], 1))
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     object_library.add_object(occluder.vertices, occluder.faces, attributes=occluder_colors)
 
     image_width = 200
@@ -130,7 +131,7 @@ def test_distance_to_camera_invarance(renderer):
     color_error, depth_error = (50.0, 0.01)
     inlier_score, outlier_prob = (4.0, 0.000001)
     color_multiplier, depth_multiplier = (100.0, 1.0)
-    model_args = b3d.ModelArgs(
+    model_args = bayes3d.ModelArgs(
         color_error,
         depth_error,
         inlier_score,
@@ -153,18 +154,18 @@ def test_distance_to_camera_invarance(renderer):
     print(area_near, area_far)
 
     near_score = (
-        b3d.rgbd_sensor_model.logpdf(
+        bayes3d.rgbd_sensor_model.logpdf(
             (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, 0.0
         )
     )
 
     far_score = (
-        b3d.rgbd_sensor_model.logpdf(
+        bayes3d.rgbd_sensor_model.logpdf(
             (rgb_far, depth_far), rgb_far, depth_far, model_args, fx, fy, 0.0
         )
     )
     print(near_score, far_score)
-    print(b3d.normalize_log_scores(jnp.array([near_score, far_score])))
+    print(b3d.utils.normalize_log_scores(jnp.array([near_score, far_score])))
 
 
     assert jnp.isclose(near_score, far_score, rtol=0.03)

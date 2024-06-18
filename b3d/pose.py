@@ -1,17 +1,9 @@
-from dataclasses import dataclass
 from jax.tree_util import register_pytree_node_class
 import jax.numpy as jnp
-from jax import vmap
 import jax
 from jax.scipy.spatial.transform import Rotation as Rot
-from typing import NamedTuple
-from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
-from warnings import warn
-import b3d
-from typing import Any, NamedTuple, TypeAlias
-import numpy as np
-import cv2
+from typing import TypeAlias
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -349,51 +341,3 @@ class Pose:
 
     sample_uniform_pose = sample_uniform_pose
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
-
-    def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
-        import pyransac3d
-
-        plane = pyransac3d.Plane()
-        plane_eq, _ = plane.fit(
-            np.array(point_cloud),
-            inlier_threshold,
-            minPoints=minPoints,
-            maxIteration=maxIteration,
-        )
-        plane_eq = jnp.array(plane_eq)
-        plane_normal = plane_eq[:3]
-        point_on_plane = plane_normal * -plane_eq[3]
-        plane_x = jnp.cross(plane_normal, np.array([1.0, 0.0, 0.0]))
-        plane_y = jnp.cross(plane_normal, plane_x)
-        R = jnp.vstack([plane_x, plane_y, plane_normal]).T
-        plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
-        return plane_pose
-
-    def fit_table_plane(
-        point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
-    ):
-        plane_pose = b3d.Pose.fit_plane(
-            point_cloud, inlier_threshold, minPoints, maxIteration
-        )
-        points_in_plane_frame = plane_pose.inv().apply(point_cloud)
-        inliers = jnp.abs(points_in_plane_frame[:, 2]) < inlier_threshold
-        inlier_plane_points = points_in_plane_frame[inliers]
-
-        inlier_table_points_seg = b3d.segment_point_cloud(
-            inlier_plane_points, segmentation_threshold
-        )
-
-        table_points_in_plane_frame = inlier_plane_points[inlier_table_points_seg == 0]
-
-        (cx, cy), (width, height), rotation_deg = cv2.minAreaRect(
-            np.array(table_points_in_plane_frame[:, :2])
-        )
-        pose_shift = b3d.Pose(
-            jnp.array([cx, cy, 0.0]),
-            b3d.Rot.from_rotvec(
-                jnp.array([0.0, 0.0, 1.0]) * jnp.deg2rad(rotation_deg)
-            ).as_quat(),
-        )
-        table_pose = plane_pose @ pose_shift
-        table_dims = jnp.array([width, height, 1e-10])
-        return table_pose, table_dims

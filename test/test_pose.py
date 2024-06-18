@@ -3,7 +3,7 @@ import unittest
 import jax.numpy as jnp
 import jax
 
-from b3d import Pose, camera_from_position_and_target
+from b3d.pose import Pose, camera_from_position_and_target
 from jax.scipy.spatial.transform import Rotation as Rot
 import numpy as np
 

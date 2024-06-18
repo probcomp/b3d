@@ -33,4 +33,4 @@ def test_renderer_full(renderer):
     rgb, depth = renderer.render_attribute(
         poses, vertices, faces, jnp.array([[0, len(faces)]]), vertex_colors
     )
-    b3d.get_rgb_pil_image(rgb).save(b3d.get_root_path() / "assets/test_results/test_renderer.png")
+    b3d.utils.get_rgb_pil_image(rgb).save(b3d.utils.get_root_path() / "assets/test_results/test_renderer.png")

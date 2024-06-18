@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import jax
 from b3d import Pose
 import b3d
+import b3d.bayes3d as bayes3d
 from tqdm import tqdm
 import trimesh
 import genjax
@@ -20,13 +21,13 @@ def test_renderer_full(renderer):
     for INPUT in ["real-occluded", "real-visible", "synthetic"]:
         print(f"Running with input {INPUT}")
         if INPUT == "synthetic":
-            video_input = b3d.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
+            video_input = b3d.io.VideoInput.load(b3d.utils.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
             scaling_factor = 3
             T = 50
         elif INPUT == "real-occluded":
-            video_input = b3d.VideoInput.load(
+            video_input = b3d.io.VideoInput.load(
                 os.path.join(
-                    b3d.get_root_path(),
+                    b3d.utils.get_root_path(),
                     "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz",
                     # "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
                 )
@@ -34,9 +35,9 @@ def test_renderer_full(renderer):
             scaling_factor = 5
             T = 0
         elif INPUT == "real-visible":
-            video_input = b3d.VideoInput.load(
+            video_input = b3d.io.VideoInput.load(
                 os.path.join(
-                    b3d.get_root_path(),
+                    b3d.utils.get_root_path(),
                     "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz",
                 )
             )
@@ -65,9 +66,9 @@ def test_renderer_full(renderer):
         )
         depth = jax.image.resize(_depth, (image_height, image_width), "nearest")
 
-        object_library = b3d.MeshLibrary.make_empty_library()
+        object_library = bayes3d.MeshLibrary.make_empty_library()
         mesh_path = os.path.join(
-            b3d.get_root_path(),
+            b3d.utils.get_root_path(),
             "assets/shared_data_bucket/ycb_video_models/models/025_mug/textured_simple.obj",
         )
         object_library.add_trimesh(trimesh.load(mesh_path))
@@ -76,7 +77,7 @@ def test_renderer_full(renderer):
         color_error, depth_error = (60.0, 0.02)
         inlier_score, outlier_prob = (5.0, 0.00001)
         color_multiplier, depth_multiplier = (10000.0, 500.0)
-        model_args = b3d.ModelArgs(
+        model_args = bayes3d.ModelArgs(
             color_error,
             depth_error,
             inlier_score,
@@ -90,7 +91,7 @@ def test_renderer_full(renderer):
             renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, 0.01, 10.0)
         else:
             renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, 0.01, 10.0)
-        model = b3d.model_multiobject_gl_factory(renderer, b3d.rgbd_sensor_model)
+        model = bayes3d.model_multiobject_gl_factory(renderer, b3d.rgbd_sensor_model)
 
 
 
@@ -98,7 +99,7 @@ def test_renderer_full(renderer):
         key = jax.random.PRNGKey(110)
 
 
-        point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
+        point_cloud = b3d.utils.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
 
         vertex_colors = object_library.attributes
         rgb_object_samples = vertex_colors[
@@ -127,7 +128,7 @@ def test_renderer_full(renderer):
             ),
             (jnp.arange(1), model_args, object_library),
         )
-        b3d.rerun_visualize_trace_t(trace, 0)
+        bayes3d.rerun_visualize_trace_t(trace, 0)
 
 
         params = jnp.array([0.02, 1.0])
@@ -137,12 +138,12 @@ def test_renderer_full(renderer):
             (
                 trace2,
                 key,
-            ) = b3d.gvmf_and_sample(
+            ) = bayes3d.gvmf_and_sample(
                 trace, key, params[0], params[1], genjax.Pytree.const("object_pose_0"), 10000
             )
             if trace2.get_score() > trace.get_score():
                 trace = trace2
-                b3d.rerun_visualize_trace_t(trace, counter)
+                bayes3d.rerun_visualize_trace_t(trace, counter)
                 counter += 1
             else:
                 params = jnp.array([params[0] * 0.5, params[1] * 2.0])
@@ -166,7 +167,7 @@ def test_renderer_full(renderer):
             ),
             axis=-1,
         ).reshape(-1, 3)
-        cp_delta_poses = jax.vmap(b3d.contact_parameters_to_pose)(delta_cps)
+        cp_delta_poses = jax.vmap(bayes3d.contact_parameters_to_pose)(delta_cps)
 
 
         for _ in range(2):
@@ -178,7 +179,7 @@ def test_renderer_full(renderer):
 
             scores = jnp.concatenate(
                 [
-                    b3d.enumerate_choices_get_scores_jit(
+                    bayes3d.enumerate_choices_get_scores_jit(
                         trace, key, genjax.Pytree.const(["object_pose_0"]), poses
                     )
                     for poses in test_poses_batches
@@ -194,7 +195,7 @@ def test_renderer_full(renderer):
                 )[2]
             )
 
-            trace = b3d.update_choices_jit(
+            trace = bayes3d.update_choices_jit(
                 trace,
                 key,
                 genjax.Pytree.const(["object_pose_0"]),
@@ -202,7 +203,7 @@ def test_renderer_full(renderer):
             )
             print(trace.get_score())
 
-            b3d.rerun_visualize_trace_t(trace, counter)
+            bayes3d.rerun_visualize_trace_t(trace, counter)
             counter += 1
             print("Sampled Angle Range:", samples_deg_range)
 
@@ -222,13 +223,13 @@ def test_renderer_full(renderer):
 
 
         for t in range(len(samples)):
-            trace = b3d.update_choices_jit(
+            trace = bayes3d.update_choices_jit(
                 trace,
                 key,
                 genjax.Pytree.const(["object_pose_0"]),
                 test_poses[samples[t]],
             )
-            b3d.rerun_visualize_trace_t(trace, counter)
+            bayes3d.rerun_visualize_trace_t(trace, counter)
             counter += 1
             rr.log("/alternate_view_image",rr.Image(alternate_view_images[t]))
 

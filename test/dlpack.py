@@ -14,7 +14,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 import trimesh
 
 mesh_path = os.path.join(
-    b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+    b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
 )
 mesh = trimesh.load(mesh_path)
 vertices = jnp.array(mesh.vertices)

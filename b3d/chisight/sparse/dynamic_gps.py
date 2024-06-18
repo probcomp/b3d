@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from jax.tree_util import register_pytree_node_class
 import jax.numpy as jnp
-from .types import Array, Int
-from .pose import Pose
+from b3d.types import Array, Int
+from b3d.pose import Pose
 import jax
 
 

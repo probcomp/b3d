@@ -67,6 +67,7 @@ def get_rgb_depth_inliers_from_trace(trace):
     return get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
 
 def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args):
+    # conversion from lightness-based color model to intrinsic image-based color model
     observed_lab = b3d.rgb_to_lab(observed_rgb)
     rendered_lab = b3d.rgb_to_lab(rendered_rgb)
     error = (
@@ -100,6 +101,7 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
         corrected_depth = rendered_depth + (rendered_depth == 0.0) * far
         areas = (corrected_depth / fx) * (corrected_depth / fy)
+        #areas = jnp.ones(areas.shape)
 
         return jnp.log(
             # This is leaving out a 1/A (which does depend upon the scene)
@@ -109,6 +111,39 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
         ) * multiplier
 
 rgbd_sensor_model = RGBDSensorModel()
+
+class RGBDSensorModelNorm(ExactDensity,genjax.JAXGenerativeFunction):
+    def sample(self, key, rendered_rgb, rendered_depth, norm_im, model_args, fx, fy, far):
+        return (rendered_rgb, rendered_depth)
+
+    def logpdf(self, observed, rendered_rgb, rendered_depth, norm_im, model_args, fx, fy, far):
+        observed_rgb, observed_depth = observed
+
+        inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(
+            observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args
+        )
+
+        inlier_score = model_args.inlier_score
+        outlier_prob = model_args.outlier_prob
+        multiplier = model_args.color_multiplier
+
+        corrected_depth = rendered_depth + (rendered_depth == 0.0) * far
+
+        flat_cos = jnp.abs(norm_im @ jnp.array([0,0,1]))
+        # adding in a pseudo back plane
+        inv_clip_cos = jnp.multiply(1/jnp.clip(flat_cos, 0.01, 1), (rendered_depth != 0.0) * 1) + (rendered_depth == 0.0) * 1.0
+        depth_corr = jnp.multiply(inv_clip_cos, corrected_depth)
+        areas_flat = ((depth_corr / fx) * (depth_corr / fy))
+
+        return jnp.log(
+            # This is leaving out a 1/A (which does depend upon the scene)
+            inlier_score * jnp.sum(inliers * areas_flat) +
+            1.0 * jnp.sum(undecided * areas_flat)  +
+            outlier_prob * jnp.sum(outliers * areas_flat)
+        ) * multiplier
+
+rgbd_sensor_model_surfacenorm = RGBDSensorModelNorm()
+
 
 def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
     @genjax.static_gen_fn
@@ -138,6 +173,42 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
         )
         observed_rgb, observed_depth = image_likelihood(
             rendered_rgb, rendered_depth,
+            model_args,
+            renderer.fx, renderer.fy,
+            1.0
+        ) @ "observed_rgb_depth"
+        return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
+    return model
+
+def model_multiobject_gl_factory_normal(renderer, image_likelihood=rgbd_sensor_model):
+    @genjax.static_gen_fn
+    def model(
+        _num_obj_arr, # new 
+        model_args,
+        object_library
+    ):
+
+        object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
+        object_indices = jnp.empty((0,), dtype=int)
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
+            
+        for i in range(_num_obj_arr.shape[0]):        
+            object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f"object_{i}"
+            object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
+
+            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
+            object_poses = Pose.concatenate_poses([object_poses, camera_pose.inv() @ object_pose[None,...]])
+
+        rendered_rgb, rendered_depth, rendered_norm_im = renderer.render_attribute_normal(
+            object_poses,
+            object_library.vertices,
+            object_library.faces,
+            object_library.ranges[object_indices] * (object_indices >= 0).reshape(-1,1),
+            object_library.attributes
+        )
+        observed_rgb, observed_depth = image_likelihood(
+            rendered_rgb, rendered_depth,
+            rendered_norm_im,
             model_args,
             renderer.fx, renderer.fy,
             1.0

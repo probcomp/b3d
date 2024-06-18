@@ -276,6 +276,95 @@ class Renderer(object):
         return image[0], zs[0]
 
 
+    def render_attribute_normal_many(self, poses, vertices, faces, ranges, attributes):
+        """
+        Render many scenes to an image by rasterizing and then interpolating attributes.
+
+        Parameters:
+            poses: float array, shape (num_scenes, num_objectsß, 4, 4)
+                Object pose matrix.
+            vertices: float array, shape (num_vertices, 3)
+                Vertex position matrix.
+            faces: int array, shape (num_triangles, 3)
+                Faces Triangle matrix. The integers ßcorrespond to rows in the vertices matrix.
+            ranges: int array, shape (num_objects, 2)
+                Ranges matrix with the 2 elements specify start indices and counts into faces.
+            attributes: float array, shape (num_vertices, num_attributes)
+                Attributes corresponding to the vertices
+
+        Outputs:
+            image: float array, shape (num_scenes, height, width, num_attributes)
+                At each pixel the value is the barycentric interpolation of the attributes corresponding to the
+                3 vertices of the triangle with which the pixel's ray intersected. If the pixel's ray does not intersect
+                any triangle the value at that pixel will be 0s.
+            zs: float array, shape (num_scenes, height, width)
+                Depth of the intersection point. Zero if the pixel ray doesn't collide a triangle.
+            norm_im: approximate surface normal image (num_scenes, height, width, 3)
+        """
+        uvs, object_ids, triangle_ids, zs = self.rasterize_many(
+            poses, vertices, faces, ranges
+        )
+        mask = object_ids > 0
+
+        interpolated_values = self.interpolate_many(
+            attributes, uvs, triangle_ids, faces
+        )
+        image = interpolated_values * mask[..., None]
+        
+        def apply_pose(pose, points):
+            return pose.apply(points)
+        
+        pose_apply_map = jax.vmap(apply_pose, (0,None))
+        new_vertices = pose_apply_map(poses, vertices[faces])
+
+        def normal_vec(x,y,z):
+            vec = jnp.cross(y - x, z - x)
+            norm_vec = vec / jnp.linalg.norm(vec)
+            return norm_vec
+
+        normal_vec_vmap = jax.vmap(jax.vmap(normal_vec, (0,0,0)))
+        nvecs = normal_vec_vmap(new_vertices[...,0,:], new_vertices[...,1,:], new_vertices[...,2,:])
+        norm_vecs = jnp.concatenate((jnp.zeros((len(nvecs),1,3)), nvecs),axis=1)
+
+        def indexer(transformed_normals, triangle_ids):
+            return transformed_normals[triangle_ids]
+
+        index_map = jax.vmap(indexer, (0,0))
+        norm_im = index_map(norm_vecs, triangle_ids)
+
+        return image, zs, norm_im
+    
+    def render_attribute_normal(self, pose, vertices, faces, ranges, attributes):
+        """
+        Render a single scenes to an image by rasterizing and then interpolating attributes.
+
+        Parameters:
+            poses: float array, shape (num_objects, 4, 4)
+                Object pose matrix.
+            vertices: float array, shape (num_vertices, 3)
+                Vertex position matrix.
+            faces: int array, shape (num_triangles, 3)
+                Faces Triangle matrix. The integers correspond to rows in the vertices matrix.
+            ranges: int array, shape (num_objects, 2)
+                Ranges matrix with the 2 elements specify start indices and counts into faces.
+            attributes: float array, shape (num_vertices, num_attributes)
+                Attributes corresponding to the vertices
+
+        Outputs:
+            image: float array, shape (height, width, num_attributes)
+                At each pixel the value is the barycentric interpolation of the attributes corresponding to the
+                3 vertices of the triangle with which the pixel's ray intersected. If the pixel's ray does not intersect
+                any triangle the value at that pixel will be 0s.
+            zs: float array, shape (height, width)
+                Depth of the intersection point. Zero if the pixel ray doesn't collide a triangle.
+            norm_im: approximate surface normal image (height, width, 3)
+        """
+        image, zs, norm_im = self.render_attribute_normal_many(
+            pose[None, ...], vertices, faces, ranges, attributes
+        )
+        return image[0], zs[0], norm_im[0]
+
+
 # XLA array layout in memory
 def default_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]

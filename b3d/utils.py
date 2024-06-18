@@ -431,6 +431,22 @@ enumerate_choices_get_scores_jit = jax.jit(
     enumerate_choices_get_scores, static_argnums=(2,)
 )
 
+def unproject_depth(depth, renderer):
+    """Unprojects a depth image into a point cloud.
+
+    Args:
+        depth (jnp.ndarray): The depth image. Shape (H, W)
+        intrinsics (b.camera.Intrinsics): The camera intrinsics.
+    Returns:
+        jnp.ndarray: The point cloud. Shape (H, W, 3)
+    """
+    mask = (depth < renderer.far) * (depth > renderer.near)
+    depth = depth * mask + renderer.far * (1.0 - mask)
+    y, x = jnp.mgrid[: depth.shape[0], : depth.shape[1]]
+    x = (x - renderer.cx) / renderer.fx
+    y = (y - renderer.cy) / renderer.fy
+    point_cloud_image = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * depth[:, :, None]
+    return point_cloud_image
 
 def nn_background_segmentation(images):
     import torch

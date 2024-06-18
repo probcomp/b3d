@@ -169,6 +169,9 @@ class Pose:
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         return cls(*children)
+    
+    def copy(self):
+        return Pose(jnp.array(self.pos), jnp.array(self.quat))
 
     @property
     def flat(self):

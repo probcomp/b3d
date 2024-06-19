@@ -298,7 +298,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         test_poses_batches = test_poses.split(10)
         scores = jnp.concatenate(
             [
-                bayes3d.enumerate_choices_get_scores_jit(
+                b3d.utils.enumerate_choices_get_scores_jit(
                     gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses
                 )
                 for poses in test_poses_batches
@@ -335,7 +335,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
             )
 
             for t in tqdm(range(len(samples))):
-                trace_ = bayes3d.update_choices_jit(
+                trace_ = b3d.utils.update_choices_jit(
                     gt_trace,
                     key,
                     genjax.Pytree.const(["object_pose_0"]),

@@ -15,7 +15,7 @@ rr.connect(addr=f"127.0.0.1:{PORT}")
 
 # Load date
 path = os.path.join(
-    b3d.get_assets_path(),
+    b3d.utils.get_assets_path(),
     #  "shared_data_bucket/input_data/orange_mug_pan_around_and_pickup.r3d.video_input.npz")
     # "shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
     "shared_data_bucket/input_data/desk_ramen2_spray1.r3d.video_input.npz",

@@ -91,7 +91,7 @@ def test_renderer_full(renderer):
             renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, 0.01, 10.0)
         else:
             renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, 0.01, 10.0)
-        model = bayes3d.model_multiobject_gl_factory(renderer, b3d.rgbd_sensor_model)
+        model = bayes3d.model_multiobject_gl_factory(renderer, bayes3d.rgbd_sensor_model)
 
 
 
@@ -179,7 +179,7 @@ def test_renderer_full(renderer):
 
             scores = jnp.concatenate(
                 [
-                    bayes3d.enumerate_choices_get_scores_jit(
+                    b3d.utils.enumerate_choices_get_scores_jit(
                         trace, key, genjax.Pytree.const(["object_pose_0"]), poses
                     )
                     for poses in test_poses_batches
@@ -195,7 +195,7 @@ def test_renderer_full(renderer):
                 )[2]
             )
 
-            trace = bayes3d.update_choices_jit(
+            trace = b3d.utils.update_choices_jit(
                 trace,
                 key,
                 genjax.Pytree.const(["object_pose_0"]),
@@ -223,7 +223,7 @@ def test_renderer_full(renderer):
 
 
         for t in range(len(samples)):
-            trace = bayes3d.update_choices_jit(
+            trace = b3d.utils.update_choices_jit(
                 trace,
                 key,
                 genjax.Pytree.const(["object_pose_0"]),

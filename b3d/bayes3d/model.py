@@ -2,7 +2,7 @@ import genjax
 from genjax.generative_functions.distributions import ExactDensity
 import jax.numpy as jnp
 import b3d
-from b3d import Pose
+from b3d.pose import Pose
 import rerun as rr
 from collections import namedtuple
 from b3d.modeling_utils import uniform_discrete, uniform_pose
@@ -22,8 +22,8 @@ def get_rgb_depth_inliers_from_trace(trace):
     return get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
 
 def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args):
-    observed_lab = b3d.rgb_to_lab(observed_rgb)
-    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+    observed_lab = b3d.colors.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.colors.rgb_to_lab(rendered_rgb)
     error = (
         jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
@@ -132,7 +132,7 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     info_string = f"# Score : {trace.get_score()}"
 
     if "inliers" in modes:
-        (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask) = b3d.get_rgb_depth_inliers_from_trace(trace)
+        (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask) = get_rgb_depth_inliers_from_trace(trace)
         rr.log("/image/overlay/inliers", rr.DepthImage(inliers * 1.0))
         rr.log("/image/overlay/outliers", rr.DepthImage(outliers * 1.0))
         rr.log("/image/overlay/undecided", rr.DepthImage(undecided * 1.0))
@@ -142,8 +142,8 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     rr.log("/info", rr.TextDocument(info_string))
 
     if "3d" in modes:
-        poses = b3d.get_poses_from_trace(trace)
-        ids = b3d.get_object_ids_from_trace(trace)
+        poses = get_poses_from_trace(trace)
+        ids = get_object_ids_from_trace(trace)
         object_library = trace.get_args()[2]
         for idx, (i,pose) in enumerate(zip(ids, poses)):
             mask = object_library.vertex_index_to_object == i

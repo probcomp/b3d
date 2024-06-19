@@ -65,42 +65,6 @@ def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
     y = fy * xyz[..., 1] / xyz[..., 2] + cy
     return jnp.stack([y, x], axis=-1)
 
-
-@partial(jnp.vectorize, signature="(k)->(k)")
-def rgb_to_lab(rgb):
-    # Convert sRGB to linear RGB
-    rgb = jnp.clip(rgb, 0, 1)
-    mask = rgb > 0.04045
-    rgb = jnp.where(mask, jnp.power((rgb + 0.055) / 1.055, 2.4), rgb / 12.92)
-
-    # RGB to XYZ
-    # https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
-    rgb_to_xyz = jnp.array(
-        [
-            [0.4124564, 0.3575761, 0.1804375],
-            [0.2126729, 0.7151522, 0.0721750],
-            [0.0193339, 0.1191920, 0.9503041],
-        ]
-    )
-    xyz = jnp.dot(rgb, rgb_to_xyz.T)
-
-    # XYZ to LAB
-    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIEXYZ_to_CIELAB
-    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])  # D65 white point
-    xyz_normalized = xyz / xyz_ref
-    mask = xyz_normalized > 0.008856
-    xyz_f = jnp.where(
-        mask, jnp.power(xyz_normalized, 1 / 3), 7.787 * xyz_normalized + 16 / 116
-    )
-
-    L = 116 * xyz_f[1] - 16
-    a = 500 * (xyz_f[0] - xyz_f[1])
-    b = 200 * (xyz_f[1] - xyz_f[2])
-
-    lab = jnp.stack([L, a, b], axis=-1)
-    return lab
-
-
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
     c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
     labels = c.labels_
@@ -118,7 +82,6 @@ def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
         new_labels[labels == unique[index]] = val
         counter += 1
     return new_labels
-
 
 def aabb(object_points):
     """
@@ -282,19 +245,19 @@ def multi_panel(
     drawer = ImageDraw.Draw(dst)
     font_bottom = ImageFont.truetype(
         os.path.join(
-            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+            b3d.utils.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
         ),
         bottom_fontsize,
     )
     font_label = ImageFont.truetype(
         os.path.join(
-            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+            b3d.utils.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
         ),
         label_fontsize,
     )
     font_title = ImageFont.truetype(
         os.path.join(
-            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+            b3d.utils.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
         ),
         title_fontsize,
     )

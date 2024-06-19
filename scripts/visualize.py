@@ -7,7 +7,7 @@ from b3d import Pose
 
 
 def visualize_video_input(path):
-    video_input = b3d.VideoInput.load(path)
+    video_input = b3d.io.VideoInput.load(path)
 
     import rerun as rr
 

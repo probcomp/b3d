@@ -45,7 +45,7 @@ for i in range(NUM_IMAGES):
     rr.set_time_sequence("frame", i)
     rr.log("img", rr.Image(rgb[i]))
 
-video_input = b3d.VideoInput(
+video_input = b3d.io.VideoInput(
     rgb=(rgb * 255.0).astype(jnp.uint8),
     xyz=jax.vmap(b3d.xyz_from_depth,in_axes=(0,None, None, None, None))(depth, fx, fy, cx, cy),
     camera_positions=jnp.zeros((NUM_IMAGES, 3)),
@@ -56,4 +56,4 @@ video_input = b3d.VideoInput(
 video_input.save(
     b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input",
 )
-video_input = b3d.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
+video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")

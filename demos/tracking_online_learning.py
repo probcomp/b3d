@@ -20,7 +20,7 @@ path = os.path.join(
     # "shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
     "shared_data_bucket/input_data/desk_ramen2_spray1.r3d.video_input.npz",
 )
-video_input = b3d.VideoInput.load(path)
+video_input = b3d.io.VideoInput.load(path)
 
 # Get intrinsics
 image_width, image_height, fx, fy, cx, cy, near, far = np.array(

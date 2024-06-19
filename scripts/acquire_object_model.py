@@ -12,7 +12,7 @@ path = os.path.join(
     b3d.get_root_path(),
     "assets/shared_data_bucket/input_data/lysol_static.r3d.video_input.npz",
 )
-video_input = b3d.VideoInput.load(path)
+video_input = b3d.io.VideoInput.load(path)
 
 import numpy as np
 image_width, image_height, fx, fy, cx, cy, near, far = np.array(

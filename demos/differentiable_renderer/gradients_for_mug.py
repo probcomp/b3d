@@ -40,7 +40,7 @@ far = 16.0
 
 WINDOW = 5
 
-video_input = b3d.VideoInput.load(
+video_input = b3d.io.VideoInput.load(
     os.path.join(
         b3d.get_root_path(),
         "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz",

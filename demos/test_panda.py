@@ -32,7 +32,7 @@ import pickle
     camera_pose = d["camera_image"]["camera_pose"]
     image_height, image_width = rgb.shape[:2]
 
-    video_input = b3d.VideoInput(
+    video_input = b3d.io.VideoInput(
         rgb=jnp.array(rgb)[None,...],
         xyz=b3d.xyz_from_depth(jnp.array(depth), fx,fy, cx,cy)[None,...],
         camera_intrinsics_rgb=jnp.array([image_width, image_height, fx, fy, cx, cy, 0.01, 10.0]),

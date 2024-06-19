@@ -23,7 +23,7 @@ label_fn = map_nested_fn(lambda k, _: k)
 #     b3d.get_root_path(),
 #     "assets/shared_data_bucket/input_data/static_room_pan_around.r3d.video_input.npz",
 # )
-# video_input = b3d.VideoInput.load(path)
+# video_input = b3d.io.VideoInput.load(path)
 # data = jnp.load(os.path.join(
 #     b3d.get_root_path(),
 #     "assets/shared_data_bucket/input_data/cotracker_static_outputs.npz"
@@ -33,7 +33,7 @@ label_fn = map_nested_fn(lambda k, _: k)
 #     b3d.get_root_path(),
 #     "assets/shared_data_bucket/input_data/bubly_manipulation.r3d.video_input.npz",
 # )
-# video_input = b3d.VideoInput.load(path)
+# video_input = b3d.io.VideoInput.load(path)
 # data = jnp.load(os.path.join(
 #     b3d.get_root_path(),
 #     "assets/shared_data_bucket/input_data/cotracker_bubly_outputs.npz"
@@ -43,7 +43,7 @@ path = os.path.join(
     b3d.get_root_path(),
     "assets/shared_data_bucket/input_data/royce_static_to_dynamic.r3d.video_input.npz",
 )
-video_input = b3d.VideoInput.load(path)
+video_input = b3d.io.VideoInput.load(path)
 data = jnp.load(path + "cotracker_output.npz")
 
 first_frame_rgb = (video_input.rgb[0] / 255.0)

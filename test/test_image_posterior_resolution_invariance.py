@@ -52,7 +52,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
 
         ## load desired mesh and add to library
         MESH_PATH = os.path.join(
-            b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+            b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
         )
         mesh = trimesh.load(MESH_PATH)
 

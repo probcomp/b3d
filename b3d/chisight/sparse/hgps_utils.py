@@ -33,21 +33,6 @@ def depreciated(msg):
     return decorator
 
 
-def keysplit(key, *ns):
-    if len(ns) == 0:
-        return jax.random.split(key, 1)[0]
-    elif len(ns) == 1:
-        (n,) = ns
-        if n == 1:
-            return keysplit(key)
-        else:
-            return jax.random.split(key, ns[0])
-    else:
-        keys = []
-        for n in ns:
-            keys.append(keysplit(key, n))
-        return keys
-
 def load_video_to_numpy(file_path):
     """
     Read video file and convert to numpy array.

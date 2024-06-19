@@ -245,19 +245,19 @@ def multi_panel(
     drawer = ImageDraw.Draw(dst)
     font_bottom = ImageFont.truetype(
         os.path.join(
-            b3d.utils.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
         ),
         bottom_fontsize,
     )
     font_label = ImageFont.truetype(
         os.path.join(
-            b3d.utils.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
         ),
         label_fontsize,
     )
     font_title = ImageFont.truetype(
         os.path.join(
-            b3d.utils.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
+            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
         ),
         title_fontsize,
     )
@@ -537,3 +537,18 @@ def fit_table_plane(
     table_pose = plane_pose @ pose_shift
     table_dims = jnp.array([width, height, 1e-10])
     return table_pose, table_dims
+
+def keysplit(key, *ns):
+    if len(ns) == 0:
+        return jax.random.split(key, 1)[0]
+    elif len(ns) == 1:
+        (n,) = ns
+        if n == 1:
+            return keysplit(key)
+        else:
+            return jax.random.split(key, ns[0])
+    else:
+        keys = []
+        for n in ns:
+            keys.append(keysplit(key, n))
+        return keys

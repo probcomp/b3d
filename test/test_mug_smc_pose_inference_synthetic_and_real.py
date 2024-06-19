@@ -21,13 +21,13 @@ def test_renderer_full(renderer):
     for INPUT in ["real-occluded", "real-visible", "synthetic"]:
         print(f"Running with input {INPUT}")
         if INPUT == "synthetic":
-            video_input = b3d.io.VideoInput.load(b3d.utils.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
+            video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
             scaling_factor = 3
             T = 50
         elif INPUT == "real-occluded":
             video_input = b3d.io.VideoInput.load(
                 os.path.join(
-                    b3d.utils.get_root_path(),
+                    b3d.get_root_path(),
                     "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz",
                     # "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz"
                 )
@@ -37,7 +37,7 @@ def test_renderer_full(renderer):
         elif INPUT == "real-visible":
             video_input = b3d.io.VideoInput.load(
                 os.path.join(
-                    b3d.utils.get_root_path(),
+                    b3d.get_root_path(),
                     "assets/shared_data_bucket/input_data/mug_handle_visible.video_input.npz",
                 )
             )
@@ -68,7 +68,7 @@ def test_renderer_full(renderer):
 
         object_library = bayes3d.MeshLibrary.make_empty_library()
         mesh_path = os.path.join(
-            b3d.utils.get_root_path(),
+            b3d.get_root_path(),
             "assets/shared_data_bucket/ycb_video_models/models/025_mug/textured_simple.obj",
         )
         object_library.add_trimesh(trimesh.load(mesh_path))

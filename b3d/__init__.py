@@ -2,6 +2,8 @@ from importlib import metadata
 
 from . import renderer, io, bayes3d, chisight
 from . import camera, colors, pose, types, utils
+from .utils import get_root_path, get_assets_path, get_assets
+from .bayes3d import MeshLibrary
 from .pose import Pose, Rot
 from .renderer import Renderer
 
@@ -19,5 +21,7 @@ __all__ = [
     "types",
     "utils",
     "Pose",
-    "Rot"
+    "Rot",
+    "MeshLibrary",
+    "get_root_path", "get_assets_path", "get_assets"
 ]

@@ -29,7 +29,7 @@ class TestMugHandlePosterior:
         renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, near, far)
 
         mesh_path = os.path.join(
-            b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+            b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
         )
         mesh = trimesh.load(mesh_path)
         vertices = jnp.array(mesh.vertices)

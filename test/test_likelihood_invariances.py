@@ -14,7 +14,7 @@ def test_resolution_invariance(renderer):
     import trimesh
 
     mesh_path = os.path.join(
-        b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
     )
     mesh = trimesh.load(mesh_path)
     mesh.vertices = mesh.vertices - mesh.vertices.mean(axis=0)
@@ -79,7 +79,7 @@ def test_resolution_invariance(renderer):
 def test_distance_to_camera_invarance(renderer):
 
     mesh_path = os.path.join(
-        b3d.utils.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
     )
     mesh = trimesh.load(mesh_path)
     mesh.vertices = mesh.vertices - mesh.vertices.mean(axis=0)

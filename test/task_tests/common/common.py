@@ -232,13 +232,14 @@ class TestCase(atp.TestCase):
         the subtest name, solver name, result metrics (name:value dict), and any arg/kwargs that will be
         passed into the assert-raising metrics function name.
         """
-        self.json_log['results'].append({
-                        'name': self._testMethodName,
-                        'solver': solver.__name__,
-                        'metrics': serialize_results_dict(metrics),
-                        'args_kwargs': (tasktest_args, tasktest_kwargs),
-                    })
-        self.json_updated = True
+        if hasattr(self, 'json_log'):
+            self.json_log['results'].append({
+                            'name': self._testMethodName,
+                            'solver': solver.__name__,
+                            'metrics': serialize_results_dict(metrics),
+                            'args_kwargs': (tasktest_args, tasktest_kwargs),
+                        })
+            self.json_updated = True
 
 ############################
 # Export (JSON, TODO image/video?) utils.

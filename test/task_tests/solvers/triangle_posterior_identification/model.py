@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import genjax
 import b3d
 import b3d.differentiable_renderer as rendering
-from b3d.model import uniform_pose
 import rerun as rr
 
 def normalize(weights):
@@ -39,24 +38,19 @@ def model_factory(
         return (observed_rgb, weights, attributes)
 
     @genjax.static_gen_fn
-    def model(background_mesh, triangle, triangle_color, camera_poses):
+    def model(background_mesh, triangle_color, camera_poses):
         """
         - background_mesh = (background_vertices, background_faces, background_colors)
         - triangle (3, 3): [v1, v2, v3]
                 (will be renormalized so v1 = [0, 0, 0] and len(v1->v2) == 1.0)
         """
         (background_vertices, background_faces, background_colors) = background_mesh
+        
+        triangle_vertices = genjax.uniform(
+            -20. * jnp.ones((3, 3)), 20. * jnp.ones((3, 3))
+        ) @ "triangle_vertices"
 
-        # scaling and shifting is relative to v1
-        triangle_xyz = genjax.uniform(-20. * jnp.ones(3), 20. * jnp.ones(3)) @ "triangle_xyz"
-        triangle_size = genjax.uniform(0., 20.) @ "triangle_size"
-
-        triangle = triangle - triangle[0]
-        triangle = triangle / jnp.linalg.norm(triangle[1] - triangle[0])
-        triangle_transformed = triangle * triangle_size
-        triangle_transformed = triangle_transformed + triangle_xyz
-
-        all_vertices = jnp.concatenate([background_vertices, triangle_transformed], axis=0)
+        all_vertices = jnp.concatenate([background_vertices, triangle_vertices], axis=0)
         all_faces = jnp.concatenate([background_faces, jnp.arange(3).reshape((1, 3)) + background_vertices.shape[0]], axis=0)
         all_face_colors = jnp.concatenate([background_colors, jnp.array([triangle_color])], axis=0)
 
@@ -67,7 +61,7 @@ def model_factory(
         metadata = {
             "weights": weights,
             "attributes": attributes,
-            "triangle_transformed": triangle_transformed,
+            "triangle_vertices": triangle_vertices,
         }
 
         return (observed_rgbs, metadata)
@@ -110,8 +104,8 @@ def rr_log_trace(
     ))
 
     # log foreground triangle
-    tv = metadata["triangle_transformed"]
-    tfc = trace.get_args()[2][None, :]
+    tv = metadata["triangle_vertices"]
+    tfc = trace.get_args()[1][None, :]
     tf = jnp.array([[0, 1, 2]])
     tv_, tf_, tvc_ = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(tv, tf, tfc)
     rr.log(f"/3D/{prefix}/foreground", rr.Mesh3D(

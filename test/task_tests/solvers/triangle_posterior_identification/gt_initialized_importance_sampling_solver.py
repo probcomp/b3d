@@ -7,6 +7,34 @@ from .model import model_factory, get_likelihood, rr_log_trace
 
 RENDERER_HYPERPARAMS = b3d.differentiable_renderer.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
 
+@genjax.static_gen_fn
+def gt_informed_triangle_proposal(
+    gt_triangle, mindepth, maxdepth, fx, fy, cx, cy
+):
+    """
+    Given a triangle `gt_triangle = [A, B, C]`, where A, B, C are 3-vectors
+    in the camera frame, propose a new triangle `new_triangle = [D, E, F]` in
+    the camera frame that projects to approximately the same pixels as `gt_triangle`.
+    """
+    # jax.experimental.checkify.check(jnp.allclose(fx, fy), "fx != fy")
+    A, B, C = gt_triangle
+
+    # Origin of the camera frame
+    O = jnp.zeros(3)
+
+    # Step 1: sample a random depth along the ray from
+    # the camera origin to each vertex of the triangle.
+    depth1 = genjax.uniform(mindepth, maxdepth) @ "depth1"
+    # depth2 = genjax.uniform(mindepth, maxdepth) @ "depth2"
+    # depth3 = genjax.uniform(mindepth, maxdepth) @ "depth3"
+
+    D = O + depth1 / jnp.linalg.norm(A - O) * (A - O)
+    E = O + depth1 / jnp.linalg.norm(B - O) * (B - O)
+    F = O + depth1 / jnp.linalg.norm(C - O) * (C - O)
+
+    new_triangle = jnp.stack([D, E, F], axis=0)
+    return new_triangle
+
 def importance_sample_with_depth_in_partition(
     key, task_input, model, mindepth, maxdepth
 ):
@@ -16,41 +44,33 @@ def importance_sample_with_depth_in_partition(
     P(depth | image, depth \in [mindepth, maxdepth) )
     w ~~ P( image, depth \in [mindepth, maxdepth) )
     """
-    k1, k2, k3 = jax.random.split(key, 3)
-    proposed_depth = genjax.uniform.sample(k1, mindepth, maxdepth)
-    log_q = genjax.uniform.logpdf(proposed_depth, mindepth, maxdepth)
-
     X_WC = task_input["camera_path"][0]
     triangle_W = task_input["cheating_info"]["triangle_vertices"]
     triangle_C = X_WC.inv().apply(triangle_W)
+    r = task_input["renderer"]
 
-    og_triangle_depth = triangle_C[0, 2]
-    size_at_camera = 
-    triangle_size = (proposed_depth - og_triangle_depth
-    mean_pos_C = jnp.array([triangle_C[0, 0], triangle_C[0, 1], proposed_depth])
-    exact_position_C = genjax.normal.sample(k2, mean_pos_C, 1e-8)
-    log_q += genjax.normal.logpdf(exact_position_C, mean_pos_C, 1e-8)
+    _, log_q_score, new_triangle_C = gt_informed_triangle_proposal.propose(
+        key, (triangle_C, mindepth, maxdepth, r.fx, r.fy, r.cx, r.cy)
+    )
 
-    exact_position_W = X_WC.apply(exact_position_C)
+    new_triangle_W = X_WC.apply(new_triangle_C)
 
     trace, log_p_score = model.importance(
         key,
         genjax.choice_map({
-            "triangle_xyz": exact_position_W,
-            "triangle_size": triangle_size,
+            "triangle_vertices": new_triangle_W,
             "observed_rgbs": genjax.vector_choice_map(genjax.choice_map({
                 "observed_rgb": task_input["video"]
             }))
         }),
         (
             task_input["background_mesh"],
-            task_input["triangle"]["vertices"],
             task_input["triangle"]["color"],
             task_input["camera_path"]
         )
     )
 
-    return trace, log_p_score - log_q
+    return trace, log_p_score - log_q_score
 
 def importance_solver(task_input):
     def grid_solver(partition):
@@ -73,10 +93,10 @@ def importance_solver(task_input):
         joint_scores = jnp.array([ts[1] for ts in trs_and_scores])
 
         for i in range(len(trs)):
-            if i % 20 == 0:
+            if i in (50, 80):
                 rr_log_trace(trs[i], task_input["renderer"], prefix=f"trace_{i}")
 
-        return jnp.exp(joint_scores - jax.scipy.special.logsumexp(joint_scores))
+        return joint_scores - jax.scipy.special.logsumexp(joint_scores)
     
     return {
         "laplace": {},

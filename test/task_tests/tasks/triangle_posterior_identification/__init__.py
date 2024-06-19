@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 import b3d
 import rerun as rr
+import matplotlib.pyplot as plt
 
 class TrianglePosteriorIdentificationTask(Task):
     """
@@ -119,15 +120,16 @@ class TrianglePosteriorIdentificationTask(Task):
         `solution` should be a function with the following signature:
         - Input: `partition`: a (P,) array of floats, defining a partition of a subset
             of the real line.
-        - Output: `depth_posterior_approximation`: a (P-1,) array of floats, where
-            `depth_posterior_approximation[i]` is an approximation to 
-            `P(there is a point on the triangle with, such that the first triangle vertex's
+        - Output: `log_depth_posterior_approximation`: a (P-1,) array of floats, where
+            `log_depth_posterior_approximation[i]` is an approximation to 
+            `log P(there is a point on the triangle with, such that the first triangle vertex's
                 z value in the camera frame is in [partition[i], partition[i+1]) | data)`.
             By the "first vertex", I mean the first vetex listed in task_input["triangle"]["vertices"]
         """
         if self.n_frames() == 1:
             partition, background_z = self._get_grid_partition()
-            posterior_approximation = solution(partition)
+            log_posterior_approximation = solution(partition)
+            posterior_approximation = jnp.exp(log_posterior_approximation)
 
             # STEP 3: compute the metrics
             max_idx_before_region = jnp.argmax(0. < partition)
@@ -137,17 +139,26 @@ class TrianglePosteriorIdentificationTask(Task):
                 jnp.sum(posterior_approximation[min_idx_after_region:])
             posterior_in_expected_region = posterior_approximation[max_idx_before_region:min_idx_after_region]
             posterior_in_expected_region = posterior_in_expected_region / jnp.sum(posterior_in_expected_region)
+            uniform_in_expected_region = jnp.ones_like(posterior_in_expected_region) / len(posterior_in_expected_region)
             divergence_from_uniform = _kl(
-                jnp.ones_like(posterior_in_expected_region) / len(posterior_in_expected_region),
+                uniform_in_expected_region,
                 posterior_in_expected_region
             )
+            expected_posterior = jnp.zeros_like(partition[:-1])
+            expected_posterior = expected_posterior.at[max_idx_before_region:min_idx_after_region].set(uniform_in_expected_region)
+            expected_log_posterior = jnp.log(expected_posterior)
             
             # VIZ
-            self.visualize_grid_approximation(posterior_approximation)
+            self.visualize_grid_approximation(posterior_approximation, show_expected_region=False)
+            self.visualize_grid_approximation(expected_posterior, name="expected_grid_posterior")
+            self.visualize_log_grid_approximation_2D(partition, log_posterior_approximation, name="log_grid_posterior_approximation")
+            self.visualize_log_grid_approximation_2D(partition, expected_log_posterior, name="expected_log_grid_posterior")
 
             return {
                 "mass_assigned_outside_expected_region": mass_assigned_outside_expected_region,
-                "divergence_from_uniform_in_expected_region": divergence_from_uniform
+                "divergence_from_uniform_in_expected_region": divergence_from_uniform,
+                "log_posterior_approximation": log_posterior_approximation,
+                "expected_log_posterior": expected_log_posterior
             }
         else:
             # TODO
@@ -186,30 +197,48 @@ class TrianglePosteriorIdentificationTask(Task):
     def n_frames(self):
         return self.triangle_path.shape[0]
     
-    def visualize_grid_approximation(self, posterior_approximation):
+    def visualize_log_grid_approximation_2D(self, partition, log_posterior_approximation, name="log_grid_posterior_approximation"):
+        # self.maybe_initialize_rerun()
+        
+        # for i in range(len(partition[:-1])):
+        #     rr.set_time_sequence("depth", i)
+        #     rr.log(f"/2D/{name}/P(depth | data)2", rr.Scalar(log_posterior_approximation[i]))
+        plt.plot(partition[:-1], log_posterior_approximation, label=name)
+        plt.title("Log grid posterior approximation")
+        plt.xlabel("depth")
+        plt.ylabel("log P(depth | data)")
+
+
+    def visualize_grid_approximation(self, posterior_approximation, name="grid_posterior_approximation", show_expected_region=True):
         self.maybe_initialize_rerun()
         partition, background_z = self._get_grid_partition()
         pts_C = partition[:, None] * jnp.array([[0., 0., 1.]])
         X_WC = self.camera_path[0]
         pts_W = X_WC.apply(pts_C)
-        posterior_approximation = jnp.ones_like(partition[:-1]) / len(partition[:-1])
+
+        def p_to_color(p):
+            c = jnp.sqrt(p * 10)
+            c = jnp.clip(c, 0., 1.)
+            return c
+
         rr.log(
-            "/3D/grid_posterior_approximation/camera_z_partition/partition",
+            f"/3D/{name}/camera_z_partition/partition",
             rr.LineStrips3D(
                 [jnp.array([pts_W[i], pts_W[i+1]]) for i in range(len(pts_W) - 1)],
-                colors=[[a, a, a] for a in jnp.clip(posterior_approximation, 0., 1.)]
+                colors=[p_to_color(a) for a in jnp.clip(posterior_approximation, 0., 1.)]
             )
         )
 
-        max_idx_before_region = jnp.argmax(0. < partition)
-        min_idx_after_region = jnp.argmax(background_z < partition)
-        rr.log(
-            "/3D/grid_posterior_approximation/camera_z_partition/possible_region",
-            rr.LineStrips3D(
-                [[pts_W[max_idx_before_region + 1], pts_W[min_idx_after_region - 1]]],
-                colors=[[0., 1., 1.]]
+        if show_expected_region:
+            max_idx_before_region = jnp.argmax(0. < partition)
+            min_idx_after_region = jnp.argmax(background_z < partition)
+            rr.log(
+                f"/3D/{name}/camera_z_partition/possible_region",
+                rr.LineStrips3D(
+                    [[pts_W[max_idx_before_region + 1], pts_W[min_idx_after_region - 1]]],
+                    colors=[[0., 1., 1.]]
+                )
             )
-        )
 
     def get_camera_frame_scene(self, frame_idx):
         # background

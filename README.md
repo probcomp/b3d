@@ -66,12 +66,3 @@ Install rerun on local machine `pip install rerun-sdk` and open viewer:
 ```
 rerun --port 8812
 ```
-
-# Development standards
-- Please run `./run_tests.sh` before making a PR.  Please make a comment in your PR confirming
-  that you have run the tests and that they passed.
-- Pull requests are guaranteed to be checked against code in `/test/`, but not against code
-  in `demos/`, `notebooks/`, `scripts/`, etc.
-  If you develop code in `demos/` and `notebooks/` and you want to ensure that future PRs do not
-  break the imports or other functionality used in the demos/scripts,
-  please add a file to `tests/` which tests all the functionality you care about.

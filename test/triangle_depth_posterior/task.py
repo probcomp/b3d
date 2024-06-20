@@ -81,9 +81,12 @@ class TrianglePosteriorGridApproximationTask(Task):
         else:
             return {}
 
-    def assert_passing(self, metrics):
-        assert metrics["grid"]["mass_assigned_outside_expected_region"] < 0.001
-        assert metrics["grid"]["divergence_from_uniform_in_expected_region"] < 0.2
+    def assert_passing(self, metrics,
+        mass_outside_region_threshold = 0.001,
+        divergence_from_uniform_threshold = 0.2
+    ):
+        assert metrics["mass_assigned_outside_expected_region"] <= mass_outside_region_threshold
+        assert metrics["divergence_from_uniform_in_expected_region"] <= divergence_from_uniform_threshold
 
     def rr_log_task(self):
         self.visualize_scene()

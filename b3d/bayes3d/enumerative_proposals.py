@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import b3d
-from b3d import Pose
+from b3d.pose import Pose
 import genjax
 
 

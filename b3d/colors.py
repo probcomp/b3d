@@ -1,12 +1,7 @@
-import genjax
-from b3d.pose import Pose, sample_uniform_pose, sample_gaussian_vmf_pose
-from genjax.generative_functions.distributions import ExactDensity
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax.scipy.special import logsumexp
 from functools import partial
-import rerun as rr
 
 
 @partial(jnp.vectorize, signature="(k)->(k)")

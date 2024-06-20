@@ -29,13 +29,13 @@ rr.connect(addr=f"127.0.0.1:{PORT}")
 
 print(f"Running with input {INPUT}")
 if "fork" in INPUT:
-    video_input = b3d.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_fork.npz")
+    video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_fork.npz")
     if "visible" in INPUT: 
         T = 1
     elif "occluded" in INPUT: 
         T = 8    
 elif "knife" in INPUT:
-    video_input = b3d.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_knife.npz")
+    video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_knife.npz")
     if "visible" in INPUT: 
         T = 1
     elif "occluded" in INPUT: 

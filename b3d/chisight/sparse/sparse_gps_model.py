@@ -2,8 +2,7 @@ import jax
 import jax.numpy as jnp
 import genjax
 from b3d.pose import Pose
-from b3d.gps_utils import cov_from_dq_composition
-from b3d.dynamic_gps import DynamicGPS
+from .dynamic_gps import DynamicGPS
 from typing import Any, TypeAlias
 from b3d.camera import screen_from_world
 

@@ -6,7 +6,6 @@ import jax.numpy as jnp
 import jax
 import jax.tree_util as jtu
 import genjax
-from b3d.differentiable_renderer import render_to_rgbd_dist_params
 from tensorflow_probability.substrates import jax as tfp
 
 def normalize(l):

@@ -1,5 +1,6 @@
 import b3d
-from b3d.model import model_multiobject_gl_factory
+import b3d.bayes3d as bayes3d
+from b3d.bayes3d.model import model_multiobject_gl_factory
 from b3d import Pose
 import jax
 import genjax
@@ -10,7 +11,7 @@ import pytest
 class TestGroup:
     key = jax.random.PRNGKey(0)
 
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     object_library.add_object(
         jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
     )
@@ -24,16 +25,16 @@ class TestGroup:
     @genjax.static_gen_fn
     def object_gf(object_library):
         object_identity = (
-            b3d.uniform_discrete(jnp.arange(-1, object_library.get_num_objects()))
+            b3d.modeling_utils.uniform_discrete(jnp.arange(-1, object_library.get_num_objects()))
             @ f"id"
         )
         object_pose = (
-            b3d.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ f"pose"
+            b3d.modeling_utils.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ f"pose"
         )
 
     trace = object_gf.simulate(key, (object_library,))
 
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     object_library.add_object(
         jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
     )
@@ -44,7 +45,7 @@ class TestGroup:
         jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
     )
 
-    model_args = b3d.ModelArgs(0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+    model_args = bayes3d.ModelArgs(0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
 
     def test_importance(self, renderer):
         model = model_multiobject_gl_factory(renderer)

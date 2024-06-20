@@ -11,7 +11,7 @@ from jaxlib.hlo_helpers import custom_call
 import functools
 import os
 import b3d
-import b3d.nvdiffrast_jax.nvdiffrast.jax as dr
+import b3d.renderer.nvdiffrast_jax.nvdiffrast.jax as dr
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)

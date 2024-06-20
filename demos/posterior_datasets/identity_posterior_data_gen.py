@@ -118,7 +118,7 @@ rgbs_knife, depths_knife = renderer.render_attribute_many(scene_poses_in_camera,
 rr.log("fork", rr.Image(rgbs_fork[0]))
 rr.log("knife", rr.Image(rgbs_knife[0]))
 
-data_fork = b3d.utils.VideoInput(
+data_fork = b3d.io.VideoInput(
     rgb=(rgbs_fork * 255.0).astype(jnp.uint8),
     xyz=jax.vmap(b3d.xyz_from_depth,in_axes=(0,None, None, None, None))(depths_fork, fx, fy, cx, cy),
     camera_positions=jnp.array([camera_pose.pos for _ in range(NUM_IMAGES+1)]),
@@ -126,7 +126,7 @@ data_fork = b3d.utils.VideoInput(
     camera_intrinsics_rgb=jnp.array([width, height, fx, fy, cx, cy, near, far]),
     camera_intrinsics_depth=jnp.array([width, height, fx, fy, cx, cy, near, far])
 )
-data_knife = b3d.utils.VideoInput(
+data_knife = b3d.io.VideoInput(
     rgb=(rgbs_knife * 255.0).astype(jnp.uint8),
     xyz=jax.vmap(b3d.xyz_from_depth,in_axes=(0,None, None, None, None))(depths_knife, fx, fy, cx, cy),
     camera_positions=jnp.array([camera_pose.pos for _ in range(NUM_IMAGES)]),

@@ -3,12 +3,12 @@ import jax
 from b3d import Pose
 import b3d
 import genjax
-import b3d.differentiable_renderer as r
+import b3d.chisight.dense.differentiable_renderer as r
 import b3d.chisight.dense.model as m
 import b3d.chisight.dense.likelihoods as likelihoods
 import optax
 
-import b3d.differentiable_renderer
+import b3d.chisight.dense.differentiable_renderer
 
 def all_pairs_2(X, Y):
     return jnp.swapaxes(
@@ -128,7 +128,7 @@ def get_default_multiobject_model_for_patchtracking(renderer):
     )
     @genjax.static_gen_fn
     def wrapped_likelihood(vertices, faces, vertex_colors):
-        weights, attributes = b3d.differentiable_renderer.render_to_rgbd_dist_params(
+        weights, attributes = b3d.chisight.dense.differentiable_renderer.render_to_rgbd_dist_params(
             renderer, vertices, faces, vertex_colors,
             r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
         )

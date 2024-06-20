@@ -1,9 +1,8 @@
 import jax
 import jax.numpy as jnp
-from .utils import keysplit
-from .pose import Pose
+from b3d.utils import keysplit
+from b3d.pose import Pose
 import genjax
-from tensorflow_probability.substrates import jax as tfp
 
 
 def uniform_samples_from_disc(key, N, d=3):

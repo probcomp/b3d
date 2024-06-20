@@ -1,28 +1,21 @@
 import jax.numpy as jnp
 from functools import partial
 import numpy as np
-from collections import namedtuple
 import genjax
 from PIL import Image
 import subprocess
 import jax
 import sklearn.cluster
+import b3d
+import cv2
+from b3d.pose import Pose, Rot
 
 import inspect
-from inspect import signature
-import genjax
-import b3d
 from pathlib import Path
 import os
 import trimesh
-from b3d import Pose
 import rerun as rr
 import distinctipy
-
-from dataclasses import dataclass
-
-from b3d.hgps_utils import keysplit, load_video_to_numpy
-from b3d.io import VideoInput
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])
@@ -72,42 +65,6 @@ def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
     y = fy * xyz[..., 1] / xyz[..., 2] + cy
     return jnp.stack([y, x], axis=-1)
 
-
-@partial(jnp.vectorize, signature="(k)->(k)")
-def rgb_to_lab(rgb):
-    # Convert sRGB to linear RGB
-    rgb = jnp.clip(rgb, 0, 1)
-    mask = rgb > 0.04045
-    rgb = jnp.where(mask, jnp.power((rgb + 0.055) / 1.055, 2.4), rgb / 12.92)
-
-    # RGB to XYZ
-    # https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
-    rgb_to_xyz = jnp.array(
-        [
-            [0.4124564, 0.3575761, 0.1804375],
-            [0.2126729, 0.7151522, 0.0721750],
-            [0.0193339, 0.1191920, 0.9503041],
-        ]
-    )
-    xyz = jnp.dot(rgb, rgb_to_xyz.T)
-
-    # XYZ to LAB
-    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIEXYZ_to_CIELAB
-    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])  # D65 white point
-    xyz_normalized = xyz / xyz_ref
-    mask = xyz_normalized > 0.008856
-    xyz_f = jnp.where(
-        mask, jnp.power(xyz_normalized, 1 / 3), 7.787 * xyz_normalized + 16 / 116
-    )
-
-    L = 116 * xyz_f[1] - 16
-    a = 500 * (xyz_f[0] - xyz_f[1])
-    b = 200 * (xyz_f[1] - xyz_f[2])
-
-    lab = jnp.stack([L, a, b], axis=-1)
-    return lab
-
-
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
     c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
     labels = c.labels_
@@ -125,7 +82,6 @@ def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
         new_labels[labels == unique[index]] = val
         counter += 1
     return new_labels
-
 
 def aabb(object_points):
     """
@@ -533,3 +489,66 @@ def distinct_colors(num_colors, pastel_factor=0.5):
         np.array(i)
         for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
     ]
+
+def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
+    import pyransac3d
+
+    plane = pyransac3d.Plane()
+    plane_eq, _ = plane.fit(
+        np.array(point_cloud),
+        inlier_threshold,
+        minPoints=minPoints,
+        maxIteration=maxIteration,
+    )
+    plane_eq = jnp.array(plane_eq)
+    plane_normal = plane_eq[:3]
+    point_on_plane = plane_normal * -plane_eq[3]
+    plane_x = jnp.cross(plane_normal, np.array([1.0, 0.0, 0.0]))
+    plane_y = jnp.cross(plane_normal, plane_x)
+    R = jnp.vstack([plane_x, plane_y, plane_normal]).T
+    plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
+    return plane_pose
+
+def fit_table_plane(
+    point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
+):
+    plane_pose = Pose.fit_plane(
+        point_cloud, inlier_threshold, minPoints, maxIteration
+    )
+    points_in_plane_frame = plane_pose.inv().apply(point_cloud)
+    inliers = jnp.abs(points_in_plane_frame[:, 2]) < inlier_threshold
+    inlier_plane_points = points_in_plane_frame[inliers]
+
+    inlier_table_points_seg = segment_point_cloud(
+        inlier_plane_points, segmentation_threshold
+    )
+
+    table_points_in_plane_frame = inlier_plane_points[inlier_table_points_seg == 0]
+
+    (cx, cy), (width, height), rotation_deg = cv2.minAreaRect(
+        np.array(table_points_in_plane_frame[:, :2])
+    )
+    pose_shift = Pose(
+        jnp.array([cx, cy, 0.0]),
+        Rot.from_rotvec(
+            jnp.array([0.0, 0.0, 1.0]) * jnp.deg2rad(rotation_deg)
+        ).as_quat(),
+    )
+    table_pose = plane_pose @ pose_shift
+    table_dims = jnp.array([width, height, 1e-10])
+    return table_pose, table_dims
+
+def keysplit(key, *ns):
+    if len(ns) == 0:
+        return jax.random.split(key, 1)[0]
+    elif len(ns) == 1:
+        (n,) = ns
+        if n == 1:
+            return keysplit(key)
+        else:
+            return jax.random.split(key, ns[0])
+    else:
+        keys = []
+        for n in ns:
+            keys.append(keysplit(key, n))
+        return keys

@@ -2,6 +2,7 @@ import os
 import jax.numpy as jnp
 import trimesh
 import b3d
+import b3d.bayes3d as bayes3d
 
 
 def test_renderer_full(renderer):
@@ -11,7 +12,7 @@ def test_renderer_full(renderer):
     )
     mesh = trimesh.load(mesh_path)
 
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
     object_library.add_trimesh(mesh)
 
     pose = b3d.Pose.from_position_and_target(

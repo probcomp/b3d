@@ -109,7 +109,7 @@ def load_r3d_video_input(r3d_path):
     xyz = jax.vmap(lambda p: b3d.xyz_from_depth(p, fx, fy, cx, cy), in_axes=(0,))(
         depths
     )
-    return b3d.VideoInput(
+    return b3d.io.VideoInput(
         rgb=colors,
         xyz=xyz,
         camera_positions=positions,

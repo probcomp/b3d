@@ -1,14 +1,12 @@
 import rerun as rr
 import genjax
 import os
-import numpy as np
 import jax.numpy as jnp
 import jax
 from b3d import Pose
 import b3d
-from tqdm import tqdm
+import b3d.bayes3d as bayes3d
 import trimesh
-import pytest
 
 
 PORT = 8812
@@ -51,13 +49,13 @@ class TestMugHandlePosterior:
             jnp.array([cp[0], cp[1], 0.0]),
             b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat(),
         )
-        object_library = b3d.MeshLibrary.make_empty_library()
+        object_library = bayes3d.MeshLibrary.make_empty_library()
         object_library.add_object(vertices, faces, vertex_colors)
 
         color_error, depth_error = (60.0, 0.01)
         inlier_score, outlier_prob = (5.0, 0.00001)
         color_multiplier, depth_multiplier = (10000.0, 500.0)
-        model_args = b3d.ModelArgs(
+        model_args = bayes3d.ModelArgs(
             color_error,
             depth_error,
             inlier_score,
@@ -80,7 +78,7 @@ class TestMugHandlePosterior:
             (0.0, 20.0),
         ]
 
-        model = b3d.model_multiobject_gl_factory(renderer)
+        model = bayes3d.model_multiobject_gl_factory(renderer)
         importance_jit = jax.jit(model.importance)
 
         for text_index in range(len(cps_to_test)):
@@ -154,7 +152,7 @@ class TestMugHandlePosterior:
                     genjax.Pytree.const(["object_pose_0"]),
                     test_poses[samples[t]],
                 )
-                b3d.rerun_visualize_trace_t(trace_, t)
+                bayes3d.rerun_visualize_trace_t(trace_, t)
                 rr.set_time_sequence("frame", t)
                 rr.log("alternate_view_image", rr.Image(alternate_view_images[t, ...]))
                 rr.log(
@@ -169,4 +167,4 @@ class TestMugHandlePosterior:
                 samples_deg_range <= sampled_degree_range_bounds[text_index][1]
             ), f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
 
-            b3d.rerun_visualize_trace_t(gt_trace, 0)
+            bayes3d.rerun_visualize_trace_t(gt_trace, 0)

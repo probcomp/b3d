@@ -490,6 +490,25 @@ def distinct_colors(num_colors, pastel_factor=0.5):
         for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
     ]
 
+def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
+    import pyransac3d
+
+    plane = pyransac3d.Plane()
+    plane_eq, _ = plane.fit(
+        np.array(point_cloud),
+        inlier_threshold,
+        minPoints=minPoints,
+        maxIteration=maxIteration,
+    )
+    plane_eq = jnp.array(plane_eq)
+    plane_normal = plane_eq[:3]
+    point_on_plane = plane_normal * -plane_eq[3]
+    plane_x = jnp.cross(plane_normal, np.array([1.0, 0.0, 0.0]))
+    plane_y = jnp.cross(plane_normal, plane_x)
+    R = jnp.vstack([plane_x, plane_y, plane_normal]).T
+    plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
+    return plane_pose
+
 def fit_table_plane(
     point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
 ):
@@ -559,21 +578,3 @@ def triangle_color_mesh_to_vertex_color_mesh(vertices, faces, triangle_colors):
     vertices_2, faces_2 = separate_shared_vertices(vertices, faces)
     vertex_colors_2 = jnp.repeat(triangle_colors, 3, axis=0)
     return vertices_2, faces_2, vertex_colors_2
-def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
-    import pyransac3d
-
-    plane = pyransac3d.Plane()
-    plane_eq, _ = plane.fit(
-        np.array(point_cloud),
-        inlier_threshold,
-        minPoints=minPoints,
-        maxIteration=maxIteration,
-    )
-    plane_eq = jnp.array(plane_eq)
-    plane_normal = plane_eq[:3]
-    point_on_plane = plane_normal * -plane_eq[3]
-    plane_x = jnp.cross(plane_normal, np.array([1.0, 0.0, 0.0]))
-    plane_y = jnp.cross(plane_normal, plane_x)
-    R = jnp.vstack([plane_x, plane_y, plane_normal]).T
-    plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
-    return plane_pose

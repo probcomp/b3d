@@ -2,8 +2,7 @@ import jax
 import jax.numpy as jnp
 import genjax
 import b3d
-import b3d.differentiable_renderer
-import b3d.tessellation as t
+import demos.mesh_fitting.tessellation as t
 import b3d.utils as u
 import os
 import rerun as rr
@@ -33,7 +32,7 @@ path = os.path.join(
     b3d.get_root_path(),
     "assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz",
 )
-video_input = b3d.VideoInput.load(path)
+video_input = b3d.io.VideoInput.load(path)
 initial_mesh = get_initial_tesselation(video_input)
 
 ### Get renderer & scaled down RGB video ###
@@ -73,8 +72,8 @@ color_scale = 0.05
 outlier_prob = 0.05
 def normalize(x):
     return x / jnp.sum(x)
-likelihood = b3d.likelihoods.ArgMap(
-    b3d.likelihoods.get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
+likelihood = b3d.chisight.dense.likelihoods.ArgMap(
+    b3d.chisight.dense.likelihoods.get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
         renderer.height, renderer.width, color_scale
     ),
     lambda weights, attributes:(
@@ -82,7 +81,7 @@ likelihood = b3d.likelihoods.ArgMap(
         attributes
     )
 )
-hyperparams = b3d.differentiable_renderer.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
+hyperparams = b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
 model = m.model_factory(
     renderer, likelihood, hyperparams, mindepth, maxdepth, len(frames),
     initial_mesh[0].shape[0], initial_mesh[1].shape[0]

@@ -2,8 +2,8 @@ import jax
 import jax.numpy as jnp
 import genjax
 import b3d
-import b3d.differentiable_renderer
-import b3d.tessellation as t
+import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
+import demos.mesh_fitting.tessellation as t
 import b3d.utils as u
 import os
 import rerun as rr

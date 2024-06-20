@@ -2,26 +2,26 @@ import jax
 import jax.numpy as jnp
 import genjax
 import b3d
-import b3d.differentiable_renderer
-import b3d.tessellation as t
-import b3d.utils as u
+import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
+import demos.mesh_fitting.tessellation as t
 import os
 import rerun as rr
 import optax
 from tqdm import tqdm
 
+import demos.mesh_fitting.model as m
+import demos.mesh_fitting.utils as u
+
 vcm = genjax.vector_choice_map
 c = genjax.choice
 
-import demos.mesh_fitting.model as m
-import demos.mesh_fitting.utils as u
 
 path = os.path.join(
     b3d.get_root_path(),
     "assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz",
     # "assets/potted_plant.video_input.npz"
 )
-video_input = b3d.VideoInput.load(path)
+video_input = b3d.io.VideoInput.load(path)
 (vertices_3D, faces, triangle_rgbds, renderer, rgbs) = u.initialize_mesh_using_depth(video_input)
 triangle_colors = triangle_rgbds[:, :3]
 

@@ -1,17 +1,9 @@
-from dataclasses import dataclass
 from jax.tree_util import register_pytree_node_class
 import jax.numpy as jnp
-from jax import vmap
 import jax
 from jax.scipy.spatial.transform import Rotation as Rot
-from typing import NamedTuple
-from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
-from warnings import warn
-import b3d
-from typing import Any, NamedTuple, TypeAlias
-import numpy as np
-import cv2
+from typing import TypeAlias
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -25,6 +17,28 @@ def multiply_quats(q1, q2):
 
 def multiply_quat_and_vec(q, vs):
     return Rot.from_quat(q).apply(vs)
+
+
+def choose_good_quat(q):
+    """
+    If the real part of the quaternion is negative, return the antipodal quaternion,
+    which represents the same rotation. If the real part is zero, there is still ambiguity,
+    so we'll iteratively resolve that as well.
+
+    Recall that SO(3) is isomorphic to  S^3/x~-x and
+    also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+    """
+    return jnp.where(
+        q[..., [3]] != 0,
+        jnp.sign(q[..., [3]]) * q,
+        jnp.where(
+            q[..., [0]] != 0,
+            jnp.sign(q[..., [0]]) * q,
+            jnp.where(
+                q[..., [1]] != 0, jnp.sign(q[..., [1]]) * q, jnp.sign(q[..., [2]]) * q
+            ),
+        ),
+    )
 
 
 def sample_uniform_pose(key, low, high):
@@ -202,6 +216,7 @@ class Pose:
         return Pose(jnp.zeros(3), jnp.array([0.0, 0.0, 0.0, 1.0]))
 
     eye = identity
+    id = identity
 
     def apply(self, vec: Array) -> Array:
         """Apply pose to vectors."""
@@ -216,12 +231,15 @@ class Pose:
         return Pose(self.apply(pose.pos), multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: "Pose") -> "Pose":
+        # NOTE: this is useful for gradient updates.
         return Pose(self.pos + pose.pos, self.quat + pose.quat)
 
     def __sub__(self, pose: "Pose") -> "Pose":
+        # NOTE: this is useful for gradient updates.
         return Pose(self.pos - pose.pos, self.quat - pose.quat)
 
     def scale(self, scale: Float) -> "Pose":
+        # NOTE: this is useful for gradient updates.
         return Pose(self.pos * scale, self.quat * scale)
 
     def __mul__(self, scale: Float) -> "Pose":
@@ -237,6 +255,12 @@ class Pose:
         return Pose(
             jnp.concatenate([pose.pos for pose in pose_list], axis=0),
             jnp.concatenate([pose.quat for pose in pose_list], axis=0),
+        )
+
+    def concat(self, poses, axis=0):
+        return Pose(
+            jnp.concatenate([self.pos, poses.pos], axis=axis),
+            jnp.concatenate([self.quat, poses.quat], axis=axis),
         )
 
     @staticmethod
@@ -307,56 +331,13 @@ class Pose:
         """
         return Pose(posxyzw[:3], posxyzw[3:])
 
+    @staticmethod
+    def from_pos_matrix(pos, matrix):
+        """Create an Pose from a position and a 3x3 matrix."""
+        return Pose(pos[..., :3], Rot.from_matrix(matrix[..., :3, :3]).as_quat())
+
     # TODO: Should we keep that on the Pose class?
     from_position_and_target = camera_from_position_and_target
 
     sample_uniform_pose = sample_uniform_pose
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
-
-    def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
-        import pyransac3d
-
-        plane = pyransac3d.Plane()
-        plane_eq, _ = plane.fit(
-            np.array(point_cloud),
-            inlier_threshold,
-            minPoints=minPoints,
-            maxIteration=maxIteration,
-        )
-        plane_eq = jnp.array(plane_eq)
-        plane_normal = plane_eq[:3]
-        point_on_plane = plane_normal * -plane_eq[3]
-        plane_x = jnp.cross(plane_normal, np.array([1.0, 0.0, 0.0]))
-        plane_y = jnp.cross(plane_normal, plane_x)
-        R = jnp.vstack([plane_x, plane_y, plane_normal]).T
-        plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
-        return plane_pose
-
-    def fit_table_plane(
-        point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
-    ):
-        plane_pose = b3d.Pose.fit_plane(
-            point_cloud, inlier_threshold, minPoints, maxIteration
-        )
-        points_in_plane_frame = plane_pose.inv().apply(point_cloud)
-        inliers = jnp.abs(points_in_plane_frame[:, 2]) < inlier_threshold
-        inlier_plane_points = points_in_plane_frame[inliers]
-
-        inlier_table_points_seg = b3d.segment_point_cloud(
-            inlier_plane_points, segmentation_threshold
-        )
-
-        table_points_in_plane_frame = inlier_plane_points[inlier_table_points_seg == 0]
-
-        (cx, cy), (width, height), rotation_deg = cv2.minAreaRect(
-            np.array(table_points_in_plane_frame[:, :2])
-        )
-        pose_shift = b3d.Pose(
-            jnp.array([cx, cy, 0.0]),
-            b3d.Rot.from_rotvec(
-                jnp.array([0.0, 0.0, 1.0]) * jnp.deg2rad(rotation_deg)
-            ).as_quat(),
-        )
-        table_pose = plane_pose @ pose_shift
-        table_dims = jnp.array([width, height, 1e-10])
-        return table_pose, table_dims

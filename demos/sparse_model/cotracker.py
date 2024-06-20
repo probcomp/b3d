@@ -3,14 +3,22 @@ import b3d
 import os
 import numpy as np
 import time
+import argparse
+
+parser = argparse.ArgumentParser("r3d_to_video_input")
+parser.add_argument("input", help=".r3d File", type=str)
+args = parser.parse_args()
 
 
-# Load date
-path = os.path.join(
-    b3d.get_root_path(),
-    "assets/shared_data_bucket/input_data/royce_static_to_dynamic.r3d.video_input.npz",
-)
-video_input = b3d.VideoInput.load(path)
+
+path = args.input
+
+# # Load date
+# path = os.path.join(
+#     b3d.get_root_path(),
+#     "assets/shared_data_bucket/input_data/royce_static_to_dynamic.r3d.video_input.npz",
+# )
+video_input = b3d.io.VideoInput.load(path)
 frames = np.array(video_input.rgb)[::3]
 print(frames.shape)
 

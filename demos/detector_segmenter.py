@@ -9,7 +9,7 @@ from transformers import OwlViTProcessor, OwlViTForObjectDetection
 processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
 
-video_input = b3d.VideoInput.load(
+video_input = b3d.io.VideoInput.load(
     os.path.join(
         b3d.get_root_path(),
         # "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz"
@@ -76,9 +76,9 @@ import b3d
 # Load date
 # path = os.path.join(b3d.get_root_path(),
 # "assets/shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
-# video_input = b3d.VideoInput.load(path)
+# video_input = b3d.io.VideoInput.load(path)
 
-video_input = b3d.VideoInput.load(
+video_input = b3d.io.VideoInput.load(
     os.path.join(
         b3d.get_root_path(),
         "assets/shared_data_bucket/input_data/mug_handle_occluded.video_input.npz",

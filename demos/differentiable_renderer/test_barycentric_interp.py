@@ -11,8 +11,8 @@ import rerun as rr
 import functools
 import genjax
 
-import b3d.differentiable_renderer as rendering
-import b3d.likelihoods as likelihoods
+import b3d.chisight.dense.differentiable_renderer as rendering
+import b3d.chisight.dense.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
 
 # Set up OpenGL renderer

@@ -1,56 +1,11 @@
 import genjax
-from b3d.pose import Pose, sample_uniform_pose, sample_gaussian_vmf_pose
 from genjax.generative_functions.distributions import ExactDensity
-import jax
 import jax.numpy as jnp
 import b3d
-from jax.scipy.special import logsumexp
+from b3d.pose import Pose
 import rerun as rr
-from collections import OrderedDict
-from jax.tree_util import register_pytree_node_class
-from tensorflow_probability.substrates import jax as tfp
 from collections import namedtuple
-
-class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
-    def sample(self, key, vals):
-        return jax.random.choice(key, vals)
-
-    def logpdf(self, sampled_val, vals, **kwargs):
-        return jnp.log(1.0 / (vals.shape[0]))
-uniform_discrete = UniformDiscrete()
-
-class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, low, high):
-        return sample_uniform_pose(key, low, high)
-
-    def logpdf(self, pose, low, high):
-        position = pose.pos
-        valid = ((low <= position) & (position <= high))
-        position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
-        return position_score.sum() + jnp.pi**2
-
-class VMF(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, mean, concentration):
-        return tfp.distributions.VonMisesFisher(mean, concentration).sample(seed=key)
-
-    def logpdf(self, x, mean, concentration):
-        return tfp.distributions.VonMisesFisher(mean, concentration).log_prob(x)
-vmf = VMF()
-
-class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, mean_pose, std, concentration):
-        return sample_gaussian_vmf_pose(key, mean_pose, std, concentration)
-
-    def logpdf(self, pose, mean_pose, std, concentration):
-        translation_score = tfp.distributions.MultivariateNormalDiag(
-        mean_pose.pos, jnp.ones(3) * std).log_prob(pose.pos)
-        quaternion_score = tfp.distributions.VonMisesFisher(
-            mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
-        ).log_prob(pose.quat)
-        return translation_score + quaternion_score
-
-uniform_pose = UniformPose()
-gaussian_vmf_pose = GaussianPose()
+from b3d.modeling_utils import uniform_discrete, uniform_pose
 
 ModelArgs = namedtuple('ModelArgs', [
     'color_tolerance',
@@ -67,8 +22,8 @@ def get_rgb_depth_inliers_from_trace(trace):
     return get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args)
 
 def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args):
-    observed_lab = b3d.rgb_to_lab(observed_rgb)
-    rendered_lab = b3d.rgb_to_lab(rendered_rgb)
+    observed_lab = b3d.colors.rgb_to_lab(observed_rgb)
+    rendered_lab = b3d.colors.rgb_to_lab(rendered_rgb)
     error = (
         jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
@@ -177,7 +132,7 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     info_string = f"# Score : {trace.get_score()}"
 
     if "inliers" in modes:
-        (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask) = b3d.get_rgb_depth_inliers_from_trace(trace)
+        (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask) = get_rgb_depth_inliers_from_trace(trace)
         rr.log("/image/overlay/inliers", rr.DepthImage(inliers * 1.0))
         rr.log("/image/overlay/outliers", rr.DepthImage(outliers * 1.0))
         rr.log("/image/overlay/undecided", rr.DepthImage(undecided * 1.0))
@@ -187,8 +142,8 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     rr.log("/info", rr.TextDocument(info_string))
 
     if "3d" in modes:
-        poses = b3d.get_poses_from_trace(trace)
-        ids = b3d.get_object_ids_from_trace(trace)
+        poses = get_poses_from_trace(trace)
+        ids = get_object_ids_from_trace(trace)
         object_library = trace.get_args()[2]
         for idx, (i,pose) in enumerate(zip(ids, poses)):
             mask = object_library.vertex_index_to_object == i

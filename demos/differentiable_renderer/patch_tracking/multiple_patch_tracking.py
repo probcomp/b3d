@@ -9,8 +9,8 @@ import genjax
 from tqdm import tqdm
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
-import b3d.likelihoods as l
-import b3d.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as l
+import b3d.chisight.dense.differentiable_renderer as r
 import os
 import trimesh
 import matplotlib.pyplot as plt
@@ -198,6 +198,7 @@ for timestep in tqdm(range(30)):
 
 for i in range(observed_rgbds.shape[0]):
     rr.set_time_sequence("frame--tracking", i)
+
     rr.log("/3D/tracked_points", rr.Points3D(
         positions = positions[i],
         radii=0.0075*np.ones(positions[i].shape[0]),

@@ -1,26 +1,21 @@
 import jax.numpy as jnp
 from functools import partial
 import numpy as np
-from collections import namedtuple
 import genjax
 from PIL import Image
 import subprocess
 import jax
 import sklearn.cluster
+import b3d
+import cv2
+from b3d.pose import Pose, Rot
 
 import inspect
-from inspect import signature
-import genjax
-import b3d
 from pathlib import Path
 import os
 import trimesh
-from b3d import Pose
 import rerun as rr
 import distinctipy
-
-from dataclasses import dataclass
-
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])
@@ -54,7 +49,7 @@ def get_shared() -> Path:
 
 
 def get_gcloud_bucket_ref() -> str:
-    return "gs://hgps_data_bucket"
+    return "gs://b3d_bucket"
 
 
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
@@ -63,47 +58,12 @@ def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     y = (v - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
     return xyz
+xyz_from_depth_vectorized = jnp.vectorize(xyz_from_depth, excluded=(1,2,3,4,), signature='(h,w)->(h,w,3)')
 
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
     x = fx * xyz[..., 0] / xyz[..., 2] + cx
     y = fy * xyz[..., 1] / xyz[..., 2] + cy
     return jnp.stack([y, x], axis=-1)
-
-
-@partial(jnp.vectorize, signature="(k)->(k)")
-def rgb_to_lab(rgb):
-    # Convert sRGB to linear RGB
-    rgb = jnp.clip(rgb, 0, 1)
-    mask = rgb > 0.04045
-    rgb = jnp.where(mask, jnp.power((rgb + 0.055) / 1.055, 2.4), rgb / 12.92)
-
-    # RGB to XYZ
-    # https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
-    rgb_to_xyz = jnp.array(
-        [
-            [0.4124564, 0.3575761, 0.1804375],
-            [0.2126729, 0.7151522, 0.0721750],
-            [0.0193339, 0.1191920, 0.9503041],
-        ]
-    )
-    xyz = jnp.dot(rgb, rgb_to_xyz.T)
-
-    # XYZ to LAB
-    # https://en.wikipedia.org/wiki/CIELAB_color_space#From_CIEXYZ_to_CIELAB
-    xyz_ref = jnp.array([0.95047, 1.0, 1.08883])  # D65 white point
-    xyz_normalized = xyz / xyz_ref
-    mask = xyz_normalized > 0.008856
-    xyz_f = jnp.where(
-        mask, jnp.power(xyz_normalized, 1 / 3), 7.787 * xyz_normalized + 16 / 116
-    )
-
-    L = 116 * xyz_f[1] - 16
-    a = 500 * (xyz_f[0] - xyz_f[1])
-    b = 200 * (xyz_f[1] - xyz_f[2])
-
-    lab = jnp.stack([L, a, b], axis=-1)
-    return lab
-
 
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
     c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
@@ -122,7 +82,6 @@ def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
         new_labels[labels == unique[index]] = val
         counter += 1
     return new_labels
-
 
 def aabb(object_points):
     """
@@ -175,6 +134,12 @@ def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolut
     face_colors = jnp.concatenate(face_colors_, axis=0)
     return vertices, faces, vertex_colors, face_colors
 
+def get_vertices_faces_colors_from_mesh(mesh):
+    vertices = jnp.array(mesh.vertices)
+    vertices = vertices - jnp.mean(vertices, axis=0)
+    faces = jnp.array(mesh.faces)
+    vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
+    return vertices, faces, vertex_colors    
 
 def get_rgb_pil_image(image, max=1.0):
     """Convert an RGB image to a PIL image.
@@ -197,6 +162,33 @@ def get_rgb_pil_image(image, max=1.0):
     ).convert("RGB")
     return img
 
+def overlay_image(img_1, img_2, alpha=0.5):
+    """Overlay two images.
+
+    Args:
+        img_1 (PIL.Image): First image.
+        img_2 (PIL.Image): Second image.
+        alpha (float): Alpha value for blending.
+    Returns:
+        PIL.Image: Overlayed image.
+    """
+    return Image.blend(img_1, img_2, alpha=alpha)
+
+def make_gif_from_pil_images(images, filename):
+    """Save a list of PIL images as a GIF.
+
+    Args:
+        images (list): List of PIL images.
+        filename (str): Filename to save GIF to.
+    """
+    images[0].save(
+        fp=filename,
+        format="GIF",
+        append_images=images,
+        save_all=True,
+        duration=100,
+        loop=0,
+    )
 
 import tempfile
 import subprocess
@@ -430,6 +422,11 @@ def rr_log_pose(channel, pose, scale=0.1):
         rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors),
     )
 
+def rr_init(name="demo"):
+    rr.init(name)
+    rr.connect("127.0.0.1:8812")
+
+
 
 def normalize_log_scores(log_p):
     """
@@ -444,139 +441,7 @@ def normalize_log_scores(log_p):
 
 from typing import Any, NamedTuple, TypeAlias
 import jax
-
 Array: TypeAlias = jax.Array
-
-
-@dataclass
-class VideoInput:
-    """
-    Video data input. Note: Spatial units are measured in meters.
-
-    World Coordinates. The floor is x,y and up is z.
-    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera,
-        x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
-    Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
-    Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
-        The camera matrix is given by: $$ K = \begin{bmatrix} f_x & 0 & c_x \ 0 & f_y & c_y \ 0 & 0 & 1 \end{bmatrix} $$
-    Spatial units. Spatial units are measured in meters (if not indicated otherwise).
-
-    **Attributes:**
-    - rgb
-        video_input['rgb'][t,i,j] contains RGB values in the interval [0,255] of pixel i,j at time t.
-        Shape: (T,H,W,3) -- Note this might be different from the width and height of xyz
-        Type: uint8, in [0,255]
-    - xyz
-        video_input['xyz'][t,i,j] is the 3d point associated with pixel i,j at time t in camera coordinates
-        Shape: (T, H', W', 3) -- Note this might be different from the width and height of rgb
-        Type: Float
-    - camera_positions
-        video_input['camera_positions'][t] is the position of the camera at time t
-        Shape: (T, 3)
-        Type: Float
-    - camera_quaternions
-        video_input['camera_quaternions'][t] is the quaternion (in xyzw format) representing the orientation of the camera at time t
-        Shape: (T, 4)
-        Type: Float
-    - camera_intrinsics_rgb
-        video_input['camera_intrinsics_rgb'][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of rgb above
-        Shape: (8,)
-        Type: Float
-    - camera_intrinsics_depth
-        video_input['camera_intrinsics_depth'][:] contains width, height, fx, fy, cx, cy, near, far. Width and height determine the shape of xyz above
-        Shape: (8,)
-        Type: Float
-
-    **Note:**
-    For compactness, rgb values are saved as uint8 values, however
-    the output of the renderer is a float between 0 and 1. VideoInput
-    stores uint8 colors, so please use the rgb_float property for
-    compatibility.
-
-    **Note:**
-    The width and height of the `rgb` and `xyz` arrays may differ.
-    Their shapes match the entries in `camera_intrinsics_rgb` and
-    `camera_intrinsics_depth`, respectively. The latter was used
-    to project the `depth` arrays to `xyz`.
-    """
-
-    rgb: Array  # [num_frames, height_rgb, width_rgb, 3]
-    xyz: Array  # [num_frames, height_depth, width_depth, 3]
-    camera_positions: Array  # [num_frames, 3]
-    camera_quaternions: Array  # [num_frames, 4]
-    camera_intrinsics_rgb: (
-        Array  # [8,] (width_rgb, height_rgb, fx, fy, cx, cy, near, far)
-    )
-    camera_intrinsics_depth: (
-        Array  # [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
-    )
-
-    def __post_init__(self):
-        super().__init__()
-        assert self.rgb.shape[0] == self.xyz.shape[0]
-        assert self.rgb.shape[1] == self.camera_intrinsics_rgb[1]
-        assert self.rgb.shape[2] == self.camera_intrinsics_rgb[0]
-        assert self.rgb.dtype == jnp.uint8
-        assert len(self.xyz.shape) == 4
-        assert len(self.rgb.shape) == 4
-        assert self.rgb.shape[-1] == 3
-        assert self.xyz.shape[-1] == 3
-
-    def to_dict(self):
-        return {
-            "rgb": self.rgb,
-            "xyz": self.xyz,
-            "camera_positions": self.camera_positions,
-            "camera_quaternions": self.camera_quaternions,
-            "camera_intrinsics_rgb": self.camera_intrinsics_rgb,
-            "camera_intrinsics_depth": self.camera_intrinsics_depth,
-        }
-
-    def save(self, filepath: str):
-        """Saves VideoInput to file"""
-        jnp.savez(
-            filepath,
-            rgb=self.rgb,
-            xyz=self.xyz,
-            camera_positions=self.camera_positions,
-            camera_quaternions=self.camera_quaternions,
-            camera_intrinsics_rgb=self.camera_intrinsics_rgb,
-            camera_intrinsics_depth=self.camera_intrinsics_depth,
-        )
-
-    def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
-        """Saves new VideoInput containing data
-        between a timeframe into file"""
-        jnp.savez(
-            filepath,
-            rgb=self.rgb[start_t:end_t],
-            xyz=self.xyz[start_t:end_t],
-            camera_positions=self.camera_positions[start_t:end_t],
-            camera_quaternions=self.camera_quaternions[start_t:end_t],
-            camera_intrinsics_rgb=self.camera_intrinsics_rgb,
-            camera_intrinsics_depth=self.camera_intrinsics_depth,
-        )
-
-    @classmethod
-    def load(cls, filepath: str):
-        """Loads VideoInput from file"""
-        with open(filepath, "rb") as f:
-            data = jnp.load(f, allow_pickle=True)
-            return cls(
-                rgb=jnp.array(data["rgb"]),
-                xyz=jnp.array(data["xyz"]),
-                camera_positions=jnp.array(data["camera_positions"]),
-                camera_quaternions=jnp.array(data["camera_quaternions"]),
-                camera_intrinsics_rgb=jnp.array(data["camera_intrinsics_rgb"]),
-                camera_intrinsics_depth=jnp.array(data["camera_intrinsics_depth"]),
-            )
-
-    @property
-    def rgb_float(self):
-        if self.rgb.dtype == jnp.uint8:
-            return self.rgb / 255.0
-        else:
-            return self.rgb
 
 
 def square_center_width_color_to_vertices_faces_colors(i, center, width, color):
@@ -625,6 +490,51 @@ def distinct_colors(num_colors, pastel_factor=0.5):
         for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
     ]
 
+def fit_table_plane(
+    point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
+):
+    plane_pose = Pose.fit_plane(
+        point_cloud, inlier_threshold, minPoints, maxIteration
+    )
+    points_in_plane_frame = plane_pose.inv().apply(point_cloud)
+    inliers = jnp.abs(points_in_plane_frame[:, 2]) < inlier_threshold
+    inlier_plane_points = points_in_plane_frame[inliers]
+
+    inlier_table_points_seg = segment_point_cloud(
+        inlier_plane_points, segmentation_threshold
+    )
+
+    table_points_in_plane_frame = inlier_plane_points[inlier_table_points_seg == 0]
+
+    (cx, cy), (width, height), rotation_deg = cv2.minAreaRect(
+        np.array(table_points_in_plane_frame[:, :2])
+    )
+    pose_shift = Pose(
+        jnp.array([cx, cy, 0.0]),
+        Rot.from_rotvec(
+            jnp.array([0.0, 0.0, 1.0]) * jnp.deg2rad(rotation_deg)
+        ).as_quat(),
+    )
+    table_pose = plane_pose @ pose_shift
+    table_dims = jnp.array([width, height, 1e-10])
+    return table_pose, table_dims
+
+def keysplit(key, *ns):
+    if len(ns) == 0:
+        return jax.random.split(key, 1)[0]
+    elif len(ns) == 1:
+        (n,) = ns
+        if n == 1:
+            return keysplit(key)
+        else:
+            return jax.random.split(key, ns[0])
+    else:
+        keys = []
+        for n in ns:
+            keys.append(keysplit(key, n))
+        return keys
+
+
 ### Triangle color mesh -> vertex color mesh ###
 def separate_shared_vertices(vertices, faces):
     """
@@ -649,3 +559,21 @@ def triangle_color_mesh_to_vertex_color_mesh(vertices, faces, triangle_colors):
     vertices_2, faces_2 = separate_shared_vertices(vertices, faces)
     vertex_colors_2 = jnp.repeat(triangle_colors, 3, axis=0)
     return vertices_2, faces_2, vertex_colors_2
+def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
+    import pyransac3d
+
+    plane = pyransac3d.Plane()
+    plane_eq, _ = plane.fit(
+        np.array(point_cloud),
+        inlier_threshold,
+        minPoints=minPoints,
+        maxIteration=maxIteration,
+    )
+    plane_eq = jnp.array(plane_eq)
+    plane_normal = plane_eq[:3]
+    point_on_plane = plane_normal * -plane_eq[3]
+    plane_x = jnp.cross(plane_normal, np.array([1.0, 0.0, 0.0]))
+    plane_y = jnp.cross(plane_normal, plane_x)
+    R = jnp.vstack([plane_x, plane_y, plane_normal]).T
+    plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
+    return plane_pose

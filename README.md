@@ -4,13 +4,23 @@
   <img src="https://github.com/probcomp/b3d/assets/66085644/53d4f644-530e-41b9-87f9-814064f12230" alt="animated" width="150%" />
 </p>
 
-## Requirements
-- NVIDIA CUDA 12.3+
-- Python 3.10+
+# b3d repository
+This repository contains code for Bayesian 3D inverse graphics.
 
-## Installing b3d
+The `b3d/bayes3d/` subdirectory contains code for the `bayes3d` project,
+and the `b3d/chisight/` subdirectory contains code for post-bayes3D
+ChiSight systems (currently, SAMA4D).
+
+# Installing b3d
+
+Create `b3d` conda environment: 
 ```
-./install.sh
+conda create -n b3d python=3.10
+```
+
+Run install script:
+```
+bash -i install.sh
 ```
 
 

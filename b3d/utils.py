@@ -553,7 +553,6 @@ def keysplit(key, *ns):
             keys.append(keysplit(key, n))
         return keys
 
-
 ### Triangle color mesh -> vertex color mesh ###
 def separate_shared_vertices(vertices, faces):
     """

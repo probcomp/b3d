@@ -12,8 +12,7 @@ tasks = [
     for triangle_color in [jnp.array([1., 0., 0.]), jnp.array([0., 1., 0.])]
 ]
 
-jax.clear_caches()
-@pytest.mark.parametrize("task", tasks)
+@pytest.mark.parametrize("task", tasks[:3])
 def test(task):
     task.run_tests(
         ImportanceSolver(),

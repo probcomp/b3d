@@ -48,7 +48,7 @@ def test_diff_renderer(renderer):
         particle_widths = jnp.abs(particle_widths)
         # Get triangle "mesh" for the scene:
         vertices, faces, vertex_colors, triangle_index_to_particle_index = jax.vmap(
-            b3d.utils.square_center_width_color_to_vertices_faces_colors
+            b3d.square_center_width_color_to_vertices_faces_colors
         )(jnp.arange(len(particle_centers)), particle_centers, particle_widths / 2, particle_colors)
         vertices = vertices.reshape(-1, 3)
         faces = faces.reshape(-1, 3)
@@ -154,10 +154,10 @@ def test_diff_renderer(renderer):
 
 
         viz_images = [
-            b3d.utils.multi_panel(
+            b3d.multi_panel(
                 [
-                    b3d.utils.get_rgb_pil_image(gt_image),
-                    b3d.utils.get_rgb_pil_image(img),
+                    b3d.get_rgb_pil_image(gt_image),
+                    b3d.get_rgb_pil_image(img),
                 ],
                 ["GT", "Inferred"],
                 label_fontsize=15,
@@ -166,6 +166,6 @@ def test_diff_renderer(renderer):
             )
             for img in images[::10]
         ]
-        b3d.utils.make_video_from_pil_images(viz_images, b3d.get_root_path() / f"assets/test_results/{title}.mp4")
+        b3d.make_video_from_pil_images(viz_images, b3d.get_root_path() / f"assets/test_results/{title}.mp4")
 
 

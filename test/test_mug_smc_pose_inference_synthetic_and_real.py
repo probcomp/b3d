@@ -99,7 +99,7 @@ def test_renderer_full(renderer):
         key = jax.random.PRNGKey(110)
 
 
-        point_cloud = b3d.utils.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
+        point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
 
         vertex_colors = object_library.attributes
         rgb_object_samples = vertex_colors[
@@ -179,7 +179,7 @@ def test_renderer_full(renderer):
 
             scores = jnp.concatenate(
                 [
-                    b3d.utils.enumerate_choices_get_scores_jit(
+                    b3d.enumerate_choices_get_scores_jit(
                         trace, key, genjax.Pytree.const(["object_pose_0"]), poses
                     )
                     for poses in test_poses_batches
@@ -195,7 +195,7 @@ def test_renderer_full(renderer):
                 )[2]
             )
 
-            trace = b3d.utils.update_choices_jit(
+            trace = b3d.update_choices_jit(
                 trace,
                 key,
                 genjax.Pytree.const(["object_pose_0"]),
@@ -223,7 +223,7 @@ def test_renderer_full(renderer):
 
 
         for t in range(len(samples)):
-            trace = b3d.utils.update_choices_jit(
+            trace = b3d.update_choices_jit(
                 trace,
                 key,
                 genjax.Pytree.const(["object_pose_0"]),

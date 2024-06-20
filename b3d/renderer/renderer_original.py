@@ -45,13 +45,13 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
 @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
 def rasterize_prim(self, pos, tri):
     output, = _rasterize_fwd_custom_call(
-        self, b3d.utils.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
+        self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
     )
     return output
 
 def rasterize_fwd(self, pos, tri):
     output, = _rasterize_fwd_custom_call(
-        self, b3d.utils.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
+        self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
     )
     return output, (pos, tri)
 

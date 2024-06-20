@@ -165,7 +165,7 @@ def test_distance_to_camera_invarance(renderer):
         )
     )
     print(near_score, far_score)
-    print(b3d.utils.normalize_log_scores(jnp.array([near_score, far_score])))
+    print(b3d.normalize_log_scores(jnp.array([near_score, far_score])))
 
 
     assert jnp.isclose(near_score, far_score, rtol=0.03)

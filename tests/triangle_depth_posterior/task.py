@@ -88,10 +88,10 @@ class TrianglePosteriorGridApproximationTask(Task):
         assert metrics["mass_assigned_outside_expected_region"] <= mass_outside_region_threshold
         assert metrics["divergence_from_uniform_in_expected_region"] <= divergence_from_uniform_threshold
 
-    def rr_log_task(self):
+    def visualize_task(self):
         self.visualize_scene()
 
-    def rr_log_solution(self, solution, metrics):
+    def visualize_solution(self, solution, metrics):
         partition, _ = self._get_grid_partition()
         self.visualize_grid_approximation(jnp.exp(metrics["log_posterior_approximation"]), show_expected_region=False)
         self.visualize_grid_approximation(jnp.exp(metrics["expected_log_posterior"]), name="expected_grid_posterior")

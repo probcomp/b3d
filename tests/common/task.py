@@ -50,14 +50,14 @@ class Task:
         Visualize the task (but not the solution).
         This may log data to rerun, produce pyplots, etc.
         """
-        raise NotImplementedError()
+        pass
     
     def visualize_solution(self, solution, metrics):
         """
         Visualize a solution to the task.
         This may log data to rerun, produce pyplots, etc.
         """
-        raise NotImplementedError()
+        pass
 
     ### Methods automatically implemented from the above. ###
 

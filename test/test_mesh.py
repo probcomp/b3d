@@ -23,10 +23,10 @@ class MeshTests(unittest.TestCase):
         Mesh.merge_meshes([mesh1, mesh2])
         combined_mesh = Mesh.merge_meshes_jit([mesh1, mesh2])
         assert combined_mesh.vertices.shape[0] == mesh1.vertices.shape[0] + mesh2.vertices.shape[0]
-        assert combined_mesh.colors.shape[0] == mesh1.colors.shape[0] + mesh2.colors.shape[0]
+        assert combined_mesh.vertex_attributes.shape[0] == mesh1.vertex_attributes.shape[0] + mesh2.vertex_attributes.shape[0]
         assert combined_mesh.faces.shape[0] == mesh1.faces.shape[0] + mesh2.faces.shape[0]
         assert (combined_mesh.vertices == jnp.concatenate([mesh1.vertices, mesh2.vertices])).all()
-        assert (combined_mesh.colors == jnp.concatenate([mesh1.colors, mesh2.colors])).all()
+        assert (combined_mesh.vertex_attributes == jnp.concatenate([mesh1.vertex_attributes, mesh2.vertex_attributes])).all()
 
     def test_transform_mesh(self):
         mesh = Mesh(
@@ -40,5 +40,5 @@ class MeshTests(unittest.TestCase):
         transformed_mesh = Mesh.transform_mesh(mesh, pose)
         transformed_mesh = Mesh.transform_mesh_jit(mesh, pose)
         assert (transformed_mesh.vertices == pose.apply(mesh.vertices)).all()
-        assert (transformed_mesh.colors == mesh.colors).all()
+        assert (transformed_mesh.vertex_attributes == mesh.vertex_attributes).all()
         assert (transformed_mesh.faces == mesh.faces).all()

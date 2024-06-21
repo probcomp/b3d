@@ -109,19 +109,24 @@ class PatchTrackingTask(Task):
     # Generic loading from FeatureTrackData
     @classmethod
     def task_from_feature_track_data(
-        cls, feature_track_data: b3d.io.HGPSFeatureTrackData,
-        n_frames,
+        cls, feature_track_data: b3d.io.FeatureTrackData,
+        n_frames=None,
         min_pixeldist_between_keypoints=5
     ):
         ftd = feature_track_data
-        depth = ftd.xyz[..., 2]
-        rgbds = jnp.concatenate([ftd.rgb_imgs, depth[..., None]], axis=-1)
-        keypoint_bool_mask = ftd.latent_keypoint_visibility[0]
+        if n_frames is None:
+            n_frames = ftd.rgbd_images.shape[0]
+
+        rgbds = ftd.rgbd_images
+        keypoint_bool_mask = ftd.keypoint_visibility[0]
         keypoint_positions_2D_frame0_unfiltered = ftd.observed_keypoints_positions[0, keypoint_bool_mask][:, ::-1]
         valid_indices = get_keypoint_filter(min_pixeldist_between_keypoints)(keypoint_positions_2D_frame0_unfiltered)
         keypoint_positions_2D_frame0 = keypoint_positions_2D_frame0_unfiltered[valid_indices]
         keypoint_positions_3D = ftd.latent_keypoint_positions[:n_frames, keypoint_bool_mask, ...][:, valid_indices, ...]
         renderer = b3d.Renderer.from_intrinsics_object(b3d.camera.Intrinsics.from_array(ftd.camera_intrinsics))
+        
+        # For now this class doesn't support changing camera pose, so just use the first frame camera pose.
+        # TODO: support changing camera pose!
         X_WC = b3d.Pose(ftd.camera_position[0], ftd.camera_quaternion[0])
 
         return cls(
@@ -136,7 +141,7 @@ class PatchTrackingTask(Task):
             b3d.get_assets_path(),
             "shared_data_bucket/input_data/unity/keypoints/indoorplant/slidingBooks_60fps_lit_bg_800p.input.npz"
         )
-        ftd = b3d.io.HGPSFeatureTrackData.load(path, img_downsize=1, startframe=21)
+        ftd = b3d.io.FeatureTrackData.load(path).slice_time(start_frame=21)
         return cls.task_from_feature_track_data(ftd, n_frames)
 
     # Specific scene: rotating cheezit box
@@ -255,6 +260,11 @@ vec_transform_axis_angle = jax.vmap(transform_from_axis_angle, (None, 0))
 
 ### Filter 2D keypoints to ones that are sufficently distant ###
 def get_keypoint_filter(max_pixel_dist):
+    """
+    Get a function that accepts a collection of 2D keypoints in pixel coordinates as input,
+    and returns a list of indices of a subset of the keypoints, such that all the selected
+    keypoints are at least `max_pixel_dist` pixels apart from each other.
+    """
     def filter_step_i_if_valid(st):
         i, patch_positions_2D = st
         distances = jnp.linalg.norm(patch_positions_2D - patch_positions_2D[i], axis=-1)

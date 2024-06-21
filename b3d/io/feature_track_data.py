@@ -218,3 +218,6 @@ class FeatureTrackData:
             camera_quaternion=self.camera_quaternion[start_frame:end_frame] if self.camera_quaternion is not None else None,
             camera_intrinsics=self.camera_intrinsics
         )
+    
+    def has_depth_channel(self):
+        return jnp.any(self.rgbd_images[..., 3] != 0.)

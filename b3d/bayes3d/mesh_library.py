@@ -11,6 +11,7 @@ class MeshLibrary:
         self.ranges = ranges
         self.attributes = attributes
         self.vertex_index_to_object = vertex_index_to_object
+        self.objects = []
 
     @staticmethod
     def make_empty_library():
@@ -53,6 +54,7 @@ class MeshLibrary:
         # if name is None:
         #     name = ""
         # self.names.append(name)
+        self.objects.append((vertices, faces, attributes))
 
         current_length_of_vertices = len(self.vertices)
         current_length_of_faces = len(self.faces)

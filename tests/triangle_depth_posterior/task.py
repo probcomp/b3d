@@ -75,7 +75,7 @@ class TrianglePosteriorGridApproximationTask(Task):
 
         return task_spec
 
-    def score(self, solution):
+    def score(self, solution, **kwargs):
         if self.n_frames() == 1:
             return self.score_oneframe_grid_approximation(solution)
         else:

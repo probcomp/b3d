@@ -30,7 +30,7 @@ class FeatureTrackData:
             (optional) object_assignments:           (N,) Int Array OR None
             (optional) camera_position:              (T, 3) Float Array OR None
             (optional) camera_quaternion:            (T, 4) Float Array OR None
-
+            
     Example:
     ```
     # Initialize
@@ -53,6 +53,12 @@ class FeatureTrackData:
     intr = data.intrinsics
     cams = data.camera_poses
     ```
+
+    FeatureTrackData.load also supports
+    (1) Loading from npz files with a `rgb_imgs` field instead of `rgbd_images`.
+        In this case, the loader also looks for a `xyz` field to complete the `rgbd_images`;
+        if none is found, the depth channel is set to zeros.
+    (2) Loading from npz files with a `latent_keypoint_visibility` field instead of `keypoint_visibility`.
     """
     # Required fields: Observed Data
     observed_keypoints_positions: Array
@@ -151,6 +157,30 @@ class FeatureTrackData:
                 else:
                     return None
 
+            # Handle loading from either the current `rgbd_images`
+            # format, or from the older `rgb_images` + maybe `xyz` format.
+            rgbd_images=get_or_none(data, "rgbd_images")
+            if rgbd_images is None:
+                rgb_imgs = get_or_none(data, "rgb_imgs")
+                assert rgb_imgs is not None, "One of rgbd_images or rgb_imgs must be provided."
+                xyz = get_or_none(data, "xyz")
+                if xyz is not None:
+                    rgbd_images = jnp.concatenate([rgb_imgs, xyz], axis=-1)
+                else:
+                    rgbd_images = jnp.concatenate([
+                        rgb_imgs, jnp.zeros(rgb_imgs.shape[:-1] + (1,))
+                    ], axis=-1)
+
+            # Also handle loading from either the current `keypoint_visibility`
+            # format, or from the older `latent_keypoint_visibility` format.
+            keypoint_visibility=get_or_none(
+                    data, "keypoint_visibility"
+                )
+            if keypoint_visibility is None:
+                keypoint_visibility = get_or_none(
+                    data, "latent_keypoint_visibility"
+                )
+
             return cls(
                 latent_keypoint_positions=get_or_none(
                     data, "latent_keypoint_positions"
@@ -162,13 +192,29 @@ class FeatureTrackData:
                     data, "observed_keypoints_positions"
                 ),
                 observed_features=get_or_none(data, "observed_features"),
-                rgbd_images=get_or_none(data, "rgbd_images"),
-                keypoint_visibility=get_or_none(
-                    data, "keypoint_visibility"
-                ),
+                rgbd_images=rgbd_images,
+                keypoint_visibility=keypoint_visibility,
                 object_assignments=get_or_none(data, "object_assignments"),
                 camera_position=get_or_none(data, "camera_position"),
                 camera_quaternion=get_or_none(data, "camera_quaternion"),
                 camera_intrinsics=get_or_none(data, "camera_intrinsics"),
             )
 
+    def slice_time(self, start_frame=None, end_frame=None):
+        """Slices data in time."""
+        if start_frame is None:
+            start_frame = 0
+        if end_frame is None:
+            end_frame = self.rgbd_images.shape[0]
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[start_frame:end_frame],
+            observed_features=self.observed_features[start_frame:end_frame] if self.observed_features is not None else None,
+            keypoint_visibility=self.keypoint_visibility[start_frame:end_frame],
+            rgbd_images=self.rgbd_images[start_frame:end_frame],
+            latent_keypoint_positions=self.latent_keypoint_positions[start_frame:end_frame] if self.latent_keypoint_positions is not None else None,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions[start_frame:end_frame] if self.latent_keypoint_quaternions is not None else None,
+            object_assignments=self.object_assignments,
+            camera_position=self.camera_position[start_frame:end_frame] if self.camera_position is not None else None,
+            camera_quaternion=self.camera_quaternion[start_frame:end_frame] if self.camera_quaternion is not None else None,
+            camera_intrinsics=self.camera_intrinsics
+        )

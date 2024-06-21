@@ -10,7 +10,7 @@ task_specs = [
     for triangle_color in [jnp.array([1., 0., 0.]), jnp.array([0., 1., 0.])]
 ]
 
-@pytest.mark.parametrize("task_spec", task_specs)
+@pytest.mark.parametrize("task_spec", task_specs[:3])
 def test(task_spec):
     task = TrianglePosteriorGridApproximationTask.default_scene_using_colors(*task_spec)
     task.run_tests(

@@ -69,6 +69,19 @@ class Renderer(object):
 
         self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
+    @classmethod
+    def from_intrinsics_object(cls, intrinsics):
+        return cls(
+            intrinsics.width,
+            intrinsics.height,
+            intrinsics.fx,
+            intrinsics.fy,
+            intrinsics.cx,
+            intrinsics.cy,
+            intrinsics.near,
+            intrinsics.far,
+        )
+
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
         self.width, self.height = width, height
         self.fx, self.fy = fx, fy

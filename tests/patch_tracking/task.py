@@ -98,6 +98,48 @@ class PatchTrackingTask(Task):
         pass
 
     ### Helpers ###
+    @staticmethod
+    def get_default_renderer():
+        image_width = 120; image_height = 100; fx = 50.0; fy = 50.0
+        cx = 50.0; cy = 50.0; near = 0.001; far = 16.0
+        return b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
+
+    ### Constructors ###
+
+    # Generic loading from FeatureTrackData
+    @classmethod
+    def task_from_feature_track_data(
+        cls, feature_track_data: b3d.io.HGPSFeatureTrackData,
+        n_frames,
+        min_pixeldist_between_keypoints=5
+    ):
+        ftd = feature_track_data
+        depth = ftd.xyz[..., 2]
+        rgbds = jnp.concatenate([ftd.rgb_imgs, depth[..., None]], axis=-1)
+        keypoint_bool_mask = ftd.latent_keypoint_visibility[0]
+        keypoint_positions_2D_frame0_unfiltered = ftd.observed_keypoints_positions[0, keypoint_bool_mask][:, ::-1]
+        valid_indices = get_keypoint_filter(min_pixeldist_between_keypoints)(keypoint_positions_2D_frame0_unfiltered)
+        keypoint_positions_2D_frame0 = keypoint_positions_2D_frame0_unfiltered[valid_indices]
+        keypoint_positions_3D = ftd.latent_keypoint_positions[:n_frames, keypoint_bool_mask, ...][:, valid_indices, ...]
+        renderer = b3d.Renderer.from_intrinsics_object(b3d.camera.Intrinsics.from_array(ftd.camera_intrinsics))
+        X_WC = b3d.Pose(ftd.camera_position[0], ftd.camera_quaternion[0])
+
+        return cls(
+            rgbds[:n_frames], X_WC,
+            keypoint_positions_2D_frame0, keypoint_positions_3D,
+            renderer=renderer
+        )
+    
+    @classmethod
+    def task_for_sliding_book_scene(cls, n_frames):
+        path = os.path.join(
+            b3d.get_assets_path(),
+            "shared_data_bucket/input_data/unity/keypoints/indoorplant/slidingBooks_60fps_lit_bg_800p.input.npz"
+        )
+        ftd = b3d.io.HGPSFeatureTrackData.load(path, img_downsize=1, startframe=21)
+        return cls.task_from_feature_track_data(ftd, n_frames)
+
+    # Specific scene: rotating cheezit box
     @classmethod
     def task_from_rotating_cheezit_box(cls, n_frames=30):
         (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds) = cls.load_rotating_cheezit_box_data(n_frames)
@@ -150,13 +192,6 @@ class PatchTrackingTask(Task):
         )(box_poses_W)
 
         return (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds)
-
-    @staticmethod
-    def get_default_renderer():
-        image_width = 120; image_height = 100; fx = 50.0; fy = 50.0
-        cx = 50.0; cy = 50.0; near = 0.001; far = 16.0
-        return b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
-
 
 ### Utils ###
 
@@ -217,3 +252,38 @@ def transform_from_axis_angle(axis, angle):
 # calculate sequence of pose transformations
 r_mat = transform_from_axis_angle(jnp.array([0,0,1]), jnp.pi/2)
 vec_transform_axis_angle = jax.vmap(transform_from_axis_angle, (None, 0))
+
+### Filter 2D keypoints to ones that are sufficently distant ###
+def get_keypoint_filter(max_pixel_dist):
+    def filter_step_i_if_valid(st):
+        i, patch_positions_2D = st
+        distances = jnp.linalg.norm(patch_positions_2D - patch_positions_2D[i], axis=-1)
+        invalid_indices = jnp.logical_and(distances < max_pixel_dist, jnp.arange(patch_positions_2D.shape[0]) > i)
+        patch_positions_2D = jnp.where(
+            invalid_indices[:, None],
+            -jnp.ones(2),
+            patch_positions_2D,
+        )
+        return (i+1, patch_positions_2D)
+
+    @jax.jit
+    def filter_step_i(st):
+        i, patch_positions_2D = st
+        return jax.lax.cond(
+            jnp.all(patch_positions_2D[i] == -jnp.ones(2)),
+            lambda st: (st[0]+1, st[1]),
+            filter_step_i_if_valid,
+            st
+        )
+
+    def filter_patch_positions(patch_positions_2D):
+        """
+        Returns a list of 2D keypoints indices that have not been filtered out.
+        """
+        i = 0
+        while i < patch_positions_2D.shape[0]:
+            i, patch_positions_2D = filter_step_i((i, patch_positions_2D))
+
+        return jnp.where(jnp.all(patch_positions_2D != -1., axis=-1))[0]
+    
+    return filter_patch_positions

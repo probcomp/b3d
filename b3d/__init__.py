@@ -5,6 +5,7 @@ from . import camera, colors, pose, types, utils
 from .utils import *
 from .bayes3d import MeshLibrary
 from .pose import Pose, Rot
+from .mesh import Mesh
 from .renderer import Renderer
 
 __version__ = metadata.version("genjax")
@@ -23,4 +24,5 @@ __all__ = [
     "Pose",
     "Rot",
     "MeshLibrary",
+    "Mesh"
 ]

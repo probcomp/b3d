@@ -309,14 +309,14 @@ class Pose:
     @staticmethod
     def from_xyzw(xyzw):
         """Create a pose from a quaternion. With zero translation."""
-        return Pose(jnp.zeros(3), xyzw)
+        return Pose(jnp.zeros((*xyzw.shape[:-1], 1)), xyzw) 
 
     from_quat = from_xyzw
 
     @staticmethod
     def from_pos(position_vec):
         """Create a pose from a vector. With the identity rotation."""
-        return Pose(position_vec, jnp.array([0.0, 0.0, 0.0, 1.0]))
+        return Pose(position_vec, jnp.tile(jnp.array([0.0, 0.0, 0.0, 1.0]), (*position_vec.shape[:-1],1)))
 
     from_translation = from_pos
 

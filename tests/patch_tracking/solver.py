@@ -9,6 +9,8 @@ class AdamPatchTracker(Solver):
         self.get_trace = None
         self.all_positions = None
         self.all_quaternions = None
+        self.mesh = None
+        self.Xs_WP_init = None
     
     def solve(self, task_spec):
         video = task_spec["video"]
@@ -21,6 +23,8 @@ class AdamPatchTracker(Solver):
         (patch_vertices_P, patch_faces, patch_vertex_colors, Xs_WP, _) = tracking.get_patches(
             initial_patch_centers_2D, video, X_WC, fx, fy, cx, cy
         )
+        self.mesh = (patch_vertices_P, patch_faces, patch_vertex_colors)
+        self.Xs_WP_init = Xs_WP
 
         model = tracking.get_default_multiobject_model_for_patchtracking(r)
         (get_initial_tracker_state, update_tracker_state, get_trace) = tracking.get_adam_optimization_patch_tracker(
@@ -41,7 +45,13 @@ class AdamPatchTracker(Solver):
         return jnp.stack(self.all_positions)
     
     def visualize_solver_state(self, task_spec):
-        for t in range(len(self.all_positions)):
-            rr.set_time_sequence("frame", t)
-            trace = self.get_trace(self.all_positions[t], self.all_quaternions[t], task_spec["video"][t])
-            rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"])
+        rr.set_time_sequence("initialization", 0)
+        pos0 = self.Xs_WP_init.pos
+        quat0 = self.Xs_WP_init.xyzw
+        trace = self.get_trace(pos0, quat0, task_spec["video"][0])
+        rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"], prefix="PatchTrackingTrace")
+
+        # for t in range(len(self.all_positions)):
+        #     rr.set_time_sequence("frame", t)
+        #     trace = self.get_trace(self.all_positions[t], self.all_quaternions[t], task_spec["video"][t])
+        #     rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"], prefix="PatchTrackingTrace")

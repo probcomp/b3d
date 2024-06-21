@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import os
 import b3d
 import trimesh
+import rerun as rr
 
 class PatchTrackingTask(Task):
     """
@@ -12,6 +13,8 @@ class PatchTrackingTask(Task):
         - camera_pose [known fixed camera pose]
         - initial_patch_positions_2D [2D patch center positions at frame 0]
             (N, 2) array of 2D patch center positions at frame 0
+            stored as (y, x) pixel coordinates
+        - renderer [Renderer object]
 
     The "ground truth" data consists of
         - patch_positions_3D [3D patch center positions at each frame]
@@ -41,7 +44,8 @@ class PatchTrackingTask(Task):
         return {
             "video": self.video,
             "camera_pose": self.X_WC,
-            "initial_patch_positions_2D": self.initial_patch_positions_2D
+            "initial_patch_positions_2D": self.initial_patch_positions_2D,
+            "renderer": self.renderer
         }
 
     def score(self, inferred_patch_positions_3D,
@@ -62,19 +66,44 @@ class PatchTrackingTask(Task):
         assert metrics["n_errors_above_threshold_per_frame"] < n_tracks * 0.1
 
     def visualize_task(self):
-        pass
+        rr.log("/task/frame0", rr.Image(self.video[0, :, :, :3]), timeless=True)
+        rr.log("/task/initial_patch_positions_2D",
+               rr.Points2D(self.initial_patch_positions_2D[:, ::-1]), colors=jnp.array([0., 1., 0.]), timeless=True
+            )
+
+        for i in range(self.patch_positions_3D.shape[0]):
+            rr.set_time_sequence("frame", i)
+            rr.log("/task/patch_positions_3D", rr.Points3D(
+                self.patch_positions_3D[i], colors=jnp.array([0., 1., 0.]), radii = 0.003)
+            )
+            rr.log("/task/video/rgb", rr.Image(self.video[i, :, :, :3]))
+        
+            if self.video.shape[-1] == 4:
+                rr.log("/task/video/depth", rr.DepthImage(self.video[i, :, :, 3]))
+                # If video is RGBD, get the point cloud and visualize it in the 3D viewer
+                r = self.renderer
+                xyzs_C = b3d.utils.xyz_from_depth_vectorized(
+                    self.video[i, :, :, 3], r.fx, r.fy, r.cx, r.cy
+                )
+                rgbs = self.video[i, :, :, :3]
+                xyzs_W = self.X_WC.apply(xyzs_C)
+                rr.log("/task/observed_pointcloud", rr.Points3D(
+                    positions=xyzs_W.reshape(-1,3),
+                    colors=rgbs.reshape(-1,3),
+                    radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))
+                )
 
     def visualize_solution(self, solution, metrics):
         pass
 
     ### Helpers ###
     @classmethod
-    def task_from_rotating_cheezit_box(cls):
-        (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds) = cls.load_rotating_cheezit_box_data()
+    def task_from_rotating_cheezit_box(cls, n_frames=30):
+        (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds) = cls.load_rotating_cheezit_box_data(n_frames)
         return cls(observed_rgbds, X_WC, centers_2D_frame_0, centers_3D_W_over_time, renderer=renderer)
 
     @classmethod
-    def load_rotating_cheezit_box_data(cls):
+    def load_rotating_cheezit_box_data(cls, n_frames):
         renderer = cls.get_default_renderer()
 
         mesh_path = os.path.join(b3d.get_root_path(),
@@ -84,6 +113,7 @@ class PatchTrackingTask(Task):
         cheezit_object_library.add_trimesh(mesh)
         box_poses_W = vec_transform_axis_angle(jnp.array([0,0,1]), jnp.linspace(jnp.pi/4, 3*jnp.pi/4, 30))
         box_poses_W = b3d.Pose.from_matrix(box_poses_W)
+        box_poses_W = box_poses_W[:n_frames]
         cam_pose = b3d.Pose.from_position_and_target(
             jnp.array([0.15, 0.15, 0.0]),
             jnp.array([0.0, 0.0, 0.0])
@@ -102,21 +132,20 @@ class PatchTrackingTask(Task):
         xyzs_C = b3d.utils.xyz_from_depth_vectorized(
             depths, renderer.fx, renderer.fy, renderer.cx, renderer.cy
         )
-        xyzs_W = X_WC.apply(xyzs_C)
 
-        # Values are in pixel space
-        centers_2D_frame_0 = b3d.chisight.dense.patch_tracking.get_default_patch_centers()
+        # Values are in pixel space, in order (H, W)
+        width_gradations = jnp.arange(44, 84, 6) - 12
+        height_gradations = jnp.arange(38, 90, 6) - 12
+        centers_2D_frame_0 = all_pairs_2(height_gradations, width_gradations)
         
-        (_, _, _, _, patch_points_C) = b3d.chisight.dense.patch_tracking.get_patches_from_pointcloud(
-            centers_2D_frame_0, rgbs, xyzs_W, X_WC, renderer.fx
-        )
-        centers_3D_frame0_W = X_WC.apply(patch_points_C)
+        centers_3D_frame0_C = xyzs_C[0][centers_2D_frame_0[:, 0], centers_2D_frame_0[:, 1]]
+        centers_3D_frame0_W = X_WC.apply(centers_3D_frame0_C)
 
         # Let frame B0 be the first box pose
         X_W_B0 = box_poses_W[0]
         centers_3D_B0 = X_W_B0.inv().apply(centers_3D_frame0_W)
         centers_3D_W_over_time = jax.vmap(
-            lambda X_W_Bt: X_W_Bt.inv().apply(centers_3D_B0)
+            lambda X_W_Bt: X_W_Bt.apply(centers_3D_B0)
         )(box_poses_W)
 
         return (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds)
@@ -129,6 +158,12 @@ class PatchTrackingTask(Task):
 
 
 ### Utils ###
+
+def all_pairs_2(X, Y):
+    return jnp.swapaxes(
+        jnp.stack(jnp.meshgrid(X, Y), axis=-1),
+        0, 1
+    ).reshape(-1, 2)
 
 def rotation_from_axis_angle(axis, angle):
     """Creates a rotation matrix from an axis and angle.

@@ -10,19 +10,19 @@ import optax
 
 import b3d.chisight.dense.differentiable_renderer
 
-def all_pairs_2(X, Y):
-    return jnp.swapaxes(
-        jnp.stack(jnp.meshgrid(X, Y), axis=-1),
-        0, 1
-    ).reshape(-1, 2)
-
 def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):
+    """
+    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    """
     depths = rgbds[..., 3]
     xyzs_C = b3d.utils.xyz_from_depth_vectorized(depths, fx, fy, cx, cy)
     xyzs_W = X_WC.apply(xyzs_C)
     return get_patches_from_pointcloud(centers, rgbds[..., :3], xyzs_W, X_WC, fx)
 
 def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
+    """
+    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    """
     xyzs_C = X_WC.inv().apply(xyzs_W)
     def get_patch(center):
         center_x, center_y = center[0], center[1]
@@ -39,16 +39,10 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
 
     return jax.vmap(get_patch, in_axes=(0,))(centers)
 
-def get_default_patch_centers():
-    width_gradations = jnp.arange(44, 84, 6)
-    height_gradations = jnp.arange(38, 96, 6)
-    centers = all_pairs_2(height_gradations, width_gradations)
-    return centers
-
-def get_patches_with_default_centers(rgbs, xyzs_W, X_WC, fx):
-    centers = get_default_patch_centers()
-    (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C) = get_patches(centers, rgbs, xyzs_W, X_WC, fx)
-    return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP)
+# def get_patches_with_default_centers(rgbs, xyzs_W, X_WC, fx):
+#     centers = get_default_patch_centers()
+#     (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C) = get_patches(centers, rgbs, xyzs_W, X_WC, fx)
+#     return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP)
 
 def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors, X_WC=Pose.identity()):
     """

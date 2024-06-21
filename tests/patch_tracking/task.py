@@ -111,13 +111,18 @@ class PatchTrackingTask(Task):
     def task_from_feature_track_data(
         cls, feature_track_data: b3d.io.FeatureTrackData,
         n_frames=None,
-        min_pixeldist_between_keypoints=5
+        min_pixeldist_between_keypoints=None
     ):
         ftd = feature_track_data
         if n_frames is None:
             n_frames = ftd.rgbd_images.shape[0]
 
         rgbds = ftd.rgbd_images
+
+        if min_pixeldist_between_keypoints is None:
+            H = rgbds.shape[1]
+            min_pixeldist_between_keypoints = H // 80
+
         keypoint_bool_mask = ftd.keypoint_visibility[0]
         keypoint_positions_2D_frame0_unfiltered = ftd.observed_keypoints_positions[0, keypoint_bool_mask][:, ::-1]
         valid_indices = get_keypoint_filter(min_pixeldist_between_keypoints)(keypoint_positions_2D_frame0_unfiltered)
@@ -135,6 +140,8 @@ class PatchTrackingTask(Task):
             renderer=renderer
         )
     
+    ### A handful of unity scenes ###
+
     @classmethod
     def task_for_sliding_book_scene(cls, n_frames):
         path = os.path.join(
@@ -144,7 +151,29 @@ class PatchTrackingTask(Task):
         ftd = b3d.io.FeatureTrackData.load(path).slice_time(start_frame=21)
         return cls.task_from_feature_track_data(ftd, n_frames)
 
-    # Specific scene: rotating cheezit box
+    @classmethod
+    def task_from_known_unity_scene_spec(cls, spec, **kwargs):
+        ftd = b3d.io.FeatureTrackData.load(spec['path']).slice_time(start_frame=spec['start_frame'])
+        return cls.task_from_feature_track_data(ftd, **kwargs)
+
+    @classmethod
+    def get_known_unity_scene_specs(cls):
+        # These are filenames in 'shared_data_bucket/input_data/unity/keypoints/indoorplant/'
+        good_filename_starttime_pairs = [
+            ("plantRoomLookingThrough_30fps_lit_bg_800p.input.npz", 0),
+            ("slidingBooks_60fps_lit_bg_800p.input.npz", 21),
+            ("slidingPiledBooks_60fps_lit_bg_800p.input.npz", 21)
+        ]
+        return [
+            {
+                "scene_name": filename,
+                "path": os.path.join(b3d.get_assets_path(), "shared_data_bucket/input_data/unity/keypoints/indoorplant", filename),
+                "start_frame": starttime
+            }
+            for filename, starttime in good_filename_starttime_pairs
+        ]
+    
+    # Scene manually constructed in Python: rotating cheezit box
     @classmethod
     def task_from_rotating_cheezit_box(cls, n_frames=30):
         (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds) = cls.load_rotating_cheezit_box_data(n_frames)

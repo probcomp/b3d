@@ -103,7 +103,7 @@ def pad_with_1(x):
 
 
 def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolutions):
-    box_mesh = trimesh.creation.box(jnp.ones(3))
+    box_mesh = trimesh.load(os.path.join(b3d.get_assets_path(), "objs/cube.obj"))    
     base_vertices, base_faces = jnp.array(box_mesh.vertices), jnp.array(box_mesh.faces)
 
     def process_ith_ball(i, positions, colors, base_vertices, base_faces, resolutions):
@@ -577,3 +577,73 @@ def triangle_color_mesh_to_vertex_color_mesh(vertices, faces, triangle_colors):
     vertices_2, faces_2 = separate_shared_vertices(vertices, faces)
     vertex_colors_2 = jnp.repeat(triangle_colors, 3, axis=0)
     return vertices_2, faces_2, vertex_colors_2
+
+
+
+
+HIINTERFACE = None
+def carvekit_get_foreground_mask(image):
+    global HIINTERFACE
+    if HIINTERFACE is None:
+        import torch
+        from carvekit.api.high import HiInterface
+
+        HIINTERFACE = HiInterface(
+            object_type="object",  # Can be "object" or "hairs-like".
+            batch_size_seg=5,
+            batch_size_matting=1,
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            seg_mask_size=640,  # Use 640 for Tracer B7 and 320 for U2Net
+            matting_mask_size=2048,
+            trimap_prob_threshold=220,  # 231,
+            trimap_dilation=15,
+            trimap_erosion_iters=20,
+            fp16=False,
+        )
+    imgs = HIINTERFACE([b3d.get_rgb_pil_image(image)])
+    mask = jnp.array(imgs[0])[..., -1] > 0.5
+    return mask
+
+def discretize(data, resolution):
+    """
+    Discretizes a point cloud.
+    """
+    return jnp.round(data / resolution) * resolution
+
+
+def voxelize(data, resolution):
+    """
+        Voxelize a point cloud.
+    Args:
+        data: (N,3) point cloud
+        resolution: (float) resolution of the voxel grid
+    Returns:
+        data: (M,3) voxelized point cloud
+    """
+    data = discretize(data, resolution)
+    data, indices, occurences = jnp.unique(data, axis=0, return_index=True, return_counts=True)
+    return data, indices, occurences
+
+
+def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,fy,cx,cy, far,tolerance):
+    grid_in_cam_frame = camera_pose.inv().apply(grid)
+    height,width = depth_image.shape[:2]
+    pixels = b3d.xyz_to_pixel_coordinates(grid_in_cam_frame, fx,fy,cx,cy).astype(jnp.int32)
+    valid_pixels = (
+        (0 <= pixels[:, 0])
+        * (0 <= pixels[:, 1])
+        * (pixels[:, 0] < height)
+        * (pixels[:, 1] < width)
+    )
+    real_depth_vals = depth_image[pixels[:, 0], pixels[:, 1]] * valid_pixels + (
+        1 - valid_pixels
+    ) * (far + 1.0)
+
+
+    projected_depth_vals = grid_in_cam_frame[:, 2]
+    occupied = jnp.abs(real_depth_vals - projected_depth_vals) < tolerance
+    real_rgb_values = rgb_image[pixels[:, 0], pixels[:, 1]] * occupied[...,None]
+    occluded = real_depth_vals < projected_depth_vals
+    occluded = occluded * (1.0 - occupied)
+    _free = (1.0 - occluded) * (1.0 - occupied)
+    return 1.0 * occupied  -  1.0 * _free, real_rgb_values

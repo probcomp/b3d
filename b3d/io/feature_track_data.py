@@ -165,7 +165,7 @@ class FeatureTrackData:
                 assert rgb_imgs is not None, "One of rgbd_images or rgb_imgs must be provided."
                 xyz = get_or_none(data, "xyz")
                 if xyz is not None:
-                    rgbd_images = jnp.concatenate([rgb_imgs, xyz], axis=-1)
+                    rgbd_images = jnp.concatenate([rgb_imgs, xyz[:, :, :, 2:]], axis=-1)
                 else:
                     rgbd_images = jnp.concatenate([
                         rgb_imgs, jnp.zeros(rgb_imgs.shape[:-1] + (1,))

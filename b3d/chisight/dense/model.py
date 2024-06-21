@@ -70,17 +70,19 @@ def meshes_to_image_model__factory(likelihood):
     return meshes_to_image_model
 
 ### Visualization code
-def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, prefix="trace"):
+def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, prefix="trace", timeless=False):
     """
     Log to rerun a visualization of a trace from `uniformpose_meshes_to_image_model`.
     """
-    return rr_log_meshes_to_image_model_trace(trace, renderer, prefix=prefix, model_args_to_densemodel_args=(
+    return rr_log_meshes_to_image_model_trace(trace, renderer, prefix=prefix, timeless=timeless,
+                                              model_args_to_densemodel_args=(
         lambda args: (trace["camera_pose"], trace["poses"], *args)
     ))
 
 def rr_log_meshes_to_image_model_trace(
         trace, renderer,
         prefix="trace",
+        timeless=False,
         model_args_to_densemodel_args=(lambda x: x)
     ):
     """
@@ -93,16 +95,16 @@ def rr_log_meshes_to_image_model_trace(
     """
     # 2D:
     (observed_rgbd, metadata) = trace.get_retval()
-    rr.log(f"/{prefix}/rgb/observed", rr.Image(observed_rgbd[:, :, :3]))
-    rr.log(f"/{prefix}/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]))
+    rr.log(f"/{prefix}/rgb/observed", rr.Image(observed_rgbd[:, :, :3]), timeless=timeless)
+    rr.log(f"/{prefix}/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]), timeless=timeless)
     
     # Visualization path for the average render,
     # if the likelihood metadata contains the output of the differentiable renderer.
     if "diffrend_output" in metadata:
         weights, attributes = metadata["diffrend_output"]
         avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
-        rr.log("f/{prefix}/rgb/average_render", rr.Image(avg_obs[:, :, :3]))
-        rr.log("f/{prefix}/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]))
+        rr.log("f/{prefix}/rgb/average_render", rr.Image(avg_obs[:, :, :3]), timeless=timeless)
+        rr.log("f/{prefix}/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]), timeless=timeless)
 
     # 3D:
     (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(trace.get_args())
@@ -116,7 +118,7 @@ def rr_log_meshes_to_image_model_trace(
         vertex_positions=vertices_W.reshape(-1, 3),
         indices=f,
         vertex_colors=vertex_colors.reshape(-1, 3)
-    ))
+    ), timeless=timeless)
 
     rr.log(f"/{prefix}/camera",
         rr.Pinhole(
@@ -124,13 +126,20 @@ def rr_log_meshes_to_image_model_trace(
             width=renderer.width,
             height=renderer.height,
             principal_point=jnp.array([renderer.cx, renderer.cy]),
-            )
+            ), timeless=timeless
         )
-    rr.log(f"/{prefix}/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()))
+    rr.log(f"/{prefix}/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()), timeless=timeless)
     xyzs_C = utils.xyz_from_depth(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = X_WC.apply(xyzs_C)
     rr.log(f"/{prefix}/gt_pointcloud", rr.Points3D(
         positions=xyzs_W.reshape(-1,3),
         colors=observed_rgbd[:, :, :3].reshape(-1,3),
-        radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))
+        radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0])),
+        timeless=timeless
+    )
+
+    patch_centers_W = jax.vmap(lambda X_WO: X_WO.pos)(Xs_WO)
+    rr.log(
+        f"/{prefix}/patch_centers_W",
+        rr.Points3D(positions=patch_centers_W, colors=jnp.array([0., 0., 1.]), radii=0.003),
     )

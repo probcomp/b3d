@@ -24,9 +24,18 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
     Centers given as (N, 2) storing (y, x) pixel coordinates.
     """
     xyzs_C = X_WC.inv().apply(xyzs_W)
+
+    min_y = jnp.min(centers[:, 0])
+    second_min_y = jnp.min(jnp.where(centers[:, 0] != min_y, centers[:, 0], jnp.inf))
+    min_x = jnp.min(centers[:, 1])
+    second_min_x = jnp.min(jnp.where(centers[:, 1] != min_x, centers[:, 1], jnp.inf))
+    diff_y = second_min_y - min_y
+    diff_x = second_min_x - min_x
+    min_diff = jnp.min(jnp.array([diff_y, diff_x])) / 2
+    del_pix = jnp.astype(min_diff - 1, int)
+
     def get_patch(center):
         center_x, center_y = center[0], center[1]
-        del_pix = 3
         patch_points_C = jax.lax.dynamic_slice(xyzs_C[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix-1,2*del_pix-1,3)).reshape(-1,3)
         patch_rgbs = jax.lax.dynamic_slice(rgbs[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix-1,2*del_pix-1,3)).reshape(-1,3)
         patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = b3d.make_mesh_from_point_cloud_and_resolution(

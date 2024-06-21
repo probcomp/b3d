@@ -45,13 +45,15 @@ class AdamPatchTracker(Solver):
         return jnp.stack(self.all_positions)
     
     def visualize_solver_state(self, task_spec):
-        rr.set_time_sequence("initialization", 0)
         pos0 = self.Xs_WP_init.pos
         quat0 = self.Xs_WP_init.xyzw
         trace = self.get_trace(pos0, quat0, task_spec["video"][0])
-        rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"], prefix="PatchTrackingTrace")
+        rr_log_uniformpose_meshes_to_image_model_trace(
+            trace, task_spec["renderer"], prefix="patch_tracking_initialization",
+            timeless=True
+        )
 
-        # for t in range(len(self.all_positions)):
-        #     rr.set_time_sequence("frame", t)
-        #     trace = self.get_trace(self.all_positions[t], self.all_quaternions[t], task_spec["video"][t])
-        #     rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"], prefix="PatchTrackingTrace")
+        for t in range(len(self.all_positions)):
+            rr.set_time_sequence("frame", t)
+            trace = self.get_trace(self.all_positions[t], self.all_quaternions[t], task_spec["video"][t])
+            rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"], prefix="PatchTrackingTrace")

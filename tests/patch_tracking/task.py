@@ -61,14 +61,15 @@ class PatchTrackingTask(Task):
             )
         }
 
-    def assert_passing(self, metrics):
+    def assert_passing(self, metrics, **kwargs):
         n_tracks = self.patch_positions_3D.shape[1]
-        assert metrics["n_errors_above_threshold_per_frame"] < n_tracks * 0.1
+        assert jnp.all(metrics["n_errors_above_threshold_per_frame"] < n_tracks * 0.1)
+        print("test ran")
 
     def visualize_task(self):
         rr.log("/task/frame0", rr.Image(self.video[0, :, :, :3]), timeless=True)
         rr.log("/task/initial_patch_positions_2D",
-               rr.Points2D(self.initial_patch_positions_2D[:, ::-1]), colors=jnp.array([0., 1., 0.]), timeless=True
+               rr.Points2D(self.initial_patch_positions_2D[:, ::-1], colors=jnp.array([0., 1., 0.])), timeless=True
             )
 
         for i in range(self.patch_positions_3D.shape[0]):
@@ -134,8 +135,8 @@ class PatchTrackingTask(Task):
         )
 
         # Values are in pixel space, in order (H, W)
-        width_gradations = jnp.arange(44, 84, 6) - 12
-        height_gradations = jnp.arange(38, 90, 6) - 12
+        width_gradations = jnp.arange(44, 84, 10) - 12
+        height_gradations = jnp.arange(38, 90, 10) - 12
         centers_2D_frame_0 = all_pairs_2(height_gradations, width_gradations)
         
         centers_3D_frame0_C = xyzs_C[0][centers_2D_frame_0[:, 0], centers_2D_frame_0[:, 1]]

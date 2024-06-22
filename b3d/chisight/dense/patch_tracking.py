@@ -24,16 +24,7 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
     Centers given as (N, 2) storing (y, x) pixel coordinates.
     """
     xyzs_C = X_WC.inv().apply(xyzs_W)
-
-    # min_y = jnp.min(centers[:, 0])
-    # second_min_y = jnp.min(jnp.where(centers[:, 0] != min_y, centers[:, 0], jnp.inf))
-    # min_x = jnp.min(centers[:, 1])
-    # second_min_x = jnp.min(jnp.where(centers[:, 1] != min_x, centers[:, 1], jnp.inf))
-    # diff_y = second_min_y - min_y
-    # diff_x = second_min_x - min_x
-    # min_diff = jnp.min(jnp.array([diff_y, diff_x])) / 2
-    # del_pix = jnp.astype(min_diff - 1, int)
-
+    
     # TODO: this would be better to do in terms of the min x dist and y dist
     # between any two centers
     pairwise_euclidean_dists = jnp.linalg.norm(centers[:, None] - centers[None], axis=-1)

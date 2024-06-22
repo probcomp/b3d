@@ -25,16 +25,24 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
     """
     xyzs_C = X_WC.inv().apply(xyzs_W)
 
-    min_y = jnp.min(centers[:, 0])
-    second_min_y = jnp.min(jnp.where(centers[:, 0] != min_y, centers[:, 0], jnp.inf))
-    min_x = jnp.min(centers[:, 1])
-    second_min_x = jnp.min(jnp.where(centers[:, 1] != min_x, centers[:, 1], jnp.inf))
-    diff_y = second_min_y - min_y
-    diff_x = second_min_x - min_x
-    min_diff = jnp.min(jnp.array([diff_y, diff_x])) / 2
-    del_pix = jnp.astype(min_diff - 1, int)
+    # min_y = jnp.min(centers[:, 0])
+    # second_min_y = jnp.min(jnp.where(centers[:, 0] != min_y, centers[:, 0], jnp.inf))
+    # min_x = jnp.min(centers[:, 1])
+    # second_min_x = jnp.min(jnp.where(centers[:, 1] != min_x, centers[:, 1], jnp.inf))
+    # diff_y = second_min_y - min_y
+    # diff_x = second_min_x - min_x
+    # min_diff = jnp.min(jnp.array([diff_y, diff_x])) / 2
+    # del_pix = jnp.astype(min_diff - 1, int)
+
+    # TODO: this would be better to do in terms of the min x dist and y dist
+    # between any two centers
+    pairwise_euclidean_dists = jnp.linalg.norm(centers[:, None] - centers[None], axis=-1)
+    min_nonzero_dist = jnp.min(jnp.where(pairwise_euclidean_dists != 0, pairwise_euclidean_dists, jnp.inf))
+    del_pix = jnp.astype(jnp.ceil(min_nonzero_dist / (2 * jnp.sqrt(2))), int)
+    del_pix = max(del_pix, 2)
 
     def get_patch(center):
+        center = jnp.astype(jnp.round(center), int)
         center_x, center_y = center[0], center[1]
         patch_points_C = jax.lax.dynamic_slice(xyzs_C[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix-1,2*del_pix-1,3)).reshape(-1,3)
         patch_rgbs = jax.lax.dynamic_slice(rgbs[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix-1,2*del_pix-1,3)).reshape(-1,3)
@@ -146,7 +154,7 @@ def get_default_multiobject_model_for_patchtracking(renderer):
     def wrapped_likelihood(vertices, faces, vertex_colors):
         weights, attributes = b3d.chisight.dense.differentiable_renderer.render_to_rgbd_dist_params(
             renderer, vertices, faces, vertex_colors,
-            r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
+            r.DifferentiableRendererHyperparams(1, 1e-5, 1e-2, -1)
         )
         obs = likelihood(weights, attributes) @ "obs"
         return obs, {"diffrend_output": (weights, attributes)}

@@ -219,5 +219,26 @@ class FeatureTrackData:
             camera_intrinsics=self.camera_intrinsics
         )
     
+    def downscale(self, factor):
+        """Downscales the rgbd images by the given factor."""
+        assert factor >= 1 and int(factor) == factor, "Factor must be an integer greater than or equal to 1."
+        factor = int(factor)
+        if factor == 1:
+            return self
+        
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions / factor,
+            observed_features=self.observed_features,
+            keypoint_visibility=self.keypoint_visibility,
+            # TODO: Improve the downscaling procedure for the video.
+            rgbd_images=self.rgbd_images[:, ::factor, ::factor, :],
+            latent_keypoint_positions=self.latent_keypoint_positions,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions,
+            object_assignments=self.object_assignments,
+            camera_position=self.camera_position,
+            camera_quaternion=self.camera_quaternion,
+            camera_intrinsics=Intrinsics.from_array(self.intrinsics).downscale(factor).as_array()
+        )
+
     def has_depth_channel(self):
         return jnp.any(self.rgbd_images[..., 3] != 0.)

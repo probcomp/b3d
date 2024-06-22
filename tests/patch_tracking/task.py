@@ -14,7 +14,7 @@ class PatchTrackingTask(Task):
         - initial_patch_positions_2D [2D patch center positions at frame 0]
             (N, 2) array of 2D patch center positions at frame 0
             stored as (y, x) pixel coordinates
-        - renderer [Renderer object]
+        - renderer [Renderer object containing camera intrincis]
 
     The "ground truth" data consists of
         - patch_positions_3D [3D patch center positions at each frame]
@@ -121,7 +121,7 @@ class PatchTrackingTask(Task):
 
         if min_pixeldist_between_keypoints is None:
             H = rgbds.shape[1]
-            min_pixeldist_between_keypoints = H // 80
+            min_pixeldist_between_keypoints = max(H // 80, 6)
 
         keypoint_bool_mask = ftd.keypoint_visibility[0]
         keypoint_positions_2D_frame0_unfiltered = ftd.observed_keypoints_positions[0, keypoint_bool_mask][:, ::-1]
@@ -153,7 +153,7 @@ class PatchTrackingTask(Task):
 
     @classmethod
     def task_from_known_unity_scene_spec(cls, spec, **kwargs):
-        ftd = b3d.io.FeatureTrackData.load(spec['path']).slice_time(start_frame=spec['start_frame'])
+        ftd = b3d.io.FeatureTrackData.load(spec['path']).slice_time(start_frame=spec['start_frame']).downscale(spec['downscale_factor'])
         return cls.task_from_feature_track_data(ftd, **kwargs)
 
     @classmethod
@@ -168,7 +168,8 @@ class PatchTrackingTask(Task):
             {
                 "scene_name": filename,
                 "path": os.path.join(b3d.get_assets_path(), "shared_data_bucket/input_data/unity/keypoints/indoorplant", filename),
-                "start_frame": starttime
+                "start_frame": starttime,
+                "downscale_factor": 4 # 800 x 800 -> 200 x 200
             }
             for filename, starttime in good_filename_starttime_pairs
         ]

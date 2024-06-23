@@ -1,5 +1,5 @@
 import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
-from ..common.task import Task
+from ...common.task import Task
 import jax
 import jax.numpy as jnp
 import b3d

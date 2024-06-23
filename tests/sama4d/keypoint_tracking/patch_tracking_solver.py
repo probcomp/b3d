@@ -17,7 +17,7 @@ class AdamPatchTracker(Solver):
         video = task_spec["video"]
         assert video.shape[-1] == 4, "Expected video to be RGBD"
         Xs_WC = task_spec["Xs_WC"]
-        initial_patch_centers_2D = task_spec["initial_patch_positions_2D"]
+        initial_patch_centers_2D = task_spec["initial_keypoint_positions_2D"]
         r = task_spec["renderer"]
         fx, fy, cx, cy = r.fx, r.fy, r.cx, r.cy
 

@@ -8,6 +8,7 @@ from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import b3d.renderer.nvdiffrast.jax as dr
+from b3d.camera import Intrinsics
 
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
@@ -80,6 +81,11 @@ class Renderer(object):
             intrinsics.cy,
             intrinsics.near,
             intrinsics.far,
+        )
+    
+    def get_intrinsics_object(self):
+        return Intrinsics(
+            self.width, self.height, self.fx, self.fy, self.cx, self.cy, self.near, self.far
         )
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):

@@ -10,7 +10,7 @@ class PatchTrackingTask(Task):
     """
     The task specification consists of:
         - video [RGB or RGBD video]
-        - camera_pose [known fixed camera pose]
+        - Xs_WC [camera pose in the world frame, per frame]
         - initial_patch_positions_2D [2D patch center positions at frame 0]
             (N, 2) array of 2D patch center positions at frame 0
             stored as (y, x) pixel coordinates
@@ -29,11 +29,11 @@ class PatchTrackingTask(Task):
     The task is scored by comparing the inferred_patch_positions_3D to the patch_positions_3D.
     """
     def __init__(self,
-        video, X_WC, initial_patch_positions_2D, patch_positions_3D,
+        video, Xs_WC, initial_patch_positions_2D, patch_positions_3D,
         renderer=None
     ):
         self.video = video
-        self.X_WC = X_WC
+        self.Xs_WC = Xs_WC
         self.initial_patch_positions_2D = initial_patch_positions_2D
         self.patch_positions_3D = patch_positions_3D
         if renderer is None:
@@ -43,7 +43,7 @@ class PatchTrackingTask(Task):
     def get_task_specification(self):
         return {
             "video": self.video,
-            "camera_pose": self.X_WC,
+            "Xs_WC": self.Xs_WC,
             "initial_patch_positions_2D": self.initial_patch_positions_2D,
             "renderer": self.renderer
         }
@@ -77,17 +77,27 @@ class PatchTrackingTask(Task):
             rr.log("/task/patch_positions_3D", rr.Points3D(
                 self.patch_positions_3D[i], colors=jnp.array([0., 1., 0.]), radii = 0.003)
             )
-            rr.log("/task/video/rgb", rr.Image(self.video[i, :, :, :3]))
-        
+            renderer = self.renderer
+            rr.log("/task/camera", rr.Pinhole(
+                focal_length=[float(renderer.fx), float(renderer.fy)],
+                width=renderer.width,
+                height=renderer.height,
+                principal_point=jnp.array([renderer.cx, renderer.cy]),
+            ))
+            X_WC = self.Xs_WC[i]
+            rr.log("/task/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()))
+
+            rr.log("/task/camera/rgb_observed", rr.Image(self.video[i, :, :, :3]))
+
             if self.video.shape[-1] == 4:
-                rr.log("/task/video/depth", rr.DepthImage(self.video[i, :, :, 3]))
+                rr.log("/task/camera/depth_observed", rr.DepthImage(self.video[i, :, :, 3]))
                 # If video is RGBD, get the point cloud and visualize it in the 3D viewer
                 r = self.renderer
                 xyzs_C = b3d.utils.xyz_from_depth_vectorized(
                     self.video[i, :, :, 3], r.fx, r.fy, r.cx, r.cy
                 )
                 rgbs = self.video[i, :, :, :3]
-                xyzs_W = self.X_WC.apply(xyzs_C)
+                xyzs_W = X_WC.apply(xyzs_C)
                 rr.log("/task/observed_pointcloud", rr.Points3D(
                     positions=xyzs_W.reshape(-1,3),
                     colors=rgbs.reshape(-1,3),
@@ -130,12 +140,10 @@ class PatchTrackingTask(Task):
         keypoint_positions_3D = ftd.latent_keypoint_positions[:n_frames, keypoint_bool_mask, ...][:, valid_indices, ...]
         renderer = b3d.Renderer.from_intrinsics_object(b3d.camera.Intrinsics.from_array(ftd.camera_intrinsics))
         
-        # For now this class doesn't support changing camera pose, so just use the first frame camera pose.
-        # TODO: support changing camera pose!
-        X_WC = b3d.Pose(ftd.camera_position[0], ftd.camera_quaternion[0])
+        Xs_WC = b3d.Pose(ftd.camera_position, ftd.camera_quaternion)
 
         return cls(
-            rgbds[:n_frames], X_WC,
+            rgbds[:n_frames], Xs_WC,
             keypoint_positions_2D_frame0, keypoint_positions_3D,
             renderer=renderer
         )
@@ -177,8 +185,8 @@ class PatchTrackingTask(Task):
     # Scene manually constructed in Python: rotating cheezit box
     @classmethod
     def task_from_rotating_cheezit_box(cls, n_frames=30):
-        (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds) = cls.load_rotating_cheezit_box_data(n_frames)
-        return cls(observed_rgbds, X_WC, centers_2D_frame_0, centers_3D_W_over_time, renderer=renderer)
+        (renderer, centers_2D_frame_0, centers_3D_W_over_time, Xs_WC, observed_rgbds) = cls.load_rotating_cheezit_box_data(n_frames)
+        return cls(observed_rgbds, Xs_WC, centers_2D_frame_0, centers_3D_W_over_time, renderer=renderer)
 
     @classmethod
     def load_rotating_cheezit_box_data(cls, n_frames):
@@ -226,7 +234,9 @@ class PatchTrackingTask(Task):
             lambda X_W_Bt: X_W_Bt.apply(centers_3D_B0)
         )(box_poses_W)
 
-        return (renderer, centers_2D_frame_0, centers_3D_W_over_time, X_WC, observed_rgbds)
+        Xs_WC = jax.vmap(lambda x: X_WC)(jnp.arange(n_frames))
+
+        return (renderer, centers_2D_frame_0, centers_3D_W_over_time, Xs_WC, observed_rgbds)
 
 ### Utils ###
 

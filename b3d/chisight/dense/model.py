@@ -122,7 +122,7 @@ def rr_log_meshes_to_image_model_trace(
 
     rr.log(f"/{prefix}/camera",
         rr.Pinhole(
-            focal_length=renderer.fx,
+            focal_length=[float(renderer.fx), float(renderer.fy)],
             width=renderer.width,
             height=renderer.height,
             principal_point=jnp.array([renderer.cx, renderer.cy]),

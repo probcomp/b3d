@@ -42,8 +42,8 @@ Please feel free to make PRs proposing modifications to this structure, as neede
 ## TODOs
 
 Some TODOs:
-- Finish a version of the `keypoint_tracking_and_segmentation/` task.
-- Add a test for keypoint tracking and segmentation from 2D keypoint tracks, not video.  (This may require modifying `feature_track_data_task.py` to make it less specialized to the current subclasses.)
+- Add visualizations for `video_to_tracks_and_segmentation/, and a baseline solver which runs
+  the solver for `video_to_tracks/` and groups everything as one object.
 - Add a cotracker solver for `keypoint_tracking/`.
 
 Possible TODOs, to discuss after a first integrated SAMA4D test has been run, and the genjax 0.4 port is complete:

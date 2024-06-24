@@ -105,8 +105,10 @@ def rr_log_meshes_to_image_model_trace(
     if "diffrend_output" in metadata:
         weights, attributes = metadata["diffrend_output"]
         avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
-        rr.log("f/{prefix}/rgb/average_render", rr.Image(avg_obs[:, :, :3]), timeless=timeless)
-        rr.log("f/{prefix}/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]), timeless=timeless)
+        avg_obs_rgb_clipped = jnp.clip(avg_obs[:, :, :3], 0, 1)
+        avg_obs_depth_clipped = jnp.clip(avg_obs[:, :, 3], 0, 1)
+        rr.log(f"/{prefix}/rgb/average_render", rr.Image(avg_obs_rgb_clipped), timeless=timeless)
+        rr.log(f"/{prefix}/depth/average_render", rr.DepthImage(avg_obs_depth_clipped), timeless=timeless)
 
     # 3D:
     rr.log(f"/{prefix}", rr.Transform3D(translation=transform.pos, mat3x3=transform.rot.as_matrix()), timeless=timeless)

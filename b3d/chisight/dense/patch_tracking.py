@@ -40,7 +40,9 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
         patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
             patch_points_C, patch_rgbs, patch_points_C[:,2] / fx * 2.0
         )
-        X_CP = Pose.from_translation(patch_vertices_C.mean(0))
+        num_nonzero = jnp.sum(jnp.where(patch_points_C[...,2] != 0, 1, 0))
+        mean_position_nonzero = jnp.sum(patch_points_C, axis=0) / num_nonzero
+        X_CP = Pose.from_translation(mean_position_nonzero)
         X_WP = X_WC @ X_CP
         patch_vertices_P = X_CP.inv().apply(patch_vertices_C)
         return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C)
@@ -145,7 +147,7 @@ def get_default_multiobject_model_for_patchtracking(renderer):
     def wrapped_likelihood(vertices, faces, vertex_colors):
         weights, attributes = b3d.chisight.dense.differentiable_renderer.render_to_rgbd_dist_params(
             renderer, vertices, faces, vertex_colors,
-            r.DifferentiableRendererHyperparams(1, 1e-5, 1e-2, -1)
+            r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
         )
         obs = likelihood(weights, attributes) @ "obs"
         return obs, {"diffrend_output": (weights, attributes)}

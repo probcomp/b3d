@@ -103,8 +103,10 @@ def load_rotating_cheezit_box_data(n_frames=30):
     )
 
     # Values are in pixel space, in order (H, W)
-    width_gradations = jnp.arange(44, 84, 10) - 12
-    height_gradations = jnp.arange(38, 90, 10) - 12
+    # width_gradations = jnp.arange(46, 80, 8) - 12
+    # height_gradations = jnp.arange(42, 88, 8) - 12
+    width_gradations = jnp.arange(36, 70, 6)
+    height_gradations = jnp.arange(30, 76, 6)
     centers_2D_frame_0 = all_pairs_2(height_gradations, width_gradations)
     
     centers_3D_frame0_C = xyzs_C[0][centers_2D_frame_0[:, 0], centers_2D_frame_0[:, 1]]

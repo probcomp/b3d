@@ -199,10 +199,8 @@ class FeatureTrackData:
                 ),
                 observed_features=get_or_none(data, "observed_features"),
 
-                rgbd_images=get_or_none(data, "rgbd_images"),
-                keypoint_visibility=get_or_none(
-                    data, "keypoint_visibility"
-                ),
+                rgbd_images=rgbd_images,
+                keypoint_visibility=keypoint_visibility,
                 fps = get_or_none(data, "fps"),
                 object_assignments=get_or_none(data, "object_assignments"),
                 camera_position=get_or_none(data, "camera_position"),

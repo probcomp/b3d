@@ -161,6 +161,8 @@ class VideoInput:
         with open(filepath, "rb") as f:
             data = jnp.load(f, allow_pickle=True)
 
+            fps = data["fps"] if ("fps" in data) else None
+            
             return cls(
                 rgb=jnp.array(data["rgb"]),
                 xyz=jnp_array_or_none(data["xyz"]),
@@ -168,7 +170,7 @@ class VideoInput:
                 camera_quaternions=jnp_array_or_none(data["camera_quaternions"]),
                 camera_intrinsics_rgb=jnp_array_or_none(data["camera_intrinsics_rgb"]),
                 camera_intrinsics_depth=jnp_array_or_none(data["camera_intrinsics_depth"]),
-                fps=data["fps"] or None
+                fps=fps
             )
 
     @property

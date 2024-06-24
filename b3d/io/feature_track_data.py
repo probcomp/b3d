@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from b3d.types import Array
+from b3d.types import Array, Float
 import jax.numpy as jnp
 from b3d.camera import Intrinsics
 from b3d.pose import Pose
@@ -24,6 +24,7 @@ class FeatureTrackData:
             keypoint_visibility:          (T, N) Boolean Array
             camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
             rgbd_images:                  (T, H, W, 4) Float Array
+            (optional) fps:                          Float
             (optional) observed_features :           (T, N, F) Float Array OR None
             (optional) latent_keypoint_positions :   (T, N, 3) Float Array OR None
             (optional) latent_keypoint_quaternions : (T, N, 4) Float Array OR None
@@ -60,18 +61,20 @@ class FeatureTrackData:
     camera_intrinsics: Array
     rgbd_images: Array
     # Optional fields: Ground truth data
-    observed_features: Optional[Array]
-    latent_keypoint_positions: Optional[Array]
-    latent_keypoint_quaternions: Optional[Array]
-    object_assignments: Optional[Array]
-    camera_position: Optional[Array]
-    camera_quaternion: Optional[Array]
+    fps: Optional[Float] = None
+    observed_features: Optional[Array] = None
+    latent_keypoint_positions: Optional[Array] = None
+    latent_keypoint_quaternions: Optional[Array] = None
+    object_assignments: Optional[Array] = None
+    camera_position: Optional[Array] = None
+    camera_quaternion: Optional[Array] = None
 
     def __init__(self,
                 observed_keypoints_positions: Array,
                 keypoint_visibility: Array,
                 rgbd_images: Array,
                 camera_intrinsics: Array,
+                fps: Optional[Array] = None,
                 observed_features: Optional[Array] = None,
                 latent_keypoint_positions: Optional[Array] = None,
                 latent_keypoint_quaternions: Optional[Array] = None,
@@ -82,6 +85,7 @@ class FeatureTrackData:
         if rgbd_images.shape[-1] == 3:
             rgbd_images = jnp.concatenate([rgbd_images, jnp.zeros(rgbd_images.shape[:-1] + (1,))], axis=-1)
 
+        self.fps = fps
         self.observed_keypoints_positions = observed_keypoints_positions
         self.observed_features = observed_features
         self.keypoint_visibility = keypoint_visibility
@@ -130,6 +134,7 @@ class FeatureTrackData:
             observed_keypoints_positions=self.observed_keypoints_positions,
             observed_features=self.observed_features,
             rgbd_images=self.rgbd_images,
+            fps = self.fps,
             keypoint_visibility=self.keypoint_visibility,
             object_assignments=self.object_assignments,
             camera_position=self.camera_position,
@@ -166,6 +171,7 @@ class FeatureTrackData:
                 keypoint_visibility=get_or_none(
                     data, "keypoint_visibility"
                 ),
+                fps = get_or_none(data, "fps"),
                 object_assignments=get_or_none(data, "object_assignments"),
                 camera_position=get_or_none(data, "camera_position"),
                 camera_quaternion=get_or_none(data, "camera_quaternion"),

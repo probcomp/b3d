@@ -52,7 +52,8 @@ def _cotracker(source_path, target_dir=None, grid_size=50):
         observed_keypoints_positions =  pred_tracks_[0],
         keypoint_visibility = pred_visibility_[0],
         rgbd_images =  video_input.rgbd,
-        camera_intrinsics =  video_input.camera_intrinsics_rgb)
+        camera_intrinsics =  video_input.camera_intrinsics_rgb,
+        fps = video_input.fps)
 
     ftd.save(target_path)
 

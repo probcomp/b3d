@@ -147,11 +147,14 @@ def make_sparse_gps_model(
 
         # Initial camera pose in world coordinates
         initial_camera_pose = (
-            camera_pose_prior(*camera_pose_prior_args) @ "initial_camera_pose"
+            camera_pose_prior(*camera_pose_prior_args) 
+            @ "initial_camera_pose"
         )
 
+        # TODO: Make the visibility model an argument to the model factory
         initial_vis_mask = (
-            genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(jnp.repeat(jax.scipy.special.logit(0.5), N))
+            genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(
+                jnp.repeat(jax.scipy.special.logit(0.5), N))
             @ "initial_visibility"
         )
 

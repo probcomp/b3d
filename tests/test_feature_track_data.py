@@ -11,6 +11,8 @@ def assert_valid_ftd(ftd):
     assert ftd.camera_position is not None
     assert ftd.camera_quaternion is not None
     assert ftd.camera_intrinsics is not None
+    assert len(ftd.rgbd_images.shape) == 4
+    assert ftd.rgbd_images.shape[-1] == 4
 
 def test_unity_data():
     path = os.path.join(

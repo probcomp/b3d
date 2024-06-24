@@ -17,7 +17,6 @@ Grid size:
     {grid_size} x {grid_size}
 """
 
-
 def _cotracker(source_path, target_dir=None, grid_size=50):
     """
     Run CoTracker on a video input data file and save the results.
@@ -49,8 +48,6 @@ def _cotracker(source_path, target_dir=None, grid_size=50):
     pred_tracks_ = pred_tracks.cpu().numpy()
     pred_visibility_ = pred_visibility.cpu().numpy()
 
-    # np.savez(target_path, pred_tracks=pred_tracks_, pred_visibility=pred_visibility_)
-
     ftd = FeatureTrackData(
         observed_keypoints_positions =  pred_tracks_[0],
         keypoint_visibility = pred_visibility_[0],
@@ -59,10 +56,7 @@ def _cotracker(source_path, target_dir=None, grid_size=50):
 
     ftd.save(target_path)
 
-    
-
-
-    
+        
 @add_argparse
 def cotracker(source_path, target_dir=None, grid_size=50):
     """

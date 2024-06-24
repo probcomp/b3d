@@ -4,51 +4,72 @@ import os
 import numpy as np
 import time
 import argparse
+from pathlib import Path
+from b3d.io.utils import add_argparse, path_stem
+from b3d.io import FeatureTrackData
+
+_cotracker_info = """
+Source path: 
+    {source_path}
+Target path: 
+    {target_path}
+Grid size: 
+    {grid_size} x {grid_size}
+"""
 
 
+def _cotracker(source_path, target_dir=None, grid_size=50):
+    """
+    Run CoTracker on a video input data file and save the results.
+    """
+    source_path = Path(source_path)
+    if target_dir is None: target_dir = source_path.parent
+    else: target_dir = Path(target_dir)
+    target_path = target_dir / f"{path_stem(source_path)}.FeatureTrackData.npz"
+    grid_size = int(grid_size)
 
-parser = argparse.ArgumentParser("r3d_to_video_input")
-parser.add_argument("input", help=".r3d File", type=str)
-args = parser.parse_args()
+    print(_cotracker_info.format(
+        source_path=source_path, target_path=target_path, grid_size=grid_size))
 
+    video_input = b3d.io.VideoInput.load(source_path)
+    frames = np.array(video_input.rgb)
 
+    print(f"Frames shape: {frames.shape}")
 
-path = args.input
+    device = 'cuda'
+    cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2").to(device)
 
-# # Load date
-# path = os.path.join(
-#     b3d.get_root_path(),
-#     "assets/shared_data_bucket/input_data/royce_static_to_dynamic.r3d.video_input.npz",
-# )
-video_input = b3d.io.VideoInput.load(path)
-frames = np.array(video_input.rgb)[::4]
-print(frames.shape)
+    video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
+    t0 = time.time()
+    pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
+    t1 = time.time()
 
-device = 'cuda'
-cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2").to(device)
+    print(f"Cotracker took {t1-t0:.2f} seconds.")
 
-video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
+    pred_tracks_ = pred_tracks.cpu().numpy()
+    pred_visibility_ = pred_visibility.cpu().numpy()
 
-grid_size = 70
-t0 = time.time()
-pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
-t1 = time.time()
+    # np.savez(target_path, pred_tracks=pred_tracks_, pred_visibility=pred_visibility_)
 
-print("Cotracker took ", t1-t0, " seconds")
+    ftd = FeatureTrackData(
+        observed_keypoints_positions =  pred_tracks_[0],
+        keypoint_visibility = pred_visibility_[0],
+        rgbd_images =  video_input.rgbd,
+        camera_intrinsics =  video_input.camera_intrinsics_rgb)
 
-# t0 = time.time()
-# pred_tracks, pred_visibility = cotracker(video, grid_siize=grid_size) # B T N 2,  B T N 1
-# t1 = time.time()
+    ftd.save(target_path)
 
-# print("Cotracker took ", t1-t0, " seconds")
-
-# from cotracker.utils.visualizer import Visualizer
-
-# vis = Visualizer(save_dir=".", pad_value=120, linewidth=3)
-# vis.visualize(video, pred_tracks, pred_visibility)
-
-pred_tracks_ = pred_tracks.cpu().numpy()
-pred_visibility_ = pred_visibility.cpu().numpy()
-np.savez(path + "cotracker_output.npz", pred_tracks=pred_tracks_, pred_visibility=pred_visibility_)
+    
 
 
+    
+@add_argparse
+def cotracker(source_path, target_dir=None, grid_size=50):
+    """
+    Run CoTracker on a `VideoInput` file and save the results.
+    """
+    return _cotracker(source_path, target_dir, grid_size)
+
+
+if __name__ == "__main__":
+    cotracker()

@@ -9,6 +9,43 @@ import cv2
 import numpy as np
 from sklearn.utils import Bunch
 from pathlib import Path
+import argparse
+import inspect
+import sys
+
+
+def add_argparse(f):
+    """
+    Decorator that automatically adds an argument parser 
+    from `f`'s signature, so it can be used from the command line.
+    """
+    parser = argparse.ArgumentParser(description=f.__doc__)
+    sig = inspect.signature(f)
+    
+    for k,v in sig.parameters.items():
+        # FYI: you get the type annotation
+        # via `sig.parameters[k].annotation`
+        
+        if v.default is inspect.Parameter.empty:
+            parser.add_argument(k)  
+        else:
+            parser.add_argument(f"-{k}", f"--{k}", 
+                                default=v.default) 
+            
+    def g():
+        args = parser.parse_args()
+        f(**vars(args))
+        
+    return g
+
+
+def path_stem(path):
+    """Removes ALL suffixes from a path."""
+    name = Path(path).name
+    for _ in path.suffixes:
+        name = name.rsplit('.')[0]
+
+    return name
 
 _video_summary = """
 File: \033[96m{info.fname.name}\033[0m

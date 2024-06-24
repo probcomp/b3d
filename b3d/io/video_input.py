@@ -69,6 +69,20 @@ class VideoInput:
         Array  # [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
     )
 
+    @property
+    def z(self):
+        if self.xyz is not None:
+            return self.xyz[...,[3]]
+        else:
+            return jnp.zeros(self.rgb.shape[:-1] + (1,))
+
+    @property
+    def depth(self): return self.z
+
+    @property
+    def rgbd(self):
+        return jnp.concatenate([self.rgb, self.depth], axis=-1)
+
     def __init__(self, 
             rgb, 
             xyz=None, 

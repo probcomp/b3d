@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from b3d.camera import Intrinsics
 from b3d.pose import Pose
 from typing import Optional
-
+import jax
 
 
 DESCR = """
@@ -242,3 +242,93 @@ class FeatureTrackData:
 
     def has_depth_channel(self):
         return jnp.any(self.rgbd_images[..., 3] != 0.)
+    
+    def remove_points_invisible_at_frame0(self):
+        """
+        Filter this FeatureTrackData to only include keypoints that are visible at frame 0.
+        """
+        mask = self.keypoint_visibility[0]
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[:, mask],
+            observed_features=self.observed_features[:, mask] if self.observed_features is not None else None,
+            keypoint_visibility=self.keypoint_visibility[:, mask],
+            rgbd_images=self.rgbd_images,
+            latent_keypoint_positions=self.latent_keypoint_positions[:, mask] if self.latent_keypoint_positions is not None else None,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions[:, mask] if self.latent_keypoint_quaternions is not None else None,
+            object_assignments=self.object_assignments[mask] if self.object_assignments is not None else None,
+            camera_position=self.camera_position,
+            camera_quaternion=self.camera_quaternion,
+            camera_intrinsics=self.camera_intrinsics
+        )
+
+    def all_points_visible_at_frame0(self):
+        return jnp.all(self.keypoint_visibility[0])
+
+    def sparsify_points_to_minimum_2D_distance_at_frame0(self, min_2D_distance):
+        """
+        Filter the keypoints in this FeatureTrackData object, returning a new
+        FeatureTrackData in which no two observed keypoints
+        are closer than `min_2D_distance` pixels in the first frame.
+        """
+        assert self.all_points_visible_at_frame0(), "In the current implementation, all keypoints must be visible at frame 0 to filter by minimimum 2D distance."
+        valid_indices = get_keypoint_filter(min_2D_distance)(self.observed_keypoints_positions[0])
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[:, valid_indices, :],
+            observed_features=self.observed_features[:, valid_indices] if self.observed_features is not None else None,
+            keypoint_visibility=self.keypoint_visibility[:, valid_indices],
+            rgbd_images=self.rgbd_images,
+            latent_keypoint_positions=self.latent_keypoint_positions[:, valid_indices] if self.latent_keypoint_positions is not None else None,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions[:, valid_indices] if self.latent_keypoint_quaternions is not None else None,
+            object_assignments=self.object_assignments[valid_indices] if self.object_assignments is not None else None,
+            camera_position=self.camera_position,
+            camera_quaternion=self.camera_quaternion,
+            camera_intrinsics=self.camera_intrinsics
+        )
+    
+    def min_2D_distance_at_frame0(self):
+        """
+        Returns the minimum 2D distance between any two keypoints at frame 0.
+        """
+        distances = jnp.linalg.norm(self.observed_keypoints_positions[None] - self.observed_keypoints_positions[:, None], axis=-1)
+        distances = jnp.where(jnp.eye(distances.shape[0]) == 1., jnp.inf, distances)
+        return jnp.min(distances)
+
+### Filter 2D keypoints to ones that are sufficently distant ###
+def get_keypoint_filter(max_pixel_dist):
+    """
+    Get a function that accepts a collection of 2D keypoints in pixel coordinates as input,
+    and returns a list of indices of a subset of the keypoints, such that all the selected
+    keypoints are at least `max_pixel_dist` pixels apart from each other.
+    """
+    def filter_step_i_if_valid(st):
+        i, keypoint_positions_2D = st
+        distances = jnp.linalg.norm(keypoint_positions_2D - keypoint_positions_2D[i], axis=-1)
+        invalid_indices = jnp.logical_and(distances < max_pixel_dist, jnp.arange(keypoint_positions_2D.shape[0]) > i)
+        keypoint_positions_2D = jnp.where(
+            invalid_indices[:, None],
+            -jnp.ones(2),
+            keypoint_positions_2D,
+        )
+        return (i+1, keypoint_positions_2D)
+
+    @jax.jit
+    def filter_step_i(st):
+        i, keypoint_positions_2D = st
+        return jax.lax.cond(
+            jnp.all(keypoint_positions_2D[i] == -jnp.ones(2)),
+            lambda st: (st[0]+1, st[1]),
+            filter_step_i_if_valid,
+            st
+        )
+
+    def filter_keypoint_positions(keypoint_positions_2D):
+        """
+        Returns a list of 2D keypoints indices that have not been filtered out.
+        """
+        i = 0
+        while i < keypoint_positions_2D.shape[0]:
+            i, keypoint_positions_2D = filter_step_i((i, keypoint_positions_2D))
+
+        return jnp.where(jnp.all(keypoint_positions_2D != -1., axis=-1))[0]
+    
+    return filter_keypoint_positions

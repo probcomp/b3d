@@ -33,9 +33,9 @@ will work.
 - `dense_model_unit_tests`: some tests for the dense model and inference.
 - `sama4d`: integration tests for major parts of the SAMA4D system.
   - `data_curation.py`: this file collects high-quality test scenes to use for evaluation.
-  - `feature_track_data_task.py`: subclass of `Task` wrapping a `b3d.io.FeatureTrackData` and providing a default visualization. Downstream tasks should define different solution formats and scoring procedures.
-  - `keypoint_tracking/`: Task, patch-tracking solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions.
-  - `keypoint_tracking_and_segmentation/`: [WIP] Task, solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions, and segmenting the tracked keypoints into independently moving objects.  (This is a first test for the integrated SAMA4D system.)
+  - `video_to_tracks/`: Task, patch-tracking solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions.
+  - `tracks_to_segmentation/`: [WIP] Task, solver, assertion testing, and visualization notebooks, for segmenting the tracked keypoints into independently moving objects.
+  - `video_to_tracks_and_segmentation/`: [WIP] Task, solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions, and segmenting the tracked keypoints into independently moving objects.  (This is a first test for the integrated SAMA4D system.)
 
 Please feel free to make PRs proposing modifications to this structure, as needed.
 

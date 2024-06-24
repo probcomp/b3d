@@ -1,4 +1,5 @@
 from tests.common.solver import Solver
+import b3d
 from b3d import Pose
 from b3d.chisight.dense.model import rr_log_uniformpose_meshes_to_image_model_trace
 import b3d.chisight.dense.patch_tracking as tracking
@@ -50,7 +51,11 @@ class AdamPatchTracker(Solver):
             self.all_positions_C.append(pos_C)
             self.all_quaternions_C.append(quats_C)
 
-        return jnp.stack(self.all_positions_W)
+        keypoints_3D_C = jnp.stack(self.all_positions_C)
+        keypoints_2D = b3d.camera.screen_from_camera(
+            keypoints_3D_C, r.get_intrinsics_object()
+        )
+        return keypoints_2D[:, :, ::-1]
     
     def visualize_solver_state(self, task_spec):
         pos0_C = self.Xs_CP_init.pos

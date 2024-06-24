@@ -1,6 +1,17 @@
 class Task:
     """
     Lightweight base class for defining tasks to be solved by parts of the b3d codebase.
+
+    Task developers should subclass this class and implement the following methods:
+    - `get_task_specification`
+    - `score`
+
+    Optionally, task developers may also implement the following methods:
+    - `assert_passing`
+    - `visualize_task`
+    - `visualize_solution`
+
+    The `run_and_score` and `run_tests` methods are automatically implemented from the above.
     """
 
     ### CORE TASK INTERFACE ###
@@ -47,7 +58,6 @@ class Task:
         """
         raise NotImplementedError()
     
-    ### Optional Viz Methods ###
     def visualize_task(self):
         """
         Visualize the task (but not the solution).

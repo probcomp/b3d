@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from b3d.camera import Intrinsics
 from b3d.pose import Pose
 from typing import Optional
-
+import matplotlib.pyplot as plt
 
 
 DESCR = """
@@ -218,3 +218,12 @@ class FeatureTrackData:
             camera_quaternion=self.camera_quaternion[start_frame:end_frame] if self.camera_quaternion is not None else None,
             camera_intrinsics=self.camera_intrinsics
         )
+    
+    def quick_plot(self, t=0, ax=None, figsize=(3,3)):
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            ax.set_aspect(1)
+            ax.axis("off")
+
+        ax.imshow(self.rgb[t]/255)
+        ax.scatter(*self.uv[t, self.vis[t]].T, s=1)

@@ -5,6 +5,8 @@ import numpy as np
 import time
 import argparse
 
+
+
 parser = argparse.ArgumentParser("r3d_to_video_input")
 parser.add_argument("input", help=".r3d File", type=str)
 args = parser.parse_args()
@@ -48,3 +50,5 @@ print("Cotracker took ", t1-t0, " seconds")
 pred_tracks_ = pred_tracks.cpu().numpy()
 pred_visibility_ = pred_visibility.cpu().numpy()
 np.savez(path + "cotracker_output.npz", pred_tracks=pred_tracks_, pred_visibility=pred_visibility_)
+
+

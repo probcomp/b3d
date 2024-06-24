@@ -2,11 +2,11 @@
 This file is WIP.
 """
 
-from tests.common.task import Task
+from tests.sama4d.feature_track_data_task import FeatureTrackData_AllInitiallyVisible_Task
 import jax
 import jax.numpy as jnp
 
-class KeypointTrackingAndSegmentationTask(Task):
+class KeypointTrackingAndSegmentationTask(FeatureTrackData_AllInitiallyVisible_Task):
     """
 
     """

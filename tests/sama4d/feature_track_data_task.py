@@ -4,9 +4,10 @@ import jax.numpy as jnp
 import b3d
 import rerun as rr
 
-class FeatureTrackDataTask(Task):
+class FeatureTrackData_AllInitiallyVisible_Task(Task):
     """
-    Base class for tasks constructed from a `b3d.io.FeatureTrackData`.
+    Base class for tasks constructed from a `b3d.io.FeatureTrackData`,
+    in which all keypoints are visible in the first frame.
 
     This base class exposes a default task specification (via
     a default `get_task_specification` implementation,
@@ -47,7 +48,10 @@ class FeatureTrackDataTask(Task):
             renderer = self.get_default_renderer()
         self.renderer = renderer
 
+        # TODO: store the full observed keypoints array.
+
     def get_task_specification(self):
+        # TODO: maybe remove this and just have downstream tasks define it?
         return {
             "video": self.video,
             "Xs_WC": self.Xs_WC,
@@ -56,6 +60,8 @@ class FeatureTrackDataTask(Task):
         }
 
     def visualize_task(self):
+        # TODO: provide flags for downstream tasks to control what is visualized.
+
         rr.log("/task/frame0", rr.Image(self.video[0, :, :, :3]), timeless=True)
         rr.log("/task/initial_keypoint_positions_2D",
                rr.Points2D(self.initial_keypoint_positions_2D[:, ::-1], colors=jnp.array([0., 1., 0.])), timeless=True
@@ -112,14 +118,20 @@ class FeatureTrackDataTask(Task):
             H = rgbds.shape[1]
             min_pixeldist_between_keypoints = max(H // 80, 6)
 
+        # Filter the FeatureTrackData to only have the keypoints visible at frame 0
         keypoint_bool_mask = ftd.keypoint_visibility[0]
-        keypoint_positions_2D_frame0_unfiltered = ftd.observed_keypoints_positions[0, keypoint_bool_mask][:, ::-1]
+        keypoint_positions_2D_frame0_unfiltered = ftd.observed_keypoints_positions[0, keypoint_bool_mask][:, :]
+
+        # Further filter the FeatureTrackData so that none of the keypoints are too close to each other
         valid_indices = get_keypoint_filter(min_pixeldist_between_keypoints)(keypoint_positions_2D_frame0_unfiltered)
         keypoint_positions_2D_frame0 = keypoint_positions_2D_frame0_unfiltered[valid_indices]
         keypoint_positions_3D = ftd.latent_keypoint_positions[:n_frames, keypoint_bool_mask, ...][:, valid_indices, ...]
-        renderer = b3d.Renderer.from_intrinsics_object(b3d.camera.Intrinsics.from_array(ftd.camera_intrinsics))
         
+        # Finish constructing the class
+        renderer = b3d.Renderer.from_intrinsics_object(b3d.camera.Intrinsics.from_array(ftd.camera_intrinsics))
         Xs_WC = b3d.Pose(ftd.camera_position, ftd.camera_quaternion)
+
+        # TODO: filter and store the full observed keypoints array.
 
         return cls(
             rgbds[:n_frames], Xs_WC,

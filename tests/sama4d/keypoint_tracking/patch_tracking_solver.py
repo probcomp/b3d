@@ -8,10 +8,12 @@ import rerun as rr
 class AdamPatchTracker(Solver):
     def __init__(self):
         self.get_trace = None
+        self.all_positions_C = None
+        self.all_quaternions_C = None
         self.all_positions_W = None
         self.all_quaternions_W = None
         self.mesh = None
-        self.Xs_WP_init = None
+        self.Xs_CP_init = None
     
     def solve(self, task_spec):
         video = task_spec["video"]
@@ -21,18 +23,20 @@ class AdamPatchTracker(Solver):
         r = task_spec["renderer"]
         fx, fy, cx, cy = r.fx, r.fy, r.cx, r.cy
 
-        (patch_vertices_P, patch_faces, patch_vertex_colors, Xs_WP, _) = tracking.get_patches(
+        (patch_vertices_P, patch_faces, patch_vertex_colors, Xs_CP, _) = tracking.get_patches(
             initial_patch_centers_2D, video, Pose.identity(), fx, fy, cx, cy
         )
         self.mesh = (patch_vertices_P, patch_faces, patch_vertex_colors)
-        self.Xs_WP_init = Xs_WP
+        self.Xs_CP_init = Xs_CP
 
         model = tracking.get_default_multiobject_model_for_patchtracking(r)
         (get_initial_tracker_state, update_tracker_state, get_trace) = tracking.get_adam_optimization_patch_tracker(
             model, patch_vertices_P, patch_faces, patch_vertex_colors
         )
         self.get_trace = get_trace
-        tracker_state = get_initial_tracker_state(Xs_WP)
+        tracker_state = get_initial_tracker_state(Xs_CP)
+        self.all_positions_C = []
+        self.all_quaternions_C = []
         self.all_positions_W = []
         self.all_quaternions_W = []
         observed_rgbds = video
@@ -43,19 +47,25 @@ class AdamPatchTracker(Solver):
             pose_W = Xs_WC[timestep] @ Pose(pos_C, quats_C)
             self.all_positions_W.append(pose_W.pos)
             self.all_quaternions_W.append(pose_W.xyzw)
+            self.all_positions_C.append(pos_C)
+            self.all_quaternions_C.append(quats_C)
 
         return jnp.stack(self.all_positions_W)
     
     def visualize_solver_state(self, task_spec):
-        pos0 = self.Xs_WP_init.pos
-        quat0 = self.Xs_WP_init.xyzw
-        trace = self.get_trace(pos0, quat0, task_spec["video"][0])
+        pos0_C = self.Xs_CP_init.pos
+        quat0_C = self.Xs_CP_init.xyzw
+        trace = self.get_trace(pos0_C, quat0_C, task_spec["video"][0])
         rr_log_uniformpose_meshes_to_image_model_trace(
             trace, task_spec["renderer"], prefix="patch_tracking_initialization",
-            timeless=True
+            timeless=True,
+            transform=task_spec["Xs_WC"][0]
         )
 
         for t in range(len(self.all_positions_W)):
             rr.set_time_sequence("frame", t)
-            trace = self.get_trace(self.all_positions_W[t], self.all_quaternions_W[t], task_spec["video"][t])
-            rr_log_uniformpose_meshes_to_image_model_trace(trace, task_spec["renderer"], prefix="PatchTrackingTrace")
+            trace = self.get_trace(self.all_positions_C[t], self.all_quaternions_C[t], task_spec["video"][t])
+            rr_log_uniformpose_meshes_to_image_model_trace(
+                trace, task_spec["renderer"], prefix="PatchTrackingTrace",
+                transform=task_spec["Xs_WC"][t]
+            )

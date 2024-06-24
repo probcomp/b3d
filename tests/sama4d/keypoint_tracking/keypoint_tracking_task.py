@@ -1,7 +1,7 @@
-from tests.sama4d.feature_track_data_task import FeatureTrackDataTask
+from tests.sama4d.feature_track_data_task import FeatureTrackData_AllInitiallyVisible_Task
 import jax.numpy as jnp
 
-class KeypointTrackingTask(FeatureTrackDataTask):
+class KeypointTrackingTask(FeatureTrackData_AllInitiallyVisible_Task):
     """
     The task specification consists of:
         - video [RGB or RGBD video]

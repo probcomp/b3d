@@ -1,6 +1,7 @@
 import genjax
 import jax
 import jax.numpy as jnp
+from b3d import Pose
 from b3d.modeling_utils import uniform_pose
 import b3d.utils as utils
 import b3d.chisight.dense.differentiable_renderer as rendering
@@ -70,11 +71,11 @@ def meshes_to_image_model__factory(likelihood):
     return meshes_to_image_model
 
 ### Visualization code
-def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, prefix="trace", timeless=False):
+def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, **kwargs):
     """
     Log to rerun a visualization of a trace from `uniformpose_meshes_to_image_model`.
     """
-    return rr_log_meshes_to_image_model_trace(trace, renderer, prefix=prefix, timeless=timeless,
+    return rr_log_meshes_to_image_model_trace(trace, renderer, **kwargs,
                                               model_args_to_densemodel_args=(
         lambda args: (trace["camera_pose"], trace["poses"], *args)
     ))
@@ -83,7 +84,8 @@ def rr_log_meshes_to_image_model_trace(
         trace, renderer,
         prefix="trace",
         timeless=False,
-        model_args_to_densemodel_args=(lambda x: x)
+        model_args_to_densemodel_args=(lambda x: x),
+        transform=Pose.identity()
     ):
     """
     Log to rerun a visualization of a trace from `meshes_to_image_model`.
@@ -107,6 +109,8 @@ def rr_log_meshes_to_image_model_trace(
         rr.log("f/{prefix}/depth/average_render", rr.DepthImage(avg_obs[:, :, 3]), timeless=timeless)
 
     # 3D:
+    rr.log(f"/{prefix}", rr.Transform3D(translation=transform.pos, mat3x3=transform.rot.as_matrix()), timeless=timeless)
+
     (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(trace.get_args())
     Xs_WO = trace.strip()["poses"].inner.value # TODO: do this better
     vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
@@ -142,4 +146,5 @@ def rr_log_meshes_to_image_model_trace(
     rr.log(
         f"/{prefix}/patch_centers_W",
         rr.Points3D(positions=patch_centers_W, colors=jnp.array([0., 0., 1.]), radii=0.003),
+        timeless=timeless
     )

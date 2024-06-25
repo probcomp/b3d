@@ -40,7 +40,9 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Install Python dependencies
-        run: pip install -e .
+        run: |
+          pip install keyring keyrings.google-artifactregistry-auth
+          pip install -e . --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
 
       - name: Download test assets
         run: b3d_pull

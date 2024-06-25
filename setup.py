@@ -40,7 +40,7 @@ setuptools.setup(
         "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
     ],
     install_requires=[
-        "genjax @ git+ssh://git@github.com/probcomp/genjax.git@v0.3.1",
+        "genjax==0.3.1",
         "rerun-sdk==0.14.1",
         "tqdm==4.66.2",
         "numpy==1.26.4",

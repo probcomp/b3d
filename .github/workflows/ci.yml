@@ -26,16 +26,7 @@ jobs:
         with:
           packages: mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev ffmpeg
           version: 1.0
-
-      # See https://github.com/Jimver/cuda-toolkit/blob/master/src/links/linux-links.ts
-      # for available versions
-      - uses: Jimver/cuda-toolkit@v0.2.14
-        id: cuda-toolkit
-        with:
-          cuda: '12.2.0'
-          linux-local-args: '["--toolkit"]'
-          method: 'network'
-
+          
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5

@@ -1,4 +1,4 @@
-from ...common.solver import Solver
+from ....common.solver import Solver
 import jax
 import jax.numpy as jnp
 import b3d

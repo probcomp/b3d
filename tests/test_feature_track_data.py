@@ -16,7 +16,7 @@ def assert_valid_ftd(ftd):
 
 def test_unity_data():
     path = os.path.join(
-    b3d.get_assets_path(),
+        b3d.get_assets_path(),
         "shared_data_bucket/input_data/unity/keypoints/indoorplant/slidingBooks_60fps_lit_bg_800p.input.npz"
     )
     ftd = b3d.io.FeatureTrackData.load(path)

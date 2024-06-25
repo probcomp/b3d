@@ -10,34 +10,49 @@ import optax
 
 import b3d.chisight.dense.differentiable_renderer
 
-def all_pairs_2(X, Y):
-    return jnp.swapaxes(
-        jnp.stack(jnp.meshgrid(X, Y), axis=-1),
-        0, 1
-    ).reshape(-1, 2)
+def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):
+    """
+    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    """
+    depths = rgbds[..., 3]
+    xyzs_C = b3d.utils.xyz_from_depth_vectorized(depths, fx, fy, cx, cy)
+    xyzs_W = X_WC.apply(xyzs_C)
+    return get_patches_from_pointcloud(centers, rgbds[..., :3], xyzs_W, X_WC, fx)
 
-def get_patches(centers, rgbs, xyzs_W, X_WC, fx):
+def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
+    """
+    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    """
     xyzs_C = X_WC.inv().apply(xyzs_W)
+    
+    # TODO: this would be better to do in terms of the min x dist and y dist
+    # between any two centers
+    pairwise_euclidean_dists = jnp.linalg.norm(centers[:, None] - centers[None], axis=-1)
+    min_nonzero_dist = jnp.min(jnp.where(pairwise_euclidean_dists != 0, pairwise_euclidean_dists, jnp.inf))
+    del_pix = jnp.astype(jnp.ceil(min_nonzero_dist / (2 * jnp.sqrt(2))), int)
+    del_pix = max(del_pix, 2)
+
     def get_patch(center):
+        center = jnp.astype(jnp.round(center), int)
         center_x, center_y = center[0], center[1]
-        del_pix = 3
         patch_points_C = jax.lax.dynamic_slice(xyzs_C[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix-1,2*del_pix-1,3)).reshape(-1,3)
         patch_rgbs = jax.lax.dynamic_slice(rgbs[0], (center_x-del_pix,center_y-del_pix,0), (2*del_pix-1,2*del_pix-1,3)).reshape(-1,3)
         patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
             patch_points_C, patch_rgbs, patch_points_C[:,2] / fx * 2.0
-    )
-        X_CP = Pose.from_translation(patch_vertices_C.mean(0))
+        )
+        num_nonzero = jnp.sum(jnp.where(patch_points_C[...,2] != 0, 1, 0))
+        mean_position_nonzero = jnp.sum(patch_points_C, axis=0) / num_nonzero
+        X_CP = Pose.from_translation(mean_position_nonzero)
         X_WP = X_WC @ X_CP
         patch_vertices_P = X_CP.inv().apply(patch_vertices_C)
-        return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP)
+        return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C)
 
     return jax.vmap(get_patch, in_axes=(0,))(centers)
 
-def get_patches_with_default_centers(rgbs, xyzs_W, X_WC, fx):
-    width_gradations = jnp.arange(44, 84, 6)
-    height_gradations = jnp.arange(38, 96, 6)
-    centers = all_pairs_2(height_gradations, width_gradations)
-    return get_patches(centers, rgbs, xyzs_W, X_WC, fx)
+# def get_patches_with_default_centers(rgbs, xyzs_W, X_WC, fx):
+#     centers = get_default_patch_centers()
+#     (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C) = get_patches(centers, rgbs, xyzs_W, X_WC, fx)
+#     return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP)
 
 def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors, X_WC=Pose.identity()):
     """
@@ -56,6 +71,8 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
         where `new_patch_poses` is a pair (positions, quaternions) for the updated patch poses,
         and `new_tracker_state` is the updated tracker state.
         At time 0, `new_observed_rgbd` should be the observed_rgbd for the frame at t=0.
+    - get_trace: A function s.t. `get_trace(pos, quat, observed_rgbd)` returns a trace for `model` with the patches
+        at the given positions and quaternions.
     """
     @jax.jit
     def importance_from_pos_quat(positions, quaternions, observed_rgbd):

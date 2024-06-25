@@ -31,6 +31,18 @@ class Intrinsics(NamedTuple):
     def as_array(self):
         """Returns intrinsics as a float array."""
         return jnp.array(self)
+    
+    def downscale(self, factor):
+        return Intrinsics(
+            self.width // factor,
+            self.height // factor,
+            self.fx / factor,
+            self.fy / factor,
+            self.cx / factor,
+            self.cy / factor,
+            self.near,
+            self.far,
+        )
 
 
 class RenderConfig(NamedTuple):

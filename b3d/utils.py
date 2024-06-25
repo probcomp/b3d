@@ -357,12 +357,10 @@ def multivmap(f, args=None):
     return multivmapped
 
 
-def update_choices(trace, key, addr_const, *values):
-    addresses = addr_const.const
+def update_choices(trace, key, addresses, *values):
     return trace.update(
         key,
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses, values)}),
-        genjax.Diff.tree_diff_unknown_change(trace.get_args()),
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses, values)})
     )[0]
 
 

@@ -3,11 +3,12 @@ import jax
 import jax.numpy as jnp
 import b3d
 import genjax
+from genjax import ChoiceMapBuilder as C
 from .model import model_factory, get_likelihood, rr_log_trace
 
 RENDERER_HYPERPARAMS = b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
 
-@genjax.static_gen_fn
+@genjax.gen
 def gt_informed_triangle_proposal(
     gt_triangle, mindepth, maxdepth, fx, fy, cx, cy
 ):
@@ -55,13 +56,12 @@ def importance_sample_with_depth_in_partition(
 
     new_triangle_W = X_WC.apply(new_triangle_C)
 
+    T = task_input["camera_path"].shape[0]
     trace, log_p_score = model.importance(
         key,
-        genjax.choice_map({
+        C.d({
             "triangle_vertices": new_triangle_W,
-            "observed_rgbs": genjax.vector_choice_map(genjax.choice_map({
-                "observed_rgb": task_input["video"]
-            }))
+            "observed_rgbs": genjax.ChoiceMap.idx(jnp.arange(T), C.n().at["observed_rgb"].set(task_input["video"]))
         }),
         (
             task_input["background_mesh"],

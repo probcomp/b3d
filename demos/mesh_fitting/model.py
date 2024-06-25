@@ -51,9 +51,9 @@ def model_factory(
 
     @genjax.static_gen_fn
     def model():
-        vertices = genjax.uniform(jnp.ones((n_vertices, 3)) * mindepth, jnp.ones((n_vertices, 3)) * maxdepth) @ "vertices"
+        vertices = b3d.modeling_utils.uniform(jnp.ones((n_vertices, 3)) * mindepth, jnp.ones((n_vertices, 3)) * maxdepth) @ "vertices"
         faces = uniform_discrete(0, n_vertices) @ "faces"
-        face_colors = genjax.uniform(jnp.zeros((n_faces, 3)), jnp.ones((n_faces, 3))) @ "face_colors"
+        face_colors = b3d.modeling_utils.uniform(jnp.zeros((n_faces, 3)), jnp.ones((n_faces, 3))) @ "face_colors"
 
         camera_poses = genjax.map_combinator(
             in_axes=(0, 0)
@@ -95,7 +95,7 @@ def rr_log_trace(
     v, f, fc = trace["vertices"], trace["faces"], trace["face_colors"]
     v_, f_, vc_ = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(v, f, fc)
     rr.log(f"/3D/{prefix}/mesh", rr.Mesh3D(
-        vertex_positions=v_, indices=f_, vertex_colors=vc_
+        vertex_positions=v_, triangle_indices=f_, vertex_colors=vc_
     ))
 
 def get_rgb_only_model(renderer, initial_mesh):

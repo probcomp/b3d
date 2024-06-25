@@ -79,7 +79,7 @@ color_image, _ = renderer.render_attribute(
 # visualize the scene
 rr.init("differentiable_rendering--test_barycentric_interpolation3")
 rr.connect("127.0.0.1:8812")
-rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
+rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, triangle_indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("scene/camera", rr.Pinhole(
     focal_length=renderer.fx, width=renderer.width, height=renderer.height),
     timeless=True

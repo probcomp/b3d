@@ -41,6 +41,13 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Cache b3d assets
+        uses: actions/cache@v4
+        with:
+          path: assets
+          key: ${{ runner.os }}-${{ matrix.runner }}-assets
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets        
+
       - name: Install Python dependencies
         run: |
           pip install keyring keyrings.google-artifactregistry-auth

@@ -361,7 +361,7 @@ def update_choices(trace, key, addr_const, *values):
     addresses = addr_const.const
     return trace.update(
         key,
-        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses, values)}),
         genjax.Diff.tree_diff_unknown_change(trace.get_args()),
     )[0]
 

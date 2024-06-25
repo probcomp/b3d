@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import jax
 import jax.tree_util as jtu
 import genjax
+from genjax import Pytree
 from tensorflow_probability.substrates import jax as tfp
 
 def normalize(l):
@@ -15,7 +16,8 @@ def normalize(l):
         l / (jnp.sum(l, axis=-1)[..., None] + 1e-8)
     )
 
-class ArgMap(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class ArgMap(genjax.ExactDensity):
     """
     `ArgMap(dist : genjax.ExactDensity, argmap : function)(*args)`
     is the distribution which samples from `dist(*argmap(*args))`.

@@ -4,6 +4,7 @@ from b3d.bayes3d.model import model_multiobject_gl_factory
 from b3d import Pose
 import jax
 import genjax
+from genjax import ChoiceMapBuilder as C
 import jax.numpy as jnp
 import pytest
 
@@ -22,14 +23,14 @@ class TestGroup:
         jnp.zeros((100, 3)), jnp.zeros((10, 3), dtype=jnp.int32), jnp.zeros((100, 3))
     )
 
-    @genjax.static_gen_fn
+    @genjax.gen
     def object_gf(object_library):
         object_identity = (
             b3d.modeling_utils.uniform_discrete(jnp.arange(-1, object_library.get_num_objects()))
-            @ f"id"
+            @ "id"
         )
         object_pose = (
-            b3d.modeling_utils.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ f"pose"
+            b3d.modeling_utils.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "pose"
         )
 
     trace = object_gf.simulate(key, (object_library,))
@@ -51,16 +52,14 @@ class TestGroup:
         model = model_multiobject_gl_factory(renderer)
         trace, _ = model.importance(
             jax.random.PRNGKey(0),
-            genjax.choice_map(
-                {
-                    "camera_pose": Pose.identity(),
-                    "object_pose_0": Pose.identity(),
-                }
-            ),
+            C.d({
+                "camera_pose": Pose.identity(),
+                "object_pose_0": Pose.identity(),
+            }),
             (jnp.arange(3), self.model_args, self.object_library),
         )
         identity_pose = Pose.identity()
-        assert jnp.allclose(trace["camera_pose"].position, identity_pose.position)
-        assert jnp.allclose(trace["camera_pose"].quaternion, identity_pose.quaternion)
-        assert jnp.allclose(trace["object_pose_0"].position, identity_pose.position)
-        assert jnp.allclose(trace["object_pose_0"].quaternion, identity_pose.quaternion)
+        assert jnp.allclose(trace.get_choices()["camera_pose"].position, identity_pose.position)
+        assert jnp.allclose(trace.get_choices()["camera_pose"].quaternion, identity_pose.quaternion)
+        assert jnp.allclose(trace.get_choices()["object_pose_0"].position, identity_pose.position)
+        assert jnp.allclose(trace.get_choices()["object_pose_0"].quaternion, identity_pose.quaternion)

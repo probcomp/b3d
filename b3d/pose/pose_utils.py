@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from b3d.utils import keysplit
-from b3d.pose import Pose
+from .core import Pose
 import genjax
 
 
@@ -79,18 +79,26 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
     qs = unit_disc_to_sphere(rq * uniform_samples_from_disc(keys[1], N, d=3))
     return Pose(xs, qs)
 
+<<<<<<< HEAD:b3d/chisight/sparse/pose_utils.py
 @genjax.Pytree.dataclass
 class UniformPoseInBall(genjax.ExactDensity):
     def sample(self, key, p0: Pose, rx, rq):
         p1 = uniform_samples_from_SE3_around_identity(key, 1, rx, rq)[0]
         return p0.compose(p1)
+=======
 
-    def logpdf(self, p, p0: Pose, rx, rq):
-        # TODO: Check if this is correct
-        # TODO: Check if p1 is within the bounds of the discs,
-        #       where `p1 = p0.inv().compose(p)`
-        return -jnp.log(volume_of_3_ball(rx)) - jnp.log(
-            volume_of_cap_around_north_pole(rq)
-        )
+# class UniformPoseInBall(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+#     def sample(self, key, p0: Pose, rx, rq):
+#         p1 = uniform_samples_from_SE3_around_identity(key, 1, rx, rq)[0]
+#         return p0.compose(p1)
+>>>>>>> 4a666dc (wip):b3d/pose/pose_utils.py
 
-uniform_pose_in_ball = UniformPoseInBall()
+#     def logpdf(self, p, p0: Pose, rx, rq):
+#         # TODO: Check if this is correct
+#         # TODO: Check if p1 is within the bounds of the discs,
+#         #       where `p1 = p0.inv().compose(p)`
+#         return -jnp.log(volume_of_3_ball(rx)) - jnp.log(
+#             volume_of_cap_around_north_pole(rq)
+#         )
+
+# uniform_pose_in_ball = UniformPoseInBall()

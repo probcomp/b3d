@@ -10,7 +10,7 @@ from b3d.camera import (
 )
 from b3d.types import Array, Matrix, Float
 from jax.scipy.spatial.transform import Rotation as Rot
-from .pose_utils import (
+from ...pose.pose_utils import (
     uniform_samples_from_disc,
 )
 from .dynamic_gps import DynamicGPS

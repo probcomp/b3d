@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from b3d.utils import keysplit
-from b3d.pose import Pose
+from .core import Pose
 import genjax
 
 
@@ -80,17 +80,17 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
     return Pose(xs, qs)
 
 
-class UniformPoseInBall(genjax.ExactDensity, genjax.JAXGenerativeFunction):
-    def sample(self, key, p0: Pose, rx, rq):
-        p1 = uniform_samples_from_SE3_around_identity(key, 1, rx, rq)[0]
-        return p0.compose(p1)
+# class UniformPoseInBall(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+#     def sample(self, key, p0: Pose, rx, rq):
+#         p1 = uniform_samples_from_SE3_around_identity(key, 1, rx, rq)[0]
+#         return p0.compose(p1)
 
-    def logpdf(self, p, p0: Pose, rx, rq):
-        # TODO: Check if this is correct
-        # TODO: Check if p1 is within the bounds of the discs,
-        #       where `p1 = p0.inv().compose(p)`
-        return -jnp.log(volume_of_3_ball(rx)) - jnp.log(
-            volume_of_cap_around_north_pole(rq)
-        )
+#     def logpdf(self, p, p0: Pose, rx, rq):
+#         # TODO: Check if this is correct
+#         # TODO: Check if p1 is within the bounds of the discs,
+#         #       where `p1 = p0.inv().compose(p)`
+#         return -jnp.log(volume_of_3_ball(rx)) - jnp.log(
+#             volume_of_cap_around_north_pole(rq)
+#         )
 
-uniform_pose_in_ball = UniformPoseInBall()
+# uniform_pose_in_ball = UniformPoseInBall()

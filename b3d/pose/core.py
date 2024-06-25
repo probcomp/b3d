@@ -4,6 +4,7 @@ import jax
 from jax.scipy.spatial.transform import Rotation as Rot
 from tensorflow_probability.substrates import jax as tfp
 from typing import TypeAlias
+from b3d.utils import keysplit
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -56,7 +57,7 @@ def logpdf_uniform_pose(pose, low, high):
     return position_score.sum() + jnp.pi**2
 
 
-def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
+def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     """
     Samples poses from the product of a diagonal normal distribution (for position) and
     a generalized von Mises-Fisher distribution (for quaternion).
@@ -70,14 +71,13 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     See:
     > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
     """
-    translation = tfp.distributions.MultivariateNormalDiag(
-        jnp.zeros(3), jnp.ones(3) * std
-    ).sample(seed=key)
-    key = jax.random.split(key, 1)[0]
-    quat = tfp.distributions.VonMisesFisher(
-        jnp.array([0.0, 0.0, 0.0, 1.0]), concentration
-    ).sample(seed=key)
-    return mean_pose @ Pose(translation, quat)
+    _, keys = keysplit(key, 1, 2)
+    x = jax.random.multivariate_normal(
+            keys[0], mean_pose.pos, variance * jnp.eye(3))
+    q = tfp.distributions.VonMisesFisher(
+            mean_pose.quat, concentration).sample(seed=keys[1])
+    
+    return Pose(x, q)
 
 
 def camera_from_position_and_target(

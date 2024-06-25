@@ -169,7 +169,7 @@ class Pose:
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         return cls(*children)
-    
+
     def copy(self):
         return Pose(jnp.array(self.pos), jnp.array(self.quat))
 
@@ -312,7 +312,7 @@ class Pose:
     @staticmethod
     def from_xyzw(xyzw):
         """Create a pose from a quaternion. With zero translation."""
-        return Pose(jnp.zeros((*xyzw.shape[:-1], 1)), xyzw) 
+        return Pose(jnp.zeros((*xyzw.shape[:-1], 1)), xyzw)
 
     from_quat = from_xyzw
 

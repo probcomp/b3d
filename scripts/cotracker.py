@@ -9,11 +9,11 @@ from b3d.io.utils import add_argparse, path_stem
 from b3d.io import FeatureTrackData
 
 _cotracker_info = """
-Source path: 
+Source path:
     {source_path}
-Target path: 
+Target path:
     {target_path}
-Grid size: 
+Grid size:
     {grid_size} x {grid_size}
 """
 
@@ -57,7 +57,7 @@ def _cotracker(source_path, target_dir=None, grid_size=50):
 
     ftd.save(target_path)
 
-        
+
 @add_argparse
 def cotracker(source_path, target_dir=None, grid_size=50):
     """

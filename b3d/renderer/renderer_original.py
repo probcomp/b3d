@@ -140,7 +140,7 @@ class RendererOriginal(object):
     def render_many(self, pos, tri, attr):
         rast = self.rasterize_many(pos, tri)
         return self.interpolate_many(attr, rast, tri)
-    
+
     def render(self, pos, tri, attr):
         return self.render_many(pos[None,...], tri, attr[None,...])[0]
 

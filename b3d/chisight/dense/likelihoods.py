@@ -25,7 +25,7 @@ class ArgMap(genjax.ExactDensity,genjax.JAXGenerativeFunction):
 
     def sample(self, key, *args):
         return self.dist.sample(key, *self.argmap(*args))
-    
+
     def logpdf(self, observed, *args):
         return self.dist.logpdf(observed, *self.argmap(*args))
 
@@ -52,7 +52,7 @@ class ImageDistFromPixelDist(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         the same value for that arg)
     Distribution args:
     - height
-    - width 
+    - width
     - *pixel_dist_args
     """
     pixel_dist : any = genjax.Pytree.static()
@@ -65,10 +65,10 @@ class ImageDistFromPixelDist(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         ]
     def _vmap_in_axes(self):
         return (0, *[0 if a else None for a in self.map_args])
-    
+
     def sample(self, key, height, width, *pixel_dist_args):
         keys = jax.random.split(key, height*width)
-        
+
         pixels = jax.vmap(
             lambda key, *args: self.pixel_dist.sample(key, *args),
             in_axes=self._vmap_in_axes()
@@ -105,7 +105,7 @@ class UniformRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
             genjax.uniform.logpdf(observed_rgbd[:3], jnp.zeros(3), jnp.ones(3)) +
             genjax.uniform.logpdf(observed_rgbd[3], mindepth, maxdepth)
         )
-        
+
 uniform_rgbd_pixel_model = UniformRGBDPixelModel()
 
 uniform_rgbd_image_model = ImageDistFromPixelDist(uniform_rgbd_pixel_model, [False, False])
@@ -125,7 +125,7 @@ class RGBDPixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
     """
     Combine a model on an RGB value and a model on a depth value, each
     centered at a given value, into a model on a RGB-Depth value.
-    
+
     Constructor args:
     - depth_pixel_model : genjax.ExactDensity
     - color_pixel_model : genjax.ExactDensity
@@ -145,7 +145,7 @@ class RGBDPixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
         color = self.color_pixel_model.sample(key, rendered_rgbd[:3], *color_args)
         depth = self.depth_pixel_model.sample(subkey, rendered_rgbd[3], *depth_args)
         return jnp.concatenate([color, jnp.array([depth])])
-    
+
     def logpdf(self, observed_rgbd, rendered_rgbd, depth_args, color_args):
         rgb_logpdf = self.color_pixel_model.logpdf(observed_rgbd[:3], rendered_rgbd[:3], *color_args)
         depth_logpdf = self.depth_pixel_model.logpdf(observed_rgbd[3], rendered_rgbd[3], *depth_args)
@@ -173,7 +173,7 @@ assert score > -jnp.inf
 class VmapMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
     """
     A distribution which is a mixture of `dist` on different arguments.
-    
+
     Constructor args:
     - dist : genjax.ExactDensity
 
@@ -188,7 +188,7 @@ class VmapMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
         key, subkey = jax.random.split(key)
         component = genjax.categorical.sample(subkey, jnp.log(probs))
         return self.dist.sample(key, *[jtu.tree_map(lambda x: x[component], a) for a in args])
-    
+
     def logpdf(self, observed, probs, *args):
         logprobs = jax.vmap(
             lambda component: self.dist.logpdf(observed, *[jtu.tree_map(lambda x: x[component], a) for a in args])
@@ -253,7 +253,7 @@ class PythonMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction)
         key, subkey = jax.random.split(key)
         component = genjax.categorical.sample(subkey, jnp.log(probs))
         return values[component]
-    
+
     def logpdf(self, observed, probs, args):
         logprobs = []
         for (i, dist) in enumerate(self.dists):
@@ -396,7 +396,7 @@ def get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
     - height
     - width
     - color_scale : () scale for the laplaces on RGB
-    
+
     Distribution arguments:
     - weights : (N + 1,) array of probabilities. The first weight is the probability
         assigned to the uniform distribution.

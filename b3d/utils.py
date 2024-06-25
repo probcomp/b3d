@@ -105,7 +105,7 @@ def pad_with_1(x):
 
 
 def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolutions):
-    box_mesh = trimesh.load(os.path.join(b3d.get_assets_path(), "objs/cube.obj"))    
+    box_mesh = trimesh.load(os.path.join(b3d.get_assets_path(), "objs/cube.obj"))
     base_vertices, base_faces = jnp.array(box_mesh.vertices), jnp.array(box_mesh.faces)
 
     def process_ith_ball(i, positions, colors, base_vertices, base_faces, resolutions):
@@ -141,7 +141,7 @@ def get_vertices_faces_colors_from_mesh(mesh):
     vertices = vertices - jnp.mean(vertices, axis=0)
     faces = jnp.array(mesh.faces)
     vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
-    return vertices, faces, vertex_colors    
+    return vertices, faces, vertex_colors
 
 def get_rgb_pil_image(image, max=1.0):
     """Convert an RGB image to a PIL image.

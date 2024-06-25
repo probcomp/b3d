@@ -142,7 +142,7 @@ rr.log("mesh", rr.Mesh3D(
 #     b3d.Pose.from_quat(b3d.Rot.from_rotvec(jnp.array([0.0, angle + 0.2, 0.0])).as_quat())
 #     for angle in jnp.linspace(0.0, 2*jnp.pi, 40)
 # ]
-# ) 
+# )
 
 
 # from b3d.renderer_original import RendererOriginal
@@ -165,4 +165,3 @@ rr.log("mesh", rr.Mesh3D(
 #     faces=faces,
 #     vertex_colors=vertex_colors,
 # )
-

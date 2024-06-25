@@ -25,7 +25,7 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     observed_lab = b3d.colors.rgb_to_lab(observed_rgb)
     rendered_lab = b3d.colors.rgb_to_lab(rendered_rgb)
     error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
     )
 
@@ -68,7 +68,7 @@ rgbd_sensor_model = RGBDSensorModel()
 def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
     @genjax.static_gen_fn
     def model(
-        _num_obj_arr, # new 
+        _num_obj_arr, # new
         model_args,
         object_library
     ):
@@ -76,8 +76,8 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
         object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
         object_indices = jnp.empty((0,), dtype=int)
         camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
-            
-        for i in range(_num_obj_arr.shape[0]):        
+
+        for i in range(_num_obj_arr.shape[0]):
             object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f"object_{i}"
             object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
 

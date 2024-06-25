@@ -92,7 +92,7 @@ def make_sparse_gps_model(
 
         # Updated camera pose in world coordinates
         new_camera_pose = (
-            camera_motion_model(camera_pose, *camera_motion_model_args) 
+            camera_motion_model(camera_pose, *camera_motion_model_args)
             @ "camera_pose"
         )
 
@@ -101,7 +101,7 @@ def make_sparse_gps_model(
             genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(jnp.repeat(jax.scipy.special.logit(0.5), N))
             @ "visibility"
         )
-        
+
         _observation = (
             observation_model(
                 vis_mask,
@@ -147,7 +147,7 @@ def make_sparse_gps_model(
 
         # Initial camera pose in world coordinates
         initial_camera_pose = (
-            camera_pose_prior(*camera_pose_prior_args) 
+            camera_pose_prior(*camera_pose_prior_args)
             @ "initial_camera_pose"
         )
 
@@ -288,6 +288,3 @@ def get_dynamic_gps(tr: SparseGPSModelTrace):
 #   Pre-configured model factory
 #
 # # # # # # # # # # # # # # # # # # # # # #
-
-
-

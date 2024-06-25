@@ -115,7 +115,7 @@ def render_to_average(
     - image (H, W, A)
     """
     weights, attributes = render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=hyperparams)
-    return rendering.dist_params_to_average(weights, attributes, background_attribute)    
+    return rendering.dist_params_to_average(weights, attributes, background_attribute)
 
 
 def render_to_average_rgbd(
@@ -207,4 +207,3 @@ for t in pbar:
     image = render_jit(params)
     rr.log("image/reconstruction", rr.Image(image[...,:3]))
     rr.log("cloud/reconstruction", rr.Points3D(b3d.Pose(params["position"], params["quaternion"]).apply(object_library.vertices)))
-

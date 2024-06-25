@@ -35,7 +35,7 @@
 #         vertices = genjax.uniform(-1.0, 1.0, shape=(100, 3))
 #         faces = genjax.uniform(0, 100, shape=(100, 3))
 #         vertex_colors = genjax.uniform(0, 1, shape=(100, 3))
-    
+
 #     mesh = Mesh(vertices, faces, vertex_colors)
 #     return dense_image_likelihood(mesh, xyz_in_camera_frame[i])
 

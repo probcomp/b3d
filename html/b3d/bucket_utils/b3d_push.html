@@ -60,7 +60,7 @@ def upload_all(overwrite):
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
             return -1
-        
+
     print(&#34;===============================================&#34;)
     print(f&#34;Uploading all contents from {LOCAL_BUCKET_PATH} into {GCLOUD_BUCKET_NAME}...\n(overwrite={overwrite})&#34;)
     print(&#34;===============================================&#34;)
@@ -79,7 +79,7 @@ def upload_all(overwrite):
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, upload_cmd)
-    
+
     return 0
 
 
@@ -97,7 +97,7 @@ def upload_item(overwrite, filename):
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
             return -1
-        
+
     print(&#34;===============================================&#34;)
     print(f&#34;Uploading {filename} from {LOCAL_BUCKET_PATH + &#39;/&#39; + filename} into {GCLOUD_BUCKET_NAME}...\n(overwrite={overwrite})&#34;)
     print(&#34;===============================================&#34;)
@@ -111,7 +111,7 @@ def upload_item(overwrite, filename):
 
     # upload a directory (preserve directory structures)
     else:
-        if filename.rfind(&#39;/&#39;) != -1:  # nested directory   
+        if filename.rfind(&#39;/&#39;) != -1:  # nested directory
             parent_dir = filename[:filename.rfind(&#39;/&#39;)]
             # if not os.path.exists(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir):
             #     os.makedirs(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir)
@@ -131,7 +131,7 @@ def upload_item(overwrite, filename):
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, upload_cmd)
-    
+
     return 0
 
 
@@ -140,7 +140,7 @@ def upload_to_bucket(overwrite=False):
     overwrite = opts.overwrite
     filename = opts.filename
 
-    if filename == &#39;&#39;:  
+    if filename == &#39;&#39;:
         # download the whole bucket
         return_code = upload_all(overwrite)
     else:
@@ -201,7 +201,7 @@ if __name__ == &#34;__main__&#34;:
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
             return -1
-        
+
     print(&#34;===============================================&#34;)
     print(f&#34;Uploading all contents from {LOCAL_BUCKET_PATH} into {GCLOUD_BUCKET_NAME}...\n(overwrite={overwrite})&#34;)
     print(&#34;===============================================&#34;)
@@ -220,7 +220,7 @@ if __name__ == &#34;__main__&#34;:
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, upload_cmd)
-    
+
     return 0</code></pre>
 </details>
 </dd>
@@ -247,7 +247,7 @@ if __name__ == &#34;__main__&#34;:
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
             return -1
-        
+
     print(&#34;===============================================&#34;)
     print(f&#34;Uploading {filename} from {LOCAL_BUCKET_PATH + &#39;/&#39; + filename} into {GCLOUD_BUCKET_NAME}...\n(overwrite={overwrite})&#34;)
     print(&#34;===============================================&#34;)
@@ -261,7 +261,7 @@ if __name__ == &#34;__main__&#34;:
 
     # upload a directory (preserve directory structures)
     else:
-        if filename.rfind(&#39;/&#39;) != -1:  # nested directory   
+        if filename.rfind(&#39;/&#39;) != -1:  # nested directory
             parent_dir = filename[:filename.rfind(&#39;/&#39;)]
             # if not os.path.exists(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir):
             #     os.makedirs(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir)
@@ -281,7 +281,7 @@ if __name__ == &#34;__main__&#34;:
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, upload_cmd)
-    
+
     return 0</code></pre>
 </details>
 </dd>
@@ -299,7 +299,7 @@ if __name__ == &#34;__main__&#34;:
     overwrite = opts.overwrite
     filename = opts.filename
 
-    if filename == &#39;&#39;:  
+    if filename == &#39;&#39;:
         # download the whole bucket
         return_code = upload_all(overwrite)
     else:

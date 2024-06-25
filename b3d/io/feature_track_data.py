@@ -31,7 +31,7 @@ class FeatureTrackData:
             (optional) object_assignments:           (N,) Int Array OR None
             (optional) camera_position:              (T, 3) Float Array OR None
             (optional) camera_quaternion:            (T, 4) Float Array OR None
-            
+
     Example:
     ```
     # Initialize
@@ -227,7 +227,7 @@ class FeatureTrackData:
             camera_quaternion=self.camera_quaternion[start_frame:end_frame] if self.camera_quaternion is not None else None,
             camera_intrinsics=self.camera_intrinsics
         )
-    
+
     def quick_plot(self, t=0, ax=None, figsize=(3,3)):
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)

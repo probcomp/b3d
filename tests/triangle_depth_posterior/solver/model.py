@@ -46,7 +46,7 @@ def model_factory(
                 (will be renormalized so v1 = [0, 0, 0] and len(v1->v2) == 1.0)
         """
         (background_vertices, background_faces, background_colors) = background_mesh
-        
+
         triangle_vertices = genjax.uniform(
             -20. * jnp.ones((3, 3)), 20. * jnp.ones((3, 3))
         ) @ "triangle_vertices"
@@ -112,4 +112,3 @@ def rr_log_trace(
     rr.log(f"/3D/{prefix}/foreground", rr.Mesh3D(
         vertex_positions=tv_, indices=tf_, vertex_colors=tvc_
     ))
-

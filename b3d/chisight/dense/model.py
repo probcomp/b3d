@@ -54,7 +54,7 @@ def meshes_to_image_model__factory(likelihood):
 
         vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
         vertices_C = X_WC.inv().apply(vertices_W.reshape(-1, 3))
-        
+
         v = vertices_C.reshape(-1, 3)
         vc = vertex_colors.reshape(-1, 3)
 
@@ -94,7 +94,7 @@ def rr_log_meshes_to_image_model_trace(
     (observed_rgbd, metadata) = trace.get_retval()
     rr.log("/trace/rgb/observed", rr.Image(observed_rgbd[:, :, :3]))
     rr.log("/trace/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]))
-    
+
     # Visualization path for the average render,
     # if the likelihood metadata contains the output of the differentiable renderer.
     if "diffrend_output" in metadata:
@@ -110,7 +110,7 @@ def rr_log_meshes_to_image_model_trace(
     N = vertices_O.shape[0]
     f = jax.vmap(lambda i, f: f + i*vertices_O.shape[1], in_axes=(0, 0))(jnp.arange(N), faces)
     f = f.reshape(-1, 3)
-    
+
     rr.log("/3D/trace/mesh", rr.Mesh3D(
         vertex_positions=vertices_W.reshape(-1, 3),
         indices=f,

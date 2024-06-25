@@ -16,26 +16,26 @@ import sys
 
 def add_argparse(f):
     """
-    Decorator that automatically adds an argument parser 
+    Decorator that automatically adds an argument parser
     from `f`'s signature, so it can be used from the command line.
     """
     parser = argparse.ArgumentParser(description=f.__doc__)
     sig = inspect.signature(f)
-    
+
     for k,v in sig.parameters.items():
         # FYI: you get the type annotation
         # via `sig.parameters[k].annotation`
-        
+
         if v.default is inspect.Parameter.empty:
-            parser.add_argument(k)  
+            parser.add_argument(k)
         else:
-            parser.add_argument(f"-{k}", f"--{k}", 
-                                default=v.default) 
-            
+            parser.add_argument(f"-{k}", f"--{k}",
+                                default=v.default)
+
     def g():
         args = parser.parse_args()
         f(**vars(args))
-        
+
     return g
 
 
@@ -61,7 +61,7 @@ class VideoInfo(Bunch):
     @property
     def T(self): return self.timesteps
     @property
-    def w(self): return self.width  
+    def w(self): return self.width
     @property
     def h(self): return self.height
 
@@ -69,7 +69,7 @@ class VideoInfo(Bunch):
 
 def load_video_info(file_path):
     """
-    Returns a Bunch object containing information about the video file, i.e. 
+    Returns a Bunch object containing information about the video file, i.e.
     `timesteps`, `width`, `height`, and `fps`.
     """
     # Open the video file
@@ -121,7 +121,7 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
 
-    if times is None: times = np.arange(T, step=step) 
+    if times is None: times = np.arange(T, step=step)
     t = -1
     frames = []
     while True:
@@ -135,8 +135,8 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
         t += 1
         if t not in times:
             continue
-        
-        # Resize if necessary, and 
+
+        # Resize if necessary, and
         # add it to the list
         if downsize > 1:
             frame = cv2.resize(frame, dsize=(w//downsize, h//downsize), interpolation=cv2.INTER_LINEAR)
@@ -155,32 +155,32 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
 
 
 def video_input_from_mp4(
-        video_fname, 
-        intrinsics_fname, 
-        step=1, 
-        times=None, 
-        downsize=1, 
+        video_fname,
+        intrinsics_fname,
+        step=1,
+        times=None,
+        downsize=1,
         reverse_color_channel=False):
-    if times is None: times = np.arange(T, step=step) 
+    if times is None: times = np.arange(T, step=step)
 
     info = load_video_info(video_fname)
     intr = np.load(intrinsics_fname, allow_pickle=True)
-    vid  = load_video_to_numpy(video_fname, 
-            times=times, 
-            downsize=downsize, 
+    vid  = load_video_to_numpy(video_fname,
+            times=times,
+            downsize=downsize,
             reverse_color_channel=reverse_color_channel)
 
     fps = info.fps/(times[1] - times[0])
-    
+
     return VideoInput(rgb=vid, camera_intrinsics_rgb=intr, fps=fps)
 
 
 def plot_video_summary(
-        video_fname, 
-        start=0, 
-        end=None, 
-        reverse_color_channel=False, 
-        downsize=10, 
+        video_fname,
+        start=0,
+        end=None,
+        reverse_color_channel=False,
+        downsize=10,
         num_summary_frames=10):
     """
     Plots a summary of the video frames.
@@ -194,7 +194,7 @@ def plot_video_summary(
 
     T0 = start or 0
     T1 = end or info.timesteps
-    times = np.linspace(T0,T1-1, num_summary_frames).astype(int)  
+    times = np.linspace(T0,T1-1, num_summary_frames).astype(int)
 
     vid = load_video_to_numpy(video_fname, times=times, downsize=downsize, reverse_color_channel=reverse_color_channel)
 
@@ -215,5 +215,3 @@ def plot_video_summary(
                         )
                 )
     ax.axis("off");
-
-

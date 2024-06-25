@@ -66,7 +66,7 @@ class Mesh:
 
     def transform(self, pose):
         return transform_mesh(self, pose)
-    
+
     def __repr__(self) -> str:
         return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
 

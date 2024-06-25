@@ -30,6 +30,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
+          cache: 'pip'
+          cache-dependency-path: setup.py
 
       - id: auth
         uses: google-github-actions/auth@v2

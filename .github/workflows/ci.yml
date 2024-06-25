@@ -26,7 +26,7 @@ jobs:
         with:
           packages: mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev ffmpeg
           version: 1.0
-          
+
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5

@@ -8,6 +8,7 @@ from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 import b3d.renderer.nvdiffrast.jax as dr
+from b3d.camera import Intrinsics
 
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
@@ -69,12 +70,32 @@ class Renderer(object):
 
         self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
+    @classmethod
+    def from_intrinsics_object(cls, intrinsics):
+        return cls(
+            intrinsics.width,
+            intrinsics.height,
+            intrinsics.fx,
+            intrinsics.fy,
+            intrinsics.cx,
+            intrinsics.cy,
+            intrinsics.near,
+            intrinsics.far,
+        )
+
+    def get_intrinsics_object(self):
+        return Intrinsics(
+            self.width, self.height, self.fx, self.fy, self.cx, self.cy, self.near, self.far
+        )
+
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
-        self.width, self.height = width, height
-        self.fx, self.fy = fx, fy
-        self.cx, self.cy = cx, cy
-        self.near, self.far = near, far
-        self.resolution = jnp.array([height, width]).astype(jnp.int32)
+        # Wrap everything in np arrays so that downstream JAX
+        # code treats these values as constants.
+        self.width, self.height = np.array(width), np.array(height)
+        self.fx, self.fy = np.array(fx), np.array(fy)
+        self.cx, self.cy = np.array(cx), np.array(cy)
+        self.near, self.far = np.array(near), np.array(far)
+        self.resolution = np.array([height, width]).astype(jnp.int32)
         self.projection_matrix = projection_matrix_from_intrinsics(
             width, height, fx, fy, cx, cy, near, far
         )

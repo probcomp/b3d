@@ -4,7 +4,7 @@ import genjax
 import b3d.chisight.dense.differentiable_renderer as rendering
 import b3d
 from b3d import Pose
-from b3d.model import uniform_pose
+from b3d.modeling_utils import uniform_pose
 import rerun as rr
 import demos.differentiable_renderer.patch_tracking.demo_utils as utils
 
@@ -155,7 +155,7 @@ def rr_log_multiobject_trace(trace, renderer):
             )
         )
     rr.log("/trace/camera", rr.Transform3D(translation=cam_pose.pos, mat3x3=cam_pose.rot.as_matrix()))
-    xyzs_C = utils.unproject_depth(observed_rgbd[:, :, 3], renderer)
+    xyzs_C = b3d.utils.xyz_from_depth_vectorized(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = cam_pose.apply(xyzs_C)
     rr.log("/3D/trace/gt_pointcloud", rr.Points3D(
         positions=xyzs_W.reshape(-1,3),

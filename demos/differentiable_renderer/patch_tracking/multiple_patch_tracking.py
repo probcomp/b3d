@@ -56,7 +56,7 @@ rgbs, depths = renderer.render_attribute_many(
     cheezit_object_library.attributes
 )
 observed_rgbds = jnp.concatenate([rgbs, depths[...,None]], axis=-1)
-xyzs_C = du.unproject_depth_vec(depths, renderer)
+xyzs_C = b3d.xyz_from_depth_vectorized(depths, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
 xyzs_W = X_WC.apply(xyzs_C)
 
 ### Get patches ###

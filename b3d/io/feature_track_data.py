@@ -249,7 +249,7 @@ class FeatureTrackData:
         )
 
     def has_depth_channel(self):
-        return jnp.any(self.rgbd_images[..., 3] != 0.)
+        return jnp.any(self.rgbd_images[..., 3] > 0.)
     
     def remove_points_invisible_at_frame0(self):
         """

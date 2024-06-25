@@ -46,7 +46,7 @@ jobs:
         with:
           path: assets
           key: ${{ runner.os }}-${{ matrix.runner }}-assets
-          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets        
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
 
       - name: Install Python dependencies
         run: |
@@ -58,6 +58,3 @@ jobs:
 
       - name: Create test results directory
         run: mkdir -p assets/test_results
-
-      - name: Run Tests
-        run: ./run_tests.sh

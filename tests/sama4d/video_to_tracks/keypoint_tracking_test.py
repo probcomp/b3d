@@ -8,7 +8,7 @@ from .patch_tracking_solver import AdamPatchTracker
 # This is for speed - once these can be run faster, we should test on all of them.
 @pytest.mark.parametrize("scene_name,scene_loader", [
     (spec["scene_name"], spec["feature_track_data_loader"])
-    for spec in [get_loaders_for_all_curated_scenes()[-1]]
+    for spec in get_loaders_for_all_curated_scenes()
 ])
 def test(scene_name, scene_loader):
     scene = scene_loader()

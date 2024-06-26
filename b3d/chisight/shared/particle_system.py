@@ -168,25 +168,24 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
     ) @ "obs"
     return (particle_dynamics_summary, obs)
 
-# dense_image_likelihood = make_dense_image_likelihood_from_renderer(renderer)
 
-# def dense_gps_model_factory(dense_image_likelihood):
+def dense_gps_model_factory(dense_image_likelihood):
 
-#     @genjax.static_gen_fn
-#     def dense_gps_model(
-#         meshes,
-#         dense_likelihood_args,
-#         *latent_particle_model_args
-#     ):
-#         particle_dynamics_summary = latent_particle_model(*latent_particle_model_args)
-#         absolute_particle_poses_last_frame = particle_dynamics_summary["absolute_particle_poses"][-1]
-#         camera_pose_last_frame = particle_dynamics_summary["camera_poses"][-1]
+    @genjax.static_gen_fn
+    def dense_gps_model(
+        meshes,
+        dense_likelihood_args,
+        *latent_particle_model_args
+    ):
+        particle_dynamics_summary = latent_particle_model(*latent_particle_model_args)
+        absolute_particle_poses_last_frame = particle_dynamics_summary["absolute_particle_poses"][-1]
+        camera_pose_last_frame = particle_dynamics_summary["camera_poses"][-1]
 
-#         absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
+        absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
 
-#         image = dense_image_likelihood(absolute_particle_poses_in_camera_frame, meshes, dense_likelihood_args) @ "image"
-#         return image
+        image = dense_image_likelihood(absolute_particle_poses_in_camera_frame, meshes, dense_likelihood_args) @ "image"
+        return image
 
-#     return dense_gps_model
+    return dense_gps_model
 
 

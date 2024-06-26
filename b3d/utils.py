@@ -8,7 +8,6 @@ import jax
 import sklearn.cluster
 import b3d
 import cv2
-from b3d.pose import Pose, Rot
 
 import inspect
 from pathlib import Path
@@ -18,6 +17,12 @@ import rerun as rr
 import distinctipy
 
 from sklearn.utils import Bunch
+
+# # # # # # # # # # # # 
+# 
+#  Core
+# 
+# # # # # # # # # # # # 
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])
@@ -53,6 +58,29 @@ def get_shared() -> Path:
 def get_gcloud_bucket_ref() -> str:
     return "gs://b3d_bucket"
 
+
+def keysplit(key, *ns):
+    if len(ns) == 0:
+        return jax.random.split(key, 1)[0]
+    elif len(ns) == 1:
+        (n,) = ns
+        if n == 1:
+            return keysplit(key)
+        else:
+            return jax.random.split(key, ns[0])
+    else:
+        keys = []
+        for n in ns:
+            keys.append(keysplit(key, n))
+        return keys
+    
+# # # # # # # # # # # # 
+# 
+#  Other
+# 
+# # # # # # # # # # # # 
+from b3d.pose import Pose, Rot
+# TODO: Refactor utils into core and others, to avoid circular imports
 
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
@@ -540,20 +568,6 @@ def fit_table_plane(
     table_dims = jnp.array([width, height, 1e-10])
     return table_pose, table_dims
 
-def keysplit(key, *ns):
-    if len(ns) == 0:
-        return jax.random.split(key, 1)[0]
-    elif len(ns) == 1:
-        (n,) = ns
-        if n == 1:
-            return keysplit(key)
-        else:
-            return jax.random.split(key, ns[0])
-    else:
-        keys = []
-        for n in ns:
-            keys.append(keysplit(key, n))
-        return keys
 
 ### Triangle color mesh -> vertex color mesh ###
 def separate_shared_vertices(vertices, faces):

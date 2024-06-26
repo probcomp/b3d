@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from b3d.types import Array, Float
 import jax.numpy as jnp
-from b3d.camera import Intrinsics
-from b3d.pose import Pose
 from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
+from b3d.camera import Intrinsics
+from b3d.pose import Pose
 
 
 DESCR = """

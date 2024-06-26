@@ -79,7 +79,8 @@ def cov_from_dq_composition(diag, quat):
 
 # TODO: Test this code
 # TODO: Add constraint for the point light to fall within image bounds
-class ProjectiveGaussian(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class ProjectiveGaussian(ExactDensity):
     def sample(self, key, mu, cov, cam, intr):
         """
         Samples a 2d pointlight on the sensor canvas from a 3d Gaussian distribution.
@@ -118,7 +119,8 @@ projective_gaussian = ProjectiveGaussian()
 
 
 # TODO: Test this code
-class ProjectiveGaussianMixture(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class ProjectiveGaussianMixture(ExactDensity):
     def sample(self, key, log_weights, mus, covs, cam, intr):
         _, keys = keysplit(key, 1, 2)
         i = jax.random.categorical(keys[0], log_weights)
@@ -144,7 +146,8 @@ projective_gaussian_mixture = ProjectiveGaussianMixture()
 
 
 # TODO: Test this code
-class HomogeneousMixture(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class HomogeneousMixture(ExactDensity):
     dist: genjax.typing.Any
 
     def sample(self, key, log_weights, comp_args):
@@ -177,7 +180,8 @@ class HomogeneousMixture(ExactDensity, genjax.JAXGenerativeFunction):
 
 
 # TODO: Test this code
-class TwoComponentMixture(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class TwoComponentMixture(ExactDensity):
     p0: genjax.typing.Any
     p1: genjax.typing.Any
 
@@ -213,7 +217,8 @@ class TwoComponentMixture(ExactDensity, genjax.JAXGenerativeFunction):
         return logp
 
 
-class IndexDist(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class IndexDist(ExactDensity):
     """
     Distribution over arrival indices conditioned on being an outlier or not.
     We mimic a masking combinator here, we don't want to score the arrival index
@@ -230,8 +235,8 @@ class IndexDist(ExactDensity, genjax.JAXGenerativeFunction):
 
 index_dist = IndexDist()
 
-
-class MixtureHack(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class MixtureHack(ExactDensity):
     def sample(self, key, is_outlier, i, mus, covs, cam, intr):
         _, keys = keysplit(key, 1, 2)
         outlier = jax.random.uniform(
@@ -257,7 +262,8 @@ mixture_hack = MixtureHack()
 
 
 # TODO: Test this code
-class MixtureStepHack(ExactDensity, genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class MixtureStepHack(ExactDensity):
     def sample(self, key, is_outlier, i, mus, covs, cam, intr):
         _, keys = keysplit(key, 1, 2)
         # Sample from the outlier distribution
@@ -316,14 +322,10 @@ def add_dummy_var(d: ExactDensity):
     Adds a `dummy` variable to a distribution to make it easily mappable while keeping the other args fixed.
     """
 
-    class DummyMappableDist(d.__class__):
-        def sample(self, key, dummy, *args):
-            return super().sample(key, *args)
-
-        def logpdf(self, x, dummy, *args):
-            return super().logpdf(x, *args)
-
-    return DummyMappableDist()
+    return genjax.exact_density(
+        lambda key, dummy, *args: d.sample(key, *args),
+        lambda x, dummy, *args: d.logpdf(x, *args),
+    )
 
 
 def random_color_by_cluster(key, gps: DynamicGPS):

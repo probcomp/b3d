@@ -228,6 +228,7 @@ def get_2d_particle_positions(tr: SparseGPSModelTrace):
     # TODO
     pass
 
+
 def get_dynamic_gps(tr: SparseGPSModelTrace):
     """Gets the DynamicGPS object from a SparseGPSModelTrace."""
     ps = get_particle_poses(tr)

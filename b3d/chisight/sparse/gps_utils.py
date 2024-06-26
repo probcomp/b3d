@@ -10,7 +10,7 @@ from b3d.camera import (
 )
 from b3d.types import Array, Matrix, Float
 from jax.scipy.spatial.transform import Rotation as Rot
-from ...pose.pose_utils import (
+from b3d.pose.pose_utils import (
     uniform_samples_from_disc,
 )
 from .dynamic_gps import DynamicGPS
@@ -258,7 +258,7 @@ class MixtureHack(ExactDensity):
         )
 
 
-mixture_hack = MixtureHack()
+mixture_step_hack = MixtureStepHack()
 
 
 # TODO: Test this code
@@ -328,6 +328,6 @@ def add_dummy_var(d: ExactDensity):
     )
 
 
-def random_color_by_cluster(key, gps: DynamicGPS):
-    cluster_colors = jax.random.uniform(key, (gps.num_clusters, 3))
-    return cluster_colors[gps.cluster_assignments]
+# def random_color_by_cluster(key, gps: DynamicGPS):
+#     cluster_colors = jax.random.uniform(key, (gps.num_clusters, 3))
+#     return cluster_colors[gps.cluster_assignments]

@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
-from b3d.utils import keysplit
 from .core import Pose
+from b3d.utils import keysplit
 import genjax
 
 

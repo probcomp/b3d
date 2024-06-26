@@ -1,47 +1,38 @@
 import genjax
-from b3d.pose import sample_uniform_pose, sample_gaussian_vmf_pose
-from genjax.generative_functions.distributions import ExactDensity
+from b3d.pose import sample_uniform_pose, logpdf_uniform_pose, sample_gaussian_vmf_pose, logpdf_gaussian_vmf_pose
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
-class UniformDiscrete(ExactDensity, genjax.JAXGenerativeFunction):
-    def sample(self, key, vals):
-        return jax.random.choice(key, vals)
+uniform_discrete = genjax.exact_density(
+    lambda key, vals: jax.random.choice(key, vals),
+    lambda sampled_val, vals: jnp.log(1.0 / (vals.shape[0])),
+)
+uniform_pose = genjax.exact_density(sample_uniform_pose, logpdf_uniform_pose)
 
-    def logpdf(self, sampled_val, vals, **kwargs):
-        return jnp.log(1.0 / (vals.shape[0]))
+vmf = genjax.exact_density(
+    lambda key, mean, concentration: tfp.distributions.VonMisesFisher(mean, concentration).sample(seed=key),
+    lambda x, mean, concentration: tfp.distributions.VonMisesFisher(mean, concentration).log_prob(x),
+)
 
-class UniformPose(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, low, high):
-        return sample_uniform_pose(key, low, high)
+gaussian_vmf = genjax.exact_density(sample_gaussian_vmf_pose, logpdf_gaussian_vmf_pose)
 
-    def logpdf(self, pose, low, high):
-        position = pose.pos
-        valid = ((low <= position) & (position <= high))
-        position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high-low)))
-        return position_score.sum() + jnp.pi**2
+### Below are placeholders for genjax functions which are currently buggy ###
 
-class VMF(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, mean, concentration):
-        return tfp.distributions.VonMisesFisher(mean, concentration).sample(seed=key)
+# There is currently a bug in `genjax.uniform.logpdf`; this `uniform`
+# can be used instead until a fix is pushed.
+uniform = genjax.exact_density(
+    lambda key, low, high: genjax.uniform.sample(key, low, high),
+    lambda x, low, high: jnp.sum(genjax.uniform.logpdf(x, low, high))
+)
 
-    def logpdf(self, x, mean, concentration):
-        return tfp.distributions.VonMisesFisher(mean, concentration).log_prob(x)
-vmf = VMF()
+def tfp_distribution(dist):
+    def sampler(key, *args, **kwargs):
+        d = dist(*args, **kwargs)
+        return d.sample(seed=key)
 
-class GaussianPose(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, mean_pose, std, concentration):
-        return sample_gaussian_vmf_pose(key, mean_pose, std, concentration)
+    def logpdf(v, *args, **kwargs):
+        d = dist(*args, **kwargs)
+        return jnp.sum(d.log_prob(v))
 
-    def logpdf(self, pose, mean_pose, std, concentration):
-        translation_score = tfp.distributions.MultivariateNormalDiag(
-        mean_pose.pos, jnp.ones(3) * std).log_prob(pose.pos)
-        quaternion_score = tfp.distributions.VonMisesFisher(
-            mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
-        ).log_prob(pose.quat)
-        return translation_score + quaternion_score
-
-uniform_discrete = UniformDiscrete()
-uniform_pose = UniformPose()
-gaussian_vmf_pose = GaussianPose()
+    return genjax.exact_density(sampler, logpdf)

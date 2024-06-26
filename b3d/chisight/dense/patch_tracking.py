@@ -80,10 +80,10 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
         poses = jax.vmap(lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])), in_axes=(0, 0))(positions, quaternions)
         trace, weight = model.importance(
             key,
-            genjax.choice_map({
-                "poses": genjax.vector_choice_map(genjax.choice(poses)),
+            genjax.ChoiceMap.d({
+                "poses": genjax.ChoiceMap.idx(jnp.arange(positions.shape[0]), poses),
                 "camera_pose": X_WC,
-                "observed_image": genjax.choice_map({"observed_image": genjax.choice_map({"obs": observed_rgbd})})
+                "observed_image": {"observed_image": {"obs": observed_rgbd}}
             }),
             (patch_vertices_P, patch_faces, patch_vertex_colors)
         )
@@ -143,7 +143,7 @@ def get_default_multiobject_model_for_patchtracking(renderer):
     likelihood = likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
             renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
     )
-    @genjax.static_gen_fn
+    @genjax.gen
     def wrapped_likelihood(vertices, faces, vertex_colors):
         weights, attributes = b3d.chisight.dense.differentiable_renderer.render_to_rgbd_dist_params(
             renderer, vertices, faces, vertex_colors,

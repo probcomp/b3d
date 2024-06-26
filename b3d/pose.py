@@ -50,11 +50,10 @@ def sample_uniform_pose(key, low, high):
 
 
 def logpdf_uniform_pose(pose, low, high):
-    position = pose.position
-    valid = (low <= position) & (position <= high)
+    position = pose.pos
+    valid = ((low <= position) & (position <= high))
     position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high - low)))
     return position_score.sum() + jnp.pi**2
-
 
 def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     """
@@ -79,6 +78,13 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     ).sample(seed=key)
     return mean_pose @ Pose(translation, quat)
 
+def logpdf_gaussian_vmf_pose(pose, mean_pose, std, concentration):
+    translation_score = tfp.distributions.MultivariateNormalDiag(
+        mean_pose.pos, jnp.ones(3) * std).log_prob(pose.pos)
+    quaternion_score = tfp.distributions.VonMisesFisher(
+        mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
+    ).log_prob(pose.quat)
+    return translation_score + quaternion_score
 
 def camera_from_position_and_target(
     position, target=jnp.array([0.0, 0.0, 0.0]), up=jnp.array([0.0, 0.0, 1.0])

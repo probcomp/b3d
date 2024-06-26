@@ -19,12 +19,12 @@ def uniformpose_meshes_to_image_model__factory(likelihood):
     """
     meshes_to_image_model = meshes_to_image_model__factory(likelihood)
 
-    @genjax.static_gen_fn
+    @genjax.gen
     def uniformpose_meshes_to_image_model(vertices_O, faces, vertex_colors):
         X_WC = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "camera_pose"
 
         N = vertices_O.shape[0]
-        Xs_WO = genjax.map_combinator(in_axes=(0, 0))(uniform_pose)(
+        Xs_WO = uniform_pose.vmap(in_axes=(0, 0))(
             jnp.ones((N, 3))*-10.0, jnp.ones((N, 3))*10.0
         ) @ "poses"
 
@@ -46,7 +46,7 @@ def meshes_to_image_model__factory(likelihood):
         Should return (observed_image, metadata).
     - renderer_hyperparams: last argument for the likelihood
     """
-    @genjax.static_gen_fn
+    @genjax.gen
     def meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors):
         #                        (N, V, 3)    (N, F, 3)   (N, V, 3)
         #                        where N = number of objects
@@ -77,7 +77,7 @@ def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, **kwargs):
     """
     return rr_log_meshes_to_image_model_trace(trace, renderer, **kwargs,
                                               model_args_to_densemodel_args=(
-        lambda args: (trace["camera_pose"], trace["poses"], *args)
+        lambda args: (trace.get_choices()["camera_pose"], trace.get_choices()["poses"], *args)
     ))
 
 def rr_log_meshes_to_image_model_trace(
@@ -122,7 +122,7 @@ def rr_log_meshes_to_image_model_trace(
     
     rr.log(f"/{prefix}/mesh", rr.Mesh3D(
         vertex_positions=vertices_W.reshape(-1, 3),
-        indices=f,
+        triangle_indices=f,
         vertex_colors=vertex_colors.reshape(-1, 3)
     ), timeless=timeless)
 

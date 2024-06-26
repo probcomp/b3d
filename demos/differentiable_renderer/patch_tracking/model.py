@@ -57,7 +57,7 @@ def rr_log_trace(trace, renderer, prefix="trace"):
     
     rr.log(f"3D/{prefix}/mesh", rr.Mesh3D(
         vertex_positions=pose.apply(vertices),
-        indices=faces,
+        triangle_indices=faces,
         vertex_colors=vertex_colors
     ))
 
@@ -142,7 +142,7 @@ def rr_log_multiobject_trace(trace, renderer):
     
     rr.log("/3D/trace/mesh", rr.Mesh3D(
         vertex_positions=vertices_W.reshape(-1, 3),
-        indices=f,
+        triangle_indices=f,
         vertex_colors=vertex_colors.reshape(-1, 3)
     ))
 

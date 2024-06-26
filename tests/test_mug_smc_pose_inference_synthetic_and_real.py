@@ -116,7 +116,7 @@ def test_renderer_full(renderer):
         key = jax.random.split(key, 2)[-1]
         trace, _ = model.importance(
             jax.random.PRNGKey(0),
-            genjax.choice_map(
+            genjax.ChoiceMap.d(
                 {
                     "camera_pose": Pose.identity(),
                     "object_pose_0": Pose.sample_gaussian_vmf_pose(
@@ -139,7 +139,7 @@ def test_renderer_full(renderer):
                 trace2,
                 key,
             ) = bayes3d.gvmf_and_sample(
-                trace, key, params[0], params[1], genjax.Pytree.const("object_pose_0"), 10000
+                trace, key, params[0], params[1], ("object_pose_0",), 10000
             )
             if trace2.get_score() > trace.get_score():
                 trace = trace2
@@ -174,13 +174,13 @@ def test_renderer_full(renderer):
             key = jax.random.split(key, 2)[-1]
 
 
-            test_poses = trace["object_pose_0"] @ cp_delta_poses
+            test_poses = trace.get_choices()["object_pose_0"] @ cp_delta_poses
             test_poses_batches = test_poses.split(20)
 
             scores = jnp.concatenate(
                 [
                     b3d.enumerate_choices_get_scores_jit(
-                        trace, key, genjax.Pytree.const(["object_pose_0"]), poses
+                        trace, key, ("object_pose_0",), poses
                     )
                     for poses in test_poses_batches
                 ]
@@ -198,7 +198,7 @@ def test_renderer_full(renderer):
             trace = b3d.update_choices_jit(
                 trace,
                 key,
-                genjax.Pytree.const(["object_pose_0"]),
+                ("object_pose_0",),
                 test_poses[samples[0]],
             )
             print(trace.get_score())
@@ -226,7 +226,7 @@ def test_renderer_full(renderer):
             trace = b3d.update_choices_jit(
                 trace,
                 key,
-                genjax.Pytree.const(["object_pose_0"]),
+                ("object_pose_0",),
                 test_poses[samples[t]],
             )
             bayes3d.rerun_visualize_trace_t(trace, counter)

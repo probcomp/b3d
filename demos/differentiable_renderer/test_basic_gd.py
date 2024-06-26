@@ -58,7 +58,7 @@ particle_colors = jnp.array(
 # visualize the scene
 rr.init("differentiable_rendering--scene_and_renders-3")
 rr.connect("127.0.0.1:8812")
-rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
+rr.log("scene/triangles", rr.Mesh3D(vertex_positions=vertices, triangle_indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=image_height), timeless=True)
 rr.log("img/opengl_rendering", rr.Image(color_image), timeless=True)
 
@@ -152,7 +152,7 @@ rr.log("img/bestfit", rr.Image(rendered), timeless=True)
 #####################
 rr.init("differentiable_rendering--scene_fitting7")
 rr.connect("127.0.0.1:8812")
-rr.log("/scene/ground_truth", rr.Mesh3D(vertex_positions=vertices, indices=faces, vertex_colors=vertex_colors), timeless=True)
+rr.log("/scene/ground_truth", rr.Mesh3D(vertex_positions=vertices, triangle_indices=faces, vertex_colors=vertex_colors), timeless=True)
 rr.log("/scene/camera", rr.Pinhole(focal_length=fx, width=image_width, height=image_height), timeless=True)
 rr.log("/img/opengl_rendering", rr.Image(color_image), timeless=True)
 
@@ -236,7 +236,7 @@ for i in range(20):
         v, f, c = v.reshape(-1, 3), f.reshape(-1, 3), c.reshape(-1, 3)
         rr.log(
             f"scene/{string}",
-            rr.Mesh3D(vertex_positions=v, indices=f)
+            rr.Mesh3D(vertex_positions=v, triangle_indices=f)
         )
 
     rr.log("/logpdf/gd", rr.Scalar(compute_logpdf(current_centers_gd)))

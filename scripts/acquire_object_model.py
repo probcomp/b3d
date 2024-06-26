@@ -110,7 +110,7 @@ grid[model_mask], grid_colors[model_mask], resolution * jnp.ones_like(model_mask
 vertices_centered = vertices - vertices.mean(0)
 rr.log("mesh", rr.Mesh3D(
     vertex_positions=vertices_centered,
-    indices=faces,
+    triangle_indices=faces,
     vertex_colors=vertex_colors,
 ))
 
@@ -132,7 +132,7 @@ rr.log("mesh", rr.Mesh3D(
 #     vertices_centered = vertices - vertices.mean(0)
 #     rr.log("mesh", rr.Mesh3D(
 #         vertex_positions=vertices_centered,
-#         indices=faces,
+#         triangle_indices=faces,
 #         vertex_colors=vertex_colors,
 #     ))
 #     meshes.append((i, vertices_centered, faces, vertex_colors))

@@ -6,7 +6,11 @@ import jax.numpy as jnp
 import jax
 import jax.tree_util as jtu
 import genjax
+import b3d
+from genjax import Pytree
 from tensorflow_probability.substrates import jax as tfp
+
+import b3d.modeling_utils
 
 def normalize(l):
     return jnp.where(
@@ -15,7 +19,8 @@ def normalize(l):
         l / (jnp.sum(l, axis=-1)[..., None] + 1e-8)
     )
 
-class ArgMap(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class ArgMap(genjax.ExactDensity):
     """
     `ArgMap(dist : genjax.ExactDensity, argmap : function)(*args)`
     is the distribution which samples from `dist(*argmap(*args))`.
@@ -42,7 +47,8 @@ class ArgMap(genjax.ExactDensity,genjax.JAXGenerativeFunction):
 #         )
 #     )
 
-class ImageDistFromPixelDist(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class ImageDistFromPixelDist(genjax.ExactDensity):
     """
     Given a distribution on a pixel's value, returns a distribution on an image.
     Constructor args:
@@ -85,7 +91,8 @@ class ImageDistFromPixelDist(genjax.ExactDensity,genjax.JAXGenerativeFunction):
         )(observed_image.reshape(-1, observed_image.shape[-1]), *self._flattened_args(pixel_dist_args))
         return logpdfs.sum()
 
-class UniformRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class UniformRGBDPixelModel(genjax.ExactDensity):
     """
     Args:
     - mindepth () (min value for uniform on depth)
@@ -96,14 +103,14 @@ class UniformRGBDPixelModel(genjax.ExactDensity,genjax.JAXGenerativeFunction):
     def sample(self, key, mindepth, maxdepth):
         low = jnp.zeros(3)
         high = jnp.ones(3)
-        rgb = genjax.uniform.sample(key, low, high)
-        depth = genjax.uniform.sample(key, mindepth, maxdepth)
+        rgb = b3d.modeling_utils.uniform.sample(key, low, high)
+        depth = b3d.modeling_utils.uniform.sample(key, mindepth, maxdepth)
         return jnp.concatenate([rgb, jnp.array([depth])])
 
     def logpdf(self, observed_rgbd, mindepth, maxdepth):
         return (
-            genjax.uniform.logpdf(observed_rgbd[:3], jnp.zeros(3), jnp.ones(3)) +
-            genjax.uniform.logpdf(observed_rgbd[3], mindepth, maxdepth)
+            b3d.modeling_utils.uniform.logpdf(observed_rgbd[:3], jnp.zeros(3), jnp.ones(3)) +
+            b3d.modeling_utils.uniform.logpdf(observed_rgbd[3], mindepth, maxdepth)
         )
         
 uniform_rgbd_pixel_model = UniformRGBDPixelModel()
@@ -119,9 +126,10 @@ assert image_sample[:, :, :3].min() >= 0
 assert image_sample[:, :, :3].max() <= 1
 
 
-laplace = genjax.TFPDistribution(tfp.distributions.Laplace)
+laplace = b3d.modeling_utils.tfp_distribution(tfp.distributions.Laplace)
 
-class RGBDPixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class RGBDPixelModel(genjax.ExactDensity):
     """
     Combine a model on an RGB value and a model on a depth value, each
     centered at a given value, into a model on a RGB-Depth value.
@@ -153,12 +161,12 @@ class RGBDPixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
 
 laplace_rgbd_pixel_model = RGBDPixelModel(laplace, laplace)
 laplace_rgb_uniform_depth_pixel_model = RGBDPixelModel(
-    ArgMap(genjax.uniform, lambda r, low, high: (low, high)),
+    ArgMap(b3d.modeling_utils.uniform, lambda r, low, high: (low, high)),
     laplace
 )
 uniform_rgb_laplace_depth_pixel_model = RGBDPixelModel(
     laplace,
-    ArgMap(genjax.uniform, lambda r: (jnp.zeros(3), jnp.ones(3)))
+    ArgMap(b3d.modeling_utils.uniform, lambda r: (jnp.zeros(3), jnp.ones(3)))
 )
 s1 = laplace_rgbd_pixel_model.sample(jax.random.PRNGKey(0), jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), (0.9,))
 score = laplace_rgbd_pixel_model.logpdf(s1, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), (0.9,))
@@ -170,7 +178,8 @@ s3 = uniform_rgb_laplace_depth_pixel_model.sample(jax.random.PRNGKey(0), jnp.arr
 score = uniform_rgb_laplace_depth_pixel_model.logpdf(s3, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), ())
 assert score > -jnp.inf
 
-class VmapMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class VmapMixturePixelModel(genjax.ExactDensity):
     """
     A distribution which is a mixture of `dist` on different arguments.
     
@@ -231,7 +240,8 @@ multi_uniform_rgb_depth_laplace.sample(
     0.1
 )
 
-class PythonMixturePixelModel(genjax.ExactDensity, genjax.JAXGenerativeFunction):
+@Pytree.dataclass
+class PythonMixturePixelModel(genjax.ExactDensity):
     """
     Mixture of different distributions.
     Constructor:
@@ -348,7 +358,7 @@ multilaplace_pixel_model_rgb_only = ArgMap(
     ))
 
 uniform_multilaplace_mixture_rgb_only = ArgMap(
-    PythonMixturePixelModel([genjax.uniform, multilaplace_pixel_model_rgb_only]),
+    PythonMixturePixelModel([b3d.modeling_utils.uniform, multilaplace_pixel_model_rgb_only]),
     lambda probs, rgbs, color_scale: (
         jnp.array([probs[0], jnp.sum(probs[1:])]),
         [ (jnp.zeros(3), jnp.ones(3)),

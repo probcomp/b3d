@@ -160,6 +160,17 @@ class Pose:
         quat = jnp.sign(quat[..., [3]]) * quat
         return Pose(self.pos, quat)
 
+    def canonical(self):
+        """
+        Chooses a canonical representative for the quaternion of the pose, i.e.
+        chooses from {q, -q} s.t. q[3] >= 0. Note that if q[3]==0 there is still ambiguity.
+
+        Recall that SO(3) is isomorphic to  S^3/x~-x and
+        also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+        """
+        quat = self.quat / jnp.linalg.norm(self.quat, axis=-1, keepdims=True)
+        return Pose(self.pos, choose_good_quat(quat))
+
     def flatten(self):
         return self.pos, self.xyzw
 
@@ -181,8 +192,9 @@ class Pose:
     def shape(self):
         return self.pos.shape[:-1]
 
-    def reshape(self, shape):
-        return Pose(self.pos.reshape(shape + (3,)), self.quat.reshape(shape + (4,)))
+    def reshape(self, *args):
+        shape = jax.tree.leaves(args)
+        return Pose(self.pos.reshape(shape + [3]), self.quat.reshape(shape + [4]))
 
     def __len__(self):
         return self.pos.shape[0]

@@ -74,13 +74,23 @@ def keysplit(key, *ns):
             keys.append(keysplit(key, n))
         return keys
     
+
 # # # # # # # # # # # # 
 # 
 #  Other
 # 
 # # # # # # # # # # # # 
 from b3d.pose import Pose, Rot
+from functools import partial
 # TODO: Refactor utils into core and others, to avoid circular imports
+
+
+@partial(jax.jit, static_argnums=1)
+def downsize_images(ims, k):
+    """Downsize an array of images by a given factor."""
+    shape = (ims.shape[1]//k, ims.shape[2]//k, ims.shape[3])
+    return jax.vmap(jax.image.resize, (0,None,None))(
+            ims, shape,"linear")
 
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]

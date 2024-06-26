@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from b3d.camera import Intrinsics
 from b3d.pose import Pose
+from b3d.utils import downsize_images
 
 
 DESCR = """
@@ -257,23 +258,26 @@ class FeatureTrackData:
             fps=self.fps,
         )
     
-    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3,3)):
+    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3,3), downsize=10):
 
 
         if t is None: figsize = (figsize[0]*self.num_frames, figsize[1])
-
         
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
             ax.set_aspect(1)
             ax.axis("off")
 
+        rgb  = downsize_images(self.rgb, downsize)
         if t is None:
             h,w = self.rgb.shape[1:3]
-            ax.imshow(np.concatenate(self.rgb/255, axis=1))
+            ax.imshow(np.concatenate(rgb/255, axis=1))
             ax.scatter(*np.concatenate(
-                [self.uv[t, self.vis[t]]+np.array([t*w,0]) for t in range(self.num_frames)]
+                [
+                    self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize 
+                    for t in range(self.num_frames)
+                ]
             ).T, s=1)
         else:
-            ax.imshow(self.rgb[t]/255)
-            ax.scatter(*self.uv[t, self.vis[t]].T, s=1)
+            ax.imshow(rgb[t]/255)
+            ax.scatter(*(self.uv[t, self.vis[t]]/downsize).T, s=1)

@@ -257,7 +257,7 @@ class FeatureTrackData:
             fps=self.fps,
         )
     
-<<<<<<< HEAD
+
     def downscale(self, factor):
         """Downscales the rgbd images by the given factor."""
         assert factor >= 1 and int(factor) == factor, "Factor must be an integer greater than or equal to 1."
@@ -278,9 +278,6 @@ class FeatureTrackData:
             camera_quaternion=self.camera_quaternion,
             camera_intrinsics=Intrinsics.from_array(self.intrinsics).downscale(factor).as_array()
         )
-=======
-    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3,3), downsize=10):
->>>>>>> 7327e51 (wip)
 
     def has_depth_channel(self):
         return jnp.any(self.rgbd_images[..., 3] > 0.)
@@ -303,7 +300,6 @@ class FeatureTrackData:
             camera_intrinsics=self.camera_intrinsics
         )
 
-<<<<<<< HEAD
     def all_points_visible_at_frame0(self):
         return jnp.all(self.keypoint_visibility[0])
 
@@ -336,18 +332,27 @@ class FeatureTrackData:
         distances = jnp.where(jnp.eye(distances.shape[0]) == 1., jnp.inf, distances)
         return jnp.min(distances)
     
-    def quick_plot(self, t=0, ax=None, figsize=(3,3)):
-
-=======
+    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3,3), downsize=10):
         if t is None: figsize = (figsize[0]*self.num_frames, figsize[1])
-        
->>>>>>> 7327e51 (wip)
+    
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
             ax.set_aspect(1)
             ax.axis("off")
 
-<<<<<<< HEAD
+        rgb  = downsize_images(self.rgb, downsize)
+        if t is None:
+            h,w = self.rgb.shape[1:3]
+            ax.imshow(np.concatenate(rgb/255, axis=1))
+            ax.scatter(*np.concatenate(
+                [
+                    self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize 
+                    for t in range(self.num_frames)
+                ]
+            ).T, s=1)
+        else:
+            ax.imshow(rgb[t]/255)
+            ax.scatter(*(self.uv[t, self.vis[t]]/downsize).T, s=1)
 
         ax.imshow(self.rgb[t]/255)
         ax.scatter(*self.uv[t, self.vis[t]].T, s=1)
@@ -393,18 +398,3 @@ def get_keypoint_filter(max_pixel_dist):
     
     return filter_keypoint_positions
 
-=======
-        rgb  = downsize_images(self.rgb, downsize)
-        if t is None:
-            h,w = self.rgb.shape[1:3]
-            ax.imshow(np.concatenate(rgb/255, axis=1))
-            ax.scatter(*np.concatenate(
-                [
-                    self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize 
-                    for t in range(self.num_frames)
-                ]
-            ).T, s=1)
-        else:
-            ax.imshow(rgb[t]/255)
-            ax.scatter(*(self.uv[t, self.vis[t]]/downsize).T, s=1)
->>>>>>> 7327e51 (wip)

@@ -72,8 +72,9 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
     """
     _, keys = keysplit(key, 1, 2)
+    var = std**2
     x = jax.random.multivariate_normal(
-            keys[0], mean_pose.pos, variance * jnp.eye(3))
+            keys[0], mean_pose.pos, var * jnp.eye(3))
     q = tfp.distributions.VonMisesFisher(
             mean_pose.quat, concentration).sample(seed=keys[1])
     

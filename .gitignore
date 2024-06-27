@@ -1,5 +1,5 @@
 *.egg-info
 *.pyc
 *.png
-assets/*
+assets/shared_data_bucket/*
 **/.ipynb_checkpoints

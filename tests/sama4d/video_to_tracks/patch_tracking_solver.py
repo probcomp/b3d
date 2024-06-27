@@ -15,7 +15,7 @@ class AdamPatchTracker(Solver):
         self.all_quaternions_W = None
         self.mesh = None
         self.Xs_CP_init = None
-    
+
     def solve(self, task_spec):
         video = task_spec["video"]
         assert video.shape[-1] == 4, "Expected video to be RGBD"

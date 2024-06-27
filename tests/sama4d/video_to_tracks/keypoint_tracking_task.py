@@ -1,5 +1,6 @@
 from tests.common.task import Task
 import b3d
+import numpy as np
 import jax.numpy as jnp
 import rerun as rr
 from typing import  Callable
@@ -92,7 +93,7 @@ class KeypointTrackingTask(Task):
 
     def score(self,
         inferred_keypoint_positions_2D,
-        distance_error_threshold=0.1
+        distance_error_threshold=5.0 # pixels
     ):
         return {
             "mean_distance_error": jnp.mean(
@@ -112,9 +113,9 @@ class KeypointTrackingTask(Task):
         self.instantiate()
 
         # Log initial frame of video, and the 2D keypoints
-        rr.log("/task/frame0", rr.Image(self.video[0, :, :, :3]), timeless=True)
+        rr.log("/task/frame0", rr.Image(np.array(self.video[0, :, :, :3])), timeless=True)
         rr.log("/task/initial_keypoint_positions_2D",
-               rr.Points2D(self.keypoint_positions_2D[0][:, ::-1], colors=jnp.array([0., 1., 0.])), timeless=True
+               rr.Points2D(np.array(self.keypoint_positions_2D[0][:, ::-1]), colors=np.array([0., 1., 0.])), timeless=True
             )
 
         for i in range(self.video.shape[0]):
@@ -123,7 +124,7 @@ class KeypointTrackingTask(Task):
             # If 3D keypoints are available, visualize these
             if self.ftd.latent_keypoint_positions is not None and viz_keypoints:
                 rr.log("/aux_info_unavailable_to_solver/keypoint_positions_3D", rr.Points3D(
-                    self.ftd.latent_keypoint_positions[i], colors=jnp.array([0., 1., 0.]), radii = 0.003)
+                    np.array(self.ftd.latent_keypoint_positions[i]), colors=np.array([0., 1., 0.]), radii = 0.003)
                 )
 
             # Visualize the camera, observed RGB image, and the 2D keypoints
@@ -132,36 +133,36 @@ class KeypointTrackingTask(Task):
                 focal_length=[float(renderer.fx), float(renderer.fy)],
                 width=renderer.width,
                 height=renderer.height,
-                principal_point=jnp.array([renderer.cx, renderer.cy]),
+                principal_point=np.array([renderer.cx, renderer.cy]),
             ))
             X_WC = self.Xs_WC[i]
             rr.log("/task/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()))
-            rr.log("/task/camera/rgb_observed", rr.Image(self.video[i, :, :, :3]))
+            rr.log("/task/camera/rgb_observed", rr.Image(np.array(self.video[i, :, :, :3])))
             if viz_keypoints:
                 rr.log("/groundtruth_solution/keypoints_2d", rr.Points2D(
-                    self.keypoint_positions_2D[i, :, ::-1], colors=jnp.array([0., 1., 0.])
+                    np.array(self.keypoint_positions_2D[i, :, ::-1]), colors=np.array([0., 1., 0.])
                 ))
-                rr.log("/task/rgb_observed", rr.Image(self.video[i, :, :, :3]))
+                rr.log("/task/rgb_observed", rr.Image(np.array(self.video[i, :, :, :3])))
 
             # If depth is available, visualize it
             if self.ftd.has_depth_channel():
-                rr.log("/task/camera/depth_observed", rr.DepthImage(self.video[i, :, :, 3]))
+                rr.log("/task/camera/depth_observed", rr.DepthImage(np.array(self.video[i, :, :, 3])))
                 # If video is RGBD, get the point cloud and visualize it in the 3D viewer
                 r = self.renderer
                 xyzs_C = b3d.utils.xyz_from_depth_vectorized(
                     self.video[i, :, :, 3], r.fx, r.fy, r.cx, r.cy
                 )
-                rgbs = self.video[i, :, :, :3]
+                rgbs = np.array(self.video[i, :, :, :3])
                 xyzs_W = X_WC.apply(xyzs_C)
                 rr.log("/task/observed_pointcloud", rr.Points3D(
-                    positions=xyzs_W.reshape(-1,3),
+                    positions=np.array(xyzs_W).reshape(-1,3),
                     colors=rgbs.reshape(-1,3),
-                    radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0]))
+                    radii = 0.001*jnp.ones(np.array(xyzs_W).reshape(-1,3).shape[0]))
                 )
 
     def visualize_solution(self, solution, metrics):
         for i in range(self.video.shape[0]):
             rr.set_time_sequence("frame", i)
             rr.log("/solution/keypoints_2D", rr.Points2D(
-                solution[i, :, ::-1], colors=jnp.array([0., 0., 1.])
+                np.array(solution[i, :, ::-1]), colors=np.array([0., 0., 1.])
             ))

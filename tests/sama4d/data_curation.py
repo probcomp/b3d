@@ -42,7 +42,7 @@ def get_curated_unity_scene_specifications():
     return [
         {
             "scene_name": filename,
-            "path": os.path.join(b3d.get_assets_path(), "shared_data_bucket/input_data/unity/keypoints/indoorplant", filename),
+            "path": os.path.join(b3d.get_assets_path(), "shared_data_bucket/dynamic_SfM/feature_track_data", filename),
             "start_frame": starttime,
             "downscale_factor": 4 # 800 x 800 -> 200 x 200
         }

@@ -69,7 +69,9 @@ def ftd_from_rotating_cheezit_box(n_frames=30):
         rgbd_images=observed_rgbds,
         latent_keypoint_positions=centers_3D_W_over_time,
         camera_position=Xs_WC.pos,
-        camera_quaternion=Xs_WC.xyzw
+        camera_quaternion=Xs_WC.xyzw,
+        # Every point is assigned to one object (the cheez-it box)
+        object_assignments=jnp.zeros(centers_2D_frame_0.shape[0], dtype=int)
     )
 
 def load_rotating_cheezit_box_data(n_frames=30):

@@ -61,6 +61,8 @@ class KeypointsToSegmentationTask(Task):
         }
 
     def score(self, solution_object_assignments):
+        self.instantiate()
+        
         n_nonempty_true_objects = jnp.unique(self.ftd.object_assignments).shape[0]
         n_nonempty_inferred_objects = jnp.unique(solution_object_assignments).shape[0]
 

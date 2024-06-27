@@ -354,9 +354,6 @@ class FeatureTrackData:
             ax.imshow(rgb[t]/255)
             ax.scatter(*(self.uv[t, self.vis[t]]/downsize).T, s=1)
 
-        ax.imshow(self.rgb[t]/255)
-        ax.scatter(*self.uv[t, self.vis[t]].T, s=1)
-
 
 ### Filter 2D keypoints to ones that are sufficently distant ###
 def get_keypoint_filter(max_pixel_dist):

@@ -8,11 +8,14 @@ import rerun as rr
 from tests.sama4d.video_to_tracks.registration import all_task_solver_pairs as pairs_1
 from tests.sama4d.tracks_to_segmentation.registration import all_task_solver_pairs as pairs_2
 from tests.sama4d.video_to_tracks_and_segmentation.registration import all_task_solver_pairs as pairs_3
+import jax
+
+jax.profiler.start_trace("/tmp/tensorboard")
 
 for (groupname, pairs) in [
     ("Video To Tracks", pairs_1),
     ("Tracks To Segmentation", pairs_2),
-    ("Video To Tracks And Segmentation", pairs_3)
+    # ("Video To Tracks And Segmentation", pairs_3)
 ]:
     print(f"****************{groupname}****************")
     for task, solver in pairs:
@@ -27,3 +30,5 @@ for (groupname, pairs) in [
         # Free GPU memory if these are using any (e.g. to store videos)
         del task
         del solver
+
+jax.profiler.stop_trace()

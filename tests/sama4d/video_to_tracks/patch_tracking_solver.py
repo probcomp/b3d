@@ -66,6 +66,7 @@ class AdamPatchTracker(Solver):
             timeless=True,
             transform=task_spec["Xs_WC"][0]
         )
+        del trace
 
         for t in range(len(self.all_positions_W)):
             rr.set_time_sequence("frame", t)
@@ -74,3 +75,4 @@ class AdamPatchTracker(Solver):
                 trace, task_spec["renderer"], prefix="PatchTrackingTrace",
                 transform=task_spec["Xs_WC"][t]
             )
+            del trace

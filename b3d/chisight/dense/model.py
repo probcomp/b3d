@@ -6,6 +6,7 @@ from b3d.modeling_utils import uniform_pose
 import b3d.utils as utils
 import b3d.chisight.dense.differentiable_renderer as rendering
 import rerun as rr
+import numpy as np
 
 def uniformpose_meshes_to_image_model__factory(likelihood):
     """
@@ -97,8 +98,8 @@ def rr_log_meshes_to_image_model_trace(
     """
     # 2D:
     (observed_rgbd, metadata) = trace.get_retval()
-    rr.log(f"/{prefix}/rgb/observed", rr.Image(observed_rgbd[:, :, :3]), timeless=timeless)
-    rr.log(f"/{prefix}/depth/observed", rr.DepthImage(observed_rgbd[:, :, 3]), timeless=timeless)
+    rr.log(f"/{prefix}/rgb/observed", rr.Image(np.array(observed_rgbd[:, :, :3])), timeless=timeless)
+    rr.log(f"/{prefix}/depth/observed", rr.DepthImage(np.array(observed_rgbd[:, :, 3])), timeless=timeless)
     
     # Visualization path for the average render,
     # if the likelihood metadata contains the output of the differentiable renderer.
@@ -107,8 +108,8 @@ def rr_log_meshes_to_image_model_trace(
         avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
         avg_obs_rgb_clipped = jnp.clip(avg_obs[:, :, :3], 0, 1)
         avg_obs_depth_clipped = jnp.clip(avg_obs[:, :, 3], 0, 1)
-        rr.log(f"/{prefix}/rgb/average_render", rr.Image(avg_obs_rgb_clipped), timeless=timeless)
-        rr.log(f"/{prefix}/depth/average_render", rr.DepthImage(avg_obs_depth_clipped), timeless=timeless)
+        rr.log(f"/{prefix}/rgb/average_render", rr.Image(np.array(avg_obs_rgb_clipped)), timeless=timeless)
+        rr.log(f"/{prefix}/depth/average_render", rr.DepthImage(np.array(avg_obs_depth_clipped)), timeless=timeless)
 
     # 3D:
     rr.log(f"/{prefix}", rr.Transform3D(translation=transform.pos, mat3x3=transform.rot.as_matrix()), timeless=timeless)
@@ -120,9 +121,9 @@ def rr_log_meshes_to_image_model_trace(
     f = f.reshape(-1, 3)
     
     rr.log(f"/{prefix}/mesh", rr.Mesh3D(
-        vertex_positions=vertices_W.reshape(-1, 3),
-        triangle_indices=f,
-        vertex_colors=vertex_colors.reshape(-1, 3)
+        vertex_positions=np.array(vertices_W.reshape(-1, 3)),
+        triangle_indices=np.array(f),
+        vertex_colors=np.array(vertex_colors.reshape(-1, 3))
     ), timeless=timeless)
 
     rr.log(f"/{prefix}/camera",
@@ -137,15 +138,15 @@ def rr_log_meshes_to_image_model_trace(
     xyzs_C = utils.xyz_from_depth(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = X_WC.apply(xyzs_C)
     rr.log(f"/{prefix}/gt_pointcloud", rr.Points3D(
-        positions=xyzs_W.reshape(-1,3),
-        colors=observed_rgbd[:, :, :3].reshape(-1,3),
-        radii = 0.001*jnp.ones(xyzs_W.reshape(-1,3).shape[0])),
+        positions=np.array(xyzs_W.reshape(-1,3)),
+        colors=np.array(observed_rgbd[:, :, :3].reshape(-1,3)),
+        radii = 0.001*np.ones(xyzs_W.reshape(-1,3).shape[0])),
         timeless=timeless
     )
 
     patch_centers_W = jax.vmap(lambda X_WO: X_WO.pos)(Xs_WO)
     rr.log(
         f"/{prefix}/patch_centers_W",
-        rr.Points3D(positions=patch_centers_W, colors=jnp.array([0., 0., 1.]), radii=0.003),
+        rr.Points3D(positions=np.array(patch_centers_W), colors=np.array([0., 0., 1.]), radii=0.003),
         timeless=timeless
     )

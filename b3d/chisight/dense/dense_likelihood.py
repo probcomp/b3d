@@ -10,6 +10,7 @@ import os
 
 from genjax import Pytree
 
+
 DenseImageLikelihoodArgs = namedtuple('DenseImageLikelihoodArgs', [
     'color_tolerance',
     'depth_tolerance',
@@ -17,6 +18,7 @@ DenseImageLikelihoodArgs = namedtuple('DenseImageLikelihoodArgs', [
     'outlier_prob',
     'multiplier',
 ])
+
 
 def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args):
     observed_lab = b3d.colors.rgb_to_lab(observed_rgb)
@@ -36,18 +38,14 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     return (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask)
 
 
-def make_dense_image_likelihood_from_renderer(renderer):
+
+def make_dense_observation_model(renderer):
     @Pytree.dataclass
     class DenseImageLikelihood(genjax.ExactDensity):
-        def sample(self, key, poses, meshes, likelihood_args):
-            merged_mesh = Mesh.transform_and_merge_meshes(meshes, poses)
-            rendered_rgbd = renderer.render_rgbd(merged_mesh.vertices, merged_mesh.faces, merged_mesh.vertex_attributes)
+        def sample(self, key, rendered_rgbd, likelihood_args):
             return rendered_rgbd
 
-        def logpdf(self, observed_rgbd, poses, meshes, likelihood_args):
-            merged_mesh = Mesh.transform_and_merge_meshes(meshes, poses)
-            rendered_rgbd = renderer.render_rgbd(merged_mesh.vertices, merged_mesh.faces, merged_mesh.vertex_attributes)
-
+        def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
             inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(
                 observed_rgbd[...,:3],
                 rendered_rgbd[...,:3],
@@ -69,8 +67,13 @@ def make_dense_image_likelihood_from_renderer(renderer):
                 1.0 * jnp.sum(undecided * areas)  +
                 outlier_prob * jnp.sum(outliers * areas)
             ) * multiplier
-
+        
     dense_image_likelihood = DenseImageLikelihood()
-    return dense_image_likelihood
 
+    @genjax.gen
+    def dense_observation_model(mesh, likelihood_args):
+        noiseless_rendered_rgbd = renderer.render_rgbd(mesh.vertices, mesh.faces, mesh.vertex_attributes)
+        image = dense_image_likelihood(noiseless_rendered_rgbd, likelihood_args) @ "image"
+        return (image, noiseless_rendered_rgbd)
 
+    return dense_observation_model

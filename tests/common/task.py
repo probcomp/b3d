@@ -7,11 +7,16 @@ class Task:
     - `score`
 
     Optionally, task developers may also implement the following methods:
+    - @property `name`
     - `assert_passing`
     - `visualize_task`
     - `visualize_solution`
 
     The `run_and_score` and `run_tests` methods are automatically implemented from the above.
+
+    It is recommended that `Task` constrution should be very fast, and that
+    data-loading or other slow operations should be performed lazily
+    at the first call to `get_task_specification` or `visualize_task`.
     """
 
     ### CORE TASK INTERFACE ###
@@ -38,6 +43,13 @@ class Task:
         """
         raise NotImplementedError()
     
+    @property
+    def name(self) -> str:
+        """
+        Returns the name of the task.
+        """
+        return self.__class__.__name__
+    
     def assert_passing(self, scores, **kwargs) -> None:
         """
         Takes the output of `score` and makes assertions about the scores,
@@ -57,7 +69,7 @@ class Task:
         according to the default tolerances).
         """
         raise NotImplementedError()
-    
+
     def visualize_task(self):
         """
         Visualize the task (but not the solution).
@@ -111,3 +123,18 @@ class Task:
         # Score and assess whether passing.
         metrics = self.run_and_score(solver, viz=viz, **kwargs)
         self.assert_passing(metrics, **kwargs)
+
+    def run_solver_and_make_all_visualizations(self, solver):
+        """
+        Run the solver and make all visualizations.
+        """
+        task_spec = self.get_task_specification()
+        self.visualize_task()
+        task_output = solver.solve(task_spec)
+        metrics = self.score(task_output)
+        solver.visualize_solver_state(task_spec)
+        self.visualize_solution(task_output, metrics)
+        return metrics
+
+    def __repr__(self):
+        return f"{self.name}()"

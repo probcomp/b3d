@@ -2,6 +2,7 @@ from tests.common.task import Task
 import b3d
 import jax.numpy as jnp
 import rerun as rr
+from typing import  Callable
 
 class KeypointTrackingTask(Task):
     """
@@ -26,8 +27,9 @@ class KeypointTrackingTask(Task):
     The task is scored by comparing the inferred_keypoint_positions_3D to the keypoint_positions_3D.
     """
     def __init__(
-            self, feature_track_data : b3d.io.FeatureTrackData,
+            self, feature_track_data_loader: Callable[[], b3d.io.FeatureTrackData],
             n_frames: int = None,
+            scene_name=None,
             # By default, ensure the feature_track_data has all keypoints visible at frame 0
             # and that the 2D keypoint positions are not too close to each other at frame 0.
             preprocessing_fn=(
@@ -38,15 +40,41 @@ class KeypointTrackingTask(Task):
                               )
             )
         ):
-        if n_frames is not None:
-            feature_track_data = feature_track_data.slice_time(end_frame=n_frames)
-        self.ftd = preprocessing_fn(feature_track_data)
+        self.feature_track_data_loader = feature_track_data_loader
+        self.n_frames = n_frames
+        self.preprocessing_fn = preprocessing_fn
+        self.instantiated = False
+
+        if scene_name is not None:
+            self.scene_name = scene_name
+            self._name = "KeypointTrackingTask[" + scene_name + "]"
+        else:
+            self._name = "KeypointTrackingTask[no scene name provided]"
+
+    # Actually load in the feature track data and process it.
+    # This lazy loading mechanism lets us construct and pass around the Task
+    # object without waiting to load a big file from disk.
+    def instantiate(self):
+        if self.instantiated:
+            return
+        
+        feature_track_data = self.feature_track_data_loader()
+        if self.n_frames is not None:
+            feature_track_data = feature_track_data.slice_time(end_frame=self.n_frames)
+        self.ftd = self.preprocessing_fn(feature_track_data)
         self.Xs_WC = b3d.Pose(self.ftd.camera_position, self.ftd.camera_quaternion)
         self.renderer = b3d.Renderer.from_intrinsics_object(
             b3d.camera.Intrinsics.from_array(self.ftd.camera_intrinsics)
         )
+        self.instantiated = True
+
+    @property
+    def name(self):
+        return self._name
 
     def get_task_specification(self):
+        self.instantiate()
+
         return {
             "video": self.video,
             "Xs_WC": self.Xs_WC,
@@ -81,6 +109,8 @@ class KeypointTrackingTask(Task):
         assert jnp.all(metrics["n_errors_above_threshold_per_frame"] < n_tracks * 0.1)
 
     def visualize_task(self, *, viz_keypoints=True):
+        self.instantiate()
+
         # Log initial frame of video, and the 2D keypoints
         rr.log("/task/frame0", rr.Image(self.video[0, :, :, :3]), timeless=True)
         rr.log("/task/initial_keypoint_positions_2D",

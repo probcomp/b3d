@@ -105,6 +105,7 @@ class Task:
         metrics = self.score(task_output, **kwargs)
         if viz:
             self.visualize_solution(task_output, metrics)
+            solver.visualize_solver_state(task_spec)
         return metrics
 
     def run_tests(self, solver, viz=False, **kwargs) -> None:

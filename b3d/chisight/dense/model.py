@@ -77,7 +77,7 @@ def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, **kwargs):
     """
     return rr_log_meshes_to_image_model_trace(trace, renderer, **kwargs,
                                               model_args_to_densemodel_args=(
-        lambda args: (trace.get_choices()["camera_pose"], trace.get_choices()["poses"], *args)
+        lambda args: (trace.get_choices()["camera_pose"], trace.get_choices()("poses").c.v, *args)
     ))
 
 def rr_log_meshes_to_image_model_trace(
@@ -114,7 +114,6 @@ def rr_log_meshes_to_image_model_trace(
     rr.log(f"/{prefix}", rr.Transform3D(translation=transform.pos, mat3x3=transform.rot.as_matrix()), timeless=timeless)
 
     (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(trace.get_args())
-    Xs_WO = trace.strip()["poses"].inner.value # TODO: do this better
     vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
     N = vertices_O.shape[0]
     f = jax.vmap(lambda i, f: f + i*vertices_O.shape[1], in_axes=(0, 0))(jnp.arange(N), faces)

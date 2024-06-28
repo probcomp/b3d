@@ -8,7 +8,7 @@ from genjax import gen
 from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
-from b3d.chisight.sparse.pose_utils import uniform_pose_in_ball
+from b3d.pose import uniform_pose_in_ball
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(in_axes=(0,None,None,None))
 
 
@@ -138,7 +138,7 @@ def latent_particle_model(
     return jax.tree.map(
         lambda t1, t2: jnp.concatenate([t1[None, :], t2], axis=0),
         init_retval, scan_retvals
-    )
+    ), final_state
 
 @genjax.gen
 def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, instrinsics, sigma):
@@ -150,14 +150,14 @@ def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, i
 @genjax.gen
 def sparse_gps_model(latent_particle_model_args, obs_model_args):
     # (b3d.camera.Intrinsics.from_array(jnp.array([1.0, 1.0, 1.0, 1.0])), 0.1)
-    particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
+    particle_dynamics_summary, final_state = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
     obs = sparse_observation_model.vmap(in_axes=(0, 0, 0, None, None))(
         particle_dynamics_summary["absolute_particle_poses"],
         particle_dynamics_summary["camera_pose"],
         particle_dynamics_summary["vis_mask"],
         *obs_model_args
-    ) @ "observation"
-    return (particle_dynamics_summary, obs)
+    ) @ "obs"
+    return (particle_dynamics_summary, final_state, obs)
 
 
 
@@ -167,14 +167,63 @@ def make_dense_gps_model(renderer):
     @genjax.gen
     def dense_gps_model(latent_particle_model_args, dense_likelihood_args):
         # (b3d.camera.Intrinsics.from_array(jnp.array([1.0, 1.0, 1.0, 1.0])), 0.1)
-        particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
+        particle_dynamics_summary, final_state = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
         absolute_particle_poses_last_frame = particle_dynamics_summary["absolute_particle_poses"][-1]
         camera_pose_last_frame = particle_dynamics_summary["camera_pose"][-1]
         absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "observation"
-        return (particle_dynamics_summary, image)
+        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
+        return (particle_dynamics_summary, final_state, image)
 
     return dense_gps_model
+
+
+def visualize_particle_system(latent_particle_model_args, particle_dynamics_summary, final_state):
+    import rerun as rr
+    (dynamic_state, static_state) = final_state
+
+    (
+        num_timesteps, # const object
+        num_particles, # const object
+        num_clusters, # const object
+        relative_particle_poses_prior_params,
+        initial_object_poses_prior_params,
+        camera_pose_prior_params
+    ) = latent_particle_model_args
+
+    colors = b3d.distinct_colors(num_clusters.const)
+    absolute_particle_poses = particle_dynamics_summary["absolute_particle_poses"]
+    object_poses = particle_dynamics_summary["object_poses"]
+    camera_pose = particle_dynamics_summary["camera_pose"]
+    object_assignments = static_state[0]
+
+    cluster_colors = jnp.array(b3d.distinct_colors(num_clusters.const))
+
+    for t in range(num_timesteps.const):
+        rr.set_time_sequence("time", t)
+
+        cam_pose = camera_pose[t]
+        rr.log(
+            f"/camera",
+            rr.Transform3D(translation=cam_pose.position, rotation=rr.Quaternion(xyzw=cam_pose.xyzw)),
+        )
+        rr.log(
+            f"/camera",
+            rr.Pinhole(
+                resolution=[0.1,0.1],
+                focal_length=0.1,
+            ),
+        )
+
+        rr.log(
+            "absolute_particle_poses",
+            rr.Points3D(
+                absolute_particle_poses[t].pos,
+                colors=cluster_colors[object_assignments]
+            )
+        )
+
+        for i in range(num_clusters.const):
+            b3d.rr_log_pose(f"cluster/{i}", object_poses[t][i])

@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from b3d.utils import keysplit
-from b3d.pose import Pose
+from .core import Pose
 import genjax
 
 
@@ -78,6 +78,7 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
     xs = rx * uniform_samples_from_disc(keys[0], N, d=3)
     qs = unit_disc_to_sphere(rq * uniform_samples_from_disc(keys[1], N, d=3))
     return Pose(xs, qs)
+
 
 @genjax.Pytree.dataclass
 class UniformPoseInBall(genjax.ExactDensity):

@@ -258,8 +258,6 @@ class MixtureHack(ExactDensity):
         )
 
 
-mixture_step_hack = MixtureStepHack()
-
 
 # TODO: Test this code
 @genjax.Pytree.dataclass

@@ -166,7 +166,7 @@ def make_sparse_gps_model(
                 intr,
                 *observation_model_args,
             )
-            @ "observation"
+            @ "initial_observation"
         )
 
         static_carried_values = (object_assignments, relative_particle_poses, intr)
@@ -214,19 +214,31 @@ def get_assignments(tr: SparseGPSModelTrace):
     # TODO: is there a better way to do this?
     return tr.get_choices()("object_assignments").c.v
 
-
 def get_object_poses(tr: SparseGPSModelTrace):
-    # TODO
-    pass
+    return tr.get_choices()("initial_object_poses").c.v[None].concat(
+                tr.get_choices()("chain").c("object_poses").c.v)
 
 def get_cameras(tr: SparseGPSModelTrace):
-    # TODO
-    pass
+    return tr.get_choices()("initial_camera_pose").v[None].concat( 
+                tr.get_choices()("chain").c("camera_pose").v)
 
+def get_observations(tr: SparseGPSModelTrace):
+    return jnp.concatenate([
+            tr.get_choices()("initial_observation").c.v[None],
+            tr.get_choices()("chain").c("observation").c.v
+        ], axis=0)
 
-def get_2d_particle_positions(tr: SparseGPSModelTrace):
-    # TODO
-    pass
+def get_num_timesteps(tr: SparseGPSModelTrace):
+    qs = get_object_poses(tr)
+    return qs.shape[0]
+
+def get_num_particles(tr: SparseGPSModelTrace):
+    ps = get_particle_poses(tr)
+    return ps.shape[-1]
+
+def get_num_objects(tr: SparseGPSModelTrace):
+    qs = get_object_poses(tr)
+    return qs.shape[1]
 
 def get_dynamic_gps(tr: SparseGPSModelTrace):
     """Gets the DynamicGPS object from a SparseGPSModelTrace."""
@@ -245,6 +257,7 @@ def get_dynamic_gps(tr: SparseGPSModelTrace):
     return DynamicGPS.from_pose_data(
         ps, diag, jnp.zeros((N,1)), get_assignments(tr), qs
     )
+
 
 
 # # # # # # # # # # # # # # # # # # # # # #

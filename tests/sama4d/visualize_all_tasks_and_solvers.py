@@ -8,9 +8,6 @@ import rerun as rr
 from tests.sama4d.video_to_tracks.registration import all_task_solver_pairs as pairs_1
 from tests.sama4d.tracks_to_segmentation.registration import all_task_solver_pairs as pairs_2
 from tests.sama4d.video_to_tracks_and_segmentation.registration import all_task_solver_pairs as pairs_3
-import jax
-
-jax.profiler.start_trace("/tmp/tensorboard")
 
 # For now, only run the first two tasks and solvers from each group.
 # Due to a memory leak in `b3d.Renderer`, if we run more tasks,
@@ -34,5 +31,3 @@ for (groupname, pairs) in [
         # Free GPU memory if these are using any (e.g. to store videos)
         del task
         del solver
-
-jax.profiler.stop_trace()

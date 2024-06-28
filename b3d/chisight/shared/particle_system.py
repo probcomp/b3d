@@ -160,7 +160,6 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
     return (particle_dynamics_summary, final_state, obs)
 
 
-
 def make_dense_gps_model(renderer):
     dense_observation_model = make_dense_observation_model(renderer)
 
@@ -227,3 +226,20 @@ def visualize_particle_system(latent_particle_model_args, particle_dynamics_summ
 
         for i in range(num_clusters.const):
             b3d.rr_log_pose(f"cluster/{i}", object_poses[t][i])
+
+def particle_2d_pixel_coordinates_to_image(pixel_coords, image_height, image_width):
+    img = jnp.zeros((image_height, image_width))
+    img = img.at[jnp.round(pixel_coords[:, 0]).astype(jnp.int32), jnp.round(pixel_coords[:, 1]).astype(jnp.int32)].set(jnp.arange(len(pixel_coords))+1 )
+    return img
+
+def visualize_sparse_observation(sparse_model_args, observations):
+    import rerun as rr
+    intrinsics = sparse_model_args[0].const
+
+    for t in range(observations.shape[0]):
+        rr.set_time_sequence("time", t)
+        img = particle_2d_pixel_coordinates_to_image(observations[t], intrinsics.height, intrinsics.width)
+        rr.log(
+            "obs",
+            rr.DepthImage(img)
+        )

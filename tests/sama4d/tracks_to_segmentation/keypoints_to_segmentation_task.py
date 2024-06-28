@@ -11,7 +11,8 @@ class KeypointsToSegmentationTask(Task):
             stored as (y, x) pixel coordinates
         - keypoint_visibility [keypoint visibility]
             (T, N) array of keypoint visibility at each frame
-        - Xs_WC [camera pose in the world frame, per frame]
+        - poses_WC [`poses_WC[t]` is the camera pose in the world's coordinate frame
+            at timestep `t`. `pose_transforms_WC` is a batched `b3d.Pose` object.]
         - renderer [Renderer object containing camera intrinsics]
 
     The "ground truth" data consists of

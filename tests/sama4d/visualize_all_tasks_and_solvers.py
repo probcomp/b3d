@@ -12,10 +12,14 @@ import jax
 
 jax.profiler.start_trace("/tmp/tensorboard")
 
+# For now, only run the first two tasks and solvers from each group.
+# Due to a memory leak in `b3d.Renderer`, if we run more tasks,
+# the GPU runs out of memory.
+# Fixing this is a priority for the week of July 1, 2024.
 for (groupname, pairs) in [
-    ("Video To Tracks", pairs_1),
-    ("Tracks To Segmentation", pairs_2),
-    # ("Video To Tracks And Segmentation", pairs_3)
+    ("Video To Tracks", pairs_1[:2]),
+    ("Tracks To Segmentation", pairs_2[:2]),
+    ("Video To Tracks And Segmentation", pairs_3[:2])
 ]:
     print(f"****************{groupname}****************")
     for task, solver in pairs:

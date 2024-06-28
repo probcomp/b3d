@@ -144,7 +144,7 @@ def latent_particle_model(
 def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, instrinsics, sigma):
     # TODO: add visibility
     uv = b3d.camera.screen_from_world(particle_absolute_poses.pos, camera_pose, instrinsics.const)
-    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "image"
+    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "sensor_coordinates"
     return uv_
 
 @genjax.gen
@@ -156,7 +156,7 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
         particle_dynamics_summary["camera_pose"],
         particle_dynamics_summary["vis_mask"],
         *obs_model_args
-    ) @ "obs"
+    ) @ "observation"
     return (particle_dynamics_summary, obs)
 
 
@@ -174,7 +174,7 @@ def make_dense_gps_model(renderer):
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
+        image = dense_observation_model(merged_mesh, likelihood_args) @ "observation"
         return (particle_dynamics_summary, image)
 
     return dense_gps_model

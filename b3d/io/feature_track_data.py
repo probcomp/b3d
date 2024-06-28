@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from b3d.types import Array, Float
 import jax.numpy as jnp
-from b3d.camera import Intrinsics
-from b3d.pose import Pose
 from typing import Optional
 import jax
 import matplotlib.pyplot as plt
+import numpy as np
+from b3d.camera import Intrinsics
+from b3d.pose import Pose
+from b3d.utils import downsize_images
 
 
 DESCR = """
@@ -105,16 +107,25 @@ class FeatureTrackData:
         self.camera_quaternion = camera_quaternion
 
     @property
-    def uv(self): return self.observed_keypoints_positions
+    def num_frames(self): return self.observed_keypoints_positions.shape[0]
 
     @property
-    def visibility(self): return self.keypoint_visibility
+    def num_keypoints(self): return self.observed_keypoints_positions.shape[1]
+
+    @property
+    def shape(self): return (self.num_frames, self.num_keypoints)
+
+    @property
+    def uv(self): return self.observed_keypoints_positions
 
     @property
     def vis(self): return self.visibility
 
     @property
     def rgb(self): return self.rgbd_images[...,:3]
+    
+    @property
+    def visibility(self): return self.keypoint_visibility
 
     @property
     def rgbd(self): return self.rgbd_images
@@ -224,9 +235,29 @@ class FeatureTrackData:
             object_assignments=self.object_assignments,
             camera_position=self.camera_position[start_frame:end_frame] if self.camera_position is not None else None,
             camera_quaternion=self.camera_quaternion[start_frame:end_frame] if self.camera_quaternion is not None else None,
-            camera_intrinsics=self.camera_intrinsics
+            camera_intrinsics=self.camera_intrinsics,
+            fps=self.fps,
+        )
+
+    def __len__(self):
+        return self.observed_keypoints_positions.shape[0]
+    
+    def __getitem__(self, k):
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[k],
+            observed_features=self.observed_features[k] if self.observed_features is not None else None,
+            keypoint_visibility=self.keypoint_visibility[k],
+            rgbd_images=self.rgbd_images[k],
+            latent_keypoint_positions=self.latent_keypoint_positions[k] if self.latent_keypoint_positions is not None else None,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions[k] if self.latent_keypoint_quaternions is not None else None,
+            object_assignments=self.object_assignments,
+            camera_position=self.camera_position[k] if self.camera_position is not None else None,
+            camera_quaternion=self.camera_quaternion[k] if self.camera_quaternion is not None else None,
+            camera_intrinsics=self.camera_intrinsics,
+            fps=self.fps,
         )
     
+
     def downscale(self, factor):
         """Downscales the rgbd images by the given factor."""
         assert factor >= 1 and int(factor) == factor, "Factor must be an integer greater than or equal to 1."
@@ -301,14 +332,27 @@ class FeatureTrackData:
         distances = jnp.where(jnp.eye(distances.shape[0]) == 1., jnp.inf, distances)
         return jnp.min(distances)
     
-    def quick_plot(self, t=0, ax=None, figsize=(3,3)):
+    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3,3), downsize=10):
+        if t is None: figsize = (figsize[0]*self.num_frames, figsize[1])
+    
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
             ax.set_aspect(1)
             ax.axis("off")
 
-        ax.imshow(self.rgb[t]/255)
-        ax.scatter(*self.uv[t, self.vis[t]].T, s=1)
+        rgb  = downsize_images(self.rgb, downsize)
+        if t is None:
+            h,w = self.rgb.shape[1:3]
+            ax.imshow(np.concatenate(rgb/255, axis=1))
+            ax.scatter(*np.concatenate(
+                [
+                    self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize 
+                    for t in range(self.num_frames)
+                ]
+            ).T, s=1)
+        else:
+            ax.imshow(rgb[t]/255)
+            ax.scatter(*(self.uv[t, self.vis[t]]/downsize).T, s=1)
 
 
 ### Filter 2D keypoints to ones that are sufficently distant ###
@@ -350,3 +394,4 @@ def get_keypoint_filter(max_pixel_dist):
         return jnp.where(jnp.all(keypoint_positions_2D != -1., axis=-1))[0]
     
     return filter_keypoint_positions
+

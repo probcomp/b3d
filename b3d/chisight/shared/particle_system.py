@@ -8,7 +8,7 @@ from genjax import gen
 from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
-from b3d.chisight.sparse.pose_utils import uniform_pose_in_ball
+from b3d.pose import uniform_pose_in_ball
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(in_axes=(0,None,None,None))
 
 
@@ -144,7 +144,7 @@ def latent_particle_model(
 def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, instrinsics, sigma):
     # TODO: add visibility
     uv = b3d.camera.screen_from_world(particle_absolute_poses.pos, camera_pose, instrinsics.const)
-    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "image"
+    uv_ = genjax.normal(uv, jnp.tile(sigma, uv.shape)) @ "sensor_coordinates"
     return uv_
 
 @genjax.gen

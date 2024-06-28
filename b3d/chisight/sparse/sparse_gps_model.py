@@ -166,7 +166,7 @@ def make_sparse_gps_model(
                 intr,
                 *observation_model_args,
             )
-            @ "observation"
+            @ "initial_observation"
         )
 
         static_carried_values = (object_assignments, relative_particle_poses, intr)
@@ -206,6 +206,9 @@ def make_sparse_gps_model(
 # # # # # # # # # # # # # # # # # # # # # #
 SparseGPSModelTrace: TypeAlias = Any
 
+# -----------
+#   Getters
+# -----------
 def get_particle_poses(tr: SparseGPSModelTrace):
     # TODO: is there a better way to do this?
     return tr.get_choices()("particle_poses").c.v
@@ -214,19 +217,31 @@ def get_assignments(tr: SparseGPSModelTrace):
     # TODO: is there a better way to do this?
     return tr.get_choices()("object_assignments").c.v
 
-
 def get_object_poses(tr: SparseGPSModelTrace):
-    # TODO
-    pass
+    return tr.get_choices()("initial_object_poses").c.v[None].concat(
+                tr.get_choices()("chain").c("object_poses").c.v)
 
 def get_cameras(tr: SparseGPSModelTrace):
-    # TODO
-    pass
+    return tr.get_choices()("initial_camera_pose").v[None].concat( 
+                tr.get_choices()("chain").c("camera_pose").v)
 
+def get_observations(tr: SparseGPSModelTrace):
+    return jnp.concatenate([
+            tr.get_choices()("initial_observation").c.v[None],
+            tr.get_choices()("chain").c("observation").c.v
+        ], axis=0)
 
-def get_2d_particle_positions(tr: SparseGPSModelTrace):
-    # TODO
-    pass
+def get_num_timesteps(tr: SparseGPSModelTrace):
+    qs = get_object_poses(tr)
+    return qs.shape[0]
+
+def get_num_particles(tr: SparseGPSModelTrace):
+    ps = get_particle_poses(tr)
+    return ps.shape[-1]
+
+def get_num_objects(tr: SparseGPSModelTrace):
+    qs = get_object_poses(tr)
+    return qs.shape[1]
 
 
 def get_dynamic_gps(tr: SparseGPSModelTrace):
@@ -247,6 +262,56 @@ def get_dynamic_gps(tr: SparseGPSModelTrace):
         ps, diag, jnp.zeros((N,1)), get_assignments(tr), qs
     )
 
+# -----------
+#   Setters
+# -----------
+from genjax import ChoiceMapBuilder as C
+from genjax._src.core.generative.choice_map import EmptyChm
+
+def set_camera_choice(t, cam: Pose, ch=None):
+    if ch is None: ch = C.n()
+
+    
+    if t == Ellipsis:
+        ch = ch.merge(C["initial_camera"].set(cam[0]))
+        ch = ch.merge(C["chain", jnp.arange(cam.shape[0]-1), "camera"].set(cam[1:]))
+    
+    else:
+        if t == 0:
+            ch = ch.merge(C["initial_camera"].set(cam))
+        elif t > 0:
+            ch = ch.merge(C["chain", t-1, "camera"].set(cam))
+
+    return ch
+
+def set_particle_choice(i, p, ch=None):
+    if ch is None: ch = C.n()
+
+    if i == Ellipsis:
+        # Assume p is a ARRAY of particle poses
+        ch = ch.merge(C["particle_poses"].set(p))
+    else:
+        # Assume p is a SINLGE particle poses
+        ch = ch.merge(C["particle_poses", i].set(p))
+
+    return ch
+
+def set_sensor_coordinates_choice(t, uvs, ch=None):
+    if ch is None: ch = C.n()
+
+    if t == Ellipsis:
+        ch = ch.merge(C["initial_observation", "sensor_coordinates"].set(uvs[0]))
+        ch = ch.merge(C["chain", 
+                        jnp.arange(uvs.shape[0]-1), 
+                        "observation", 
+                        "sensor_coordinates"].set(uvs))
+    else:
+        if t == 0:
+            ch = ch.merge(C["initial_observation", "sensor_coordinates"].set(uvs))
+        else:
+            ch = ch.merge(C["chain", t-1, "observation", "sensor_coordinates"].set(uvs))
+
+    return ch
 
 # # # # # # # # # # # # # # # # # # # # # #
 #

@@ -35,3 +35,44 @@ jimportance = jax.jit(model.importance)
 
 
 tr = model.simulate(key, args)
+
+
+from typing import Any, TypeAlias
+from genjax import ChoiceMapBuilder as C
+SparseGPSModelTrace: TypeAlias = Any
+
+
+
+
+def get_cameras(tr: SparseGPSModelTrace):
+    # TODO: Should we leave it like that or grab it from the choice addresses
+    latent, obs = tr.get_retval()
+    return latent["camera_pose"]
+
+
+def set_camera_choice(t, cam: Pose, ch=None):
+    if ch is None: ch = C.n()
+    if t == Ellipsis:
+        ch = ch.merge(C["particle_dynamics", "state0", "initial_camera_pose"].set(cam[0]))
+        ch = ch.merge(C["particle_dynamics", "states1+", jnp.arange(cam.shape[0]-1), "camera_pose"].set(cam[1:]))
+    else:
+        if t == 0:
+            ch = ch.merge(C["particle_dynamics", "state0", "initial_camera_pose"].set(cam))
+        elif t > 0:
+            ch = ch.merge(C["particle_dynamics", "states1+", t-1, "camera_pose"].set(cam))
+    return ch
+
+
+def set_sensor_coordinates_choice(t, uvs, ch=None):
+    if ch is None: ch = C.n()
+    addrs_0 = ["initial_observation", "sensor_coordinates"]
+    addrs_T = ["observation", "sensor_coordinates"]
+    if t == Ellipsis:
+        ch = ch.merge(C["particle_dynamics", "state0", "initial_observation", "sensor_coordinates"].set(uvs[0])
+        ch = ch.merge(C["particle_dynamics", "states1+", jnp.arange(uvs.shape[0]-1), "initial_observation", "sensor_coordinates"].set(cam[1:]))
+    else:
+        if t == 0:
+            ch = ch.merge(C["particle_dynamics", "state0", "initial_camera_pose"].set(cam))
+        elif t > 0:
+            ch = ch.merge(C["particle_dynamics", "states1+", t-1, "camera_pose"].set(cam))
+    return ch

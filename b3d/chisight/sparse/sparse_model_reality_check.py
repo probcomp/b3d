@@ -6,53 +6,13 @@ from b3d.utils import keysplit
 from b3d.camera import Intrinsics, screen_from_camera
 from b3d.pose import Pose, camera_from_position_and_target
 from b3d.pose.pose_utils import uniform_pose_in_ball
+from b3d.chisight.sparse.gps_utils import add_dummy_var
+from b3d.chisight.sparse.sparse_gps_model import minimal_observation_model
+from b3d.chisight.sparse.sparse_gps_model import make_sparse_gps_model
 
 
 key = jax.random.PRNGKey(0)
-
-
-from b3d.chisight.sparse.gps_utils import add_dummy_var
-
-
-p0 = Pose.identity()
-args = (p0, 2., 0.5)
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(in_axes=(0,None,None,None))
-
-dummy_mapped_uniform_pose.simulate(key, (jnp.arange(4), *args));
-
-
-from b3d.chisight.sparse.sparse_gps_model import minimal_observation_model
-from b3d.camera import screen_from_world
-
-
-T = 2
-N = 10
-
-key = keysplit(key)
-vis = jax.random.randint(key, (N,), 0, 1).astype(bool)
-
-key, keys = keysplit(key, 1, N)
-p0 = Pose.id()
-ps = jax.vmap(uniform_pose_in_ball.sample, (0,None,None,None))(keys, p0, 1., 0.1)
-
-cam = Pose.from_pos(jnp.array([0.,0.,-2.]))
-intr = Intrinsics(20,20,100.,100.,10.,10.,0.1e-3,1e3)
-sigma = 2.
-
-key = keysplit(key)
-tr = minimal_observation_model.simulate(key, (vis, ps, cam, intr, sigma));
-uv_ = tr.get_retval()
-uv = screen_from_world(ps.pos, cam, intr)
-# ==============================
-plt.gca().set_aspect(1)
-plt.scatter(*uv.T)
-plt.scatter(*uv_.T)
-
-
-
-from b3d.chisight.sparse.sparse_gps_model import make_sparse_gps_model
-# help(make_sparse_gps_model)
-
 
 
 intr = Intrinsics(100, 50, 100., 100., 50., 25., 1e-6, 100.)

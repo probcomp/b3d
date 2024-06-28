@@ -19,7 +19,7 @@ class AdamPatchTracker(Solver):
     def solve(self, task_spec):
         video = task_spec["video"]
         assert video.shape[-1] == 4, "Expected video to be RGBD"
-        Xs_WC = task_spec["Xs_WC"]
+        poses_WC = task_spec["poses_WC"]
         initial_patch_centers_2D = task_spec["initial_keypoint_positions_2D"]
         r = task_spec["renderer"]
         fx, fy, cx, cy = r.fx, r.fy, r.cx, r.cy
@@ -45,7 +45,7 @@ class AdamPatchTracker(Solver):
         N_FRAMES = observed_rgbds.shape[0]
         for timestep in range(N_FRAMES):
             (pos_C, quats_C), tracker_state = update_tracker_state(tracker_state, observed_rgbds[timestep])
-            pose_W = Xs_WC[timestep] @ Pose(pos_C, quats_C)
+            pose_W = poses_WC[timestep] @ Pose(pos_C, quats_C)
             self.all_positions_W.append(pose_W.pos)
             self.all_quaternions_W.append(pose_W.xyzw)
             self.all_positions_C.append(pos_C)
@@ -64,7 +64,7 @@ class AdamPatchTracker(Solver):
         rr_log_uniformpose_meshes_to_image_model_trace(
             trace, task_spec["renderer"], prefix="patch_tracking_initialization",
             timeless=True,
-            transform=task_spec["Xs_WC"][0]
+            transform=task_spec["poses_WC"][0]
         )
         del trace
 
@@ -73,6 +73,6 @@ class AdamPatchTracker(Solver):
             trace = self.get_trace(self.all_positions_C[t], self.all_quaternions_C[t], task_spec["video"][t])
             rr_log_uniformpose_meshes_to_image_model_trace(
                 trace, task_spec["renderer"], prefix="PatchTrackingTrace",
-                transform=task_spec["Xs_WC"][t]
+                transform=task_spec["poses_WC"][t]
             )
             del trace

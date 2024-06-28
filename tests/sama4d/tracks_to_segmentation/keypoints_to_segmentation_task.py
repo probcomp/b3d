@@ -12,7 +12,7 @@ class KeypointsToSegmentationTask(Task):
         - keypoint_visibility [keypoint visibility]
             (T, N) array of keypoint visibility at each frame
         - poses_WC [`poses_WC[t]` is the camera pose in the world's coordinate frame
-            at timestep `t`. `pose_transforms_WC` is a batched `b3d.Pose` object.]
+            at timestep `t`. `poses_WC` is a batched `b3d.Pose` object.]
         - renderer [Renderer object containing camera intrinsics]
 
     The "ground truth" data consists of
@@ -46,7 +46,7 @@ class KeypointsToSegmentationTask(Task):
         if self.n_frames is not None:
             self.ftd = self.ftd.slice_time(end_frame=self.n_frames)
 
-        self.Xs_WC = self.ftd.camera_poses
+        self.poses_WC = self.ftd.camera_poses
         self.renderer = b3d.Renderer.from_intrinsics_object(
             b3d.camera.Intrinsics.from_array(self.ftd.camera_intrinsics)
         )
@@ -57,7 +57,7 @@ class KeypointsToSegmentationTask(Task):
         return {
             "keypoint_tracks_2D": self.ftd.observed_keypoints_positions,
             "keypoint_visibility": self.ftd.keypoint_visibility,
-            "Xs_WC": self.Xs_WC,
+            "poses_WC": self.poses_WC,
             "renderer": self.renderer
         }
 

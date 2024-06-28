@@ -9,7 +9,7 @@ class KeypointTrackingTask(Task):
     """
     The task specification consists of:
         - video [RGB or RGBD video]
-        - Xs_WC [camera pose in the world frame, per frame]
+        - poses_WC [camera pose in the world frame, per frame]
         - initial_keypoint_positions_2D [2D keypoint center positions at frame 0]
             (N, 2) array of 2D keypoint center positions at frame 0
             stored as (y, x) pixel coordinates
@@ -63,7 +63,7 @@ class KeypointTrackingTask(Task):
         if self.n_frames is not None:
             feature_track_data = feature_track_data.slice_time(end_frame=self.n_frames)
         self.ftd = self.preprocessing_fn(feature_track_data)
-        self.Xs_WC = b3d.Pose(self.ftd.camera_position, self.ftd.camera_quaternion)
+        self.poses_WC = b3d.Pose(self.ftd.camera_position, self.ftd.camera_quaternion)
         self.renderer = b3d.Renderer.from_intrinsics_object(
             b3d.camera.Intrinsics.from_array(self.ftd.camera_intrinsics)
         )
@@ -78,7 +78,7 @@ class KeypointTrackingTask(Task):
 
         return {
             "video": self.video,
-            "Xs_WC": self.Xs_WC,
+            "poses_WC": self.poses_WC,
             "initial_keypoint_positions_2D": self.keypoint_positions_2D[0],
             "renderer": self.renderer
         }
@@ -135,7 +135,7 @@ class KeypointTrackingTask(Task):
                 height=renderer.height,
                 principal_point=np.array([renderer.cx, renderer.cy]),
             ))
-            X_WC = self.Xs_WC[i]
+            X_WC = self.poses_WC[i]
             rr.log("/task/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()))
             rr.log("/task/camera/rgb_observed", rr.Image(np.array(self.video[i, :, :, :3])))
             if viz_keypoints:

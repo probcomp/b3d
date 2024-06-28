@@ -7,7 +7,7 @@ class KeypointTrackingAndSegmentationTask(KeypointTrackingTask):
     """
     The task specification consists of:
         - video [RGB or RGBD video]
-        - Xs_WC [camera pose in the world frame, per frame]
+        - poses_WC [camera pose in the world frame, per frame]
         - initial_keypoint_positions_2D [2D keypoint center positions at frame 0]
             (N, 2) array of 2D keypoint center positions at frame 0
             stored as (y, x) pixel coordinates

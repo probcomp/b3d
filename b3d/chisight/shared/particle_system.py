@@ -8,7 +8,7 @@ from genjax import gen
 from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
-from b3d.chisight.sparse.pose_utils import uniform_pose_in_ball
+from b3d.pose import uniform_pose_in_ball
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(in_axes=(0,None,None,None))
 
 
@@ -156,7 +156,7 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
         particle_dynamics_summary["camera_pose"],
         particle_dynamics_summary["vis_mask"],
         *obs_model_args
-    ) @ "observation"
+    ) @ "obs"
     return (particle_dynamics_summary, obs)
 
 
@@ -174,7 +174,7 @@ def make_dense_gps_model(renderer):
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "observation"
+        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
         return (particle_dynamics_summary, image)
 
     return dense_gps_model

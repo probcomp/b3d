@@ -36,8 +36,8 @@ class KeypointTrackingTask(Task):
             preprocessing_fn=(
                 lambda ftd: ftd.remove_points_invisible_at_frame0(
                               ).sparsify_points_to_minimum_2D_distance_at_frame0(
-                                  # max of video Height // 80, 6
-                                  max(ftd.rgbd_images.shape[1] // 80, 6)
+                                  # max of video Height // 80, 5
+                                  max(ftd.rgbd_images.shape[1] // 80, 5)
                               )
             )
         ):
@@ -93,7 +93,7 @@ class KeypointTrackingTask(Task):
 
     def score(self,
         inferred_keypoint_positions_2D,
-        distance_error_threshold=5.0 # pixels
+        distance_error_threshold=3.0 # pixels
     ):
         return {
             "mean_distance_error": jnp.mean(
@@ -164,5 +164,5 @@ class KeypointTrackingTask(Task):
         for i in range(self.video.shape[0]):
             rr.set_time_sequence("frame", i)
             rr.log("/solution/keypoints_2D", rr.Points2D(
-                np.array(solution[i, :, ::-1]), colors=np.array([0., 0., 1.])
+                np.array(solution[i, :, ::-1]), colors=np.array([0., 0., 1.]), radii=0.3
             ))

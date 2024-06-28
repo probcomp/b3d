@@ -86,7 +86,7 @@ def rr_log_meshes_to_image_model_trace(
         prefix="trace",
         timeless=False,
         model_args_to_densemodel_args=(lambda x: x),
-        transform=Pose.identity()
+        transform_Viz_Trace=Pose.identity()
     ):
     """
     Log to rerun a visualization of a trace from `meshes_to_image_model`.
@@ -95,6 +95,11 @@ def rr_log_meshes_to_image_model_trace(
     to visualize traces from other models that have the same return value as `meshes_to_image_model`.
     This function will call `model_args_to_densemodel_args` on the arguments of the given trace,
     and should produce arguments of the form accepted by `meshes_to_image_model`.
+
+    The argument `transform_Viz_Trace` can be used to visualize the trace at a transformed
+    coordinate frame.  `transform_Viz_Trace` is a Pose object so that for a 3D point
+    `point_Trace` in the trace, `transform_Viz_Trace.apply(point_Trace)` is the corresponding
+    3D point in the visualizer.
     """
     # 2D:
     (observed_rgbd, metadata) = trace.get_retval()
@@ -112,7 +117,7 @@ def rr_log_meshes_to_image_model_trace(
         rr.log(f"/{prefix}/depth/average_render", rr.DepthImage(np.array(avg_obs_depth_clipped)), timeless=timeless)
 
     # 3D:
-    rr.log(f"/{prefix}", rr.Transform3D(translation=transform.pos, mat3x3=transform.rot.as_matrix()), timeless=timeless)
+    rr.log(f"/{prefix}/3D/", rr.Transform3D(translation=transform_Viz_Trace.pos, mat3x3=transform_Viz_Trace.rot.as_matrix()), timeless=timeless)
 
     (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(trace.get_args())
     vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
@@ -120,13 +125,13 @@ def rr_log_meshes_to_image_model_trace(
     f = jax.vmap(lambda i, f: f + i*vertices_O.shape[1], in_axes=(0, 0))(jnp.arange(N), faces)
     f = f.reshape(-1, 3)
     
-    rr.log(f"/{prefix}/mesh", rr.Mesh3D(
+    rr.log(f"/{prefix}/3D/mesh", rr.Mesh3D(
         vertex_positions=np.array(vertices_W.reshape(-1, 3)),
         triangle_indices=np.array(f),
         vertex_colors=np.array(vertex_colors.reshape(-1, 3))
     ), timeless=timeless)
 
-    rr.log(f"/{prefix}/camera",
+    rr.log(f"/{prefix}/3D/camera",
         rr.Pinhole(
             focal_length=[float(renderer.fx), float(renderer.fy)],
             width=renderer.width,
@@ -134,10 +139,10 @@ def rr_log_meshes_to_image_model_trace(
             principal_point=jnp.array([renderer.cx, renderer.cy]),
             ), timeless=timeless
         )
-    rr.log(f"/{prefix}/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()), timeless=timeless)
+    rr.log(f"/{prefix}/3D/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()), timeless=timeless)
     xyzs_C = utils.xyz_from_depth(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = X_WC.apply(xyzs_C)
-    rr.log(f"/{prefix}/gt_pointcloud", rr.Points3D(
+    rr.log(f"/{prefix}/3D/gt_pointcloud", rr.Points3D(
         positions=np.array(xyzs_W.reshape(-1,3)),
         colors=np.array(observed_rgbd[:, :, :3].reshape(-1,3)),
         radii = 0.001*np.ones(xyzs_W.reshape(-1,3).shape[0])),
@@ -146,7 +151,7 @@ def rr_log_meshes_to_image_model_trace(
 
     patch_centers_W = jax.vmap(lambda X_WO: X_WO.pos)(Xs_WO)
     rr.log(
-        f"/{prefix}/patch_centers_W",
+        f"/{prefix}/3D/patch_centers",
         rr.Points3D(positions=np.array(patch_centers_W), colors=np.array([0., 0., 1.]), radii=0.003),
         timeless=timeless
     )

@@ -8,7 +8,7 @@ from genjax import gen
 from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
-from b3d.pose.pose_utils import uniform_pose_in_ball
+from b3d.pose import uniform_pose_in_ball
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(in_axes=(0,None,None,None))
 
 
@@ -122,9 +122,15 @@ def latent_particle_model(
         camera_pose_prior_params
     ):
     """
-    Retval is a dict with keys "relative_particle_poses", "absolute_particle_poses",
-    "object_poses", "camera_poses", "vis_mask"
-    Leading dimension for each timestep is the batch dimension.
+    The retval is a dict with keys "object_assignments" and "masked_dynamic_state".
+    The value at "masked_dynamic_state" is a genjax.Mask object `m`.
+    `m.value` is a dictionary with keys "relative_particle_poses", "absolute_particle_poses",
+    "object_poses", "camera_poses", "vis_mask".
+    The leading dimension for each will have size `max_num_timesteps`.
+    The boolean array `m.flag` will indicate which of these timesteps are valid
+    (and which are values >= `num_timesteps`).
+    The values at these invalid timesteps are undefined.
+    Using these values directly will cause silent errors.
     """
     (state0, init_retval) = initial_particle_system_state(
         num_particles, num_clusters,
@@ -155,7 +161,14 @@ def latent_particle_model(
         jnp.concatenate([jnp.array([True]), masked_scan_retvals.flag]),
         concatenated_states_possibly_invalid
     )
-    return masked_concatenated_states
+
+    object_assignments = state0[1][0]
+    latent_dynamics_summary = {
+        "object_assignments": object_assignments,
+        "masked_dynamic_state": masked_concatenated_states,
+    }
+
+    return latent_dynamics_summary
 
 @genjax.gen
 def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, instrinsics, sigma):
@@ -166,7 +179,8 @@ def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, i
 
 @genjax.gen
 def sparse_gps_model(latent_particle_model_args, obs_model_args):
-    masked_particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
+    latent_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
+    masked_particle_dynamics_summary = latent_dynamics_summary["masked_dynamic_state"]
     _UNSAFE_particle_dynamics_summary = masked_particle_dynamics_summary.value
     masked_obs = sparse_observation_model.mask().vmap(in_axes=(0, 0, 0, 0, None, None))(
         masked_particle_dynamics_summary.flag,
@@ -174,8 +188,8 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
         _UNSAFE_particle_dynamics_summary["camera_pose"],
         _UNSAFE_particle_dynamics_summary["vis_mask"],
         *obs_model_args
-    ) @ "observation"
-    return (masked_particle_dynamics_summary, masked_obs)
+    ) @ "obs"
+    return (latent_dynamics_summary, masked_obs)
 
 
 
@@ -184,7 +198,8 @@ def make_dense_gps_model(renderer):
 
     @genjax.gen
     def dense_gps_model(latent_particle_model_args, dense_likelihood_args):
-        masked_particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
+        latent_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
+        masked_particle_dynamics_summary = latent_dynamics_summary["masked_dynamic_state"]
         _UNSAFE_particle_dynamics_summary = masked_particle_dynamics_summary.value
 
         last_timestep_index = jnp.sum(masked_particle_dynamics_summary.flag) - 1
@@ -194,7 +209,58 @@ def make_dense_gps_model(renderer):
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "observation"
-        return (masked_particle_dynamics_summary, image)
+        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
+        return (latent_dynamics_summary, image)
 
     return dense_gps_model
+
+
+def visualize_particle_system(latent_particle_model_args, latent_dynamics_summary):
+    import rerun as rr
+    (
+        max_num_timesteps, # const object
+        num_timesteps,
+        num_particles, # const object
+        num_clusters, # const object
+        relative_particle_poses_prior_params,
+        initial_object_poses_prior_params,
+        camera_pose_prior_params
+    ) = latent_particle_model_args
+
+    colors = b3d.distinct_colors(num_clusters.const)
+
+    masked_particle_dynamics_summary = latent_dynamics_summary["masked_dynamic_state"]
+    object_assignments = latent_dynamics_summary["object_assignments"]
+    _UNSAFE_absolute_particle_poses = masked_particle_dynamics_summary.value["absolute_particle_poses"]
+    _UNSAFE_object_poses = masked_particle_dynamics_summary.value["object_poses"]
+    _UNSAFE_camera_pose = masked_particle_dynamics_summary.value["camera_pose"]
+
+    cluster_colors = jnp.array(b3d.distinct_colors(num_clusters.const))
+
+    for t in range(num_timesteps):
+        rr.set_time_sequence("time", t)
+        assert masked_particle_dynamics_summary.flag[t], "Erroring before attempting to unmask invalid masked data."
+
+        cam_pose = _UNSAFE_camera_pose[t]
+        rr.log(
+            f"/camera",
+            rr.Transform3D(translation=cam_pose.position, rotation=rr.Quaternion(xyzw=cam_pose.xyzw)),
+        )
+        rr.log(
+            f"/camera",
+            rr.Pinhole(
+                resolution=[0.1,0.1],
+                focal_length=0.1,
+            ),
+        )
+
+        rr.log(
+            "absolute_particle_poses",
+            rr.Points3D(
+                _UNSAFE_absolute_particle_poses[t].pos,
+                colors=cluster_colors[object_assignments]
+            )
+        )
+
+        for i in range(num_clusters.const):
+            b3d.rr_log_pose(f"cluster/{i}", _UNSAFE_object_poses[t][i])

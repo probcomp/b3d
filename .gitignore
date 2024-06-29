@@ -3,4 +3,5 @@
 *.png
 assets/shared_data_bucket/*
 assets/test_results/*
+assets/bop/*
 **/.ipynb_checkpoints

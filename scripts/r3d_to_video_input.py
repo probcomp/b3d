@@ -1,21 +1,19 @@
-import jax.numpy as jnp
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-import jax
-import b3d
 import argparse
-from natsort import natsorted
-import subprocess
 import glob
-import os
 import json
-import liblzfse  # https://pypi.org/project/pyliblzfse/
+import os
+import subprocess
 from pathlib import Path
 
-parser = argparse.ArgumentParser("r3d_to_video_input")
-parser.add_argument("input", help=".r3d File", type=str)
-args = parser.parse_args()
+import cv2
+import jax
+import jax.numpy as jnp
+import liblzfse  # https://pypi.org/project/pyliblzfse/
+import matplotlib.pyplot as plt
+import numpy as np
+from natsort import natsorted
+
+import b3d
 
 
 def load_depth(filepath):
@@ -118,9 +116,13 @@ def load_r3d_video_input(r3d_path):
         camera_intrinsics_depth=intrinsics_depth,
     )
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("r3d_to_video_input")
+    parser.add_argument("input", help=".r3d File", type=str)
+    args = parser.parse_args()
 
-filename = args.input
-video_input = load_r3d_video_input(filename)
-result_filename = filename + ".video_input.npz"
-print("Writing to ", result_filename)
-video_input.save(result_filename)
+    filename = args.input
+    video_input = load_r3d_video_input(filename)
+    result_filename = filename + ".video_input.npz"
+    print("Writing to ", result_filename)
+    video_input.save(result_filename)

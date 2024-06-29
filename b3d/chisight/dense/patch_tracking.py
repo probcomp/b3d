@@ -3,6 +3,7 @@ import jax
 from b3d import Pose
 import b3d
 import genjax
+from genjax import ChoiceMapBuilder as C
 import b3d.chisight.dense.differentiable_renderer as r
 import b3d.chisight.dense.model as m
 import b3d.chisight.dense.likelihoods as likelihoods
@@ -78,15 +79,10 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
     def importance_from_pos_quat(positions, quaternions, observed_rgbd):
         key = jax.random.PRNGKey(0) # This value shouldn't matter, in the current model version.
         poses = jax.vmap(lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])), in_axes=(0, 0))(positions, quaternions)
-        trace, weight = model.importance(
-            key,
-            genjax.ChoiceMap.d({
-                "poses": genjax.ChoiceMap.idx(jnp.arange(positions.shape[0]), poses),
-                "camera_pose": X_WC,
-                "observed_image": {"observed_image": {"obs": observed_rgbd}}
-            }),
-            (patch_vertices_P, patch_faces, patch_vertex_colors)
-        )
+        cm = jax.vmap(lambda i: C["poses", i].set(poses[i]))(jnp.arange(poses.shape[0]))
+        cm = cm.merge(C["camera_pose"].set(b3d.Pose.identity()))
+        cm = cm.merge(C["observed_image", "observed_image", "obs"].set(observed_rgbd))
+        trace, weight = model.importance(key, cm, (patch_vertices_P, patch_faces, patch_vertex_colors))
         return trace, weight
     
     def weight_from_pos_quat(pos, quat, observed_rgbd):

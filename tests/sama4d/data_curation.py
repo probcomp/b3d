@@ -59,17 +59,19 @@ def get_cheezitbox_scene_loader(n_frames=30):
 
 # Scene manually constructed in Python: rotating cheezit box
 def ftd_from_rotating_cheezit_box(n_frames=30):
-    (r, centers_2D_frame_0, centers_3D_W_over_time, Xs_WC, observed_rgbds) = load_rotating_cheezit_box_data(n_frames)
+    (r, centers_2D_frame_0, centers_3D_W_over_time, poses_WC, observed_rgbds) = load_rotating_cheezit_box_data(n_frames)
     return b3d.io.FeatureTrackData(
         observed_keypoints_positions=jax.vmap(lambda positions_3D_W, X_WC: b3d.xyz_to_pixel_coordinates(
                 X_WC.inv().apply(positions_3D_W), r.fx, r.fy, r.cx, r.cy
-        ), in_axes=(0, 0))(centers_3D_W_over_time, Xs_WC),
+        ), in_axes=(0, 0))(centers_3D_W_over_time, poses_WC),
         keypoint_visibility=jnp.ones((n_frames, centers_2D_frame_0.shape[0]), dtype=bool),
         camera_intrinsics=r.get_intrinsics_object().as_array(),
         rgbd_images=observed_rgbds,
         latent_keypoint_positions=centers_3D_W_over_time,
-        camera_position=Xs_WC.pos,
-        camera_quaternion=Xs_WC.xyzw
+        camera_position=poses_WC.pos,
+        camera_quaternion=poses_WC.xyzw,
+        # Every point is assigned to one object (the cheez-it box)
+        object_assignments=jnp.zeros(centers_2D_frame_0.shape[0], dtype=int)
     )
 
 def load_rotating_cheezit_box_data(n_frames=30):
@@ -119,9 +121,9 @@ def load_rotating_cheezit_box_data(n_frames=30):
         lambda X_W_Bt: X_W_Bt.apply(centers_3D_B0)
     )(box_poses_W)
 
-    Xs_WC = jax.vmap(lambda x: X_WC)(jnp.arange(n_frames))
+    poses_WC = jax.vmap(lambda x: X_WC)(jnp.arange(n_frames))
 
-    return (renderer, centers_2D_frame_0, centers_3D_W_over_time, Xs_WC, observed_rgbds)
+    return (renderer, centers_2D_frame_0, centers_3D_W_over_time, poses_WC, observed_rgbds)
 
 ### Utils ###
 

@@ -55,7 +55,8 @@ class TestMugHandlePosterior:
         object_library.add_object(vertices, faces, vertex_colors)
 
         color_error, depth_error = (60.0, 0.01)
-        inlier_score, outlier_prob = (5.0, 0.00001)
+        #inlier_score, outlier_prob = (5.0, 0.00001)
+        inlier_score, outlier_prob = (5.0, 0.000025)
         color_multiplier, depth_multiplier = (10000.0, 500.0)
         model_args = b3d.ModelArgs(
             color_error,
@@ -65,6 +66,7 @@ class TestMugHandlePosterior:
             color_multiplier,
             depth_multiplier,
         )
+
 
         cps_to_test = [
             jnp.array([0.0, 0.0, jnp.pi]),  # Hidden
@@ -88,6 +90,20 @@ class TestMugHandlePosterior:
 
             object_pose = cp_to_pose(gt_cp)
 
+            gt_img, gt_depth = renderer.render_attribute(
+                (camera_pose.inv() @ object_pose)[None, ...],
+                object_library.vertices,
+                object_library.faces,
+                object_library.ranges[jnp.array([0])],
+                object_library.attributes,
+            )
+
+            # print('area: ' + str(jnp.sum((gt_depth / fx) * (gt_depth / fy))))
+
+            gt_depth = jnp.where(gt_depth == 0.0, jnp.ones(gt_depth.shape)*16.0, gt_depth)
+
+            
+
             gt_trace, _ = model.importance(
                 jax.random.PRNGKey(0),
                 genjax.choice_map(
@@ -95,8 +111,8 @@ class TestMugHandlePosterior:
                         "camera_pose": camera_pose,
                         "object_pose_0": object_pose,
                         "object_0": 0,
-                        # "observed_rgb": gt_img,
-                        # "observed_depth": gt_depth,
+                        "observed_rgb": gt_img,
+                        "observed_depth": gt_depth,
                     }
                 ),
                 (jnp.arange(1), model_args, object_library),

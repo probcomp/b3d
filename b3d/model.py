@@ -79,34 +79,39 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     color_inliers = (error < model_args.color_tolerance) * valid_data_mask
     depth_inliers = (jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance) * valid_data_mask
     inliers = color_inliers * depth_inliers
-    outliers = jnp.logical_not(inliers) * valid_data_mask
-    undecided = jnp.logical_not(inliers) * jnp.logical_not(outliers)
-    return (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask)
+    outliers = jnp.logical_not(inliers)
+    return (inliers, color_inliers, depth_inliers, outliers, valid_data_mask)
 
 class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
-    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy, far):
+    def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy, height, width, near, far):
         return (rendered_rgb, rendered_depth)
 
-    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy, far):
+    def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy, height, width, near, far):
         observed_rgb, observed_depth = observed
-
-        inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = get_rgb_depth_inliers_from_observed_rendered_args(
-            observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args
+        (inliers, color_inliers, depth_inliers, outliers, valid_data_mask) = get_rgb_depth_inliers_from_observed_rendered_args(
+            observed_rgb,
+            rendered_rgb,
+            observed_depth,
+            rendered_depth,
+            model_args
         )
 
         inlier_score = model_args.inlier_score
         outlier_prob = model_args.outlier_prob
         multiplier = model_args.color_multiplier
 
-        corrected_depth = rendered_depth + (rendered_depth == 0.0) * far
-        areas = (corrected_depth / fx) * (corrected_depth / fy)
+        observed_depth_corrected = observed_depth + (observed_depth == 0.0) * far
 
-        return jnp.log(
-            # This is leaving out a 1/A (which does depend upon the scene)
-            inlier_score * jnp.sum(inliers * areas) +
-            1.0 * jnp.sum(undecided * areas)  +
-            outlier_prob * jnp.sum(outliers * areas)
-        ) * multiplier
+        rendered_areas = (rendered_depth / fx) * (rendered_depth / fy)
+        observed_areas = (observed_depth_corrected / fx) * (observed_depth_corrected / fy)
+
+        inlier_contribution = jnp.sum(inlier_score *  inliers * rendered_areas * (1-outlier_prob))
+        V = 1/3 * jnp.power(far, 3) * width * height * 1/(fx * fy)
+        outlier_contribution_teleporation = jnp.sum(outliers * observed_areas / V * 0.00001 * outlier_prob * (observed_depth > rendered_depth))
+        outlier_contribution_not_teleportation = jnp.sum(outliers * observed_areas / V * outlier_prob * (observed_depth <= rendered_depth))
+
+        final_log_score =  jnp.log(inlier_contribution + outlier_contribution_teleporation + outlier_contribution_not_teleportation) * multiplier
+        return final_log_score
 
 rgbd_sensor_model = RGBDSensorModel()
 
@@ -140,7 +145,8 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
             rendered_rgb, rendered_depth,
             model_args,
             renderer.fx, renderer.fy,
-            1.0
+            renderer.height, renderer.width,
+            renderer.near, renderer.far
         ) @ "observed_rgb_depth"
         return (observed_rgb, rendered_rgb), (observed_depth, rendered_depth)
     return model
@@ -177,13 +183,11 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     info_string = f"# Score : {trace.get_score()}"
 
     if "inliers" in modes:
-        (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask) = b3d.get_rgb_depth_inliers_from_trace(trace)
+        (inliers, color_inliers, depth_inliers, outliers, valid_data_mask) = b3d.get_rgb_depth_inliers_from_trace(trace)
         rr.log("/image/overlay/inliers", rr.DepthImage(inliers * 1.0))
         rr.log("/image/overlay/outliers", rr.DepthImage(outliers * 1.0))
-        rr.log("/image/overlay/undecided", rr.DepthImage(undecided * 1.0))
         info_string += f"\n # Inliers : {jnp.sum(inliers)}"
         info_string += f"\n # Outliers : {jnp.sum(outliers)}"
-        info_string += f"\n # Undecided : {jnp.sum(undecided)}"
     rr.log("/info", rr.TextDocument(info_string))
 
     if "3d" in modes:

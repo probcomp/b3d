@@ -56,7 +56,7 @@ def test_resolution_invariance(renderer):
     )
 
     logpdf = b3d.rgbd_sensor_model.logpdf(
-        (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, 1.0
+        (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, image_height, image_width
     )
 
     for SCALING_FACTOR in [2,3,4,5,6,7,8]:
@@ -71,7 +71,8 @@ def test_resolution_invariance(renderer):
             "nearest"
         )
         scaled_up_logpdf = b3d.rgbd_sensor_model.logpdf(
-            (rgb_resized, depth_resized), rgb_resized, depth_resized, model_args, fx * SCALING_FACTOR, fy * SCALING_FACTOR, 1.0
+            #(rgb_resized, depth_resized), rgb_resized, depth_resized, model_args, fx , fy * SCALING_FACTOR, 1.0
+            (rgb_resized, depth_resized), rgb_resized, depth_resized, model_args, fx * SCALING_FACTOR, fy * SCALING_FACTOR, image_height * SCALING_FACTOR, image_width * SCALING_FACTOR
         )
         assert jnp.isclose(logpdf, scaled_up_logpdf, rtol=0.01)
 
@@ -154,13 +155,13 @@ def test_distance_to_camera_invarance(renderer):
 
     near_score = (
         b3d.rgbd_sensor_model.logpdf(
-            (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, 0.0
+            (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, image_height, image_width
         )
     )
 
     far_score = (
         b3d.rgbd_sensor_model.logpdf(
-            (rgb_far, depth_far), rgb_far, depth_far, model_args, fx, fy, 0.0
+            (rgb_near, depth_near), rgb_near, depth_near, model_args, fx, fy, image_height, image_width
         )
     )
     print(near_score, far_score)

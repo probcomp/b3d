@@ -15,8 +15,9 @@ import os
 import trimesh
 import rerun as rr
 import distinctipy
+from jax.tree_util import register_pytree_node_class
+from builtins import tuple as _tuple
 
-from sklearn.utils import Bunch
 
 # # # # # # # # # # # # 
 # 
@@ -73,8 +74,48 @@ def keysplit(key, *ns):
         for n in ns:
             keys.append(keysplit(key, n))
         return keys
-    
 
+
+@register_pytree_node_class
+class Bunch(tuple):
+    """
+    A Pytree Tuple Bunch Class. 
+    Can be accessed like Tuple, Dict, and Bunch.
+
+    Example:
+    ```
+    b = Bunch(0, x=1, y=2)
+    asssert 0 == b[0]
+    assert  1 == b[1]   and 2 == b[2]
+    asssert 1 == b.x    and 2 == b.y
+    asssert 1 == b["x"] and 2 == b["y"]
+    ```
+    """
+    def __new__(cls, *args, **kwargs):
+        # NOTE: Keyword argument order is preserved
+        # > https://docs.python.org/3/whatsnew/3.6.html#whatsnew36-pep468
+        return _tuple.__new__(cls, list(args) + list(kwargs.values()))
+    
+    def __init__(self, *args, **kwargs):
+        self._d = dict()
+        self._keys = list(kwargs.keys())
+        for k,v in kwargs.items():
+            self._d[k] = v
+            setattr(self, k, v)
+
+    def __getitem__(self, k: str):
+        if isinstance(k, int): return super().__getitem__(k)
+        return self._d[k]
+
+    def tree_flatten(self):
+        return (self, self._keys)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        k = len(aux_data)
+        n = len(children)
+        return cls(*children[:n-k], **dict(zip(aux_data, children[n-k:])))
+    
 # # # # # # # # # # # # 
 # 
 #  Other

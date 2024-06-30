@@ -158,24 +158,49 @@ def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, i
 
 @genjax.gen
 def sparse_gps_model(latent_particle_model_args, obs_model_args):
-<<<<<<< HEAD
-    # (b3d.camera.Intrinsics.from_array(jnp.array([1.0, 1.0, 1.0, 1.0])), 0.1)
+    """
+    Args:
+        `latent_particle_model_args`: Tuple containing
+            - number_of_timesteps:genjax.Pytree.const
+            - number_of_particlegenjax.Pytree.const
+            - number_of_object_clusters:genjax.Pytree.const
+            - particle prior args: (p:Pose, x_radius:Float, q_radius:Float)
+            - object prior args:   (p:Pose, x_radius:Float, q_radius:Float)
+            - camera prior args:   (p:Pose, x_radius:Float, q_radius:Float)
+        `obs_model_args`: Tuple containing instrinsics, and noise std. dev.
+
+    Example:
+    ```
+    particle_prior_params = (Pose.identity(), .5, 0.25)
+    object_prior_params   = (Pose.identity(), 2., 0.5)
+    camera_prior_params   = (Pose.identity(), 0.1, 0.1)
+    instrinsics = genjax.Pytree.const(b3d.camera.Intrinsics(120, 100, 50., 50., 50., 50., 0.001, 16.))
+    sigma_obs = 0.2
+
+    model = sparse_gps_model
+    latent_args = (
+            genjax.Pytree.const(T), # const object
+            genjax.Pytree.const(N), # const object
+            genjax.Pytree.const(K), # const object
+            particle_prior_params,
+            object_prior_params,
+            camera_prior_params
+    )
+    observation_args = (
+        instrinsics, 
+        sigma_obs
+    )
+    args = (latent_args, observation_args)
+    ```
+    """
     particle_dynamics_summary, final_state = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
-=======
-    particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
->>>>>>> 1509da2 (sparse obs setter)
     obs = sparse_observation_model.vmap(in_axes=(0, 0, 0, None, None))(
         particle_dynamics_summary["absolute_particle_poses"],
         particle_dynamics_summary["camera_pose"],
         particle_dynamics_summary["vis_mask"],
         *obs_model_args
-<<<<<<< HEAD
     ) @ "obs"
     return (particle_dynamics_summary, final_state, obs)
-=======
-    ) @ "observation"
-    return (particle_dynamics_summary, obs)
->>>>>>> 1509da2 (sparse obs setter)
 
 def get_sparse_test_model_and_args(T=4, N=5, K=3):
     particle_prior_params = (Pose.identity(), .5, 0.25)
@@ -216,7 +241,6 @@ def make_dense_gps_model(renderer):
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-<<<<<<< HEAD
         image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
         return (particle_dynamics_summary, final_state, image)
 
@@ -270,45 +294,3 @@ def visualize_particle_system(latent_particle_model_args, particle_dynamics_summ
 
         for i in range(num_clusters.const):
             b3d.rr_log_pose(f"cluster/{i}", object_poses[t][i])
-=======
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "observation"
-        return (particle_dynamics_summary, image)
-
-    return dense_gps_model
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # 
-# 
-#   Quick Access
-# 
-# # # # # # # # # # # # # # # # # # # # # # # # # #
-def get_cameras(tr: GPSModelTrace):
-    # TODO: Should we leave it like that or grab it from the choice addresses
-    latent, obs = tr.get_retval()
-    return latent["camera_pose"]
-
-def get_observations(tr: GPSModelTrace):
-    # TODO: Should we leave it like that or grab it from the choice addrtresses
-    latent, obs = tr.get_retval()
-    return obs
-
-def set_camera_choice(t, cam: Pose, ch=None):
-    if ch is None: ch = C.n()
-    if t == Ellipsis:
-        ch = ch.merge(C["particle_dynamics", "state0", "initial_camera_pose"].set(cam[0]))
-        ch = ch.merge(C["particle_dynamics", "states1+", jnp.arange(cam.shape[0]-1), "camera_pose"].set(cam[1:]))
-    else:
-        if t == 0:
-            ch = ch.merge(C["particle_dynamics", "state0", "initial_camera_pose"].set(cam))
-        elif t > 0:
-            ch = ch.merge(C["particle_dynamics", "states1+", t-1, "camera_pose"].set(cam))
-    return ch
-
-def set_sensor_coordinates_choice(t, uvs, ch=None):
-    if ch is None: ch = C.n()
-    if t == Ellipsis:
-        ch = ch.merge(C["observation", jnp.arange(uvs.shape[0]), "sensor_coordinates"].set(uvs))
-    else:
-        ch = ch.merge(C["observation", t , "sensor_coordinates"].set(uvs))
-    return ch
->>>>>>> 1509da2 (sparse obs setter)

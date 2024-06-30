@@ -12,6 +12,7 @@ DenseGPSModelTrace: TypeAlias = Any
 GPSModelTrace: TypeAlias = Any
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.pose import Pose, uniform_pose_in_ball
+from b3d.utils import Bunch
 from tensorflow_probability.substrates import jax as tfp
 
 tfp_normal = b3d.modeling_utils.tfp_distribution(tfp.distributions.Normal)
@@ -200,7 +201,11 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
         particle_dynamics_summary["vis_mask"],
         *obs_model_args
     ) @ "obs"
-    return (particle_dynamics_summary, final_state, obs)
+    return Bunch(
+        particle_dynamics_summary = particle_dynamics_summary, 
+        final_state = final_state, 
+        observation = obs
+    )
 
 def get_sparse_test_model_and_args(T=4, N=5, K=3):
     particle_prior_params = (Pose.identity(), .5, 0.25)
@@ -242,11 +247,55 @@ def make_dense_gps_model(renderer):
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
         image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
-        return (particle_dynamics_summary, final_state, image)
+        return Bunch(
+            particle_dynamics_summary = particle_dynamics_summary, 
+            final_state = final_state, 
+            observation = image
+        )
 
     return dense_gps_model
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # 
+# 
+#   Quick Access
+# 
+# # # # # # # # # # # # # # # # # # # # # # # # # #
+def get_cameras(tr: GPSModelTrace):
+    # TODO: Should we leave it like that or grab it from the choice addresses
+    latent = tr.get_retval()["particle_dynamics_summary"]
+    return latent["camera_pose"]
 
+def get_observations(tr: GPSModelTrace):
+    # TODO: Should we leave it like that or grab it from the choice addrtresses
+    return tr.get_retval()["observation"]
+
+def set_camera_choice(t, cam: Pose, ch=None):
+    if ch is None: ch = C.n()
+    if t == Ellipsis:
+        ch = ch.merge(C["particle_dynamics", "state0", 
+                        "initial_camera_pose"].set(cam[0]))
+        ch = ch.merge(C["particle_dynamics", "states1+", 
+                        jnp.arange(cam.shape[0]-1), "camera_pose"].set(cam[1:]))
+    else:
+        if t == 0:
+            ch = ch.merge(C["particle_dynamics", "state0", "initial_camera_pose"].set(cam))
+        elif t > 0:
+            ch = ch.merge(C["particle_dynamics", "states1+", t-1, "camera_pose"].set(cam))
+    return ch
+
+def set_sensor_coordinates_choice(t, uvs, ch=None):
+    if ch is None: ch = C.n()
+    if t == Ellipsis:
+        ch = ch.merge(C["obs", jnp.arange(uvs.shape[0]), "sensor_coordinates"].set(uvs))
+    else:
+        ch = ch.merge(C["obs", t , "sensor_coordinates"].set(uvs))
+    return ch
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # 
+# 
+#   Vis
+# 
+# # # # # # # # # # # # # # # # # # # # # # # # # #
 def visualize_particle_system(latent_particle_model_args, particle_dynamics_summary, final_state):
     import rerun as rr
     (dynamic_state, static_state) = final_state

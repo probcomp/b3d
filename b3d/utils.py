@@ -15,8 +15,9 @@ import os
 import trimesh
 import rerun as rr
 import distinctipy
+from jax.tree_util import register_pytree_node_class
+from builtins import tuple as _tuple
 
-from sklearn.utils import Bunch
 
 # # # # # # # # # # # # 
 # 
@@ -73,8 +74,34 @@ def keysplit(key, *ns):
         for n in ns:
             keys.append(keysplit(key, n))
         return keys
-    
 
+
+@register_pytree_node_class
+class Bunch(tuple):
+    """Pytree Bunch."""
+    def __new__(cls, *args, **kwargs):
+        return _tuple.__new__(cls, list(args) + list(kwargs.values()))
+    
+    def __init__(self, *args, **kwargs):
+        self._d = dict()
+        self._keys = list(kwargs.keys())
+        for k,v in kwargs.items():
+            self._d[k] = v
+            setattr(self, k, v)
+
+    def __getitem__(self, k: str):
+        if isinstance(k, int): return super().__getitem__(k)
+        return self._d[k]
+
+    def tree_flatten(self):
+        return (self, self._keys)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        k = len(aux_data)
+        n = len(children)
+        return cls(*children[:n-k], **dict(zip(aux_data, children[n-k:])))
+    
 # # # # # # # # # # # # 
 # 
 #  Other

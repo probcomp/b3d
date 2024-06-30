@@ -158,6 +158,41 @@ def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, i
 
 @genjax.gen
 def sparse_gps_model(latent_particle_model_args, obs_model_args):
+    """
+    Args:
+        `latent_particle_model_args`: Tuple containing
+            - number_of_timesteps:genjax.Pytree.const
+            - number_of_particlegenjax.Pytree.const
+            - number_of_object_clusters:genjax.Pytree.const
+            - particle prior args: (p:Pose, x_radius:Float, q_radius:Float)
+            - object prior args:   (p:Pose, x_radius:Float, q_radius:Float)
+            - camera prior args:   (p:Pose, x_radius:Float, q_radius:Float)
+        `obs_model_args`: Tuple containing instrinsics, and noise std. dev.
+
+    Example:
+    ```
+    particle_prior_params = (Pose.identity(), .5, 0.25)
+    object_prior_params   = (Pose.identity(), 2., 0.5)
+    camera_prior_params   = (Pose.identity(), 0.1, 0.1)
+    instrinsics = genjax.Pytree.const(b3d.camera.Intrinsics(120, 100, 50., 50., 50., 50., 0.001, 16.))
+    sigma_obs = 0.2
+
+    model = sparse_gps_model
+    latent_args = (
+            genjax.Pytree.const(T), # const object
+            genjax.Pytree.const(N), # const object
+            genjax.Pytree.const(K), # const object
+            particle_prior_params,
+            object_prior_params,
+            camera_prior_params
+    )
+    observation_args = (
+        instrinsics, 
+        sigma_obs
+    )
+    args = (latent_args, observation_args)
+    ```
+    """
     particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
     obs = sparse_observation_model.vmap(in_axes=(0, 0, 0, None, None))(
         particle_dynamics_summary["absolute_particle_poses"],

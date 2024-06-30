@@ -78,8 +78,22 @@ def keysplit(key, *ns):
 
 @register_pytree_node_class
 class Bunch(tuple):
-    """Pytree Bunch."""
+    """
+    A Pytree Tuple Bunch Class. 
+    Can be accessed like Tuple, Dict, and Bunch.
+
+    Example:
+    ```
+    b = Bunch(0, x=1, y=2)
+    asssert 0 == b[0]
+    assert  1 == b[1]   and 2 == b[2]
+    asssert 1 == b.x    and 2 == b.y
+    asssert 1 == b["x"] and 2 == b["y"]
+    ```
+    """
     def __new__(cls, *args, **kwargs):
+        # NOTE: Keyword argument order is preserved
+        # > https://docs.python.org/3/whatsnew/3.6.html#whatsnew36-pep468
         return _tuple.__new__(cls, list(args) + list(kwargs.values()))
     
     def __init__(self, *args, **kwargs):

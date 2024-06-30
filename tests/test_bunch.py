@@ -23,11 +23,8 @@ class MeshTests(unittest.TestCase):
         key = jax.random.PRNGKey(0)
         jsimulate = jax.jit(model.simulate)
 
-        # tr = jsimulate(key, ())
-        tr = model.simulate(key, ())
+        tr = jsimulate(key, ())
         b = tr.get_retval()
-
-        print(b)
 
         assert b.x  == tr.get_choices()("x").v, f"{tr.get_choices()('x').v}, {b.x}, {b}"
         assert b[1] == tr.get_choices()("x").v, f"{tr.get_choices()('x').v}, {b[1]}, {b}"

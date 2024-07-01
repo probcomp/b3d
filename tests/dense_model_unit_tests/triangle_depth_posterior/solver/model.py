@@ -23,7 +23,7 @@ def model_factory(
         renderer, likelihood,
         renderer_hyperparams
     ):
-    @genjax.static_gen_fn
+    @genjax.gen
     def generate_frame(camera_pose, vertices, faces, face_colors):
         X_WC = camera_pose
         vertices_W = vertices
@@ -38,7 +38,7 @@ def model_factory(
         observed_rgb = likelihood(weights, attributes) @ "observed_rgb"
         return (observed_rgb, weights, attributes)
 
-    @genjax.static_gen_fn
+    @genjax.gen
     def model(background_mesh, triangle_color, camera_poses):
         """
         - background_mesh = (background_vertices, background_faces, background_colors)
@@ -47,7 +47,7 @@ def model_factory(
         """
         (background_vertices, background_faces, background_colors) = background_mesh
 
-        triangle_vertices = genjax.uniform(
+        triangle_vertices = b3d.modeling_utils.uniform(
             -20. * jnp.ones((3, 3)), 20. * jnp.ones((3, 3))
         ) @ "triangle_vertices"
 
@@ -55,9 +55,9 @@ def model_factory(
         all_faces = jnp.concatenate([background_faces, jnp.arange(3).reshape((1, 3)) + background_vertices.shape[0]], axis=0)
         all_face_colors = jnp.concatenate([background_colors, jnp.array([triangle_color])], axis=0)
 
-        (observed_rgbs, weights, attributes) = genjax.map_combinator(
-            in_axes=(0, None, None, None)
-        )(generate_frame)(camera_poses, all_vertices, all_faces, all_face_colors) @ "observed_rgbs"
+        (observed_rgbs, weights, attributes) = generate_frame.vmap(in_axes=(0, None, None, None))(
+            camera_poses, all_vertices, all_faces, all_face_colors
+        ) @ "observed_rgbs"
 
         metadata = {
             "weights": weights,
@@ -101,7 +101,7 @@ def rr_log_trace(
     (bv, bf, bfc) = trace.get_args()[0]
     bv_, bf_, bvc_ = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(bv, bf, bfc)
     rr.log(f"/3D/{prefix}/background", rr.Mesh3D(
-        vertex_positions=bv_, indices=bf_, vertex_colors=bvc_
+        vertex_positions=bv_, triangle_indices=bf_, vertex_colors=bvc_
     ))
 
     # log foreground triangle
@@ -110,5 +110,5 @@ def rr_log_trace(
     tf = jnp.array([[0, 1, 2]])
     tv_, tf_, tvc_ = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(tv, tf, tfc)
     rr.log(f"/3D/{prefix}/foreground", rr.Mesh3D(
-        vertex_positions=tv_, indices=tf_, vertex_colors=tvc_
+        vertex_positions=tv_, triangle_indices=tf_, vertex_colors=tvc_
     ))

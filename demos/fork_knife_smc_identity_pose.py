@@ -300,7 +300,7 @@ print("Normalized scores: ", b3d.normalize_log_scores(jnp.array([trace_fork.get_
 #         f"/3d/mesh/{i}",
 #         rr.Mesh3D(
 #             vertex_positions=(object_library.vertices),
-#             indices=object_library.faces[object_library.ranges[i,0]: object_library.ranges[i,:].sum()],
+#             triangle_indices=object_library.faces[object_library.ranges[i,0]: object_library.ranges[i,:].sum()],
 #             vertex_colors=object_library.attributes
 #         )
 #     )

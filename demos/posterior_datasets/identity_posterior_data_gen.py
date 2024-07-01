@@ -81,7 +81,7 @@ rr.log(
     f"/3d/mesh/occ",
     rr.Mesh3D(
         vertex_positions=scene_poses_in_camera[0][0].apply(object_library.vertices),
-        indices=object_library.faces[object_library.ranges[0,0]: object_library.ranges[0,:].sum()],
+        triangle_indices=object_library.faces[object_library.ranges[0,0]: object_library.ranges[0,:].sum()],
         vertex_colors=object_library.attributes
     )
 )
@@ -89,7 +89,7 @@ rr.log(
     f"/3d/mesh/obj",
     rr.Mesh3D(
         vertex_positions=scene_poses_in_camera[0][2].apply(object_library.vertices),
-        indices=object_library.faces[object_library.ranges[1,0]: object_library.ranges[1,:].sum()],
+        triangle_indices=object_library.faces[object_library.ranges[1,0]: object_library.ranges[1,:].sum()],
         vertex_colors=object_library.attributes
     )
 )

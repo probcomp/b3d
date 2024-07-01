@@ -281,7 +281,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         ## init trace
         gt_trace, _ = model.importance(
             jax.random.PRNGKey(0),
-            genjax.choice_map(
+            genjax.ChoiceMapBuilder.d(
                 {
                     "camera_pose": camera_pose,
                     "object_pose_0": gt_pose_cam,
@@ -294,12 +294,12 @@ class TestImgResolutionInvariance(unittest.TestCase):
         bayes3d.rerun_visualize_trace_t(gt_trace, 0)
 
         ## get IS scores over the enum grid
-        test_poses = gt_trace["object_pose_0"] @ cp_delta_poses
+        test_poses = gt_trace.get_choices()["object_pose_0"] @ cp_delta_poses
         test_poses_batches = test_poses.split(10)
         scores = jnp.concatenate(
             [
                 b3d.enumerate_choices_get_scores_jit(
-                    gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses
+                    gt_trace, key, ("object_pose_0",), poses
                 )
                 for poses in test_poses_batches
             ]
@@ -338,7 +338,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
                 trace_ = b3d.update_choices_jit(
                     gt_trace,
                     key,
-                    genjax.Pytree.const(["object_pose_0"]),
+                    ("object_pose_0",),
                     test_poses[samples[t]],
                 )
                 bayes3d.rerun_visualize_trace_t(trace_, t)

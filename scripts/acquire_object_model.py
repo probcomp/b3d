@@ -9,17 +9,13 @@ rr.init("acquire_object_model")
 rr.connect("127.0.0.1:8812")
 
 
-parser = argparse.ArgumentParser("r3d_to_video_input")
-parser.add_argument("input", help=".r3d File", type=str)
+parser = argparse.ArgumentParser("acquire_object_mode")
+parser.add_argument("input", help="Video Input File", type=str)
 args = parser.parse_args()
 
 filename = args.input
+# filename = "assets/shared_data_bucket/input_data/lysol_static.r3d.video_input.npz"
 video_input = b3d.io.VideoInput.load(filename)
-
-parser = argparse.ArgumentParser("r3d_to_video_input")
-parser.add_argument("input", help=".r3d File", type=str)
-args = parser.parse_args()
-
 
 import numpy as np
 image_width, image_height, fx, fy, cx, cy, near, far = np.array(
@@ -54,13 +50,6 @@ rgbs_resized = jnp.clip(
 )
 
 
-for t in range(0, xyz_world_frame_flat.shape[0], 10):
-    rr.set_time_sequence("frame", t)
-    rr.log("rgb", rr.Image(rgbs_resized[t]))
-    rr.log(
-        "lysol",
-        rr.Points3D(xyz_world_frame_flat[t], colors=rgbs_resized[t].reshape(-1,3)),
-    )
 
 voxel_occupied_occluded_free_jit = jax.jit(b3d.voxel_occupied_occluded_free)
 voxel_occupied_occluded_free_parallel_camera = jax.jit(
@@ -71,6 +60,18 @@ voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
 )
 
 masks = [b3d.carvekit_get_foreground_mask(r) for r in rgbs_resized]
+
+for t in range(0, xyz_world_frame_flat.shape[0], 10):
+    rr.set_time_sequence("frame", t)
+    rr.log("rgb", rr.Image(rgbs_resized[t]))
+    rr.log(
+        "lysol",
+        rr.Points3D(xyz_world_frame_flat[t], colors=rgbs_resized[t].reshape(-1,3)),
+    )
+    rr.log("masks", rr.DepthImage(masks[t] * 1.0))
+
+
+rr.log("masks", rr.Image(jnp.stack(masks, axis=0)))
 masks_concat = jnp.stack(masks, axis=0)
 
 grid_center = jnp.median(camera_poses[0].apply(video_input.xyz[0][masks[0]]),axis=0)
@@ -110,9 +111,9 @@ grid[model_mask], grid_colors[model_mask], resolution * jnp.ones_like(model_mask
 vertices_centered = vertices - vertices.mean(0)
 rr.log("mesh", rr.Mesh3D(
     vertex_positions=vertices_centered,
-    indices=faces,
+    triangle_indices=faces,
     vertex_colors=vertex_colors,
-))
+), timeless=True)
 
 # meshes = []
 # for i in range(10, len(rgbs_resized), 10):
@@ -132,7 +133,7 @@ rr.log("mesh", rr.Mesh3D(
 #     vertices_centered = vertices - vertices.mean(0)
 #     rr.log("mesh", rr.Mesh3D(
 #         vertex_positions=vertices_centered,
-#         indices=faces,
+#         triangle_indices=faces,
 #         vertex_colors=vertex_colors,
 #     ))
 #     meshes.append((i, vertices_centered, faces, vertex_colors))

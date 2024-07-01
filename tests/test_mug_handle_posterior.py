@@ -88,7 +88,7 @@ class TestMugHandlePosterior:
 
             gt_trace, _ = model.importance(
                 jax.random.PRNGKey(0),
-                genjax.choice_map(
+                genjax.ChoiceMap.d(
                     {
                         "camera_pose": camera_pose,
                         "object_pose_0": object_pose,
@@ -99,7 +99,7 @@ class TestMugHandlePosterior:
                 ),
                 (jnp.arange(1), model_args, object_library),
             )
-            print("IMG Size :", gt_trace["observed_rgb_depth"][0].shape)
+            print("IMG Size :", gt_trace.get_choices()["observed_rgb_depth"][0].shape)
 
             delta_cps = jnp.stack(
                 jnp.meshgrid(
@@ -111,12 +111,12 @@ class TestMugHandlePosterior:
             ).reshape(-1, 3)
             cp_delta_poses = jax.vmap(cp_to_pose)(delta_cps)
 
-            test_poses = gt_trace["object_pose_0"] @ cp_delta_poses
+            test_poses = gt_trace.get_choices()["object_pose_0"] @ cp_delta_poses
             test_poses_batches = test_poses.split(10)
             scores = jnp.concatenate(
                 [
                     b3d.enumerate_choices_get_scores_jit(
-                        gt_trace, key, genjax.Pytree.const(["object_pose_0"]), poses
+                        gt_trace, key, ("object_pose_0",), poses
                     )
                     for poses in test_poses_batches
                 ]
@@ -149,7 +149,7 @@ class TestMugHandlePosterior:
                 trace_ = b3d.update_choices_jit(
                     gt_trace,
                     key,
-                    genjax.Pytree.const(["object_pose_0"]),
+                    ("object_pose_0",),
                     test_poses[samples[t]],
                 )
                 bayes3d.rerun_visualize_trace_t(trace_, t)

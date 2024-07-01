@@ -23,3 +23,10 @@ class Solver:
         This may log data to rerun, produce pyplots, etc.
         """
         pass
+
+    @property
+    def name(self) -> str:
+        """
+        Returns the name of the solver.
+        """
+        return self.__class__.__name__

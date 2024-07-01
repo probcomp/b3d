@@ -1,6 +1,8 @@
 import os
 from .video_input import VideoInput
 from b3d.utils import get_shared
+from b3d.types import Array
+from b3d.io import VideoInput, FeatureTrackData
 import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -42,9 +44,7 @@ def add_argparse(f):
 def path_stem(path):
     """Removes ALL suffixes from a path."""
     name = Path(path).name
-    for _ in path.suffixes:
-        name = name.rsplit('.')[0]
-
+    for _ in path.suffixes: name = name.rsplit('.')[0]
     return name
 
 _video_summary = """
@@ -205,13 +205,26 @@ def plot_video_summary(
     # TODO: Should we hand in an axis?
     fig, ax = plt.subplots(1,1, figsize=(15,4))
     ax.set_title(f"\"{video_fname.name}\"\n(start = {T0}, end = {T1}, fps = {info.fps})")
-    ax.imshow(np.concatenate(vid, axis=1))
-    for i,t in enumerate(times):
-        ax.text(i*w + 7, h - 7, f"{t}", size=11, rotation=0.,
-                ha="left", va="bottom",
-                bbox=dict(boxstyle="square",
-                        ec=(1., 1., 1., 0.),
-                        fc=(1., 1., 1., 1.),
-                        )
-                )
+    _plot_frame_summary(vid, ticks=times, ax=ax)
+
+
+def _plot_frame_summary(
+    frames: Array,
+    ticks: Array = None,
+    ax=None):
+
+    w = frames.shape[2]
+    h = frames.shape[1]
+
+    # Create a plot with the summary
+    if ax is None: fig, ax = plt.subplots(1,1, figsize=(15,4))
     ax.axis("off");
+    ax.imshow(np.concatenate(frames, axis=1))
+    if ticks is not None:
+        for i,t in enumerate(ticks):
+            ax.text(i*w + 7, h - 7, f"{t}", size=11, rotation=0.,
+                    ha="left", va="bottom", bbox=dict(boxstyle="square",
+                        ec=(1., 1., 1., 0.),
+                        fc=(1., 1., 1., 1.),))
+
+    return ax

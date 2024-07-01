@@ -40,8 +40,8 @@ setuptools.setup(
         "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
     ],
     install_requires=[
-        "genjax==0.3.1",
-        "rerun-sdk==0.14.1",
+        "genjax @ git+ssh://git@github.com/probcomp/genjax.git@v0.4.0",
+        "rerun-sdk==0.16.1",
         "tqdm==4.66.2",
         "numpy==1.26.4",
         "pillow==10.3.0",
@@ -57,6 +57,7 @@ setuptools.setup(
         "pyransac3d==0.6.0",
         "pdoc3==0.10.0",
         "opencv-python==4.9.0.80",
+        "optax==0.2.2",
         "fire==0.6.0",
         "torch==2.2.2",
         "torchaudio==2.2.2",
@@ -64,6 +65,7 @@ setuptools.setup(
         "jax[cuda12]==0.4.28",
         "natsort",
         "distinctipy",
+        "pyliblzfse",
         "nvidia-cuda-nvcc-cu12==12.3.52",
         "nvidia-nvjitlink-cu12==12.3.52",
     ],

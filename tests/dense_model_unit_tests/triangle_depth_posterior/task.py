@@ -258,11 +258,11 @@ class TrianglePosteriorGridApproximationTask(Task):
 
         v, f, vc = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(*self.scene_background)
         rr.log("/3D/scene/background", rr.Mesh3D(
-            vertex_positions=v, indices=f, vertex_colors=vc
+            vertex_positions=v, triangle_indices=f, vertex_colors=vc
         ))
         rr.log("/3D/scene/foreground", rr.Mesh3D(
             vertex_positions=self.foreground_triangle["vertices"],
-            indices=jnp.arange(3).reshape((1, 3)),
+            triangle_indices=jnp.arange(3).reshape((1, 3)),
             vertex_colors=jnp.tile(self.foreground_triangle["color"], (3, 1))
         ))
 

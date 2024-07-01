@@ -6,6 +6,7 @@ import numpy as np
 import os
 import trimesh
 import b3d
+import b3d.bayes3d as bayes3d
 from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 import genjax
@@ -54,7 +55,7 @@ def test_demo():
 
     num_layers = 2048
     renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
-    model = b3d.model_multiobject_gl_factory(renderer)
+    model = bayes3d.model_multiobject_gl_factory(renderer)
     importance_jit = jax.jit(model.importance)
     update_jit = jax.jit(model.update)
 
@@ -63,7 +64,7 @@ def test_demo():
     color_error, depth_error = (60.0, 0.01)
     inlier_score, outlier_prob = (5.0, 0.00001)
     color_multiplier, depth_multiplier = (10000.0, 500.0)
-    model_args = b3d.ModelArgs(
+    model_args = bayes3d.ModelArgs(
         color_error,
         depth_error,
         inlier_score,
@@ -105,7 +106,7 @@ def test_demo():
     all_deltas = Pose.stack_poses([translation_deltas, rotation_deltas])
 
     # Make empty library
-    object_library = b3d.MeshLibrary.make_empty_library()
+    object_library = bayes3d.MeshLibrary.make_empty_library()
 
     # Take point cloud at frame 0
     point_cloud = jax.image.resize(
@@ -133,7 +134,7 @@ def test_demo():
     START_T = 0
     trace, _ = importance_jit(
         jax.random.PRNGKey(0),
-        genjax.choice_map(
+        genjax.ChoiceMap.d(
             dict(
                 [
                     ("camera_pose", Pose.identity()),
@@ -149,7 +150,7 @@ def test_demo():
         (jnp.arange(1), model_args, object_library),
     )
     # Visualize trace
-    b3d.rerun_visualize_trace_t(trace, 0)
+    bayes3d.rerun_visualize_trace_t(trace, 0)
 
     ACQUISITION_T = 90
     for T_observed_image in tqdm(range(ACQUISITION_T)):
@@ -157,23 +158,23 @@ def test_demo():
         trace = b3d.update_choices_jit(
             trace,
             key,
-            genjax.Pytree.const(["observed_rgb_depth"]),
+            ("observed_rgb_depth",),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         )
-        trace, key = b3d.enumerate_and_select_best_move(
-            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
+        trace, key = bayes3d.enumerate_and_select_best_move(
+            trace, ("camera_pose",), key, all_deltas
         )
-        b3d.rerun_visualize_trace_t(trace, T_observed_image)
+        bayes3d.rerun_visualize_trace_t(trace, T_observed_image)
 
     # Outliers are AND of the RGB and Depth outlier masks
     inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = (
-        b3d.get_rgb_depth_inliers_from_trace(trace)
+        bayes3d.get_rgb_depth_inliers_from_trace(trace)
     )
     outlier_mask = outliers
     rr.log("outliers", rr.Image(jnp.tile((outlier_mask * 1.0)[..., None], (1, 1, 3))))
 
     # Get the point cloud corresponding to the outliers
-    rgb, depth = trace["observed_rgb_depth"]
+    rgb, depth = trace.get_choices()["observed_rgb_depth"]
     point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy)[outlier_mask]
     point_cloud_colors = rgb[outlier_mask]
 
@@ -200,12 +201,12 @@ def test_demo():
 
     trace, _ = importance_jit(
         jax.random.PRNGKey(0),
-        genjax.choice_map(
+        genjax.ChoiceMap.d(
             dict(
                 [
-                    ("camera_pose", trace["camera_pose"]),
-                    ("object_pose_0", trace["object_pose_0"]),
-                    ("object_pose_1", trace["camera_pose"] @ object_pose),
+                    ("camera_pose", trace.get_choices()["camera_pose"]),
+                    ("object_pose_0", trace.get_choices()["object_pose_0"]),
+                    ("object_pose_1", trace.get_choices()["camera_pose"] @ object_pose),
                     ("object_0", 0),
                     ("object_1", 1),
                     (
@@ -218,7 +219,7 @@ def test_demo():
         (jnp.arange(2), model_args, object_library),
     )
     # Visualize trace
-    b3d.rerun_visualize_trace_t(trace, ACQUISITION_T)
+    bayes3d.rerun_visualize_trace_t(trace, ACQUISITION_T)
 
     FINAL_T = len(xyzs)
     for T_observed_image in tqdm(range(ACQUISITION_T, FINAL_T)):
@@ -226,16 +227,16 @@ def test_demo():
         trace = b3d.update_choices_jit(
             trace,
             key,
-            genjax.Pytree.const(["observed_rgb_depth"]),
+            ("observed_rgb_depth",),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         )
-        trace, key = b3d.enumerate_and_select_best_move(
-            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
+        trace, key = bayes3d.enumerate_and_select_best_move(
+            trace, ("camera_pose",), key, all_deltas
         )
-        trace, key = b3d.enumerate_and_select_best_move(
-            trace, genjax.Pytree.const([f"object_pose_1"]), key, all_deltas
+        trace, key = bayes3d.enumerate_and_select_best_move(
+            trace, ("object_pose_1",), key, all_deltas
         )
-        b3d.rerun_visualize_trace_t(trace, T_observed_image)
+        bayes3d.rerun_visualize_trace_t(trace, T_observed_image)
 
 
 if __name__ == "__main__":

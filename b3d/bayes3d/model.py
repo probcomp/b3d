@@ -38,7 +38,8 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     undecided = jnp.logical_not(inliers) * jnp.logical_not(outliers)
     return (inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask)
 
-class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
+@genjax.Pytree.dataclass
+class RGBDSensorModel(genjax.ExactDensity):
     def sample(self, key, rendered_rgb, rendered_depth, model_args, fx, fy, far):
         return (rendered_rgb, rendered_depth)
 
@@ -66,7 +67,7 @@ class RGBDSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 rgbd_sensor_model = RGBDSensorModel()
 
 def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
-    @genjax.static_gen_fn
+    @genjax.gen
     def model(
         _num_obj_arr, # new
         model_args,
@@ -75,7 +76,7 @@ def model_multiobject_gl_factory(renderer, image_likelihood=rgbd_sensor_model):
 
         object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
         object_indices = jnp.empty((0,), dtype=int)
-        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
+        camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "camera_pose"
 
         for i in range(_num_obj_arr.shape[0]):
             object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f"object_{i}"

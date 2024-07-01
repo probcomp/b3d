@@ -7,7 +7,7 @@ from typing import Any, TypeAlias
 from b3d.camera import screen_from_world
 
 
-@genjax.static_gen_fn
+@genjax.gen
 def minimal_observation_model(
         vis,
         particle_poses,
@@ -70,13 +70,11 @@ def make_sparse_gps_model(
         `camera_motion_model`: Camera motion model `(pose, *args) -> pose`.
         `camera_motion_model_args`: Arguments for the camera motion model
     """
-    @genjax.unfold_combinator(max_length=T - 1)
-    @genjax.static_gen_fn
-    def unfolded_kernel(
-        state, object_assignments, relative_particle_poses, intr
-    ):
+    @genjax.gen
+    def kernel(carried_state, _):
         """Kernel modelling the time evolution a scene."""
-        t, object_poses, camera_pose = state
+        t, object_poses, camera_pose, static_carries = carried_state
+        (object_assignments, relative_particle_poses, intr) = static_carries
 
         # New Cluster pose in world coordinates
         # TODO: should empty clusters be masked out?
@@ -98,7 +96,7 @@ def make_sparse_gps_model(
 
         # Visibility mask
         vis_mask = (
-            genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(jnp.repeat(jax.scipy.special.logit(0.5), N))
+            genjax.bernoulli.vmap(in_axes=(0,))(jnp.repeat(jax.scipy.special.logit(0.5), N))
             @ "visibility"
         )
 
@@ -113,10 +111,12 @@ def make_sparse_gps_model(
             @ "observation"
         )
 
-        return (t + 1, new_object_poses, new_camera_pose)
+        new_state = (t + 1, new_object_poses, new_camera_pose, static_carries)
+        vector_output = None
+        return (new_state, new_state)
 
     # TODO: What arguments should be passed to the model?
-    @genjax.static_gen_fn
+    @genjax.gen
     def sparse_gps_model(intr):
         # Gaussian particles describing feature distributions over regions in space.
         # (Note that for simplicity we assume a unique point light feature.)
@@ -130,7 +130,7 @@ def make_sparse_gps_model(
         # NOTE: this could also vary for each partile
         # TODO: How should we handle empty clusters?
         object_assignments = (
-            genjax.map_combinator(in_axes=(0,))(genjax.categorical)(jnp.zeros((N, K)))
+            genjax.categorical.vmap(in_axes=(0,))(jnp.zeros((N, K)))
             @ "object_assignments"
         )
 
@@ -153,7 +153,7 @@ def make_sparse_gps_model(
 
         # TODO: Make the visibility model an argument to the model factory
         initial_vis_mask = (
-            genjax.map_combinator(in_axes=(0,))(genjax.bernoulli)(
+            genjax.bernoulli.vmap(in_axes=(0,))(
                 jnp.repeat(jax.scipy.special.logit(0.5), N))
             @ "initial_visibility"
         )
@@ -166,30 +166,22 @@ def make_sparse_gps_model(
                 intr,
                 *observation_model_args,
             )
-            @ "observation"
+            @ "initial_observation"
         )
 
-        state0 = (0, initial_object_poses, initial_camera_pose)
-        states = (
-            unfolded_kernel(
-                T - 1,
-                state0,
-                object_assignments,
-                relative_particle_poses,
-                intr,
-            )
-            @ "chain"
-        )
+        static_carried_values = (object_assignments, relative_particle_poses, intr)
+        state0 = (0, initial_object_poses, initial_camera_pose, static_carried_values)
+        last_state, ret = kernel.scan(n=T-1)(state0, None) @ "chain"
 
         # Combine the initial state with the chain of states
         object_poses = Pose(
-            jnp.concatenate([state0[1][None, :].pos, states[1].pos], axis=0),
-            jnp.concatenate([state0[1][None, :].quat, states[1].quat], axis=0),
+            jnp.concatenate([state0[1][None, :].pos, ret[1].pos], axis=0),
+            jnp.concatenate([state0[1][None, :].quat, ret[1].quat], axis=0),
         )
 
         camera_poses = Pose(
-            jnp.concatenate([state0[2][None, :].pos, states[2].pos], axis=0),
-            jnp.concatenate([state0[2][None, :].quat, states[2].quat], axis=0),
+            jnp.concatenate([state0[2][None, :].pos, ret[2].pos], axis=0),
+            jnp.concatenate([state0[2][None, :].quat, ret[2].quat], axis=0),
         )
 
         absolute_particle_poses = (
@@ -214,54 +206,42 @@ def make_sparse_gps_model(
 # # # # # # # # # # # # # # # # # # # # # #
 SparseGPSModelTrace: TypeAlias = Any
 
-
-def get_inner_val(tr, addr, *rest):
-    """Hack till PR is merged."""
-    inner_val = None
-    if hasattr(tr[addr], "inner"):
-        if hasattr(tr[addr].inner, "value"):
-            inner_val = tr[addr].inner.value
-        else:
-            inner_val = tr[addr].inner
-    else:
-        inner_val = tr[addr]
-
-    if len(rest) == 0:
-        return inner_val
-    else:
-        return get_inner_val(inner_val, *rest)
-
-
+# -----------
+#   Getters
+# -----------
 def get_particle_poses(tr: SparseGPSModelTrace):
-    return (
-        get_inner_val(tr, "particle_poses")
-    )
-
+    # TODO: is there a better way to do this?
+    return tr.get_choices()("particle_poses").c.v
 
 def get_assignments(tr: SparseGPSModelTrace):
-    return get_inner_val(tr, "object_assignments")
-
+    # TODO: is there a better way to do this?
+    return tr.get_choices()("object_assignments").c.v
 
 def get_object_poses(tr: SparseGPSModelTrace):
-    return get_inner_val(tr, "initial_object_poses")[None, :].concat(
-        get_inner_val(tr, "chain", "object_poses"), axis=0
-    )
-
+    return tr.get_choices()("initial_object_poses").c.v[None].concat(
+                tr.get_choices()("chain").c("object_poses").c.v)
 
 def get_cameras(tr: SparseGPSModelTrace):
-    return get_inner_val(tr, "initial_camera_pose")[None, :].concat(
-        get_inner_val(tr, "chain", "camera_pose")
-    )
+    return tr.get_choices()("initial_camera_pose").v[None].concat(
+                tr.get_choices()("chain").c("camera_pose").v)
 
+def get_observations(tr: SparseGPSModelTrace):
+    return jnp.concatenate([
+            tr.get_choices()("initial_observation").c.v[None],
+            tr.get_choices()("chain").c("observation").c.v
+        ], axis=0)
 
-def get_2d_particle_positions(tr: SparseGPSModelTrace):
-    return jnp.concatenate(
-        [
-            get_inner_val(tr, "initial_observation", "sensor_coordinates")[None],
-            get_inner_val(tr, "chain", "observation", "sensor_coordinates"),
-        ],
-        axis=0,
-    )
+def get_num_timesteps(tr: SparseGPSModelTrace):
+    qs = get_object_poses(tr)
+    return qs.shape[0]
+
+def get_num_particles(tr: SparseGPSModelTrace):
+    ps = get_particle_poses(tr)
+    return ps.shape[-1]
+
+def get_num_objects(tr: SparseGPSModelTrace):
+    qs = get_object_poses(tr)
+    return qs.shape[1]
 
 
 def get_dynamic_gps(tr: SparseGPSModelTrace):
@@ -282,6 +262,56 @@ def get_dynamic_gps(tr: SparseGPSModelTrace):
         ps, diag, jnp.zeros((N,1)), get_assignments(tr), qs
     )
 
+# -----------
+#   Setters
+# -----------
+from genjax import ChoiceMapBuilder as C
+from genjax._src.core.generative.choice_map import EmptyChm
+
+def set_camera_choice(t, cam: Pose, ch=None):
+    if ch is None: ch = C.n()
+
+
+    if t == Ellipsis:
+        ch = ch.merge(C["initial_camera"].set(cam[0]))
+        ch = ch.merge(C["chain", jnp.arange(cam.shape[0]-1), "camera"].set(cam[1:]))
+
+    else:
+        if t == 0:
+            ch = ch.merge(C["initial_camera"].set(cam))
+        elif t > 0:
+            ch = ch.merge(C["chain", t-1, "camera"].set(cam))
+
+    return ch
+
+def set_particle_choice(i, p, ch=None):
+    if ch is None: ch = C.n()
+
+    if i == Ellipsis:
+        # Assume p is a ARRAY of particle poses
+        ch = ch.merge(C["particle_poses"].set(p))
+    else:
+        # Assume p is a SINLGE particle poses
+        ch = ch.merge(C["particle_poses", i].set(p))
+
+    return ch
+
+def set_sensor_coordinates_choice(t, uvs, ch=None):
+    if ch is None: ch = C.n()
+
+    if t == Ellipsis:
+        ch = ch.merge(C["initial_observation", "sensor_coordinates"].set(uvs[0]))
+        ch = ch.merge(C["chain",
+                        jnp.arange(uvs.shape[0]-1),
+                        "observation",
+                        "sensor_coordinates"].set(uvs))
+    else:
+        if t == 0:
+            ch = ch.merge(C["initial_observation", "sensor_coordinates"].set(uvs))
+        else:
+            ch = ch.merge(C["chain", t-1, "observation", "sensor_coordinates"].set(uvs))
+
+    return ch
 
 # # # # # # # # # # # # # # # # # # # # # #
 #

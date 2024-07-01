@@ -4,6 +4,7 @@ import jax
 from jax.scipy.spatial.transform import Rotation as Rot
 from tensorflow_probability.substrates import jax as tfp
 from typing import TypeAlias
+from b3d.utils import keysplit
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -50,8 +51,8 @@ def sample_uniform_pose(key, low, high):
 
 
 def logpdf_uniform_pose(pose, low, high):
-    position = pose.position
-    valid = (low <= position) & (position <= high)
+    position = pose.pos
+    valid = ((low <= position) & (position <= high))
     position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high - low)))
     return position_score.sum() + jnp.pi**2
 
@@ -70,15 +71,22 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     See:
     > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
     """
-    translation = tfp.distributions.MultivariateNormalDiag(
-        jnp.zeros(3), jnp.ones(3) * std
-    ).sample(seed=key)
-    key = jax.random.split(key, 1)[0]
-    quat = tfp.distributions.VonMisesFisher(
-        jnp.array([0.0, 0.0, 0.0, 1.0]), concentration
-    ).sample(seed=key)
-    return mean_pose @ Pose(translation, quat)
+    _, keys = keysplit(key, 1, 2)
+    var = std**2
+    x = jax.random.multivariate_normal(
+            keys[0], mean_pose.pos, var * jnp.eye(3))
+    q = tfp.distributions.VonMisesFisher(
+            mean_pose.quat, concentration).sample(seed=keys[1])
 
+    return Pose(x, q)
+
+def logpdf_gaussian_vmf_pose(pose, mean_pose, std, concentration):
+    translation_score = tfp.distributions.MultivariateNormalDiag(
+        mean_pose.pos, jnp.ones(3) * std).log_prob(pose.pos)
+    quaternion_score = tfp.distributions.VonMisesFisher(
+        mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
+    ).log_prob(pose.quat)
+    return translation_score + quaternion_score
 
 def camera_from_position_and_target(
     position, target=jnp.array([0.0, 0.0, 0.0]), up=jnp.array([0.0, 0.0, 1.0])
@@ -160,6 +168,17 @@ class Pose:
         quat = jnp.sign(quat[..., [3]]) * quat
         return Pose(self.pos, quat)
 
+    def canonical(self):
+        """
+        Chooses a canonical representative for the quaternion of the pose, i.e.
+        chooses from {q, -q} s.t. q[3] >= 0. Note that if q[3]==0 there is still ambiguity.
+
+        Recall that SO(3) is isomorphic to  S^3/x~-x and
+        also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+        """
+        quat = self.quat / jnp.linalg.norm(self.quat, axis=-1, keepdims=True)
+        return Pose(self.pos, choose_good_quat(quat))
+
     def flatten(self):
         return self.pos, self.xyzw
 
@@ -181,8 +200,9 @@ class Pose:
     def shape(self):
         return self.pos.shape[:-1]
 
-    def reshape(self, shape):
-        return Pose(self.pos.reshape(shape + (3,)), self.quat.reshape(shape + (4,)))
+    def reshape(self, *args):
+        shape = jax.tree.leaves(args)
+        return Pose(self.pos.reshape(shape + [3]), self.quat.reshape(shape + [4]))
 
     def __len__(self):
         return self.pos.shape[0]

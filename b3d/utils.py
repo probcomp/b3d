@@ -8,7 +8,6 @@ import jax
 import sklearn.cluster
 import b3d
 import cv2
-from b3d.pose import Pose, Rot
 
 import inspect
 from pathlib import Path
@@ -18,6 +17,12 @@ import rerun as rr
 import distinctipy
 
 from sklearn.utils import Bunch
+
+# # # # # # # # # # # #
+#
+#  Core
+#
+# # # # # # # # # # # #
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])
@@ -38,6 +43,8 @@ def get_assets() -> Path:
 
 get_assets_path = get_assets
 
+def make_assets_path(subpath):
+    return get_assets() / subpath
 
 def get_shared() -> Path:
     """The absolute path of the assets directory on current machine"""
@@ -53,6 +60,39 @@ def get_shared() -> Path:
 def get_gcloud_bucket_ref() -> str:
     return "gs://b3d_bucket"
 
+
+def keysplit(key, *ns):
+    if len(ns) == 0:
+        return jax.random.split(key, 1)[0]
+    elif len(ns) == 1:
+        (n,) = ns
+        if n == 1:
+            return keysplit(key)
+        else:
+            return jax.random.split(key, ns[0])
+    else:
+        keys = []
+        for n in ns:
+            keys.append(keysplit(key, n))
+        return keys
+
+
+# # # # # # # # # # # #
+#
+#  Other
+#
+# # # # # # # # # # # #
+from b3d.pose import Pose, Rot
+from functools import partial
+# TODO: Refactor utils into core and others, to avoid circular imports
+
+
+@partial(jax.jit, static_argnums=1)
+def downsize_images(ims, k):
+    """Downsize an array of images by a given factor."""
+    shape = (ims.shape[1]//k, ims.shape[2]//k, ims.shape[3])
+    return jax.vmap(jax.image.resize, (0,None,None))(
+            ims, shape,"linear")
 
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
@@ -163,6 +203,8 @@ def get_rgb_pil_image(image, max=1.0):
         mode=image_type,
     ).convert("RGB")
     return img
+
+viz_rgb = get_rgb_pil_image
 
 def overlay_image(img_1, img_2, alpha=0.5):
     """Overlay two images.
@@ -357,12 +399,10 @@ def multivmap(f, args=None):
     return multivmapped
 
 
-def update_choices(trace, key, addr_const, *values):
-    addresses = addr_const.const
+def update_choices(trace, key, addresses, *values):
     return trace.update(
         key,
-        genjax.choice_map({addr: c for (addr, c) in zip(addresses, values)}),
-        genjax.Diff.tree_diff_unknown_change(trace.get_args()),
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses, values)})
     )[0]
 
 
@@ -428,7 +468,15 @@ def rr_init(name="demo"):
     rr.init(name)
     rr.connect("127.0.0.1:8812")
 
+def rr_log_rgb(channel, rgb):
+    rr.log(channel, rr.Image(rgb))
 
+def rr_log_depth(channel, depth):
+    rr.log(channel, rr.DepthImage(depth))
+
+def rr_log_rgbd(channel, rgbd):
+    rr_log_rgb(channel + "/rgb", rgbd[...,:3])
+    rr_log_depth(channel + "/depth", rgbd[...,3])
 
 def normalize_log_scores(log_p):
     """
@@ -540,20 +588,6 @@ def fit_table_plane(
     table_dims = jnp.array([width, height, 1e-10])
     return table_pose, table_dims
 
-def keysplit(key, *ns):
-    if len(ns) == 0:
-        return jax.random.split(key, 1)[0]
-    elif len(ns) == 1:
-        (n,) = ns
-        if n == 1:
-            return keysplit(key)
-        else:
-            return jax.random.split(key, ns[0])
-    else:
-        keys = []
-        for n in ns:
-            keys.append(keysplit(key, n))
-        return keys
 
 ### Triangle color mesh -> vertex color mesh ###
 def separate_shared_vertices(vertices, faces):

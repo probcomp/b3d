@@ -90,7 +90,7 @@ rr.set_time_sequence("frame", 0)
 for i in range(patch_vertices_P.shape[0]):
     rr.log("/3D/patch/{}".format(i), rr.Mesh3D(
         vertex_positions=Xs_WP[i].apply(patch_vertices_P[i]),
-        indices=patch_faces[i],
+        triangle_indices=patch_faces[i],
         vertex_colors=patch_vertex_colors[i]
     ))
 

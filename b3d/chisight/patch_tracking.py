@@ -5,7 +5,6 @@ import b3d
 import genjax
 from genjax import ChoiceMapBuilder as C
 import b3d.chisight.dense.differentiable_renderer as r
-import b3d.chisight.dense.model as m
 import b3d.chisight.dense.likelihoods as likelihoods
 import optax
 

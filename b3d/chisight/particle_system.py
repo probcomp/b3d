@@ -186,7 +186,7 @@ def make_dense_gps_model(likelihood):
 def visualize_particle_system(
         latent_particle_model_args, particle_dynamics_summary, final_state,
         *,
-        transform_Viz_World=Pose.identity(), # Transform the trace's world coordinate system to the
+        transform_Viz_Trace=Pose.identity(), # Transform the trace's world coordinate system to the
         # coordinate system used by the visualizers
         viz_prefix="trace"
     ):
@@ -211,8 +211,8 @@ def visualize_particle_system(
     cluster_colors = jnp.array(b3d.distinct_colors(num_clusters.const))
 
     rr.log(f"{viz_prefix}/3D", rr.Transform3D(
-        translation=transform_Viz_World.position,
-        rotation=transform_Viz_World.xyzw
+        translation=transform_Viz_Trace.position,
+        rotation=transform_Viz_Trace.xyzw
     ))
 
     for t in range(num_timesteps.const):

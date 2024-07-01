@@ -81,6 +81,13 @@ class Mesh:
     def __repr__(self) -> str:
         return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
 
+    def __len__(self):
+        assert len(self.vertices.shape) == 3, "This is not a batched mesh object."
+        return self.vertices.shape[0]
+
+    def __getitem__(self, index):
+        return Mesh(self.vertices[index], self.faces[index], self.vertex_attributes[index])
+
     merge_meshes = staticmethod(merge_meshes)
     merge_meshes_jit = staticmethod(merge_meshes_jit)
     transform_and_merge_meshes = staticmethod(transform_and_merge_meshes)

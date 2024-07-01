@@ -1,12 +1,11 @@
 import b3d
 from b3d.renderer.renderer_original import RendererOriginal
-from b3d.chisight.dense.dense_likelihood import DenseImageLikelihoodArgs, get_rgb_depth_inliers_from_observed_rendered_args
 import jax
 import jax.numpy as jnp
 import os
 from b3d import Pose, Mesh
 
-import b3d.chisight.shared.particle_system as ps
+import b3d.chisight.particle_system as ps
 import genjax
 from genjax import Pytree
 import jax
@@ -15,7 +14,7 @@ import b3d
 from genjax import ChoiceMapBuilder as C
 
 import importlib
-importlib.reload(b3d.chisight.shared.particle_system)
+importlib.reload(ps)
 
 
 def test_sparse_gps_simulate():

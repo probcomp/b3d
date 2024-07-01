@@ -34,7 +34,7 @@ class FeatureTrackData:
             (optional) object_assignments:           (N,) Int Array OR None
             (optional) camera_position:              (T, 3) Float Array OR None
             (optional) camera_quaternion:            (T, 4) Float Array OR None
-            
+
     Example:
     ```
     # Initialize
@@ -123,7 +123,7 @@ class FeatureTrackData:
 
     @property
     def rgb(self): return self.rgbd_images[...,:3]
-    
+
     @property
     def visibility(self): return self.keypoint_visibility
 
@@ -241,7 +241,7 @@ class FeatureTrackData:
 
     def __len__(self):
         return self.observed_keypoints_positions.shape[0]
-    
+
     def __getitem__(self, k):
         return FeatureTrackData(
             observed_keypoints_positions=self.observed_keypoints_positions[k],
@@ -256,7 +256,7 @@ class FeatureTrackData:
             camera_intrinsics=self.camera_intrinsics,
             fps=self.fps,
         )
-    
+
 
     def downscale(self, factor):
         """Downscales the rgbd images by the given factor."""
@@ -264,7 +264,7 @@ class FeatureTrackData:
         factor = int(factor)
         if factor == 1:
             return self
-        
+
         return FeatureTrackData(
             observed_keypoints_positions=self.observed_keypoints_positions / factor,
             observed_features=self.observed_features,
@@ -281,7 +281,7 @@ class FeatureTrackData:
 
     def has_depth_channel(self):
         return jnp.any(self.rgbd_images[..., 3] > 0.)
-    
+
     def remove_points_invisible_at_frame0(self):
         """
         Filter this FeatureTrackData to only include keypoints that are visible at frame 0.
@@ -323,7 +323,7 @@ class FeatureTrackData:
             camera_quaternion=self.camera_quaternion,
             camera_intrinsics=self.camera_intrinsics
         )
-    
+
     def min_2D_distance_at_frame0(self):
         """
         Returns the minimum 2D distance between any two keypoints at frame 0.
@@ -331,10 +331,10 @@ class FeatureTrackData:
         distances = jnp.linalg.norm(self.observed_keypoints_positions[None] - self.observed_keypoints_positions[:, None], axis=-1)
         distances = jnp.where(jnp.eye(distances.shape[0]) == 1., jnp.inf, distances)
         return jnp.min(distances)
-    
+
     def quick_plot(self, t=None, fname=None, ax=None, figsize=(3,3), downsize=10):
         if t is None: figsize = (figsize[0]*self.num_frames, figsize[1])
-    
+
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=figsize)
             ax.set_aspect(1)
@@ -346,7 +346,7 @@ class FeatureTrackData:
             ax.imshow(np.concatenate(rgb/255, axis=1))
             ax.scatter(*np.concatenate(
                 [
-                    self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize 
+                    self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize
                     for t in range(self.num_frames)
                 ]
             ).T, s=1)
@@ -392,6 +392,5 @@ def get_keypoint_filter(max_pixel_dist):
             i, keypoint_positions_2D = filter_step_i((i, keypoint_positions_2D))
 
         return jnp.where(jnp.all(keypoint_positions_2D != -1., axis=-1))[0]
-    
-    return filter_keypoint_positions
 
+    return filter_keypoint_positions

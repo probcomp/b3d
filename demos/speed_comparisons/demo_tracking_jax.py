@@ -103,7 +103,7 @@ pose_estimates_over_time = inference_program(poses[0], observed_images)
 end = time.time()
 print("Time elapsed:", end - start)
 print("FPS:", poses.shape[0] / (end - start))
- 
+
 # rerendered_images = b.RENDERER.render_many(
 #     pose_estimates_over_time[:, None, ...], jnp.array([0])
 # )
@@ -120,4 +120,3 @@ print("FPS:", poses.shape[0] / (end - start))
 #     for (r, d) in zip(rerendered_images, observed_images)
 # ]
 # b.make_gif_from_pil_images(viz_images, "assets/demo.gif")
-

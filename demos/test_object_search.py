@@ -245,7 +245,7 @@ for T_observed_image in tqdm(range(len(rgbs))):
         trace,
         key,
         genjax.Pytree.const(["observed_rgb_depth", "camera_pose", "object_1"]),
-        (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]), 
+        (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         poses[T_observed_image],
         1
     )

@@ -18,14 +18,14 @@ def tessellate(width, height):
     # Generate the x and y coordinates for all points
     x_coords = jnp.arange(num_points_x) - 1  # Shift x coordinates to extend on either side
     y_coords = jnp.arange(num_points_y) * (jnp.sqrt(3) / 2)
-    
+
     # Create a grid of x and y coordinates
     x_grid, y_grid = jnp.meshgrid(x_coords, y_coords)
-    
+
     # Apply offset to every other row
     offsets = jnp.arange(num_points_y) % 2 * 0.5
     x_grid = x_grid + offsets[:, None]
-    
+
     # Flatten the grid to get the vertices
     vertices = jnp.vstack((x_grid.ravel(), y_grid.ravel())).T
 
@@ -35,15 +35,15 @@ def tessellate(width, height):
         p1 = p0 + 1
         p2 = p0 + num_points_x
         p3 = p2 + 1
-        
+
         even_row_faces = jnp.stack([p0, p2, p1], axis=-1)
         even_row_faces = jnp.concatenate([even_row_faces, jnp.stack([p1[:-1], p2[:-1], p3[:-1]], axis=-1)], axis=0)
-        
+
         odd_row_faces = jnp.stack([p0, p3, p1], axis=-1)
         odd_row_faces = jnp.concatenate([odd_row_faces, jnp.stack([p0[1:], p2[1:], p3[1:]], axis=-1)], axis=0)
-        
+
         return jax.lax.cond(y % 2 == 0, lambda _: even_row_faces, lambda _: odd_row_faces, None)
-    
+
     faces = jax.vmap(generate_faces)(jnp.arange(num_points_y - 1))
     faces = faces.reshape(-1, 3)
 

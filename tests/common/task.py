@@ -27,7 +27,7 @@ class Task:
         Outputs `task_spec`, the input given to a task solver.
         """
         raise NotImplementedError()
-    
+
     def score(self, solution, **kwargs) -> "Any":
         """
         Scores an attempted solution ot the task, returning a collection of metrics.
@@ -42,14 +42,14 @@ class Task:
                 a collection of metrics measuring how well the given `solution` solves the task.
         """
         raise NotImplementedError()
-    
+
     @property
     def name(self) -> str:
         """
         Returns the name of the task.
         """
         return self.__class__.__name__
-    
+
     def assert_passing(self, scores, **kwargs) -> None:
         """
         Takes the output of `score` and makes assertions about the scores,
@@ -76,7 +76,7 @@ class Task:
         This may log data to rerun, produce pyplots, etc.
         """
         pass
-    
+
     def visualize_solution(self, solution, metrics):
         """
         Visualize a solution to the task.

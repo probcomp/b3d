@@ -83,4 +83,3 @@ for _ in range(num_timestep):
 end = time.time()
 print(sum_total)
 print(f"FPS: {num_timestep/(end-start)}")
-

@@ -58,7 +58,7 @@ class KeypointTrackingTask(Task):
     def instantiate(self):
         if self.instantiated:
             return
-        
+
         feature_track_data = self.feature_track_data_loader()
         if self.n_frames is not None:
             feature_track_data = feature_track_data.slice_time(end_frame=self.n_frames)
@@ -86,7 +86,7 @@ class KeypointTrackingTask(Task):
     @property
     def keypoint_positions_2D(self):
         return self.ftd.observed_keypoints_positions
-    
+
     @property
     def video(self):
         return self.ftd.rgbd_images

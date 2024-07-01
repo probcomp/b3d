@@ -48,7 +48,7 @@ class TrianglePosteriorGridApproximationTask(Task):
 
     def get_task_specification(self):
         video = self.get_video()
-        
+
         # Remove ground truth depth and size information from triangle,
         # by making the first vertex [0, 0, 0], and making
         # the edge v0->v1 have length 1
@@ -97,7 +97,7 @@ class TrianglePosteriorGridApproximationTask(Task):
         self.visualize_grid_approximation(jnp.exp(metrics["expected_log_posterior"]), name="expected_grid_posterior")
         self.visualize_log_grid_approximation_2D(partition, metrics["log_posterior_approximation"], name="log_grid_posterior_approximation")
         self.visualize_log_grid_approximation_2D(partition, metrics["expected_log_posterior"], name="expected_log_grid_posterior")
-    
+
     ### Scoring implementation ###
 
     def score_oneframe_grid_approximation(self, solution):
@@ -121,14 +121,14 @@ class TrianglePosteriorGridApproximationTask(Task):
         expected_posterior = jnp.zeros_like(partition[:-1])
         expected_posterior = expected_posterior.at[max_idx_before_region:min_idx_after_region].set(uniform_in_expected_region)
         expected_log_posterior = jnp.log(expected_posterior)
-        
+
         return {
             "mass_assigned_outside_expected_region": mass_assigned_outside_expected_region,
             "divergence_from_uniform_in_expected_region": divergence_from_uniform,
             "log_posterior_approximation": log_posterior_approximation,
             "expected_log_posterior": expected_log_posterior
         }
-        
+
     def _get_grid_partition(self):
         X_WC = self.camera_path[0]
         triangle_C = X_WC.inv().apply(self.foreground_triangle["vertices"])
@@ -184,7 +184,7 @@ class TrianglePosteriorGridApproximationTask(Task):
 
     def n_frames(self):
         return self.triangle_path.shape[0]
-    
+
     def visualize_log_grid_approximation_2D(self, partition, log_posterior_approximation, name="log_grid_posterior_approximation"):
         plt.plot(partition[:-1], log_posterior_approximation, label=name)
         plt.title("Log grid posterior approximation")
@@ -248,7 +248,7 @@ class TrianglePosteriorGridApproximationTask(Task):
             jnp.array([[0, len(faces)]]), vertex_colors
         )
         return image
-    
+
     def get_video(self):
         return jnp.stack([self.get_image_at_frame(i) for i in range(self.n_frames())])
 
@@ -307,7 +307,7 @@ class TrianglePosteriorGridApproximationTask(Task):
         ])
         face_colors = jnp.tile(rgb, (6, 1))
         return (vertices, faces, face_colors)
-    
+
     @staticmethod
     def get_default_renderer():
         image_width = 120; image_height = 100; fx = 50.0; fy = 50.0

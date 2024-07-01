@@ -65,13 +65,13 @@ def logpdf_uniform_pose(pose, low, high):
 
 def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     &#34;&#34;&#34;
-    Samples poses from the product of a diagonal normal distribution (for position) and 
+    Samples poses from the product of a diagonal normal distribution (for position) and
     a generalized von Mises-Fisher distribution (for quaternion).
-    
+
     Note:
-    One can view the von Mises–Fisher distribution over the n-sphere 
-    as the restriction of the normal distribution on R^{n+1} 
-    to the n-sphere. From this viewpoint the concentration is 
+    One can view the von Mises–Fisher distribution over the n-sphere
+    as the restriction of the normal distribution on R^{n+1}
+    to the n-sphere. From this viewpoint the concentration is
     approximateley the inverse of the variance.
 
     See:
@@ -153,7 +153,7 @@ class Pose:
         return Pose(
             self.pos,
             quat
-        ) 
+        )
 
     def quat_in_upper_hemisphere(self):
         quat = self.quat/ jnp.linalg.norm(self.quat,axis=-1,keepdims=True)
@@ -161,7 +161,7 @@ class Pose:
         return Pose(
             self.pos,
             quat
-        ) 
+        )
 
     def flatten(self):
         return self.pos, self.xyzw
@@ -176,7 +176,7 @@ class Pose:
     @property
     def flat(self):
         return self.flatten()
-    
+
     @property
     def shape(self):
         return self.pos.shape[:-1]
@@ -201,7 +201,7 @@ class Pose:
     @staticmethod
     def identity():
         &#34;&#34;&#34;Return the identity transformation.&#34;&#34;&#34;
-        return Pose(jnp.zeros(3), 
+        return Pose(jnp.zeros(3),
                     jnp.array([0., 0., 0., 1.]))
     eye = identity
 
@@ -215,7 +215,7 @@ class Pose:
 
     def compose(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
         &#34;&#34;&#34;Compose with other pose.&#34;&#34;&#34;
-        return Pose(self.apply(pose.pos), 
+        return Pose(self.apply(pose.pos),
                     multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
@@ -234,7 +234,7 @@ class Pose:
         &#34;&#34;&#34;Compose with other poses.&#34;&#34;&#34;
         # TODO: Add test, in particular to lock in matmul vs mul.
         return self.compose(pose)
-    
+
     @staticmethod
     def concatenate_poses(pose_list):
         return Pose(jnp.concatenate([pose.pos for pose in pose_list], axis=0),
@@ -250,17 +250,17 @@ class Pose:
         &#34;&#34;&#34;
         Inverse of pose.
 
-        Note that for rotation matrix R and 
+        Note that for rotation matrix R and
         translation vector x we have
         ```
             [[ R x ]  [[ R&#39; -R&#39;x ]  = [[ I  0 ]
              [ 0 1 ]]  [ 0    1  ]]      0  1 ]]
         ```
-        where R&#39; is the transpose of R.   
+        where R&#39; is the transpose of R.
         &#34;&#34;&#34;
         R_inv = Rot.from_quat(self.xyzw).inv()
         return Pose(
-            -R_inv.apply(self.pos), 
+            -R_inv.apply(self.pos),
              R_inv.as_quat()
         )
     inverse = inv
@@ -438,13 +438,13 @@ approximateley the inverse of the variance.</p>
 </summary>
 <pre><code class="python">def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     &#34;&#34;&#34;
-    Samples poses from the product of a diagonal normal distribution (for position) and 
+    Samples poses from the product of a diagonal normal distribution (for position) and
     a generalized von Mises-Fisher distribution (for quaternion).
-    
+
     Note:
-    One can view the von Mises–Fisher distribution over the n-sphere 
-    as the restriction of the normal distribution on R^{n+1} 
-    to the n-sphere. From this viewpoint the concentration is 
+    One can view the von Mises–Fisher distribution over the n-sphere
+    as the restriction of the normal distribution on R^{n+1}
+    to the n-sphere. From this viewpoint the concentration is
     approximateley the inverse of the variance.
 
     See:
@@ -534,7 +534,7 @@ class Pose:
         return Pose(
             self.pos,
             quat
-        ) 
+        )
 
     def quat_in_upper_hemisphere(self):
         quat = self.quat/ jnp.linalg.norm(self.quat,axis=-1,keepdims=True)
@@ -542,7 +542,7 @@ class Pose:
         return Pose(
             self.pos,
             quat
-        ) 
+        )
 
     def flatten(self):
         return self.pos, self.xyzw
@@ -557,7 +557,7 @@ class Pose:
     @property
     def flat(self):
         return self.flatten()
-    
+
     @property
     def shape(self):
         return self.pos.shape[:-1]
@@ -582,7 +582,7 @@ class Pose:
     @staticmethod
     def identity():
         &#34;&#34;&#34;Return the identity transformation.&#34;&#34;&#34;
-        return Pose(jnp.zeros(3), 
+        return Pose(jnp.zeros(3),
                     jnp.array([0., 0., 0., 1.]))
     eye = identity
 
@@ -596,7 +596,7 @@ class Pose:
 
     def compose(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
         &#34;&#34;&#34;Compose with other pose.&#34;&#34;&#34;
-        return Pose(self.apply(pose.pos), 
+        return Pose(self.apply(pose.pos),
                     multiply_quats(self.xyzw, pose.xyzw))
 
     def __add__(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
@@ -615,7 +615,7 @@ class Pose:
         &#34;&#34;&#34;Compose with other poses.&#34;&#34;&#34;
         # TODO: Add test, in particular to lock in matmul vs mul.
         return self.compose(pose)
-    
+
     @staticmethod
     def concatenate_poses(pose_list):
         return Pose(jnp.concatenate([pose.pos for pose in pose_list], axis=0),
@@ -631,17 +631,17 @@ class Pose:
         &#34;&#34;&#34;
         Inverse of pose.
 
-        Note that for rotation matrix R and 
+        Note that for rotation matrix R and
         translation vector x we have
         ```
             [[ R x ]  [[ R&#39; -R&#39;x ]  = [[ I  0 ]
              [ 0 1 ]]  [ 0    1  ]]      0  1 ]]
         ```
-        where R&#39; is the transpose of R.   
+        where R&#39; is the transpose of R.
         &#34;&#34;&#34;
         R_inv = Rot.from_quat(self.xyzw).inv()
         return Pose(
-            -R_inv.apply(self.pos), 
+            -R_inv.apply(self.pos),
              R_inv.as_quat()
         )
     inverse = inv
@@ -742,7 +742,7 @@ def concatenate_poses(pose_list):
 <pre><code class="python">@staticmethod
 def identity():
     &#34;&#34;&#34;Return the identity transformation.&#34;&#34;&#34;
-    return Pose(jnp.zeros(3), 
+    return Pose(jnp.zeros(3),
                 jnp.array([0., 0., 0., 1.]))</code></pre>
 </details>
 </dd>
@@ -865,7 +865,7 @@ def from_xyzw(xyzw):
 <pre><code class="python">@staticmethod
 def identity():
     &#34;&#34;&#34;Return the identity transformation.&#34;&#34;&#34;
-    return Pose(jnp.zeros(3), 
+    return Pose(jnp.zeros(3),
                 jnp.array([0., 0., 0., 1.]))</code></pre>
 </details>
 </dd>
@@ -1061,7 +1061,7 @@ def xyzw(self): return self._quaternion</code></pre>
 </summary>
 <pre><code class="python">def compose(self, pose: &#34;Pose&#34;) -&gt; &#34;Pose&#34;:
     &#34;&#34;&#34;Compose with other pose.&#34;&#34;&#34;
-    return Pose(self.apply(pose.pos), 
+    return Pose(self.apply(pose.pos),
                 multiply_quats(self.xyzw, pose.xyzw))</code></pre>
 </details>
 </dd>
@@ -1164,17 +1164,17 @@ translation vector x we have</p>
     &#34;&#34;&#34;
     Inverse of pose.
 
-    Note that for rotation matrix R and 
+    Note that for rotation matrix R and
     translation vector x we have
     ```
         [[ R x ]  [[ R&#39; -R&#39;x ]  = [[ I  0 ]
          [ 0 1 ]]  [ 0    1  ]]      0  1 ]]
     ```
-    where R&#39; is the transpose of R.   
+    where R&#39; is the transpose of R.
     &#34;&#34;&#34;
     R_inv = Rot.from_quat(self.xyzw).inv()
     return Pose(
-        -R_inv.apply(self.pos), 
+        -R_inv.apply(self.pos),
          R_inv.as_quat()
     )</code></pre>
 </details>
@@ -1198,17 +1198,17 @@ translation vector x we have</p>
     &#34;&#34;&#34;
     Inverse of pose.
 
-    Note that for rotation matrix R and 
+    Note that for rotation matrix R and
     translation vector x we have
     ```
         [[ R x ]  [[ R&#39; -R&#39;x ]  = [[ I  0 ]
          [ 0 1 ]]  [ 0    1  ]]      0  1 ]]
     ```
-    where R&#39; is the transpose of R.   
+    where R&#39; is the transpose of R.
     &#34;&#34;&#34;
     R_inv = Rot.from_quat(self.xyzw).inv()
     return Pose(
-        -R_inv.apply(self.pos), 
+        -R_inv.apply(self.pos),
          R_inv.as_quat()
     )</code></pre>
 </details>
@@ -1269,13 +1269,13 @@ approximateley the inverse of the variance.</p>
 </summary>
 <pre><code class="python">def sample_gaussian_vmf_pose(key, mean_pose, variance, concentration):
     &#34;&#34;&#34;
-    Samples poses from the product of a diagonal normal distribution (for position) and 
+    Samples poses from the product of a diagonal normal distribution (for position) and
     a generalized von Mises-Fisher distribution (for quaternion).
-    
+
     Note:
-    One can view the von Mises–Fisher distribution over the n-sphere 
-    as the restriction of the normal distribution on R^{n+1} 
-    to the n-sphere. From this viewpoint the concentration is 
+    One can view the von Mises–Fisher distribution over the n-sphere
+    as the restriction of the normal distribution on R^{n+1}
+    to the n-sphere. From this viewpoint the concentration is
     approximateley the inverse of the variance.
 
     See:

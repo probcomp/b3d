@@ -95,7 +95,7 @@ class KeypointsToSegmentationTask(Task):
                 "fraction_pairwise_assignments_correct": fraction_pairwise_assignments_correct
             }
         }
-    
+
     def assert_passing(self, scores):
         pass
         # TODO: fill this in

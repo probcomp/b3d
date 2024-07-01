@@ -32,7 +32,7 @@ class Pose:
     def __init__(self, positions, quaternions):
         self.positions = positions
         self.quaternions = quaternions
-    
+
     def apply(self, xyz):
         quaternions = self.quaternions
         positions = self.positions
@@ -105,4 +105,3 @@ for t in pbar:
     rr.log("reconstruction", rr.DepthImage(reconstruction))
     rr.log("overlay/reconstruction", rr.DepthImage(reconstruction))
     rr.log("xyz/overlay", rr.Points3D(xyz.detach().cpu().numpy()))
-

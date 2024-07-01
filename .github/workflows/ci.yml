@@ -1,0 +1,74 @@
+name: Codebase tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  XLA_FLAGS: --xla_gpu_enable_command_buffer=
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_ALLOCATOR: "platform"
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        runner: [ParallelHoss]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev ffmpeg
+          version: 1.0
+
+      # See https://github.com/Jimver/cuda-toolkit/blob/master/src/links/linux-links.ts
+      # for available versions
+      - uses: Jimver/cuda-toolkit@v0.2.16
+        id: cuda-toolkit
+        with:
+          cuda: '12.4.0'
+          linux-local-args: '["--toolkit"]'
+          method: 'network'
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.5
+          cache: 'pip'
+          cache-dependency-path: setup.py
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Cache b3d assets
+        uses: actions/cache@v4
+        with:
+          path: assets
+          key: ${{ runner.os }}-${{ matrix.runner }}-assets
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
+
+      - name: Install Python dependencies
+        run: |
+          pip install keyring keyrings.google-artifactregistry-auth
+          pip install -e . --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
+
+      - name: Download test assets
+        run: b3d_pull
+
+      - name: Create test results directory
+        run: mkdir -p assets/test_results
+
+      - name: Run Tests
+        run: ./run_tests.sh

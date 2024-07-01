@@ -28,5 +28,3 @@ def depreciated(msg):
         return wrapper
 
     return decorator
-
-

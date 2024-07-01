@@ -90,7 +90,7 @@ def make_sparse_gps_model(
 
         # Updated camera pose in world coordinates
         new_camera_pose = (
-            camera_motion_model(camera_pose, *camera_motion_model_args) 
+            camera_motion_model(camera_pose, *camera_motion_model_args)
             @ "camera_pose"
         )
 
@@ -99,7 +99,7 @@ def make_sparse_gps_model(
             genjax.bernoulli.vmap(in_axes=(0,))(jnp.repeat(jax.scipy.special.logit(0.5), N))
             @ "visibility"
         )
-        
+
         _observation = (
             observation_model(
                 vis_mask,
@@ -147,7 +147,7 @@ def make_sparse_gps_model(
 
         # Initial camera pose in world coordinates
         initial_camera_pose = (
-            camera_pose_prior(*camera_pose_prior_args) 
+            camera_pose_prior(*camera_pose_prior_args)
             @ "initial_camera_pose"
         )
 
@@ -222,7 +222,7 @@ def get_object_poses(tr: SparseGPSModelTrace):
                 tr.get_choices()("chain").c("object_poses").c.v)
 
 def get_cameras(tr: SparseGPSModelTrace):
-    return tr.get_choices()("initial_camera_pose").v[None].concat( 
+    return tr.get_choices()("initial_camera_pose").v[None].concat(
                 tr.get_choices()("chain").c("camera_pose").v)
 
 def get_observations(tr: SparseGPSModelTrace):
@@ -271,11 +271,11 @@ from genjax._src.core.generative.choice_map import EmptyChm
 def set_camera_choice(t, cam: Pose, ch=None):
     if ch is None: ch = C.n()
 
-    
+
     if t == Ellipsis:
         ch = ch.merge(C["initial_camera"].set(cam[0]))
         ch = ch.merge(C["chain", jnp.arange(cam.shape[0]-1), "camera"].set(cam[1:]))
-    
+
     else:
         if t == 0:
             ch = ch.merge(C["initial_camera"].set(cam))
@@ -301,9 +301,9 @@ def set_sensor_coordinates_choice(t, uvs, ch=None):
 
     if t == Ellipsis:
         ch = ch.merge(C["initial_observation", "sensor_coordinates"].set(uvs[0]))
-        ch = ch.merge(C["chain", 
-                        jnp.arange(uvs.shape[0]-1), 
-                        "observation", 
+        ch = ch.merge(C["chain",
+                        jnp.arange(uvs.shape[0]-1),
+                        "observation",
                         "sensor_coordinates"].set(uvs))
     else:
         if t == 0:
@@ -318,6 +318,3 @@ def set_sensor_coordinates_choice(t, uvs, ch=None):
 #   Pre-configured model factory
 #
 # # # # # # # # # # # # # # # # # # # # # #
-
-
-

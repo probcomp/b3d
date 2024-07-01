@@ -167,7 +167,7 @@ class Renderer(object):
 
     def rasterize(self, pose, vertices, faces, ranges):
         &#34;&#34;&#34;
-        Rasterize a singe scene. 
+        Rasterize a singe scene.
 
         Parameters:
             poses: float array, shape (num_objects, 4, 4)
@@ -225,7 +225,7 @@ class Renderer(object):
         image = interpolated_values * mask[...,None]
         #  + (1 - mask[...,None]) * 1.0
         return image, zs
-    
+
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
         &#34;&#34;&#34;
         Render a single scenes to an image by rasterizing and then interpolating attributes.
@@ -475,7 +475,7 @@ def _build_rasterize_bwd_primitive(r: &#34;Renderer&#34;):
         opaque = dr._get_plugin(gl=True).build_diff_rasterize_bwd_descriptor(
             [num_images, num_objects, num_vertices, num_triangles, height, width]
         )
-        
+
         np_dtype = np.dtype(poses_aval.dtype)
         out_shp_dtype = mlir.ir.RankedTensorType.get(
             [num_images, num_objects, 4, 4],
@@ -530,7 +530,7 @@ def _build_rasterize_bwd_primitive(r: &#34;Renderer&#34;):
 # @functools.partial(jax.jit, static_argnums=(0,))
 def _interpolate_fwd_custom_call(
     r: &#34;Renderer&#34;,
-    attributes, uvs, triangle_ids, faces, 
+    attributes, uvs, triangle_ids, faces,
 ):
     return _build_interpolate_fwd_primitive(r).bind(
         attributes, uvs, triangle_ids, faces
@@ -544,7 +544,7 @@ def _build_interpolate_fwd_primitive(r: &#34;Renderer&#34;):
     # outputs of our op for some given inputs
 
     def _interpolate_fwd_abstract(
-        attributes, uvs, triangle_ids, faces, 
+        attributes, uvs, triangle_ids, faces,
     ):
 
         num_vertices, num_attributes = attributes.shape
@@ -570,7 +570,7 @@ def _build_interpolate_fwd_primitive(r: &#34;Renderer&#34;):
         num_triangles = faces_aval.shape[0]
 
         np_dtype = np.dtype(uvs_aval.dtype)
-    
+
         out_shp_dtype = mlir.ir.RankedTensorType.get(
             [num_images, height, width, num_attributes], mlir.dtype_to_ir_type(np_dtype)
         )
@@ -618,7 +618,7 @@ def _build_interpolate_fwd_primitive(r: &#34;Renderer&#34;):
         uvs = uvs.reshape(uvs.shape[0] * uvs.shape[1], *uvs.shape[2:])
         triangle_ids = triangle_ids.reshape(triangle_ids.shape[0] * triangle_ids.shape[1], *triangle_ids.shape[2:])
 
-        image = _interpolate_fwd_custom_call(r, 
+        image = _interpolate_fwd_custom_call(r,
             attributes, uvs, triangle_ids, faces)[0]
 
         image = image.reshape(size_1, size_2, *image.shape[1:])
@@ -993,7 +993,7 @@ Number of layers in the depth buffer.</p></div>
 
     def rasterize(self, pose, vertices, faces, ranges):
         &#34;&#34;&#34;
-        Rasterize a singe scene. 
+        Rasterize a singe scene.
 
         Parameters:
             poses: float array, shape (num_objects, 4, 4)
@@ -1051,7 +1051,7 @@ Number of layers in the depth buffer.</p></div>
         image = interpolated_values * mask[...,None]
         #  + (1 - mask[...,None]) * 1.0
         return image, zs
-    
+
     def render_attribute(self, pose, vertices, faces, ranges, attributes):
         &#34;&#34;&#34;
         Render a single scenes to an image by rasterizing and then interpolating attributes.
@@ -1136,7 +1136,7 @@ Depth of the intersection point. Zero if the pixel ray doesn't collide a triangl
 </summary>
 <pre><code class="python">def rasterize(self, pose, vertices, faces, ranges):
     &#34;&#34;&#34;
-    Rasterize a singe scene. 
+    Rasterize a singe scene.
 
     Parameters:
         poses: float array, shape (num_objects, 4, 4)

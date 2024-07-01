@@ -107,4 +107,3 @@ for t in pbar:
 print(jnp.abs(pixel_coords - gt_pixel_coordinates))
 print(jnp.abs(pixel_coords - gt_pixel_coordinates).max())
 print(jnp.abs(pixel_coords - gt_pixel_coordinates).max())
-

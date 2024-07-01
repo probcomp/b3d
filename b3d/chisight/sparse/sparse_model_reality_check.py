@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import genjax
 import jax
-import jax.numpy as jnp 
+import jax.numpy as jnp
 from b3d.utils import keysplit
 from b3d.camera import Intrinsics, screen_from_camera
 from b3d.pose import Pose, camera_from_position_and_target

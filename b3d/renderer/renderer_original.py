@@ -141,7 +141,7 @@ class RendererOriginal(object):
     def render_many(self, pos, tri, attr):
         rast = self.rasterize_many(pos, tri)
         return self.interpolate_many(attr, rast, tri)
-    
+
     def render(self, pos, tri, attr):
         return self.render_many(pos[None,...], tri, attr[None,...])[0]
 
@@ -156,10 +156,10 @@ class RendererOriginal(object):
             pos[None,...], tri,
             attr[None,...]
         )[0]
-    
+
     def render_rgbd_from_mesh(self, mesh):
         return self.render_rgbd(mesh.vertices, mesh.faces, mesh.vertex_attributes)
-    
+
     @staticmethod
     def rr_log_rgbd(channel, rgbd):
         b3d.rr_log_rgbd(channel, rgbd)
@@ -391,7 +391,7 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
         original_shape = attributes.shape
         attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
         rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
-        
+
         rendered, = _interpolate_fwd_custom_call(
             r, attributes_reshaped, rast_reshaped, faces
         )

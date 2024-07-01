@@ -9,7 +9,7 @@ import b3d
 from tqdm import tqdm
 import trimesh
 import genjax
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 
 ### Choose experiment
 
@@ -30,21 +30,21 @@ rr.connect(addr=f"127.0.0.1:{PORT}")
 print(f"Running with input {INPUT}")
 if "fork" in INPUT:
     video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_fork.npz")
-    if "visible" in INPUT: 
+    if "visible" in INPUT:
         T = 1
-    elif "occluded" in INPUT: 
-        T = 8    
+    elif "occluded" in INPUT:
+        T = 8
 elif "knife" in INPUT:
     video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_knife.npz")
-    if "visible" in INPUT: 
+    if "visible" in INPUT:
         T = 1
-    elif "occluded" in INPUT: 
-        T = 0   
+    elif "occluded" in INPUT:
+        T = 0
 else:
     raise ValueError(f"Unknown input {INPUT}")
 
 
-### Build meshes / object library 
+### Build meshes / object library
 
 fork_path = os.path.join(
     b3d.get_root_path(),
@@ -128,7 +128,7 @@ model = b3d.model_multiobject_gl_factory(renderer, b3d.rgbd_sensor_model)
 importance_jit = jax.jit(model.importance)
 key = jax.random.PRNGKey(110)
 
-### initialize pose hypothesis just based on depth info 
+### initialize pose hypothesis just based on depth info
 
 # masked_depth = depth * (depth != scene_depth)
 # point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy)
@@ -176,12 +176,12 @@ trace, _ = importance_jit(
         {
             "camera_pose": Pose.identity(),
             "object_pose_0": Pose.sample_gaussian_vmf_pose(
-                key, Pose.from_translation(object_center_hypothesis), 
-                0.00001, concentration,   
+                key, Pose.from_translation(object_center_hypothesis),
+                0.00001, concentration,
                 # TODO
-                # if rotation is not tightly constrained with a high concentration 
+                # if rotation is not tightly constrained with a high concentration
                 # for this initial vmf sampling (which can generate any angle)
-                # then it is hard to correct a large deviation via gridding, 
+                # then it is hard to correct a large deviation via gridding,
                 # which is restricted to contact angles
             ),
             "object_pose_1": occluder_pose_in_camera_frame,
@@ -193,7 +193,7 @@ trace, _ = importance_jit(
 )
 
 ### initialize trace corresponding to each object; will do c2f on these
-trace_fork = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_0"]), FORK_ID) 
+trace_fork = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_0"]), FORK_ID)
 trace_knife = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_0"]), KNIFE_ID)
 b3d.rerun_visualize_trace_t(trace_fork, 0)
 b3d.rerun_visualize_trace_t(trace_knife, 1)
@@ -209,15 +209,15 @@ num_samples = 5000
 
 def gvmf_c2f(trace, key, params):
     skips = 0
-    for t in tqdm(range(30)):    
+    for t in tqdm(range(30)):
         (
             trace_new_pose,
             key,
         ) = b3d.gvmf_and_sample(
-            trace, key, params[0], params[1], 
+            trace, key, params[0], params[1],
             genjax.Pytree.const("object_pose_0"), num_samples
         )
-        
+
         if trace_new_pose.get_score() > trace.get_score():
             trace = trace_new_pose
             # b3d.rerun_visualize_trace_t(trace, 0)
@@ -230,7 +230,7 @@ def gvmf_c2f(trace, key, params):
                 print(f"skip {t}")
                 break
     return trace, key
-        
+
 trace_fork, key = gvmf_c2f(trace_fork, key, init_params)
 trace_knife, key = gvmf_c2f(trace_knife, key, init_params)
 b3d.rerun_visualize_trace_t(trace_fork, 0)
@@ -248,7 +248,7 @@ delta_cps = jnp.stack(
 ).reshape(-1, 3)
 
 contact_parameters_to_pose_camspace = lambda cp: b3d.Pose(
-    jnp.array([cp[0], 0.0, cp[1]]),  # fixed height (y) at 0 for table 
+    jnp.array([cp[0], 0.0, cp[1]]),  # fixed height (y) at 0 for table
     b3d.Rot.from_rotvec(jnp.array([0.0, cp[2], 0.0])).as_quat(),
 )
 cp_delta_poses = jax.vmap(contact_parameters_to_pose_camspace)(delta_cps)
@@ -286,7 +286,7 @@ def grid_c2f(trace, key):
             test_poses[samples[0]],
         )
         print("Sampled Angle Range:", samples_deg_range)
-        
+
         return trace, key, test_poses, samples
 
 trace_fork, key, test_poses, samples = grid_c2f(trace_fork, key)
@@ -312,7 +312,7 @@ print("Normalized scores: ", b3d.normalize_log_scores(jnp.array([trace_fork.get_
 # ############
 
 # for t in range(len(fork_samples)):
-    
+
 #     # fork posterior samples
 #     _fork_viz = b3d.update_choices_jit(
 #         trace_fork,
@@ -321,8 +321,8 @@ print("Normalized scores: ", b3d.normalize_log_scores(jnp.array([trace_fork.get_
 #         fork_test_poses[fork_samples[t]],
 #     )
 #     b3d.rerun_visualize_trace_t(_fork_viz, 2*t)
-    
-#     # knife posterior samples 
+
+#     # knife posterior samples
 #     _knife_viz = b3d.update_choices_jit(
 #         trace_knife,
 #         key,
@@ -330,6 +330,6 @@ print("Normalized scores: ", b3d.normalize_log_scores(jnp.array([trace_fork.get_
 #         knife_test_poses[knife_samples[t]],
 #     )
 #     b3d.rerun_visualize_trace_t(_knife_viz, 2*t+1)
-    
-    
+
+
 # from IPython import embed; embed()

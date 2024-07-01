@@ -44,7 +44,7 @@ ranges_jax = jnp.array([[0, len(faces_jax)]])
 
 def render(vertices_jax_4, faces_jax):
     rast_out, _ = dr.rasterize(
-        glctx, 
+        glctx,
         convert_to_torch(vertices_jax_4)[None,...],
         convert_to_torch(faces_jax),
         resolution=[resolution, resolution]
@@ -52,5 +52,3 @@ def render(vertices_jax_4, faces_jax):
     return convert_to_jax(rast_out)
 
 render(vertices_jax_4, faces_jax)
-
-

@@ -4,7 +4,7 @@ import trimesh
 import jax.numpy as jnp
 import jax
 import matplotlib.pyplot as plt
-import os 
+import os
 
 width = 200
 height = 200
@@ -15,7 +15,7 @@ cy = 100.0
 near = 0.001
 far = 16.0
 
-renderer = b3d.Renderer(int(width), int(height), fx, fy, cx, cy, near, far) 
+renderer = b3d.Renderer(int(width), int(height), fx, fy, cx, cy, near, far)
 
 ## rerun for mesh viz
 import rerun as rr
@@ -57,7 +57,7 @@ occluder_pose = b3d.Pose.from_pos(jnp.array([0.0, 0.05, 0.3]))
 NUM_IMAGES = 10
 
 contact_parameters_to_pose = lambda cp: b3d.Pose(
-    jnp.array([cp[0], 0.0, cp[1]]),  # fixed height (y) at 0 for table 
+    jnp.array([cp[0], 0.0, cp[1]]),  # fixed height (y) at 0 for table
     b3d.Rot.from_rotvec(jnp.array([0.0, cp[2], 0.0])).as_quat(),
 )
 
@@ -66,8 +66,8 @@ get_scene_poses = lambda obj_cp: b3d.Pose.stack_poses([
 ])
 
 w = 0.2
-cps = jax.random.uniform(jax.random.PRNGKey(110), (NUM_IMAGES, 3), 
-                         minval=jnp.array([-w,-w,0]), 
+cps = jax.random.uniform(jax.random.PRNGKey(110), (NUM_IMAGES, 3),
+                         minval=jnp.array([-w,-w,0]),
                          maxval=jnp.array([w, w, jnp.pi]))
 scene_poses = jax.vmap(get_scene_poses)(cps)
 scene_poses_in_camera = camera_pose.inv() @ scene_poses
@@ -102,17 +102,17 @@ rr.log(
 
 ## render scene with fork/knife
 rgbs_fork, depths_fork = renderer.render_attribute_many(
-                                            scene_poses_in_camera, 
+                                            scene_poses_in_camera,
                                             object_library.vertices,
-                                            object_library.faces, 
-                                            object_library.ranges[jnp.array([0,1])], 
+                                            object_library.faces,
+                                            object_library.ranges[jnp.array([0,1])],
                                             object_library.attributes
                                         )
 
-rgbs_knife, depths_knife = renderer.render_attribute_many(scene_poses_in_camera, 
-                                                          object_library.vertices, 
-                                                          object_library.faces, 
-                                                        object_library.ranges[jnp.array([0,2])], 
+rgbs_knife, depths_knife = renderer.render_attribute_many(scene_poses_in_camera,
+                                                          object_library.vertices,
+                                                          object_library.faces,
+                                                        object_library.ranges[jnp.array([0,2])],
                                                         object_library.attributes)
 
 rr.log("fork", rr.Image(rgbs_fork[0]))
@@ -135,7 +135,7 @@ data_knife = b3d.io.VideoInput(
     camera_intrinsics_depth=jnp.array([width, height, fx, fy, cx, cy, near, far])
 )
 
-data_fork.save(os.path.join(b3d.get_root_path(), 
+data_fork.save(os.path.join(b3d.get_root_path(),
                             "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_fork.npz"))
-data_knife.save(os.path.join(b3d.get_root_path(), 
+data_knife.save(os.path.join(b3d.get_root_path(),
                             "assets/shared_data_bucket/datasets/identity_uncertainty_fork_knife_knife.npz"))

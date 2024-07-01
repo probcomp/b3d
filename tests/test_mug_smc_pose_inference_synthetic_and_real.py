@@ -232,5 +232,3 @@ def test_renderer_full(renderer):
             bayes3d.rerun_visualize_trace_t(trace, counter)
             counter += 1
             rr.log("/alternate_view_image",rr.Image(alternate_view_images[t]))
-
-

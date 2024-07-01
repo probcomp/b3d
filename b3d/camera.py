@@ -31,7 +31,7 @@ class Intrinsics(NamedTuple):
     def as_array(self):
         """Returns intrinsics as a float array."""
         return jnp.array(self)
-    
+
     def downscale(self, factor):
         return Intrinsics(
             self.width // factor,

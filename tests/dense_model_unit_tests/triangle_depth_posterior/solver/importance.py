@@ -81,12 +81,12 @@ class ImportanceSolver(Solver):
 
         partition_starts = partition[:-1]
         partition_ends = partition[1:]
-        
+
         @jax.jit
         def get_tr_and_score(k, s, e):
             tr, score = importance_sample_with_depth_in_partition(k, task_input, model, s, e)
             return (tr, score)
-        
+
         trs_and_scores = [
             get_tr_and_score(k, s, e) for (k, s, e) in zip(jax.random.split(key, len(partition_starts)), partition_starts, partition_ends)
         ]

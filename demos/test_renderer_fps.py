@@ -96,7 +96,7 @@ for resolution in resolutions:
     render_jit = jax.jit(renderer.rasterize)
     num_timestep = 1000
     resolution_array = jnp.array([resolution, resolution]).astype(jnp.int32)
-    sum = 0 
+    sum = 0
     start = time.time()
     for _ in range(num_timestep):
         output, = render_jit(
@@ -145,5 +145,3 @@ for resolution in resolutions:
     end = time.time()
 
     print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
-
-

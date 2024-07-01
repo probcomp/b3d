@@ -117,7 +117,7 @@ def render_from_centers(new_particle_centers):
 
 def compute_logpdf(centers):
     weights, colors = render_to_dist_from_centers(centers)
-    return likelihood.logpdf(color_image, weights, colors)    
+    return likelihood.logpdf(color_image, weights, colors)
 
 @jax.jit
 def square2_pos_to_logpdf(xy):
@@ -170,7 +170,7 @@ def MALA_step(key, current_centers, sigma):
     g = jax.grad(compute_logpdf)(current_centers)
     stepped = current_centers + sigma**2 * g
     noised = genjax.normal.sample(key, stepped, jnp.sqrt(2) * sigma)
-    
+
     # compute acceptance probability
     logpdf_current = compute_logpdf(current_centers)
     logpdf_stepped = compute_logpdf(noised)

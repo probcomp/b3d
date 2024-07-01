@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import genjax
 from genjax import gen
-from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.pose import uniform_pose_in_ball
@@ -193,8 +192,13 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
 
 
 
-def make_dense_gps_model(renderer):
-    dense_observation_model = make_dense_observation_model(renderer)
+def make_dense_gps_model(likelihood):
+    """
+    The provided likelihood should be a Generative Function with
+    one latent choice at address `"obs"`, which accepts `(mesh, other_args)` as input,
+    and outputs `(image, metadata)`.
+    The value `image` should be sampled at `"obs"`.
+    """
 
     @genjax.gen
     def dense_gps_model(latent_particle_model_args, dense_likelihood_args):
@@ -209,7 +213,7 @@ def make_dense_gps_model(renderer):
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
+        image = likelihood(merged_mesh, likelihood_args) @ "obs"
         return (latent_dynamics_summary, image)
 
     return dense_gps_model

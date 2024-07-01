@@ -36,3 +36,7 @@ def tfp_distribution(dist):
         return jnp.sum(d.log_prob(v))
 
     return genjax.exact_density(sampler, logpdf)
+
+categorical = tfp_distribution(lambda logits: tfp.distributions.Categorical(logits=logits))
+bernoulli = tfp_distribution(lambda logits: tfp.distributions.Bernoulli(logits=logits))
+normal = tfp_distribution(tfp.distributions.Normal)

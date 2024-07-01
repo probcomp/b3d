@@ -43,6 +43,8 @@ def get_assets() -> Path:
 
 get_assets_path = get_assets
 
+def make_assets_path(subpath):
+    return get_assets() / subpath
 
 def get_shared() -> Path:
     """The absolute path of the assets directory on current machine"""
@@ -201,6 +203,8 @@ def get_rgb_pil_image(image, max=1.0):
         mode=image_type,
     ).convert("RGB")
     return img
+
+viz_rgb = get_rgb_pil_image
 
 def overlay_image(img_1, img_2, alpha=0.5):
     """Overlay two images.
@@ -464,7 +468,15 @@ def rr_init(name="demo"):
     rr.init(name)
     rr.connect("127.0.0.1:8812")
 
+def rr_log_rgb(channel, rgb):
+    rr.log(channel, rr.Image(rgb))
 
+def rr_log_depth(channel, depth):
+    rr.log(channel, rr.DepthImage(depth))
+
+def rr_log_rgbd(channel, rgbd):
+    rr_log_rgb(channel + "/rgb", rgbd[...,:3])
+    rr_log_depth(channel + "/depth", rgbd[...,3])
 
 def normalize_log_scores(log_p):
     """

@@ -12,6 +12,7 @@ import functools
 import os
 import b3d
 import b3d.renderer.nvdiffrast_jax.nvdiffrast.jax as dr
+import rerun as rr
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
@@ -155,6 +156,13 @@ class RendererOriginal(object):
             pos[None,...], tri,
             attr[None,...]
         )[0]
+    
+    def render_rgbd_from_mesh(self, mesh):
+        return self.render_rgbd(mesh.vertices, mesh.faces, mesh.vertex_attributes)
+    
+    @staticmethod
+    def rr_log_rgbd(channel, rgbd):
+        b3d.rr_log_rgbd(channel, rgbd)
 
 # XLA array layout in memory
 def default_layouts(*shapes):
@@ -236,11 +244,11 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
             mlir.dtype_to_ir_type(np_dtype),
         )
 
-        opaque = dr._get_plugin(gl=True).build_diff_rasterize_fwd_descriptor(
+        opaque = dr._get_plugin(gl=True).build_diff_rasterize_fwd_descriptor_original(
             r.renderer_env.cpp_wrapper, [num_images, num_vertices, num_triangles]
         )
 
-        op_name = "jax_rasterize_fwd_gl"
+        op_name = "jax_rasterize_fwd_gl_original"
 
         return custom_call(
             op_name,
@@ -262,6 +270,21 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
             ),
         ).results
 
+
+    def _render_batch(args, axes):
+        pos, tri, resolution = args
+
+        original_shape = pos.shape
+        pos_reshaped = pos.reshape(-1, *pos.shape[-2:])
+
+        rendered, = _rasterize_fwd_custom_call(
+            r, pos_reshaped, tri, resolution
+        )
+
+        rendered_reshaped = rendered.reshape(*pos.shape[:-2],*rendered.shape[-3:])
+        out_axes = (0,)
+        return (rendered_reshaped,), out_axes
+
     # *********************************************
     # *  REGISTER THE OP WITH JAX  *
     # *********************************************
@@ -269,6 +292,8 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     _rasterize_prim.multiple_results = True
     _rasterize_prim.def_impl(functools.partial(xla.apply_primitive, _rasterize_prim))
     _rasterize_prim.def_abstract_eval(_rasterize_fwd_abstract)
+
+    batching.primitive_batchers[_rasterize_prim] = _render_batch
 
     # # Connect the XLA translation rules for JIT compilation
     mlir.register_lowering(_rasterize_prim, _rasterize_fwd_lowering, platform="gpu")
@@ -329,14 +354,14 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
             [num_images, height, width, num_attributes], mlir.dtype_to_ir_type(np_dtype)
         )
 
-        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
+        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor_original(
             [num_images, num_vertices, num_attributes],
             [num_images, height, width],
             [num_triangles],
             0
         )
 
-        op_name = "jax_interpolate_fwd"
+        op_name = "jax_interpolate_fwd_original"
 
         return custom_call(
             op_name,
@@ -360,6 +385,21 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
             ),
         ).results
 
+    def _interpolate_batch(args, axes):
+        attributes, rast, faces = args
+
+        original_shape = attributes.shape
+        attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
+        rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
+        
+        rendered, = _interpolate_fwd_custom_call(
+            r, attributes_reshaped, rast_reshaped, faces
+        )
+
+        rendered_reshaped = rendered.reshape(*attributes.shape[:-2],*rendered.shape[-3:])
+        out_axes = (0,)
+        return (rendered_reshaped,), out_axes
+
     # *********************************************
     # *  REGISTER THE OP WITH JAX  *
     # *********************************************
@@ -369,6 +409,8 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
         functools.partial(xla.apply_primitive, _interpolate_prim)
     )
     _interpolate_prim.def_abstract_eval(_interpolate_fwd_abstract)
+
+    batching.primitive_batchers[_interpolate_prim] = _interpolate_batch
 
     # # Connect the XLA translation rules for JIT compilation
     mlir.register_lowering(_interpolate_prim, _interpolate_fwd_lowering, platform="gpu")

@@ -242,3 +242,51 @@ def visualize_particle_system(
 
         for i in range(num_clusters.const):
             b3d.rr_log_pose(f"{viz_prefix}/3D/cluster/{i}", object_poses[t][i])
+
+def particle_2d_pixel_coordinates_to_image(pixel_coords, image_height, image_width):
+    img = jnp.zeros((image_height, image_width))
+    img = img.at[jnp.round(pixel_coords[:, 0]).astype(jnp.int32), jnp.round(pixel_coords[:, 1]).astype(jnp.int32)].set(jnp.arange(len(pixel_coords))+1 )
+    return img
+
+def visualize_sparse_observation(sparse_model_args, observations):
+    import rerun as rr
+    intrinsics = sparse_model_args[0].const
+
+    for t in range(observations.shape[0]):
+        rr.set_time_sequence("time", t)
+        img = particle_2d_pixel_coordinates_to_image(observations[t], intrinsics.height, intrinsics.width)
+        rr.log(
+            "obs",
+            rr.DepthImage(img)
+        )
+
+def visualize_dense_gps(latent_particle_model_args, dense_model_args, particle_dynamics_summary, final_state):
+
+    (
+        num_timesteps, # const object
+        num_particles, # const object
+        num_clusters, # const object
+        relative_particle_poses_prior_params,
+        initial_object_poses_prior_params,
+        camera_pose_prior_params
+    ) = latent_particle_model_args
+    (meshes, _) = dense_model_args
+
+    import rerun as rr
+    for i in range(len(meshes)):
+        rr.log(f"/particle_meshes/{i}",
+            rr.Mesh3D(
+                vertex_positions=meshes[i].vertices,
+                triangle_indices=meshes[i].faces,
+                vertex_colors=meshes[i].vertex_attributes), timeless=True)
+
+    for t in range(num_timesteps.const):
+        rr.set_time_sequence("time", t)
+        poses = particle_dynamics_summary["absolute_particle_poses"][t]
+        for i in range(len(meshes)):
+            pose = poses[i]
+            rr.log(
+                f"/particle_meshes/{i}",
+                rr.Transform3D(translation=pose.position, rotation=rr.Quaternion(xyzw=pose.xyzw)),
+            )
+

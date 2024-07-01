@@ -42,3 +42,20 @@ class MeshTests(unittest.TestCase):
         assert (transformed_mesh.vertices == pose.apply(mesh.vertices)).all()
         assert (transformed_mesh.vertex_attributes == mesh.vertex_attributes).all()
         assert (transformed_mesh.faces == mesh.faces).all()
+
+    def test_vmapping_mesh(self):
+        import importlib
+        importlib.reload(b3d.mesh)
+        importlib.reload(b3d.renderer.renderer_original)
+        importlib.reload(b3d.utils)
+
+        many_cubes_mesh = jax.vmap(Mesh.cube_mesh)(jnp.ones((100,3)))
+        merged_mesh = Mesh.merge_meshes(many_cubes_mesh)
+
+        b3d.rr_init()
+        renderer = b3d.renderer.renderer_original.RendererOriginal()
+
+        m = merged_mesh.transform(Pose.from_translation(jnp.array([0, 0, 2.1])))
+
+        rgbd = renderer.render_rgbd_from_mesh(m)
+        b3d.utils.rr_log_rgbd("image", rgbd)

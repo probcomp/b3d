@@ -243,3 +243,34 @@ def visualize_sparse_observation(sparse_model_args, observations):
             "obs",
             rr.DepthImage(img)
         )
+
+def visualize_dense_gps(latent_particle_model_args, dense_model_args, particle_dynamics_summary, final_state):
+
+    (
+        num_timesteps, # const object
+        num_particles, # const object
+        num_clusters, # const object
+        relative_particle_poses_prior_params,
+        initial_object_poses_prior_params,
+        camera_pose_prior_params
+    ) = latent_particle_model_args
+    (meshes, _) = dense_model_args
+
+    import rerun as rr
+    for i in range(len(meshes)):
+        rr.log(f"/particle_meshes/{i}",
+            rr.Mesh3D(
+                vertex_positions=meshes[i].vertices,
+                triangle_indices=meshes[i].faces,
+                vertex_colors=meshes[i].vertex_attributes), timeless=True)
+
+    for t in range(num_timesteps.const):
+        rr.set_time_sequence("time", t)
+        poses = particle_dynamics_summary["absolute_particle_poses"][t]
+        for i in range(len(meshes)):
+            pose = poses[i]
+            rr.log(
+                f"/particle_meshes/{i}",
+                rr.Transform3D(translation=pose.position, rotation=rr.Quaternion(xyzw=pose.xyzw)),
+            )
+

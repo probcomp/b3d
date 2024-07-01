@@ -20,6 +20,8 @@ importlib.reload(b3d.chisight.shared.particle_system)
 
 def test_sparse_gps_simulate():
 
+    b3d.rr_init()
+
     renderer = RendererOriginal()
     key = jax.random.PRNGKey(1000)
 
@@ -33,7 +35,6 @@ def test_sparse_gps_simulate():
     sigma_obs = 0.2
 
 
-    b3d.rr_init()
 
     args = (
         (

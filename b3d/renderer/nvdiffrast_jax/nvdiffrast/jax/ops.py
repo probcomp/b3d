@@ -94,7 +94,7 @@ def _get_plugin(gl=False):
         )
 
     # Try to detect if a stray lock file is left in cache directory and show a warning. This sometimes happens on Windows if the build is interrupted at just the right moment.
-    plugin_name = "nvdiffrast_plugin_differentiable" + ("_gl" if gl else "")
+    plugin_name = "nvdiffrast_plugin_original" + ("_gl" if gl else "")
     try:
         lock_fn = os.path.join(
             torch.utils.cpp_extension._get_build_directory(plugin_name, False), "lock"
@@ -213,7 +213,7 @@ class RasterizeGLContext:
         else:
             with torch.cuda.device(device):
                 cuda_device_idx = torch.cuda.current_device()
-        self.cpp_wrapper = _get_plugin(gl=True).RasterizeGLStateWrapper(
+        self.cpp_wrapper = _get_plugin(gl=True).RasterizeGLStateWrapperOriginal(
             output_db, mode == "automatic", cuda_device_idx
         )
         self.active_depth_peeler = None  # For error checking only.

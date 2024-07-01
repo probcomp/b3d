@@ -33,22 +33,22 @@ pybind11::capsule EncapsulateFunction(T* fn) {
 
 pybind11::dict Registrations() {
   pybind11::dict dict;
-  dict["jax_rasterize_fwd_gl"] = EncapsulateFunction(jax_rasterize_fwd_gl);
-  dict["jax_interpolate_fwd"] = EncapsulateFunction(jax_interpolate_fwd);
-  dict["jax_rasterize_bwd"] = EncapsulateFunction(jax_rasterize_bwd);
-  dict["jax_interpolate_bwd"] = EncapsulateFunction(jax_interpolate_bwd);
+  dict["jax_rasterize_fwd_gl_original"] = EncapsulateFunction(jax_rasterize_fwd_gl);
+  dict["jax_interpolate_fwd_original"] = EncapsulateFunction(jax_interpolate_fwd);
+  dict["jax_rasterize_bwd_original"] = EncapsulateFunction(jax_rasterize_bwd);
+  dict["jax_interpolate_bwd_original"] = EncapsulateFunction(jax_interpolate_bwd);
   return dict;
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     // State classes.
-    pybind11::class_<RasterizeGLStateWrapper>(m, "RasterizeGLStateWrapper", py::module_local()).def(pybind11::init<bool, bool, int>())
+    pybind11::class_<RasterizeGLStateWrapper>(m, "RasterizeGLStateWrapperOriginal", py::module_local()).def(pybind11::init<bool, bool, int>())
         .def("set_context",     &RasterizeGLStateWrapper::setContext)
         .def("release_context", &RasterizeGLStateWrapper::releaseContext);
 
     // Ops.
     m.def("registrations", &Registrations, "custom call registrations");
-    m.def("build_diff_rasterize_fwd_descriptor",
+    m.def("build_diff_rasterize_fwd_descriptor_original",
             [](RasterizeGLStateWrapper& stateWrapper,
             std::vector<int> images_vertices_triangles) {
             DiffRasterizeCustomCallDescriptor d;
@@ -58,7 +58,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             d.num_triangles = images_vertices_triangles[2];
             return PackDescriptor(d);
         });
-    m.def("build_diff_interpolate_descriptor",
+    m.def("build_diff_interpolate_descriptor_original",
             [](std::vector<int> attr_shape,
             std::vector<int> rast_shape,
             std::vector<int> tri_shape,
@@ -75,7 +75,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             d.num_diff_attributes = num_diff_attrs;
             return PackDescriptor(d);
         });
-    m.def("build_diff_rasterize_bwd_descriptor",
+    m.def("build_diff_rasterize_bwd_descriptor_original",
             [](std::vector<int> pos_shape, std::vector<int> tri_shape, std::vector<int> rast_shape) {
             DiffRasterizeBwdCustomCallDescriptor d;
             d.num_images = pos_shape[0];

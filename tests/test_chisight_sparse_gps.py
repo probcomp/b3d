@@ -14,7 +14,7 @@ import b3d
 from genjax import ChoiceMapBuilder as C
 
 import importlib
-importlib.reload(b3d.chisight.shared.particle_system)
+importlib.reload(ps)
 
 
 def test_sparse_gps_simulate():

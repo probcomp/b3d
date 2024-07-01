@@ -1,12 +1,12 @@
 import b3d
 from b3d.renderer.renderer_original import RendererOriginal
-from b3d.chisight.dense.dense_likelihood import DenseImageLikelihoodArgs, get_rgb_depth_inliers_from_observed_rendered_args
+from b3d.chisight.dense.likelihoods import KRaysImageLikelihoodArgs, make_krays_image_observation_model, get_rgb_depth_inliers_from_observed_rendered_args
 import jax
 import jax.numpy as jnp
 import os
 from b3d import Pose, Mesh
 
-import b3d.chisight.shared.particle_system as ps
+import b3d.chisight.particle_system as ps
 import genjax
 from genjax import Pytree
 import jax
@@ -15,7 +15,7 @@ import b3d
 from genjax import ChoiceMapBuilder as C
 
 import importlib
-importlib.reload(b3d.chisight.shared.particle_system)
+importlib.reload(ps)
 
 
 def test_dense_gps_model():
@@ -57,8 +57,9 @@ def test_dense_gps_model():
         jax.random.uniform(key, (num_particles.const, 3))
     )
 
-    dense_gps_model = ps.make_dense_gps_model(renderer)
-    dense_likelihood_args = DenseImageLikelihoodArgs(1.0, 1.0, 1.0, 1.0, 1.0)
+    likelihood = make_krays_image_observation_model(renderer)
+    dense_gps_model = ps.make_dense_gps_model(likelihood)
+    dense_likelihood_args = KRaysImageLikelihoodArgs(1.0, 1.0, 1.0, 1.0, 1.0)
     dense_gps_args = (meshes, dense_likelihood_args)
     trace = dense_gps_model.simulate(key, (
         (
@@ -70,7 +71,6 @@ def test_dense_gps_model():
             camera_pose_prior_params
         ),
         dense_gps_args
-        
     ))
 
 

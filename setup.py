@@ -65,6 +65,7 @@ setuptools.setup(
         "jax[cuda12]==0.4.28",
         "natsort",
         "distinctipy",
+        "pyliblzfse",
         "nvidia-cuda-nvcc-cu12==12.3.52",
         "nvidia-nvjitlink-cu12==12.3.52",
     ],

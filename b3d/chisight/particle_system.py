@@ -195,13 +195,13 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
 def make_dense_gps_model(likelihood):
     """
     The provided likelihood should be a Generative Function with
-    one latent choice at address `"obs"`, which accepts `(mesh, other_args)` as input,
+    one latent choice at address `"image"`, which accepts `(mesh, other_args)` as input,
     and outputs `(image, metadata)`.
-    The value `image` should be sampled at `"obs"`.
+    The value `image` should be sampled at `"image"`.
     """
 
     @genjax.gen
-    def dense_gps_model(latent_particle_model_args, dense_likelihood_args):
+    def dense_gps_model(meshes, latent_particle_model_args, likelihood_args):
         latent_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
         masked_particle_dynamics_summary = latent_dynamics_summary["masked_dynamic_state"]
         _UNSAFE_particle_dynamics_summary = masked_particle_dynamics_summary.value
@@ -211,7 +211,6 @@ def make_dense_gps_model(likelihood):
         camera_pose_last_frame = _UNSAFE_particle_dynamics_summary["camera_pose"][last_timestep_index]
         absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
         
-        (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
         image = likelihood(merged_mesh, likelihood_args) @ "obs"
         return (latent_dynamics_summary, image)

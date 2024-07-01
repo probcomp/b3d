@@ -10,8 +10,7 @@ import os
 
 from genjax import Pytree
 
-
-DenseImageLikelihoodArgs = namedtuple('DenseImageLikelihoodArgs', [
+KRaysImageLikelihoodArgs = namedtuple('KRaysImageLikelihoodArgs', [
     'color_tolerance',
     'depth_tolerance',
     'inlier_score',
@@ -39,9 +38,9 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
 
 
 
-def make_dense_observation_model(renderer):
+def make_krays_image_observation_model(renderer):
     @Pytree.dataclass
-    class DenseImageLikelihood(genjax.ExactDensity):
+    class KRaysImageLikelihood(genjax.ExactDensity):
         def sample(self, key, rendered_rgbd, likelihood_args):
             return rendered_rgbd
 
@@ -68,12 +67,12 @@ def make_dense_observation_model(renderer):
                 outlier_prob * jnp.sum(outliers * areas)
             ) * multiplier
         
-    dense_image_likelihood = DenseImageLikelihood()
+    krays_image_likelihood = KRaysImageLikelihood()
 
     @genjax.gen
-    def dense_observation_model(mesh, likelihood_args):
+    def krays_image_observation_model(mesh, likelihood_args):
         noiseless_rendered_rgbd = renderer.render_rgbd(mesh.vertices, mesh.faces, mesh.vertex_attributes)
-        image = dense_image_likelihood(noiseless_rendered_rgbd, likelihood_args) @ "image"
+        image = krays_image_likelihood(noiseless_rendered_rgbd, likelihood_args) @ "image"
         return (image, noiseless_rendered_rgbd)
 
-    return dense_observation_model
+    return krays_image_observation_model

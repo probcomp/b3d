@@ -34,19 +34,6 @@ class ArgMap(genjax.ExactDensity):
     def logpdf(self, observed, *args):
         return self.dist.logpdf(observed, *self.argmap(*args))
 
-# def diffrend_rgbd_likelihood_to_mesh_rgbd_likelihood(likelihood):
-#     """
-#     Given a likelihood on RGBD images accepting `(weights, attributes)` as arguments
-#     [as returned by the differentiable renderer],
-#     returns a likelihood on RGBD images accepting
-#     `(renderer, vertices, faces, vertex_colors, hyperparams)` as arguments.
-#     """
-#     return ArgMap(likelihood,
-#         lambda renderer, vertices, faces, vertex_colors, hyperparams: render_to_rgbd_dist_params(
-#                 renderer, vertices, faces, vertex_colors, hyperparams
-#         )
-#     )
-
 @Pytree.dataclass
 class ImageDistFromPixelDist(genjax.ExactDensity):
     """
@@ -419,3 +406,6 @@ def get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
         ),
         lambda weights, rgbs: ( height, width, weights, rgbs, color_scale)
     )
+
+
+### K Rays Likelihood ###

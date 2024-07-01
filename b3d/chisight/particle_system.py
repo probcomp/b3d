@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import genjax
 from genjax import gen
-from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.pose import uniform_pose_in_ball
@@ -161,20 +160,24 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
 
 
 
-def make_dense_gps_model(renderer):
-    dense_observation_model = make_dense_observation_model(renderer)
+def make_dense_gps_model(likelihood):
+    """
+    The provided likelihood should be a Generative Function with
+    one latent choice at address `"image"`, which accepts `(mesh, other_args)` as input,
+    and outputs `(image, metadata)`.
+    The value `image` should be sampled at `"image"`.
+    """
 
     @genjax.gen
-    def dense_gps_model(latent_particle_model_args, dense_likelihood_args):
-        # (b3d.camera.Intrinsics.from_array(jnp.array([1.0, 1.0, 1.0, 1.0])), 0.1)
+    def dense_gps_model(latent_particle_model_args, dense_model_args):
         particle_dynamics_summary, final_state = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
         absolute_particle_poses_last_frame = particle_dynamics_summary["absolute_particle_poses"][-1]
         camera_pose_last_frame = particle_dynamics_summary["camera_pose"][-1]
         absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
         
-        (meshes, likelihood_args) = dense_likelihood_args
-        merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
+        batched_mesh, likelihood_args = dense_model_args
+        merged_mesh = Mesh.transform_and_merge_meshes(batched_mesh, absolute_particle_poses_in_camera_frame)
+        image = likelihood(merged_mesh, likelihood_args) @ "obs"
         return (particle_dynamics_summary, final_state, image)
 
     return dense_gps_model

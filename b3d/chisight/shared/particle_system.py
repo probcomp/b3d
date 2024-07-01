@@ -8,11 +8,7 @@ from genjax import gen
 from b3d.chisight.dense.dense_likelihood import make_dense_observation_model, DenseImageLikelihoodArgs
 from b3d import Pose, Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
-<<<<<<< HEAD
 from b3d.pose import uniform_pose_in_ball
-=======
-from b3d.pose.pose_utils import uniform_pose_in_ball
->>>>>>> 5a07ed3 (variable length unfold model)
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(in_axes=(0,None,None,None))
 
 
@@ -153,10 +149,6 @@ def latent_particle_model(
     # concatenate each element of init_retval, scan_retvals
     concatenated_states_possibly_invalid = jax.tree.map(
         lambda t1, t2: jnp.concatenate([t1[None, :], t2], axis=0),
-<<<<<<< HEAD
-        init_retval, scan_retvals
-    ), final_state
-=======
         init_retval, masked_scan_retvals.value
     )
     masked_concatenated_states = genjax.Mask(
@@ -164,7 +156,6 @@ def latent_particle_model(
         concatenated_states_possibly_invalid
     )
     return masked_concatenated_states
->>>>>>> 5a07ed3 (variable length unfold model)
 
 @genjax.gen
 def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, instrinsics, sigma):
@@ -175,17 +166,6 @@ def sparse_observation_model(particle_absolute_poses, camera_pose, visibility, i
 
 @genjax.gen
 def sparse_gps_model(latent_particle_model_args, obs_model_args):
-<<<<<<< HEAD
-    # (b3d.camera.Intrinsics.from_array(jnp.array([1.0, 1.0, 1.0, 1.0])), 0.1)
-    particle_dynamics_summary, final_state = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
-    obs = sparse_observation_model.vmap(in_axes=(0, 0, 0, None, None))(
-        particle_dynamics_summary["absolute_particle_poses"],
-        particle_dynamics_summary["camera_pose"],
-        particle_dynamics_summary["vis_mask"],
-        *obs_model_args
-    ) @ "obs"
-    return (particle_dynamics_summary, final_state, obs)
-=======
     masked_particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
     _UNSAFE_particle_dynamics_summary = masked_particle_dynamics_summary.value
     masked_obs = sparse_observation_model.mask().vmap(in_axes=(0, 0, 0, 0, None, None))(
@@ -196,7 +176,6 @@ def sparse_gps_model(latent_particle_model_args, obs_model_args):
         *obs_model_args
     ) @ "observation"
     return (masked_particle_dynamics_summary, masked_obs)
->>>>>>> 5a07ed3 (variable length unfold model)
 
 
 
@@ -205,33 +184,18 @@ def make_dense_gps_model(renderer):
 
     @genjax.gen
     def dense_gps_model(latent_particle_model_args, dense_likelihood_args):
-<<<<<<< HEAD
-        # (b3d.camera.Intrinsics.from_array(jnp.array([1.0, 1.0, 1.0, 1.0])), 0.1)
-        particle_dynamics_summary, final_state = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
-        absolute_particle_poses_last_frame = particle_dynamics_summary["absolute_particle_poses"][-1]
-        camera_pose_last_frame = particle_dynamics_summary["camera_pose"][-1]
-=======
         masked_particle_dynamics_summary = latent_particle_model(*latent_particle_model_args) @ "particle_dynamics"
         _UNSAFE_particle_dynamics_summary = masked_particle_dynamics_summary.value
 
         last_timestep_index = jnp.sum(masked_particle_dynamics_summary.flag) - 1
         absolute_particle_poses_last_frame = _UNSAFE_particle_dynamics_summary["absolute_particle_poses"][last_timestep_index]
         camera_pose_last_frame = _UNSAFE_particle_dynamics_summary["camera_pose"][last_timestep_index]
->>>>>>> 5a07ed3 (variable length unfold model)
         absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
         
         (meshes, likelihood_args) = dense_likelihood_args
         merged_mesh = Mesh.transform_and_merge_meshes(meshes, absolute_particle_poses_in_camera_frame)
-<<<<<<< HEAD
-        image = dense_observation_model(merged_mesh, likelihood_args) @ "obs"
-        return (particle_dynamics_summary, final_state, image)
-
-    return dense_gps_model
-
-=======
         image = dense_observation_model(merged_mesh, likelihood_args) @ "observation"
         return (masked_particle_dynamics_summary, image)
->>>>>>> 5a07ed3 (variable length unfold model)
 
 def visualize_particle_system(latent_particle_model_args, particle_dynamics_summary, final_state):
     import rerun as rr

@@ -244,11 +244,11 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
             mlir.dtype_to_ir_type(np_dtype),
         )
 
-        opaque = dr._get_plugin(gl=True).build_diff_rasterize_fwd_descriptor(
+        opaque = dr._get_plugin(gl=True).build_diff_rasterize_fwd_descriptor_original(
             r.renderer_env.cpp_wrapper, [num_images, num_vertices, num_triangles]
         )
 
-        op_name = "jax_rasterize_fwd_gl"
+        op_name = "jax_rasterize_fwd_gl_original"
 
         return custom_call(
             op_name,
@@ -354,14 +354,14 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
             [num_images, height, width, num_attributes], mlir.dtype_to_ir_type(np_dtype)
         )
 
-        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor(
+        opaque = dr._get_plugin(gl=True).build_diff_interpolate_descriptor_original(
             [num_images, num_vertices, num_attributes],
             [num_images, height, width],
             [num_triangles],
             0
         )
 
-        op_name = "jax_interpolate_fwd"
+        op_name = "jax_interpolate_fwd_original"
 
         return custom_call(
             op_name,

@@ -16,7 +16,7 @@ filename = os.path.join(
     # "shared_data_bucket/input_data/shout_on_desk.r3d.video_input.npz")
     "shared_data_bucket/input_data/409_bottle.r3d.video_input.npz.downsampled.npz",
 )
-video_input = b3d.VideoInput.load(filename)
+video_input = b3d.io.VideoInput.load(filename)
 
 # video_input = b3d.VideoInput(
 #     rgb=video_input.rgb[::5],
@@ -401,7 +401,7 @@ for (i, color) in [(1, jnp.array([0.6, 0.05, 0.05])), (2, jnp.array([0.05, 0.6, 
 merged_vertices2, merged_faces2, merged_vertex_colors2, vertex_to_index2 = merge_objects(old_objects2[1:], poses[1:])
 
 points = merged_vertices[vertex_to_index > 0]
-points = points[jax.random.choice(jax.random.PRNGKey(0), points.shape[0], (10000,), replace=False),:]
+points = points[jax.random.choice(jax.random.PRNGKey(0), points.shape[0], (1000,), replace=False),:]
 
 # vertex_colors_random =  jax.random.uniform(jax.random.PRNGKey(0), (len(merged_vertex_colors[vertex_to_index > 0]), 3))
 
@@ -429,9 +429,14 @@ for i in range(len(camera_poses_over_time)):
     )
     pixel_coords = pixel_coords[(pixel_coords[:, 0] >= 0) & (pixel_coords[:, 0] < image_height) & (pixel_coords[:, 1] >= 0) & (pixel_coords[:, 1] < image_width)]
     img = jnp.zeros((image_height, image_width))
-    img = img.at[jnp.round(pixel_coords[:, 0]).astype(jnp.int32), jnp.round(pixel_coords[:, 1]).astype(jnp.int32)].set(jnp.arange(len(pixel_coords))+1 )
+    xs,ys = jnp.round(pixel_coords[:, 0]).astype(jnp.int32), jnp.round(pixel_coords[:, 1]).astype(jnp.int32)
+    w = 1
+    for i in range(-w, w+1):
+        for j in range(-w, w+1):
+            img = img.at[xs+i,ys+j].set(1.0)
     img = jnp.tile(1.0 * (img > 0)[...,None], (1,1,3))
     point_light_viz = b3d.get_rgb_pil_image(img)
+    point_light_viz.save("0.png")
 
 
 

@@ -18,7 +18,8 @@ def test_sparse_gps_simulate():
     renderer = RendererOriginal()
     key = jax.random.PRNGKey(100)
 
-    num_timesteps = Pytree.const(10)
+    max_num_timesteps = Pytree.const(20)
+    num_timesteps = 10
     num_particles = Pytree.const(100)
     num_clusters = Pytree.const(4)
     relative_particle_poses_prior_params = (Pose.identity(), .5, 0.25)
@@ -32,7 +33,8 @@ def test_sparse_gps_simulate():
 
     trace = ps.sparse_gps_model.simulate(key, (
         (
-            num_timesteps, # const object
+            max_num_timesteps, # const object
+            num_timesteps,
             num_particles, # const object
             num_clusters, # const object
             relative_particle_poses_prior_params,
@@ -43,11 +45,10 @@ def test_sparse_gps_simulate():
     ))
 
 
-    particle_dynamics_summary = trace.get_retval()[0]
-    final_state = trace.get_retval()[1]
+    particle_system_summary = trace.get_retval()[0]
     latent_particle_model_args = trace.get_args()[0]
 
     # import importlib
     # importlib.reload(b3d.chisight.shared.particle_system)
 
-    ps.visualize_particle_system(latent_particle_model_args, particle_dynamics_summary, final_state)
+    ps.visualize_particle_system(latent_particle_model_args, particle_system_summary)

@@ -90,7 +90,7 @@ def camera_from_screen_and_depth(
 
 
 def camera_from_screen(uv: ScreenCoordinates, intrinsics) -> CameraCoordinates:
-    z = jnp.ones_like(uv.shape[-1:])
+    z = jnp.ones(uv.shape[:-1])
     return camera_from_screen_and_depth(uv, z, intrinsics)
 
 
@@ -154,6 +154,14 @@ def screen_from_world(x, cam, intr):
     """Maps to screen coordintaes `uv` from world coordinates `xyz`."""
     return screen_from_camera(cam.inv().apply(x), intr)
 
+def world_from_screen(uv, cam, intr):
+    """Maps to world coordintaes `xyz` from screen coords `uv`."""
+    return cam.apply(camera_from_screen(uv, intr))
+
+def screen_from_screen(uv0, cam1, cam0, intr):
+    """Maps between different screen coordinates."""
+    xyz = world_from_screen(uv0, cam0, intr)
+    return screen_from_world(xyz, cam1, intr)
 
 def camera_matrix_from_intrinsics(intr: Intrinsics) -> CameraMatrix3x3:
     """

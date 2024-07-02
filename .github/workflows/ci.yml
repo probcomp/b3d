@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      # adding current branch temporarily so I can test without creating a PR
+      - xyw/try_looking_into_ci
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -34,14 +36,14 @@ jobs:
       - uses: Jimver/cuda-toolkit@v0.2.16
         id: cuda-toolkit
         with:
-          cuda: '12.4.0'
+          cuda: "12.4.0"
           linux-local-args: '["--toolkit"]'
-          method: 'network'
+          method: "network"
 
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
-          cache: 'pip'
+          cache: "pip"
           cache-dependency-path: setup.py
 
       - id: auth
@@ -63,6 +65,12 @@ jobs:
         run: |
           pip install keyring keyrings.google-artifactregistry-auth
           pip install -e . --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
+
+      - name: Show installed packages (for debugging)
+        run: pip list
+
+      - name: Trigger compilation of NVDiffrast
+        run: python -c "from b3d.renderer.nvdiffrast.jax import _get_plugin; _get_plugin(gl=True)"
 
       - name: Download test assets
         run: b3d_pull

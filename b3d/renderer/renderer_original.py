@@ -111,7 +111,7 @@ class RendererOriginal(object):
         self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
-        self.width, self.height = width, height
+        self.width, self.height = int(width), int(height)
         self.fx, self.fy = fx, fy
         self.cx, self.cy = cx, cy
         self.near, self.far = near, far

@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import jax.numpy as jnp
 import numpy as np
 from PIL import Image
+from tqdm import tqdm
 
 YCB_MODEL_NAMES = [
     "002_master_chef_can",
@@ -39,9 +40,8 @@ def remove_zero_pad(img_id):
             return img_id[i:]
 
 
-def get_test_img(scene_id, img_id, ycb_dir):
-    scene_id = scene_id.rjust(6, "0")
-    img_id = img_id.rjust(6, "0")
+def get_test_images(ycb_dir, scene_id, images_indices, fields=[]):
+    scene_id = str(scene_id).rjust(6, "0")
 
     data_dir = os.path.join(ycb_dir, "test")
     scene_data_dir = os.path.join(
@@ -58,67 +58,67 @@ def get_test_img(scene_id, img_id, ycb_dir):
     with open(os.path.join(scene_data_dir, "scene_gt.json")) as scene_imgs_gt_data_json:
         scene_imgs_gt_data = json.load(scene_imgs_gt_data_json)
 
-    # get rgb image
-    rgb = jnp.array(Image.open(os.path.join(scene_rgb_images_dir, f"{img_id}.png")))
+    all_data = []
+    for image_index in tqdm(images_indices):
+        img_id = str(image_index).rjust(6, "0")
 
-    # get depth image
-    depth = jnp.array(Image.open(os.path.join(scene_depth_images_dir, f"{img_id}.png")))
+        data = {
+            "img_id": img_id,
+        }
 
-    # get camera intrinsics and pose for image
-    image_cam_data = scene_cam_data[remove_zero_pad(img_id)]
-
-    cam_K = jnp.array(image_cam_data["cam_K"]).reshape(3, 3)
-    cam_R_w2c = jnp.array(image_cam_data["cam_R_w2c"]).reshape(3, 3)
-    cam_t_w2c = jnp.array(image_cam_data["cam_t_w2c"]).reshape(3, 1)
-    cam_pose_w2c = jnp.vstack(
-        [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
-    )
-    cam_pose = jnp.linalg.inv(cam_pose_w2c)
-
-    cam_depth_scale = image_cam_data["depth_scale"]
-
-    # get {visible mask, ID, pose} for each object in the scene
-    # anno = dict()
-
-    # get GT object model ID+poses
-    objects_gt_data = scene_imgs_gt_data[remove_zero_pad(img_id)]
-    mask_visib_image_paths = sorted(
-        glob(os.path.join(mask_visib_dir, f"{img_id}_*.png"))
-    )
-    gt_ids = []
-    gt_poses = []
-    masks = []
-    for object_gt_data, mask_visib_image_path in zip(
-        objects_gt_data, mask_visib_image_paths
-    ):
-        mask_visible = jnp.array(Image.open(mask_visib_image_path))
-
-        model_R = jnp.array(object_gt_data["cam_R_m2c"]).reshape(3, 3)
-        model_t = jnp.array(object_gt_data["cam_t_m2c"]).reshape(3, 1)
-        model_pose = jnp.vstack(
-            [jnp.hstack([model_R, model_t]), jnp.array([0, 0, 0, 1])]
+        # get camera intrinsics and pose for image
+        image_cam_data = scene_cam_data[remove_zero_pad(img_id)]
+        cam_K = jnp.array(image_cam_data["cam_K"]).reshape(3, 3)
+        cam_R_w2c = jnp.array(image_cam_data["cam_R_w2c"]).reshape(3, 3)
+        cam_t_w2c = jnp.array(image_cam_data["cam_t_w2c"]).reshape(3, 1)
+        cam_pose_w2c = jnp.vstack(
+            [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
         )
-        model_pose = model_pose.at[:3, 3].set(model_pose[:3, 3] * 1.0 / 1000.0)
-        gt_poses.append(model_pose)
+        cam_pose = jnp.linalg.inv(cam_pose_w2c)
+        cam_pose = b3d.Pose.from_matrix(cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0))
+        data["camera_pose"] = cam_pose
 
-        obj_id = object_gt_data["obj_id"] - 1
+        cam_K = np.array(cam_K)
+        fx,fy,cx,cy = (
+            cam_K[0, 0],
+            cam_K[1, 1],
+            cam_K[0, 2],
+            cam_K[1, 2],
+        )
+        data["camera_intrinsics"] = jnp.array([fx,fy,cx,cy])
 
-        gt_ids.append(obj_id)
-        masks.append(jnp.array(mask_visible > 0))
+        cam_depth_scale = image_cam_data["depth_scale"]
 
-    cam_pose = b3d.Pose.from_matrix(cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0))
-    cam_K = np.array(cam_K)
-    fx,fy,cx,cy = (
-        cam_K[0, 0],
-        cam_K[1, 1],
-        cam_K[0, 2],
-        cam_K[1, 2],
-    )
-    return (
-        jnp.concatenate([rgb / 255.0,(depth * cam_depth_scale / 1000.0)[...,None]],axis=-1),
-        cam_pose,
-        (fx,fy,cx,cy),
-        jnp.array(gt_ids),
-        cam_pose @ b3d.Pose.stack_poses([b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)]),
-        masks,
-    )
+        # get rgb image
+        rgb = jnp.array(Image.open(os.path.join(scene_rgb_images_dir, f"{img_id}.png")))
+
+        # get depth image
+        depth = jnp.array(Image.open(os.path.join(scene_depth_images_dir, f"{img_id}.png")))
+        rgbd = jnp.concatenate([rgb / 255.0,(depth * cam_depth_scale / 1000.0)[...,None]],axis=-1)
+        data["rgbd"] = rgbd
+
+
+        # get GT object model ID+poses
+        objects_gt_data = scene_imgs_gt_data[remove_zero_pad(img_id)]
+        gt_poses = []
+        gt_ids = []
+        for d in objects_gt_data:
+            model_R = jnp.array(d["cam_R_m2c"]).reshape(3, 3)
+            model_t = jnp.array(d["cam_t_m2c"]).reshape(3, 1)
+            model_pose = jnp.vstack(
+                [jnp.hstack([model_R, model_t]), jnp.array([0, 0, 0, 1])]
+            )
+            model_pose = model_pose.at[:3, 3].set(model_pose[:3, 3] * 1.0 / 1000.0)
+            gt_poses.append(model_pose)
+
+
+            obj_id = d["obj_id"] - 1
+
+
+            gt_ids.append(obj_id)
+
+        data["object_types"] = jnp.array(gt_ids)
+        data["object_poses"] = cam_pose @ b3d.Pose.stack_poses([b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)])
+
+        all_data.append(data)
+    return all_data

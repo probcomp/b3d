@@ -15,6 +15,7 @@ env:
   XLA_FLAGS: --xla_gpu_enable_command_buffer=
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
   XLA_PYTHON_CLIENT_ALLOCATOR: "platform"
+  RERUN: "off"
 
 jobs:
   test:
@@ -68,6 +69,11 @@ jobs:
 
       - name: Show installed packages (for debugging)
         run: pip list
+
+      - name: Show NVIDIA GPU information (for debugging)
+        run: |
+          nvidia-smi
+          nvcc --version
 
       - name: Trigger compilation of NVDiffrast
         run: python -c "from b3d.renderer.nvdiffrast.jax import _get_plugin; _get_plugin(gl=True)"

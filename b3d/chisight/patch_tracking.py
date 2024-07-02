@@ -1,30 +1,29 @@
 import jax.numpy as jnp
 import jax
-from b3d import Pose
+from b3d import Pose, Mesh
 import b3d
 import genjax
 from genjax import ChoiceMapBuilder as C
 import b3d.chisight.dense.differentiable_renderer as r
-import b3d.chisight.dense.model as m
 import b3d.chisight.dense.likelihoods as likelihoods
 import optax
 
 import b3d.chisight.dense.differentiable_renderer
 
-def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):
+def get_patches(centers, rgbds, pose_WC, fx, fy, cx, cy):
     """
     Centers given as (N, 2) storing (y, x) pixel coordinates.
     """
     depths = rgbds[..., 3]
     xyzs_C = b3d.utils.xyz_from_depth_vectorized(depths, fx, fy, cx, cy)
-    xyzs_W = X_WC.apply(xyzs_C)
-    return get_patches_from_pointcloud(centers, rgbds[..., :3], xyzs_W, X_WC, fx)
+    xyzs_W = pose_WC.apply(xyzs_C)
+    return get_patches_from_pointcloud(centers, rgbds[..., :3], xyzs_W, pose_WC, fx)
 
-def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
+def get_patches_from_pointcloud(centers, rgbs, xyzs_W, pose_WC, fx):
     """
     Centers given as (N, 2) storing (y, x) pixel coordinates.
     """
-    xyzs_C = X_WC.inv().apply(xyzs_W)
+    xyzs_C = pose_WC.inv().apply(xyzs_W)
     
     # TODO: this would be better to do in terms of the min x dist and y dist
     # between any two centers
@@ -43,30 +42,26 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
         )
         num_nonzero = jnp.sum(jnp.where(patch_points_C[...,2] != 0, 1, 0))
         mean_position_nonzero = jnp.sum(patch_points_C, axis=0) / num_nonzero
-        X_CP = Pose.from_translation(mean_position_nonzero)
-        X_WP = X_WC @ X_CP
-        patch_vertices_P = X_CP.inv().apply(patch_vertices_C)
-        return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C)
+        pose_CP = Pose.from_translation(mean_position_nonzero)
+        pose_WP = pose_WC @ pose_CP
+        patch_vertices_P = pose_CP.inv().apply(patch_vertices_C)
+        patches = Mesh(patch_vertices_P, patch_faces, patch_vertex_colors)        
+        return (patches, pose_WP, patch_points_C)
 
     return jax.vmap(get_patch, in_axes=(0,))(centers)
 
-# def get_patches_with_default_centers(rgbs, xyzs_W, X_WC, fx):
-#     centers = get_default_patch_centers()
-#     (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP, patch_points_C) = get_patches(centers, rgbs, xyzs_W, X_WC, fx)
-#     return (patch_vertices_P, patch_faces, patch_vertex_colors, X_WP)
-
-def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, patch_vertex_colors, X_WC=Pose.identity()):
+def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity()):
     """
     Args:
         - model: instance of the multiple object model from b3d.patch_tracking.model
         - patch_vertices_P: The vertices of the patch in the patch's local frame. Shape (N, V, 3)
         - patch_faces: The faces of the patch. Shape (N, F, 3)
         - patch_vertex_colors: The vertex colors of the patch. Shape (N, V, 3)
-        - X_WC: The camera pose. Default is the identity pose.
+        - pose_WC: The camera pose. Default is the identity pose.
         
     Returns:
     - get_initial_tracker_state:
-        A function from the initial patch poses, Xs_WP, to an initial state object `tracker_state` for the patch tracker.
+        A function from the initial patch poses, poses_WP, to an initial state object `tracker_state` for the patch tracker.
     - update_tracker_state:
         A function from `(tracker_state, new_observed_rgbd)` to a tuple `(new_patch_poses, updated_tracker_state)`,
         where `new_patch_poses` is a pair (positions, quaternions) for the updated patch poses,
@@ -75,14 +70,53 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
     - get_trace: A function s.t. `get_trace(pos, quat, observed_rgbd)` returns a trace for `model` with the patches
         at the given positions and quaternions.
     """
+
+    def allidx_chm(x):
+        return genjax.ChoiceMap.idx(jnp.arange(x.shape[0], dtype=int), x)
+
     @jax.jit
     def importance_from_pos_quat(positions, quaternions, observed_rgbd):
         key = jax.random.PRNGKey(0) # This value shouldn't matter, in the current model version.
-        poses = jax.vmap(lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])), in_axes=(0, 0))(positions, quaternions)
-        cm = jax.vmap(lambda i: C["poses", i].set(poses[i]))(jnp.arange(poses.shape[0]))
-        cm = cm.merge(C["camera_pose"].set(b3d.Pose.identity()))
-        cm = cm.merge(C["observed_image", "observed_image", "obs"].set(observed_rgbd))
-        trace, weight = model.importance(key, cm, (patch_vertices_P, patch_faces, patch_vertex_colors))
+        
+        max_num_timesteps = genjax.Pytree.const(1)
+        num_particles = genjax.Pytree.const(positions.shape[0])
+        num_clusters = genjax.Pytree.const(positions.shape[0])
+        relative_particle_poses_prior_params = (Pose.identity(), .5, 0.25)
+        initial_object_poses_prior_params = (Pose.identity(), 2., 0.5)
+        camera_pose_prior_params = (Pose.identity(), 0.1, 0.1)
+
+        model_args = (
+            (
+                max_num_timesteps, # const object
+                num_particles, # const object
+                num_clusters, # const object
+                relative_particle_poses_prior_params,
+                initial_object_poses_prior_params,
+                camera_pose_prior_params
+            ),
+            (patches, ())
+        )
+
+        particle_poses = jax.tree.map(
+            lambda arr: jnp.tile(arr, (num_particles.const, 1)),
+            Pose.identity()
+        )
+        object_assignments = jnp.arange(num_particles.const, dtype=int)
+        object_poses = jax.vmap(lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])), in_axes=(0, 0))(positions, quaternions)
+        vis_mask = jnp.ones((num_particles.const,), dtype=int)
+
+        constraints = C.d({
+            "particle_dynamics": C["state0"].set(C.d({
+                "particle_poses": allidx_chm(particle_poses),
+                "object_assignments": allidx_chm(object_assignments),
+                "object_poses": allidx_chm(object_poses),
+                "initial_camera_pose": pose_WC,
+                "initial_visibility": allidx_chm(vis_mask),
+            })),
+            "obs": C["image"].set(observed_rgbd),
+        })
+
+        trace, weight = model.importance(key, constraints, model_args)
         return trace, weight
     
     def weight_from_pos_quat(pos, quat, observed_rgbd):
@@ -119,11 +153,11 @@ def get_adam_optimization_patch_tracker(model, patch_vertices_P, patch_faces, pa
         ret_st, _ = jax.lax.scan(optimizer_kernel, st, jnp.arange(300))
         return ret_st
 
-    def get_initial_tracker_state(Xs_WP):
-        opt_state_pos = optimizer_pos.init(Xs_WP._position)
-        opt_state_quat = optimizer_quat.init(Xs_WP._quaternion)
-        pos = Xs_WP._position
-        quat = Xs_WP._quaternion
+    def get_initial_tracker_state(poses_WP):
+        opt_state_pos = optimizer_pos.init(poses_WP._position)
+        opt_state_quat = optimizer_quat.init(poses_WP._quaternion)
+        pos = poses_WP._position
+        quat = poses_WP._quaternion
         tracker_state = (opt_state_pos, opt_state_quat, pos, quat, None)
         return tracker_state
     
@@ -139,14 +173,16 @@ def get_default_multiobject_model_for_patchtracking(renderer):
     likelihood = likelihoods.get_uniform_multilaplace_image_dist_with_fixed_params(
             renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
     )
+
     @genjax.gen
-    def wrapped_likelihood(vertices, faces, vertex_colors):
+    def wrapped_likelihood(mesh : b3d.Mesh, args):
         weights, attributes = b3d.chisight.dense.differentiable_renderer.render_to_rgbd_dist_params(
-            renderer, vertices, faces, vertex_colors,
+            renderer, mesh.vertices, mesh.faces, mesh.vertex_attributes,
             r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
         )
-        obs = likelihood(weights, attributes) @ "obs"
+        obs = likelihood(weights, attributes) @ "image"
         return obs, {"diffrend_output": (weights, attributes)}
+
+    model = b3d.chisight.particle_system.make_dense_gps_model(wrapped_likelihood)
     
-    model = m.uniformpose_meshes_to_image_model__factory(wrapped_likelihood)
     return model

@@ -91,3 +91,5 @@ def test_dense_gps_model():
 
     ps.visualize_particle_system(latent_particle_model_args, particle_dynamics_summary, final_state)
     ps.visualize_dense_gps(latent_particle_model_args, dense_gps_args, particle_dynamics_summary, final_state)
+
+    ps.visualize_dense_observation(trace.get_choices()["obs", "image"])

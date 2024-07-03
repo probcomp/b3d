@@ -215,6 +215,15 @@ def visualize_particle_system(
         rotation=transform_Viz_Trace.xyzw
     ))
 
+    rr.log(
+        f"/{viz_prefix}/3D/camera",
+        rr.Pinhole(
+            resolution=[0.1,0.1],
+            focal_length=0.1,
+        ),
+        timeless=True
+    )
+
     for t in range(num_timesteps.const):
         rr.set_time_sequence("time", t)
 
@@ -222,14 +231,6 @@ def visualize_particle_system(
         rr.log(
             f"{viz_prefix}/3D/camera",
             rr.Transform3D(translation=cam_pose.position, rotation=rr.Quaternion(xyzw=cam_pose.xyzw)),
-            static=True
-        )
-        rr.log(
-            f"/{viz_prefix}/3D/camera",
-            rr.Pinhole(
-                resolution=[0.1,0.1],
-                focal_length=0.1,
-            ),
         )
 
         rr.log(
@@ -290,3 +291,12 @@ def visualize_dense_gps(latent_particle_model_args, dense_model_args, particle_d
                 rr.Transform3D(translation=pose.position, rotation=rr.Quaternion(xyzw=pose.xyzw)),
             )
 
+def visualize_dense_observation(observations):
+    import rerun as rr
+    # for t in range(observations.shape[0]):
+    #     rr.set_time_sequence("time", t)
+    rr.log(
+        "obs",
+        rr.Image(observations[...,:3]),
+        timeless=True
+    )

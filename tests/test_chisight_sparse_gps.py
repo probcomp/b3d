@@ -27,9 +27,9 @@ def test_sparse_gps_simulate():
     num_timesteps = Pytree.const(10)
     num_particles = Pytree.const(100)
     num_clusters = Pytree.const(4)
-    relative_particle_poses_prior_params = (Pose.identity(), .05, 0.25)
-    initial_object_poses_prior_params = (Pose.identity(), 2., 0.5)
-    camera_pose_prior_params = (Pose.identity(), 0.5, 0.1)
+    relative_particle_poses_prior_params = (Pose.identity(), .1, 0.25)
+    initial_object_poses_prior_params = (Pose.identity(), 1., 0.5)
+    camera_pose_prior_params = (Pose.identity(), 1.0, 0.1)
     instrinsics = Pytree.const(b3d.camera.Intrinsics(120, 100, 50., 50., 50., 50., 0.001, 16.))
     sigma_obs = 0.2
 

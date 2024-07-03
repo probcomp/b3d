@@ -1,13 +1,16 @@
 import json
 import os
-from glob import glob
 import b3d
 import jax.numpy as jnp
+import cv2
+import imageio
 
 import jax.numpy as jnp
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from b3d import Mesh, Pose
+import glob
 
 YCB_MODEL_NAMES = [
     "002_master_chef_can",
@@ -40,7 +43,7 @@ def remove_zero_pad(img_id):
             return img_id[i:]
 
 
-def get_test_images(ycb_dir, scene_id, images_indices, fields=[]):
+def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
     scene_id = str(scene_id).rjust(6, "0")
 
     data_dir = os.path.join(ycb_dir, "test")
@@ -119,6 +122,50 @@ def get_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
         data["object_types"] = jnp.array(gt_ids)
         data["object_poses"] = cam_pose @ b3d.Pose.stack_poses([b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)])
+
+        all_data.append(data)
+    return all_data
+
+def get_ycb_mesh(ycb_dir, id):
+    return b3d.Mesh.from_obj_file(os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')).scale(0.001)
+
+def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
+
+    id_strs = []
+
+    video_dir = os.path.join(ycbineaot_dir, f"{video_name}")
+
+    color_files = sorted(glob.glob(f"{video_dir}/rgb/*.png"))
+    K = np.loadtxt(f"{video_dir}/cam_K.txt").reshape(3, 3)
+    fx,fy,cx,cy = K[0,0], K[1,1], K[0,2], K[1,2]
+    gt_pose_files = sorted(glob.glob(f"{video_dir}/annotated_poses/*"))
+
+
+    all_data = []
+    for image_index in images_indices:
+        videoname_to_object = {
+            "bleach0": "021_bleach_cleanser",
+            "bleach_hard_00_03_chaitanya": "021_bleach_cleanser",
+            "cracker_box_reorient": "003_cracker_box",
+            "cracker_box_yalehand0": "003_cracker_box",
+            "mustard0": "006_mustard_bottle",
+            "mustard_easy_00_02": "006_mustard_bottle",
+            "sugar_box1": "004_sugar_box",
+            "sugar_box_yalehand0": "004_sugar_box",
+            "tomato_soup_can_yalehand0": "005_tomato_soup_can",
+        }
+        object_id = b3d.io.YCB_MODEL_NAMES.index(videoname_to_object[os.path.basename(video_dir)])
+        rgb = imageio.imread(color_files[image_index])[..., :3]
+        depth = cv2.imread(color_files[image_index].replace("rgb", "depth"), -1) / 1e3
+        depth[(depth < 0.1)] = 0
+        rgbd = jnp.concatenate([rgb / 255.0, depth[..., None]], axis=-1)
+        gt_pose = Pose.from_matrix(np.loadtxt(gt_pose_files[image_index]).reshape(4, 4))
+        data = {}
+        data["rgbd"] = rgbd
+        data["camera_intrinsics"]  = jnp.array([fx, fy, cx, cy])
+        data["object_poses"] = gt_pose[None,...]
+        data["object_types"] = jnp.array([object_id])
+        data["camera_pose"] = Pose.identity()
 
         all_data.append(data)
     return all_data

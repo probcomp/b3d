@@ -364,3 +364,4 @@ class Pose:
 
     sample_uniform_pose = sample_uniform_pose
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
+    sample_gaussian_vmf_pose_jit = jax.jit(sample_gaussian_vmf_pose)

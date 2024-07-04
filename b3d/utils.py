@@ -86,6 +86,11 @@ from b3d.pose import Pose, Rot
 from functools import partial
 # TODO: Refactor utils into core and others, to avoid circular imports
 
+@partial(jax.jit, static_argnums=(1,2))
+def resize_image(rgbd, height, width):
+    return jax.image.resize(
+        rgbd, (height, width, rgbd.shape[-1]), method="nearest"
+    )
 
 @partial(jax.jit, static_argnums=1)
 def downsize_images(ims, k):

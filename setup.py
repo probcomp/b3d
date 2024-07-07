@@ -68,6 +68,7 @@ setuptools.setup(
         "pyliblzfse",
         "nvidia-cuda-nvcc-cu12==12.3.52",
         "nvidia-nvjitlink-cu12==12.3.52",
+        "imageio",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

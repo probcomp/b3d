@@ -52,20 +52,42 @@ class FBExtractor:
             return None
         
         data_root = FBMetaData.GetRootAsFBMetaData(buffer, 0)
-
-        parentFolder = data_root.Scene()
         Nframe = data_root.Nframe()
         Nobjects = data_root.Nobjects()
         Nkeypoints = data_root.Nkeypoints()
+        samplingrate = data_root.Samplingrate()
+
+        return Nframe, Nobjects, Nkeypoints, samplingrate
+    
+    
+    def extract_file_info(self):
+        """Extract file info from the ZIP file and filename."""
+        buffer = read_file_from_zip(self.zip_path, "metadata.dat")
+        if buffer is None:
+            return None
+        
+        data_root = FBMetaData.GetRootAsFBMetaData(buffer, 0)
+        scene_folder = data_root.Scene()
+        scene_folder = scene_folder.decode('utf-8').strip("'")
 
         # from filename
         parts = self.zip_path.split('/')[-1].split('_')
+            
+        if len(parts) < 4:
+            raise ValueError("Filename does not have the expected format.")
+    
         base_name = parts[0]
         light_setting = parts[1]
         background_setting = parts[2]
-        resolution = parts[3]
+        resolution = parts[3].split('.')[0]
 
-        return Nframe, Nobjects, Nkeypoints
+        return {
+            'scene_folder': scene_folder,
+            'base_name': base_name,
+            'light_setting': light_setting,
+            'background_setting': background_setting,
+            'resolution': resolution
+        }
 
     def extract_object_catalog(self):
         """Extract object catalog from the ZIP file."""

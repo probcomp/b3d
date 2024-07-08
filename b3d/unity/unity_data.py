@@ -41,11 +41,12 @@ class UnityData:
     object_quaternions: Array
     object_catalog_ids: Optional[Array] = None
     latent_keypoint_positions: Array
-    latent_keypoint_visibility: Optional[Array] = None
+    keypoint_visibility: Optional[Array] = None
     object_assignments: Array
     Nframe: int
     Nobjects: int
     Nkeypoints: int
+    fps: Optional[float] = None
 
 
     def save(self, filepath: str):
@@ -70,7 +71,7 @@ class UnityData:
         width = int(camera_intrinsics[0])
         height = int(camera_intrinsics[1])
         far = camera_intrinsics[7]
-        Nframe, Nobjects, Nkeypoints = extractor.extract_metadata()
+        Nframe, Nobjects, Nkeypoints, samplingrate = extractor.extract_metadata()
         rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
         camera_position, camera_quaternion = extractor.extract_camera_poses(Nframe)
         object_positions, object_quaternions = extractor.extract_object_poses(Nframe)
@@ -78,7 +79,7 @@ class UnityData:
         object_assignments = extractor.extract_keypoints_object_assignment()
         keypoint_positions, keypoint_visibility = extractor.extract_keypoints(Nframe, Nkeypoints)
 
-        # Return an instance of ExtractedData
+        # Return an instance of UnityData
         return cls(
             rgb=rgb,
             depth=depth,
@@ -90,9 +91,10 @@ class UnityData:
             object_quaternions=object_quaternions,
             object_catalog_ids=object_catalog_ids,
             latent_keypoint_positions=keypoint_positions,
-            latent_keypoint_visibility=keypoint_visibility,
+            keypoint_visibility=keypoint_visibility,
             object_assignments=object_assignments,
             Nframe=Nframe,
             Nobjects=Nobjects,
-            Nkeypoints=Nkeypoints
+            Nkeypoints=Nkeypoints, 
+            fps=samplingrate
         )

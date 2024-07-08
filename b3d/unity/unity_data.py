@@ -5,6 +5,7 @@ from typing import Optional
 import numpy as np
 import json
 from FBExtractor import FBExtractor
+from typing import Dict
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -47,6 +48,7 @@ class UnityData:
     Nobjects: int
     Nkeypoints: int
     fps: Optional[float] = None
+    file_info: Optional[Dict[str, str]] = None
 
 
     def save(self, filepath: str):
@@ -78,6 +80,7 @@ class UnityData:
         object_catalog_ids = extractor.extract_object_catalog()
         object_assignments = extractor.extract_keypoints_object_assignment()
         keypoint_positions, keypoint_visibility = extractor.extract_keypoints(Nframe, Nkeypoints)
+        file_info = extractor.extract_file_info()
 
         # Return an instance of UnityData
         return cls(
@@ -96,5 +99,6 @@ class UnityData:
             Nframe=Nframe,
             Nobjects=Nobjects,
             Nkeypoints=Nkeypoints, 
-            fps=samplingrate
+            fps=samplingrate,
+            file_info=file_info
         )

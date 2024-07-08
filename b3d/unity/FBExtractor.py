@@ -2,10 +2,10 @@ import numpy as np
 from PIL import Image
 import io
 
-from utils import read_file_from_zip
-from utils import extract_vector2_data
-from utils import extract_vector3_data
-from utils import extract_quaternion_data
+from data_utils import read_file_from_zip
+from data_utils import extract_vector2_data
+from data_utils import extract_vector3_data
+from data_utils import extract_quaternion_data
 
 from FBOutput.FBCameraIntrinsics import FBCameraIntrinsics
 from FBOutput.FBMetaData import FBMetaData

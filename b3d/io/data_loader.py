@@ -42,6 +42,17 @@ def remove_zero_pad(img_id):
         if ch != "0":
             return img_id[i:]
 
+def get_ycbv_num_test_images(ycb_dir, scene_id):
+    scene_id = str(scene_id).rjust(6, "0")
+
+    data_dir = os.path.join(ycb_dir, "test")
+    scene_data_dir = os.path.join(
+        data_dir, scene_id
+    )  # depth, mask, mask_visib, rgb; scene_camera.json, scene_gt_info.json, scene_gt.json
+
+    scene_rgb_images_dir = os.path.join(scene_data_dir, "rgb")
+    sorted(glob.glob(scene_rgb_images_dir + "/*.png"))[-1]
+    return int(os.path.basename(sorted(glob.glob(scene_rgb_images_dir + "/*.png"))[-1]).split(".")[0])
 
 def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
     scene_id = str(scene_id).rjust(6, "0")

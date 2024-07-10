@@ -70,20 +70,17 @@ class UnityData:
         
         # Extract all data using the extractor
         camera_intrinsics = extractor.extract_camera_intrinsics()
-        width = int(camera_intrinsics[0])
-        height = int(camera_intrinsics[1])
-        far = camera_intrinsics[7]
         Nframe, Nobjects, Nkeypoints, samplingrate = extractor.extract_metadata()
         # rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
-        rgb = extractor.extract_rgb(Nframe,width, height)
-        depth = extractor.extract_depth(Nframe, width, height, far)
-        segmentation = extractor.extract_segmentation(Nframe, width, height)
+        rgb = extractor.extract_rgb()
+        depth = extractor.extract_depth()
+        segmentation = extractor.extract_segmentation()
 
-        camera_position, camera_quaternion = extractor.extract_camera_poses(Nframe)
-        object_positions, object_quaternions = extractor.extract_object_poses(Nframe)
+        camera_position, camera_quaternion = extractor.extract_camera_poses()
+        object_positions, object_quaternions = extractor.extract_object_poses()
         object_catalog_ids = extractor.extract_object_catalog()
         object_assignments = extractor.extract_keypoints_object_assignment()
-        keypoint_positions, keypoint_visibility = extractor.extract_keypoints(Nframe, Nkeypoints)
+        keypoint_positions, keypoint_visibility = extractor.extract_keypoints()
         file_info = extractor.extract_file_info()
 
         # Return an instance of UnityData

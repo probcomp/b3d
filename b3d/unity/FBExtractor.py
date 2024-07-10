@@ -26,6 +26,11 @@ class FBExtractor:
 
     def __init__(self, zip_path):
         self.zip_path = zip_path
+        self.Nframe = None
+        self.Nkeypoints = None
+        self.width = None
+        self.height = None
+        self.far = None
 
     def extract_camera_intrinsics(self):
         """Extract camera intrinsics from the ZIP file."""
@@ -35,22 +40,22 @@ class FBExtractor:
         
         data_root = FBCameraIntrinsics.GetRootAsFBCameraIntrinsics(buffer, 0)
 
-        width = data_root.Width()
-        height = data_root.Height()
+        self.width = data_root.Width()
+        self.height = data_root.Height()
         focalLength = data_root.FocalLength()
         sensorSize = extract_vector2_data(data_root.SensorSize())
         lensShift = extract_vector2_data(data_root.LensShift())
         gateFit = data_root.GateFit()
         fov = data_root.Fov()
         near = data_root.NearClipPlane()
-        far = data_root.FarClipPlane()
+        self.far = data_root.FarClipPlane()
 
-        fx = focalLength * width / sensorSize[0]
-        fy = focalLength * height / sensorSize[1]
-        cx = width / 2 + width * lensShift[0]
-        cy = height / 2 + height * lensShift[1]
+        fx = focalLength * self.width / sensorSize[0]
+        fy = focalLength * self.height / sensorSize[1]
+        cx = self.width / 2 + self.width * lensShift[0]
+        cy = self.height / 2 + self.height * lensShift[1]
 
-        return np.array([width, height, fx, fy, cx, cy, near, far])
+        return np.array([self.width, self.height, fx, fy, cx, cy, near, self.far])
 
     def extract_metadata(self):
         """Extract metadata from the ZIP file."""
@@ -59,14 +64,23 @@ class FBExtractor:
             return None
         
         data_root = FBMetaData.GetRootAsFBMetaData(buffer, 0)
-        Nframe = data_root.Nframe()
+        self.Nframe = data_root.Nframe()
         Nobjects = data_root.Nobjects()
-        Nkeypoints = data_root.Nkeypoints()
+        self.Nkeypoints = data_root.Nkeypoints()
         samplingrate = data_root.Samplingrate()
 
-        return Nframe, Nobjects, Nkeypoints, samplingrate
+        return self.Nframe, Nobjects, self.Nkeypoints, samplingrate
     
+    def ensure_camera_intrinsics_extracted(self):
+        """Ensure that camera intrinsics are extracted."""
+        if self.width is None or self.height is None or self.far is None:
+            self.extract_camera_intrinsics()
     
+    def ensure_metadata_extracted(self):
+        """Ensure that metadata are extracted."""
+        if self.Nframe is None or self.Nkeypoints is None:
+            self.extract_metadata()
+
     def extract_file_info(self):
         """Extract file info from the ZIP file and filename."""
         buffer = read_file_from_zip(self.zip_path, "metadata.dat")
@@ -128,14 +142,16 @@ class FBExtractor:
 
         return positions, quaternions
 
-    def extract_object_poses(self, Nframe):
+    def extract_object_poses(self):
         """Extract object poses for all frames from the ZIP file."""
+        self.ensure_metadata_extracted()
+
         positions = []
         quaternions = []
 
         static_positions, static_quaternions = self.extract_object_poses_from_file("static_objects.dat")
 
-        for f in range(Nframe):
+        for f in range(self.Nframe):
             dynamic_positions, dynamic_quaternions = self.extract_object_poses_from_file(f"frame_objects{f}.dat")
             position = np.concatenate([dynamic_positions, static_positions], axis=0)
             quaternion = np.concatenate([dynamic_quaternions, static_quaternions], axis=0)
@@ -157,11 +173,13 @@ class FBExtractor:
 
         return position, quaternion
 
-    def extract_camera_poses(self, Nframe):
+    def extract_camera_poses(self):
         """Extract camera poses for all frames."""
-        camera_position = np.empty((Nframe, 3), dtype=float)
-        camera_rotation = np.empty((Nframe, 4), dtype=float)
-        for f in range(Nframe):
+        self.ensure_metadata_extracted()
+
+        camera_position = np.empty((self.Nframe, 3), dtype=float)
+        camera_rotation = np.empty((self.Nframe, 4), dtype=float)
+        for f in range(self.Nframe):
             position, quaternion = self.extract_camera_pose_at_frame(f)
             camera_position[f] = position
             camera_rotation[f] = quaternion
@@ -182,18 +200,21 @@ class FBExtractor:
 
         return img
     
-    def extract_rgb(self, Nframe, width, height):
+    def extract_rgb(self):
         """Extract rgb data for all frames."""
-        rgb = np.empty((Nframe, height, width, 3), dtype=float)
+        self.ensure_metadata_extracted()
+        self.ensure_camera_intrinsics_extracted()
+        rgb = np.empty((self.Nframe, self.height, self.width, 3), dtype=float)
 
-        for f in range(Nframe):
+        for f in range(self.Nframe):
             rgb_f = self.extract_png_image_at_frame(f, 'rgb')
             rgb[f] = rgb_f[:, :, :3] / 255 # as float
 
         return rgb
 
-    def extract_depth_at_frame(self, frame_index, width, height, far, CHANNELS = ['R', 'G', 'B', 'A']):
+    def extract_depth_at_frame(self, frame_index, CHANNELS = ['R', 'G', 'B', 'A']):
         """Extract depth data for a specific frame. """
+        self.ensure_camera_intrinsics_extracted()
         buffer = read_file_from_zip(self.zip_path, f"frame_depth{frame_index}.dat")
         if buffer is None:
             return None
@@ -209,7 +230,7 @@ class FBExtractor:
         
         # Read the channels
         channel_data = {
-            c: np.frombuffer(exr_file.channel(c, pt), dtype=np.float32).reshape((height, width))
+            c: np.frombuffer(exr_file.channel(c, pt), dtype=np.float32).reshape((self.height, self.width))
             for c in CHANNELS
         }
 
@@ -217,17 +238,19 @@ class FBExtractor:
         depth_c = channel_data['R']
 
         # Value corresponding to 0 corresponds to the skybox/empty set these values to the far plane
-        depth = np.where(depth_c == 0, far, depth_c)
+        depth = np.where(depth_c == 0, self.far, depth_c)
 
         return depth
     
-    def extract_depth(self, Nframe, width, height, far):
+    def extract_depth(self):
         """Extract rgb data for all frames."""
-        depth = np.empty((Nframe, height, width), dtype=float)
+        self.ensure_metadata_extracted()
+        self.ensure_camera_intrinsics_extracted()
+        depth = np.empty((self.Nframe, self.height, self.width), dtype=float)
 
         CHANNELS = ['R', 'G', 'B', 'A']
-        for f in range(Nframe):
-            depth[f] = self.extract_depth_at_frame(f, width, height, far, CHANNELS)
+        for f in range(self.Nframe):
+            depth[f] = self.extract_depth_at_frame(f, CHANNELS)
 
         return depth
     
@@ -254,56 +277,12 @@ class FBExtractor:
         colordict[white] = -1
 
         return colordict
-    
-    def extract_segmentation_at_frame(self, frame_index, width, height, color_to_int):
+
+    def extract_segmentation_at_frame(self, frame_index, color_keys, color_values):
         """Extract segmentation image."""
+        self.ensure_camera_intrinsics_extracted()
         seg_img = self.extract_png_image_at_frame(frame_index, 'seg')
 
-        flattened_image = seg_img.reshape(-1, 4)
-
-        seg = np.array([color_to_int.get(tuple(pixel), 0) for pixel in flattened_image], dtype=np.uint)
-        seg = seg.reshape(height, width)
-
-        return seg
-    
-    def extract_segmentation(self, Nframe, width, height):
-        """Extract rgb data for all frames."""
-        segmentation = np.empty((Nframe, height, width), dtype=int)
-
-        colordict = self.extract_colordict()
-        color_to_int = {tuple(color): value for color, value in colordict.items()}
-        for f in range(Nframe):
-            segmentation[f] = self.extract_segmentation_at_frame(f, width, height, color_to_int)
-
-        return segmentation
-    
-    def extract_colordict(self):
-        """Extract segmentation color - object id dictionary."""
-        buffer = read_file_from_zip(self.zip_path, "color_objectid_dict.dat")
-        if buffer is None:
-            return None
-        
-        data_root = FBColorDict.GetRootAsFBColorDict(buffer, 0)
-
-        colordict = {}
-        num_entries = data_root.EntriesLength()
-        
-        for i in range(num_entries):
-            entry = data_root.Entries(i)
-            key = entry.Key()
-            value = entry.Value()
-            color = (key.R(), key.G(), key.B(), key.A())
-            colordict[color] = value
-
-        # add segmentation color 'white', which corresponds to the skybox/empty. Matching it to uintmax=4294967295
-        white = (255, 255, 255, 255)
-        colordict[white] = -1
-
-        return colordict
-
-    @staticmethod
-    def _extract_segmentation_at_frame(seg_img, width, height, color_keys, color_values):
-        """Extract segmentation image."""
         flattened_image = seg_img.reshape(-1, 4)
 
         # Vectorized lookup
@@ -313,25 +292,26 @@ class FBExtractor:
             return value
 
         seg = vmap(lookup)(flattened_image)
-        seg = seg.reshape(height, width)
+        seg = seg.reshape(self.height, self.width)
         return seg
 
-    def extract_segmentation(self, Nframe, width, height):
+    def extract_segmentation(self):
         """Extract rgb data for all frames."""
+        self.ensure_metadata_extracted()
+        self.ensure_camera_intrinsics_extracted()
         colordict = self.extract_colordict()
         color_keys = jnp.array(list(colordict.keys()))
         color_values = jnp.array(list(colordict.values()))
 
-        segmentation = np.empty((Nframe, height, width), dtype=int)
+        segmentation = np.empty((self.Nframe, self.height, self.width), dtype=int)
 
-        for f in range(Nframe):
-            seg_img = self.extract_png_image_at_frame(f, 'seg')
-            seg = self._extract_segmentation_at_frame(seg_img, width, height, color_keys, color_values)
+        for f in range(self.Nframe):
+            seg = self.extract_segmentation_at_frame(f, color_keys, color_values)
             segmentation[f] = np.array(seg)
 
         return jnp.stack(segmentation)
 
-    def extract_keypoints_data_at_framet(self, frame_index):
+    def extract_keypoints_data_at_frame(self, frame_index):
         """Extract keypoints data at a specific frame index."""
         buffer = read_file_from_zip(self.zip_path, f"frame_kp{frame_index}.dat")
         if buffer is None:
@@ -344,13 +324,14 @@ class FBExtractor:
 
         return positions, visibilities
 
-    def extract_keypoints(self, Nframe, Nkeypoints):
+    def extract_keypoints(self):
         """Extract keypoints data for all frames."""
-        keypoint_positions = np.empty((Nframe, Nkeypoints, 3), dtype=float)
-        keypoint_visibility = np.empty((Nframe, Nkeypoints), dtype=bool)
+        self.ensure_metadata_extracted()
+        keypoint_positions = np.empty((self.Nframe, self.Nkeypoints, 3), dtype=float)
+        keypoint_visibility = np.empty((self.Nframe, self.Nkeypoints), dtype=bool)
 
-        for f in range(Nframe):
-            k_position, k_visibility = self.extract_keypoints_data_at_framet(f)
+        for f in range(self.Nframe):
+            k_position, k_visibility = self.extract_keypoints_data_at_frame(f)
             keypoint_positions[f] = k_position
             keypoint_visibility[f] = k_visibility
 

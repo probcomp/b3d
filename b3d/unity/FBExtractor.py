@@ -1,6 +1,8 @@
 import numpy as np
 from PIL import Image
 import io
+import OpenEXR
+import Imath
 
 from data_utils import read_file_from_zip
 from data_utils import extract_vector2_data
@@ -13,10 +15,12 @@ from FBOutput.FBObjectCatalog import FBObjectCatalog
 from FBOutput.FBKeypointsAssignment import FBKeypointsAssignment
 from FBOutput.FBObjectPose import FBObjectPose
 from FBOutput.FBFrameCameraPose import FBFrameCameraPose
-from FBOutput.FBFrameImage import FBFrameImage
+from FBOutput.FBImage import FBImage
+from FBOutput.FBColorDict import FBColorDict
 from FBOutput.FBFrameKeypoints import FBFrameKeypoints
 
 class FBExtractor:
+
     def __init__(self, zip_path):
         self.zip_path = zip_path
 
@@ -161,42 +165,114 @@ class FBExtractor:
 
         return camera_position, camera_rotation
 
-    def extract_images_at_frame(self, frame_index, width, height, far):
-        """Extract image data for a specific frame."""
-        buffer = read_file_from_zip(self.zip_path, f"frame_image{frame_index}.dat")
+    def extract_png_image_at_frame(self, frame_index, image_pass='rgb'):
+        """Extract image data for a specific frame. image_pass can take values 'rgb' or 'seg'."""
+        buffer = read_file_from_zip(self.zip_path, f"frame_{image_pass}{frame_index}.dat")
         if buffer is None:
-            return None, None, None
+            return None
 
-        data_root = FBFrameImage.GetRootAsFBFrameImage(buffer, 0)
+        data_root = FBImage.GetRootAsFBImage(buffer, 0)
 
-        original_rgba = data_root.RgbAsNumpy().tobytes()
-        rgba = Image.open(io.BytesIO(original_rgba))
-        rgba = np.array(rgba)
+        raw_img = data_root.ImageAsNumpy().tobytes()
+        img = Image.open(io.BytesIO(raw_img))
+        img = np.array(img)
 
-        original_depth_data = data_root.DepthAsNumpy()
-        depth = np.array(original_depth_data).reshape((height, width))
-        depth = np.flipud(depth)
-        depth[depth == 0] = far
+        return img
+    
+    def extract_colordict(self):
+        """Extract segmentation color - object id dictionary."""
+        buffer = read_file_from_zip(self.zip_path, "color_objectid_dict.dat")
+        if buffer is None:
+            return None
+        
+        data_root = FBColorDict.GetRootAsFBColorDict(buffer, 0)
 
-        original_id_data = data_root.IdAsNumpy()
-        segmentation = np.array(original_id_data).reshape((height, width))
-        segmentation = np.flipud(segmentation)
+        colordict = {}
+        num_entries = data_root.EntriesLength()
+        
+        for i in range(num_entries):
+            entry = data_root.Entries(i)
+            key = entry.Key()
+            value = entry.Value()
+            color = (key.R(), key.G(), key.B(), key.A())
+            colordict[color] = value
 
-        return rgba, depth, segmentation
+        # add segmentation color 'white', which corresponds to the skybox/empty. Matching it to uintmax=4294967295
+        white = (255, 255, 255, 255)
+        colordict[white] = 4294967295
 
-    def extract_videos(self, Nframe, width, height, far):
-        """Extract video data for all frames."""
+        return colordict
+    
+    def extract_segmentation_at_frame(self, frame_index, width, height, color_to_int):
+        """Extract segmentation image."""
+        seg_img = self.extract_png_image_at_frame(frame_index, 'seg')
+
+        flattened_image = seg_img.reshape(-1, 4)
+
+        seg = np.array([color_to_int.get(tuple(pixel), 0) for pixel in flattened_image], dtype=np.uint)
+        seg = seg.reshape(height, width)
+
+        return seg
+
+    def extract_depth_at_frame(self, frame_index, width, height, far, CHANNELS = ['R', 'G', 'B', 'A']):
+        """Extract depth data for a specific frame. """
+        buffer = read_file_from_zip(self.zip_path, f"frame_depth{frame_index}.dat")
+        if buffer is None:
+            return None
+
+        data_root = FBImage.GetRootAsFBImage(buffer, 0)
+        
+        raw_depth = data_root.ImageAsNumpy().tobytes()
+
+        # Depth values were encoded as EXR (HDR)
+        exr_stream = io.BytesIO(raw_depth)
+        exr_file = OpenEXR.InputFile(exr_stream)
+        pt = Imath.PixelType(Imath.PixelType.FLOAT)
+        
+        # Read the channels
+        channel_data = {
+            c: np.frombuffer(exr_file.channel(c, pt), dtype=np.float32).reshape((height, width))
+            for c in CHANNELS
+        }
+
+        # Depth values are stored in the R channel
+        depth_c = channel_data['R']
+
+        # Value corresponding to 0 corresponds to the skybox/empty set these values to the far plane
+        depth = np.where(depth_c == 0, far, depth_c)
+
+        return depth
+    
+    def extract_rgb(self, Nframe, width, height):
+        """Extract rgb data for all frames."""
         rgb = np.empty((Nframe, height, width, 3), dtype=float)
-        depth = np.empty([Nframe, height, width], dtype=float)
-        segmentation = np.empty([Nframe, height, width], dtype=np.uint32)
 
         for f in range(Nframe):
-            rgb_f, depth_f, seg_f = self.extract_images_at_frame(f, width, height, far)
-            rgb[f] = rgb_f[:, :, :3] / 255
-            depth[f] = depth_f
-            segmentation[f] = seg_f
+            rgb_f = self.extract_png_image_at_frame(f, 'rgb')
+            rgb[f] = rgb_f[:, :, :3] / 255 # as float
 
-        return rgb, depth, segmentation
+        return rgb
+    
+    def extract_segmentation(self, Nframe, width, height):
+        """Extract rgb data for all frames."""
+        segmentation = np.empty((Nframe, height, width), dtype=np.uint32)
+
+        colordict = self.extract_colordict()
+        color_to_int = {tuple(color): value for color, value in colordict.items()}
+        for f in range(Nframe):
+            segmentation[f] = self.extract_segmentation_at_frame(f, width, height, color_to_int)
+
+        return segmentation
+    
+    def extract_depth(self, Nframe, width, height, far):
+        """Extract rgb data for all frames."""
+        depth = np.empty((Nframe, height, width), dtype=float)
+
+        CHANNELS = ['R', 'G', 'B', 'A']
+        for f in range(Nframe):
+            depth[f] = self.extract_depth_at_frame(f, width, height, far, CHANNELS)
+
+        return depth
 
     def extract_keypoints_data_at_framet(self, frame_index):
         """Extract keypoints data at a specific frame index."""

@@ -74,7 +74,11 @@ class UnityData:
         height = int(camera_intrinsics[1])
         far = camera_intrinsics[7]
         Nframe, Nobjects, Nkeypoints, samplingrate = extractor.extract_metadata()
-        rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
+        # rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
+        rgb = extractor.extract_rgb(Nframe,width, height)
+        depth = extractor.extract_depth(Nframe, width, height, far)
+        segmentation = extractor.extract_segmentation(Nframe, width, height)
+
         camera_position, camera_quaternion = extractor.extract_camera_poses(Nframe)
         object_positions, object_quaternions = extractor.extract_object_poses(Nframe)
         object_catalog_ids = extractor.extract_object_catalog()

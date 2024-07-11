@@ -83,6 +83,8 @@ class UnityData:
         keypoint_positions, keypoint_visibility = extractor.extract_keypoints()
         file_info = extractor.extract_file_info()
 
+        extractor.close()
+
         # Return an instance of UnityData
         return cls(
             rgb=rgb,

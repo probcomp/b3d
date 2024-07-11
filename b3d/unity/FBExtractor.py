@@ -3,11 +3,10 @@ from PIL import Image
 import io
 import OpenEXR
 import Imath
-import jax
+import zipfile
 import jax.numpy as jnp
-from jax import jit, vmap
+from jax import vmap
 
-from data_utils import read_file_from_zip
 from data_utils import extract_vector2_data
 from data_utils import extract_vector3_data
 from data_utils import extract_quaternion_data
@@ -26,15 +25,31 @@ class FBExtractor:
 
     def __init__(self, zip_path):
         self.zip_path = zip_path
+        self.zip_file = zipfile.ZipFile(zip_path, 'r')
+        self.file_cache = {}
         self.Nframe = None
         self.Nkeypoints = None
         self.width = None
         self.height = None
         self.far = None
+    
+    def read_file_from_zip(self, file_name):
+        """Read a file from the ZIP archive and cache its contents."""
+        if file_name in self.file_cache:
+            return self.file_cache[file_name]
+        
+        if file_name in self.zip_file.namelist():
+            with self.zip_file.open(file_name) as file:
+                file_contents = file.read()
+                self.file_cache[file_name] = bytearray(file_contents)
+                return self.file_cache[file_name]
+        else:
+            print(f"{file_name} not found in the ZIP archive.")
+            return None
 
     def extract_camera_intrinsics(self):
         """Extract camera intrinsics from the ZIP file."""
-        buffer = read_file_from_zip(self.zip_path, "camera_intrinsics.dat")
+        buffer = self.read_file_from_zip("camera_intrinsics.dat")
         if buffer is None:
             return None
         
@@ -59,7 +74,7 @@ class FBExtractor:
 
     def extract_metadata(self):
         """Extract metadata from the ZIP file."""
-        buffer = read_file_from_zip(self.zip_path, "metadata.dat")
+        buffer = self.read_file_from_zip("metadata.dat")
         if buffer is None:
             return None
         
@@ -83,7 +98,7 @@ class FBExtractor:
 
     def extract_file_info(self):
         """Extract file info from the ZIP file and filename."""
-        buffer = read_file_from_zip(self.zip_path, "metadata.dat")
+        buffer = self.read_file_from_zip("metadata.dat")
         if buffer is None:
             return None
         
@@ -112,7 +127,7 @@ class FBExtractor:
 
     def extract_object_catalog(self):
         """Extract object catalog from the ZIP file."""
-        buffer = read_file_from_zip(self.zip_path, "object_catalog.dat")
+        buffer = self.read_file_from_zip("object_catalog.dat")
         if buffer is None:
             return None
         
@@ -122,7 +137,7 @@ class FBExtractor:
 
     def extract_keypoints_object_assignment(self):
         """Extract keypoints object assignment from the ZIP file."""
-        buffer = read_file_from_zip(self.zip_path, "keypoints_object_assignment.dat")
+        buffer = self.read_file_from_zip("keypoints_object_assignment.dat")
         if buffer is None:
             return None
         
@@ -131,7 +146,7 @@ class FBExtractor:
 
     def extract_object_poses_from_file(self, filename):
         """Extract object poses from a specific file in the ZIP archive."""
-        buffer = read_file_from_zip(self.zip_path, filename)
+        buffer = self.read_file_from_zip(filename)
         if buffer is None:
             return None, None
         
@@ -162,7 +177,7 @@ class FBExtractor:
 
     def extract_camera_pose_at_frame(self, frame_index):
         """Extract camera pose at a specific frame index."""
-        buffer = read_file_from_zip(self.zip_path, f"frame_camera_pose{frame_index}.dat")
+        buffer = self.read_file_from_zip(f"frame_camera_pose{frame_index}.dat")
         if buffer is None:
             return None, None
         
@@ -188,7 +203,7 @@ class FBExtractor:
 
     def extract_png_image_at_frame(self, frame_index, image_pass='rgb'):
         """Extract image data for a specific frame. image_pass can take values 'rgb' or 'seg'."""
-        buffer = read_file_from_zip(self.zip_path, f"frame_{image_pass}{frame_index}.dat")
+        buffer = self.read_file_from_zip(f"frame_{image_pass}{frame_index}.dat")
         if buffer is None:
             return None
 
@@ -215,7 +230,7 @@ class FBExtractor:
     def extract_depth_at_frame(self, frame_index, CHANNELS = ['R', 'G', 'B', 'A']):
         """Extract depth data for a specific frame. """
         self.ensure_camera_intrinsics_extracted()
-        buffer = read_file_from_zip(self.zip_path, f"frame_depth{frame_index}.dat")
+        buffer = self.read_file_from_zip(f"frame_depth{frame_index}.dat")
         if buffer is None:
             return None
 
@@ -256,7 +271,7 @@ class FBExtractor:
     
     def extract_colordict(self):
         """Extract segmentation color - object id dictionary."""
-        buffer = read_file_from_zip(self.zip_path, "color_objectid_dict.dat")
+        buffer = self.read_file_from_zip("color_objectid_dict.dat")
         if buffer is None:
             return None
         
@@ -313,7 +328,7 @@ class FBExtractor:
 
     def extract_keypoints_data_at_frame(self, frame_index):
         """Extract keypoints data at a specific frame index."""
-        buffer = read_file_from_zip(self.zip_path, f"frame_kp{frame_index}.dat")
+        buffer = self.read_file_from_zip(f"frame_kp{frame_index}.dat")
         if buffer is None:
             return None, None
 
@@ -336,3 +351,7 @@ class FBExtractor:
             keypoint_visibility[f] = k_visibility
 
         return keypoint_positions, keypoint_visibility
+
+    def close(self):
+        """Close the ZIP file."""
+        self.zip_file.close()

@@ -198,15 +198,15 @@ def get_rgb_pil_image(image, max=1.0):
         PIL.Image: RGB image visualized as a PIL image.
     """
     image = np.clip(image, 0.0, max)
-    if image.shape[-1] == 3:
-        image_type = "RGB"
-    else:
-        image_type = "RGBA"
+    # if image.shape[-1] == 3:
+    #     image_type = "RGB"
+    # else:
+    #     image_type = "RGBA"
 
     img = Image.fromarray(
-        np.rint(image / max * 255.0).astype(np.int8),
-        mode=image_type,
-    ).convert("RGB")
+        np.rint(image[...,:3] / max * 255.0).astype(np.int8),
+        mode="RGB"
+    )
     return img
 
 viz_rgb = get_rgb_pil_image

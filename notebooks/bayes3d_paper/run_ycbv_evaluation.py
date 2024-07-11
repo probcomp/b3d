@@ -89,8 +89,8 @@ def run_tracking(scene=None, object=None, debug=False):
 
             rr.log("rgb", rr.Image(observed_rgbd[...,:3]))
             rr.log("rgb/rendering", rr.Image(rendered_rgbd[...,:3]))
-            rr.log("rgb/depth", rr.DepthImage(observed_rgbd[...,3]))
-            rr.log("rgb/depth_rendering", rr.DepthImage(rendered_rgbd[...,3]))
+            rr.log("rgb/overlay/depth", rr.DepthImage(observed_rgbd[...,3]))
+            rr.log("rgb/overlay/depth_rendering", rr.DepthImage(rendered_rgbd[...,3]))
             info_string = f"# Score : {trace.get_score()}"
             
             for add in ["is_match", "is_mismatched", "color_match", "depth_match", "is_hypothesized"]:
@@ -153,7 +153,7 @@ def run_tracking(scene=None, object=None, debug=False):
                 )
                 saved_trace = trace
                 potential_traces = []
-                for var in [0.03, 0.02, 0.01, 0.005, 0.03, 0.02, 0.01, 0.005]:
+                for var in [0.05, 0.02, 0.01, 0.005, 0.05, 0.02, 0.01, 0.005]:
                     trace = saved_trace
                     trace, key = gvmf_and_select_best_move(trace, key, var, 700.0, Pytree.const("object_pose_0"), 700)
                     trace, key = gvmf_and_select_best_move(trace, key, var, 700.0, Pytree.const("object_pose_0"), 700)
@@ -197,6 +197,25 @@ def run_tracking(scene=None, object=None, debug=False):
                     rerun_visualize_trace_t(tracking_results[i], i)
 
                 embed()
+
+                t = 11
+                trace = tracking_results[t - 1]
+                trace = b3d.update_choices_jit(trace, jax.random.PRNGKey(0), ("image",),
+                    b3d.utils.resize_image(all_data[t]["rgbd"], renderer.height, renderer.width),
+                )
+                rerun_visualize_trace_t(trace, t)
+
+
+
+                t = 11
+                trace = tracking_results[t - 1]
+                trace = b3d.update_choices_jit(trace, jax.random.PRNGKey(0), ("image", "object_pose_0"),
+                    b3d.utils.resize_image(all_data[t]["rgbd"], renderer.height, renderer.width),
+                    all_data[t]["camera_pose"].inv() @ all_data[t]["object_poses"][IDX]
+                )
+                rerun_visualize_trace_t(trace, t)
+                rerun_visualize_trace_t(potential_traces[3], t)
+
 
 if __name__ == "__main__":
     fire.Fire(run_tracking)

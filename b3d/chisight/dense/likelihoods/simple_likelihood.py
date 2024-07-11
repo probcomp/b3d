@@ -42,7 +42,7 @@ def simple_likelihood(observed_rgbd, scene_mesh, renderer, likelihood_args):
 
 
     score = jnp.sum(
-        is_match * rendered_areas * 2.0 + is_mismatched * rendered_areas * -1.0
+        is_match * rendered_areas * 3.0 + is_mismatched * rendered_areas * -1.0
     ) * likelihood_args["multiplier"]
 
     return {

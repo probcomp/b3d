@@ -135,6 +135,11 @@ def convert_unity_to_feature_track(unity_data: UnityData) -> FeatureTrackData:
         camera_quaternion=camera_quaternion
     )
 
+def convert(zip_path: str) -> FeatureTrackData:
+    unity_data = UnityData.from_zip(zip_path)
+    feature_track_data = convert_unity_to_feature_track(unity_data)
+    return feature_track_data
+
 def process(zip_path: str) -> None:
     """Process a ZIP file and save the feature track data."""
     unity_data = UnityData.from_zip(zip_path)

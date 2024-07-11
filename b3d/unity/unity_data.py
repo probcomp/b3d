@@ -3,7 +3,6 @@ from b3d.types import Array
 import jax.numpy as jnp
 from typing import Optional
 import numpy as np
-import json
 from FBExtractor import FBExtractor
 from typing import Dict
 
@@ -13,6 +12,7 @@ class UnityData:
     """
     Unity data class. Note: Spatial units are measured in meters.
     Unity coordinate system is left-handed with x right, y up, and z forward. 
+    For object_positions, quaternions, and catalog; dynamic objects are indexed first, then static objects.
 
     Args:
         rgb:                            (T, H, W, 3) Float Array

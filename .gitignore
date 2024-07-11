@@ -7,3 +7,7 @@ assets/bop/*
 assets/ycbineoat/*
 **/.ipynb_checkpoints
 **/**.mp4
+**/**.npz
+**/**.log
+**/**.json
+**/**.npy

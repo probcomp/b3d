@@ -7,6 +7,7 @@ from b3d.camera import screen_from_camera, Intrinsics, unproject_depth
 from path_utils import get_assets_path
 from unity_data import UnityData
 from b3d.io.feature_track_data import FeatureTrackData
+from generate_visualization import create_keypoints_gif
 
 # Rotation of 90 degrees along the x-axis
 QUAT_90_DEG_X = Rot.from_rotvec(jnp.array([1., 0., 0.]) * jnp.pi / 2).as_quat()
@@ -148,5 +149,8 @@ def process(zip_path: str) -> None:
     file_info = unity_data.file_info
     filepath = get_assets_path('f', file_info['scene_folder'], file_info['base_name']) + f"/{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
     
+    # Save feature_track_data and create a GIF
     feature_track_data.save(filepath)
+    create_keypoints_gif(feature_track_data, filepath.replace('.npz', '.gif'))
+
     print(f"Saved to {filepath}")

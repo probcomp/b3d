@@ -3,7 +3,7 @@ import cv2
 import imageio
 from b3d.io.feature_track_data import FeatureTrackData
 
-def create_keypoints_gif(data: FeatureTrackData, output_path='output.gif', res:float=200, fps:float=10):
+def create_keypoints_gif(data: FeatureTrackData, output_path='output.gif', res: float=200, fps: float=10):
     Nframe = data.rgbd_images.shape[0]
     frames = []
 

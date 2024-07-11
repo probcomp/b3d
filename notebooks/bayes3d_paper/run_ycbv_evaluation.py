@@ -40,7 +40,7 @@ def run_tracking(scene=None, object=None, debug=False):
         num_scenes = b3d.io.data_loader.get_ycbv_num_test_images(ycb_dir, scene_id)
 
         # image_ids = [image] if image is not None else range(1, num_scenes, FRAME_RATE)
-        image_ids = range(1, num_scenes, FRAME_RATE)
+        image_ids = range(1, num_scenes + 1, FRAME_RATE)
         all_data = b3d.io.get_ycbv_test_images(ycb_dir, scene_id, image_ids)
 
         meshes = [
@@ -198,7 +198,7 @@ def run_tracking(scene=None, object=None, debug=False):
 
                 embed()
 
-                t = 11
+                t = 1
                 trace = tracking_results[t - 1]
                 trace = b3d.update_choices_jit(trace, jax.random.PRNGKey(0), ("image",),
                     b3d.utils.resize_image(all_data[t]["rgbd"], renderer.height, renderer.width),
@@ -207,14 +207,37 @@ def run_tracking(scene=None, object=None, debug=False):
 
 
 
-                t = 11
                 trace = tracking_results[t - 1]
                 trace = b3d.update_choices_jit(trace, jax.random.PRNGKey(0), ("image", "object_pose_0"),
                     b3d.utils.resize_image(all_data[t]["rgbd"], renderer.height, renderer.width),
                     all_data[t]["camera_pose"].inv() @ all_data[t]["object_poses"][IDX]
                 )
                 rerun_visualize_trace_t(trace, t)
-                rerun_visualize_trace_t(potential_traces[3], t)
+
+                # new_likelihood_args = {
+                #     "inlier_score": 20.0,
+                #     "color_tolerance": 20.0,
+                #     "depth_tolerance": 0.01,
+                #     "outlier_prob": 0.000001,
+                #     "multiplier": 10000.0,
+                #     "bounds": jnp.array([90.0, 50.0, 50.0, 0.005]),
+                #     "variances" : jnp.zeros(4)
+                # }
+                # choicemap = genjax.ChoiceMap.d(
+                #     dict(
+                #         [
+                #             ("object_pose_0",  trace.get_choices()["object_pose_0"]),
+                #             ("image", trace.get_choices()["image"])
+                #         ]
+                #     )
+                # )
+
+                # trace, _ = importance_jit(
+                #     jax.random.PRNGKey(2),
+                #     choicemap,
+                #     (Pytree.const(1), [meshes[IDX]], new_likelihood_args),
+                # )
+                # rerun_visualize_trace_t(trace, t)
 
 
 if __name__ == "__main__":

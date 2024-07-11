@@ -25,7 +25,7 @@ class UnityData:
         object_quaternions:             (T, O, 4) Float Array
         object_catalog_ids:             (O, ) Float Array
         latent_keypoint_positions:      (T, N, 3) Float Array
-        latent_keypoint_visibility:     (T, N) Boolean Array OR None
+        keypoint_visibility:            (T, N) Boolean Array OR None
         object_assignments:             (N,) Int Array
         Nframe:                         T int
         Nobjects:                       O int
@@ -62,7 +62,21 @@ class UnityData:
         with open(filepath, "rb") as f:
             data = jnp.load(f, allow_pickle=False)
             return cls(**{k: jnp.array(v) for k, v in data.items()})  # type: ignore
-        
+    
+    def subsample_keypoints(self):
+        # Create a mask where each point is at least true once across all frames
+        mask = np.any(self.keypoint_visibility, axis=0)
+
+        # Apply the mask to subsample the data
+        subsampled_visibility = self.keypoint_visibility[:, mask]
+        subsampled_position = self.latent_keypoint_positions[:, mask, :]
+        subsampled_object_assignment = self.object_assignments[mask]
+
+        # Update the data in the class with the subsampled data
+        self.keypoint_visibility = subsampled_visibility
+        self.latent_keypoint_positions = subsampled_position
+        self.object_assignments = subsampled_object_assignment
+
     @classmethod
     def from_zip(cls, zip_path):
         # Create an instance of FBExtractor
@@ -71,6 +85,7 @@ class UnityData:
         # Extract all data using the extractor
         camera_intrinsics = extractor.extract_camera_intrinsics()
         Nframe, Nobjects, Nkeypoints, samplingrate = extractor.extract_metadata()
+        
         # rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
         rgb = extractor.extract_rgb()
         depth = extractor.extract_depth()
@@ -85,8 +100,7 @@ class UnityData:
 
         extractor.close()
 
-        # Return an instance of UnityData
-        return cls(
+        instance = cls(
             rgb=rgb,
             depth=depth,
             segmentation=segmentation,
@@ -105,3 +119,9 @@ class UnityData:
             fps=samplingrate,
             file_info=file_info
         )
+
+        # Only keep keypoints that are visible in at least one frame
+        instance.subsample_keypoints()
+
+        # Return an instance of UnityData
+        return instance

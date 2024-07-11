@@ -11,3 +11,4 @@ assets/ycbineoat/*
 **/**.log
 **/**.json
 **/**.npy
+**/**.txt

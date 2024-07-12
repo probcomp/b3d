@@ -86,18 +86,28 @@ def _epi_constraint(cam, u0, u1, intr):
     n = n/jnp.sqrt(n[...,[0]]**2 + n[...,[1]]**2+ n[...,[2]]**2)
     d = (n * v1).sum(-1)
 
-
+    # Project to epi plane spanned by v0 and c
     v1_ = v1 - (v1*n).sum(-1)[:,None]*n
     v1_ = v1_/jnp.linalg.norm(v1_, axis=-1, keepdims=True)
+    h = jnp.abs(d)
 
-    h = jnp.abs(d) - jnp.sign( (v0 * c).sum(-1) - (v1_ * c).sum(-1) ).sum()
-    # h = jnp.abs(d)
-    return h, None
+    aux = dict(v0=v0, v1=v1, v1_in_epiplane=v1_)
+    return h, aux
 
 vmap_epi_constraint = jax.vmap(
         lambda cam, uv0, uv1, intr: _epi_constraint(cam, uv0, uv1, intr)[0], 
         (0,None,None,None)
 )
+
+
+# NOTE: Experimental, don't rely on this
+def _epi_constraint_variation_1(cam, u0, u1, intr):
+    h, aux = _epi_constraint(cam, u0, u1, intr)[0]
+    v0  = aux["v0"]
+    v1_ = aux["v1_on_epiplane"]
+    c = cam.pos/jnp.linalg.norm(cam.pos)
+    h = h - jnp.sign( (v0 * c).sum(-1) - (v1_ * c).sum(-1) ).sum()
+    return h, None
 
 
 def _epi_distance(cam, u0, u1, intr):
@@ -209,58 +219,35 @@ def _get_epipolar_debugging_data(cam, u0, u1, intr):
 # 
 # # # # # # # # # # # # # # # # # # # # 
 
-
-
 def angle(v,w):
   v = v/jnp.linalg.norm(v, axis=-1, keepdims=True)
   w = w/jnp.linalg.norm(w, axis=-1, keepdims=True)
   return jnp.arccos((v*w).sum(-1))
 
 
-
-
-
 # # # # # # # # # # # # # # # # # # # # 
 # 
-#   Experimental
+#   Proposal Factories
 # 
 # # # # # # # # # # # # # # # # # # # # 
 from b3d.pose import uniform_pose_in_ball
 vmap_uniform_pose = jax.jit(jax.vmap(uniform_pose_in_ball.sample, (0,None,None,None)))
 
 
-def _epi_proposal_uniform_score_argmax(key, p0, p1, uvs0, uvs1, intr, rx=1.5, rq=0.25, S=100):
+def make_two_frame_proposal(loss_func):
     """
-    Return pose proposals around `p1` as follows:
-        Sample (u)niformly around `p1`, then (s)core, and take the (a)rgmax.
+        Returns a pose proposal, using the following recipe.
+         - Sample *uniformly* around target pose, then
+         - compute the lossess, and
+         - return the the argmin.
     """
-    # Create new key branch
-    _, key = keysplit(key, 1, 1)
-
-    # Switch to relative poses.
-    q = p0.inv() @ p1
-
-    # Sample and score
-    # test poses
-    key, keys = keysplit(key, 1, S)
-    qs = vmap_uniform_pose(keys, q, rx, rq)
-    sc_ = jax.vmap(_epi_scorer, (0,None,None,None))(qs, uvs0, uvs1, intr)[0]
-    sc = jnp.nan_to_num(sc_.sum(1), nan=jnp.inf)
-
-    # Choose 
-    # TODO: Resample?
-    i = jnp.argmin(sc)
-    q = qs[i]
-
-    return q, {"proposals": qs, "scores": sc, "winner_index": i, "winner_score": sc[i]}
-
-
-def make_epi_proposal(epi_loss):
 
     def proposal(key, p0, p1, uvs0, uvs1, intr, rx=1.5, rq=0.25, S=100):
         """
-        Return pose proposals around `p1` as follows:
-            Sample (u)niformly around `p1`, then (s)core, and take the (a)rgmax.
+        Return pose a proposal around target pose `p1` as follows:
+         - Sample *uniformly* around target pose `p1`, then
+         - compute the lossess, and
+         - return the the argmin.
         """
         # Create new key branch
         _, key = keysplit(key, 1, 1)
@@ -272,50 +259,19 @@ def make_epi_proposal(epi_loss):
         # test poses
         key, keys = keysplit(key, 1, S)
         qs = vmap_uniform_pose(keys, q, rx, rq)
-        sc_ = jax.vmap(epi_loss, (0,None,None,None))(qs, uvs0, uvs1, intr)[0]
-        sc = jnp.nan_to_num(sc_.sum(1), nan=jnp.inf)
+        losses_ = jax.vmap(loss_func, (0,None,None,None))(qs, uvs0, uvs1, intr)[0]
+        loss = jnp.nan_to_num(losses_.sum(1), nan=jnp.inf)
 
-        # Choose 
+        # Pick best test pose
         # TODO: Resample?
-        i = jnp.argmin(sc)
+        i = jnp.argmin(loss)
         q = qs[i]
 
-        return q, {"proposals": qs, "scores": sc, "winner_index": i, "winner_score": sc[i]}
+        aux = {"proposals": qs, "loss": loss, "winner_index": i, "winner_loss": loss[i]}
+
+        return q, aux
 
     return proposal
-
-
-
-def _run_inference_on_triple(key, p, p0, p1, uvs, uvs0, uvs1, intr, rx=1., rq=0.25, N=100):
-    """
-    Return pose proposals around `p1`. 
-    """
-    # Create new key branch
-    _, key = keysplit(key, 1, 1)
-
-    # num_iter    = 20
-    # ts = jnp.arange(num_iter)
-    # scale = jnp.linspace(1.,0.1, num_iter)
-
-    # Sample and score
-    # test poses
-    keys = keysplit(key, N)
-    qs = vmap_uniform_pose(keys, p, rx, rq)
-
-    sc_ = epi_scorer(p0.inv() @ qs, uvs0, uvs, intr)
-    sc0 = jnp.nan_to_num(sc_.sum(1), nan=jnp.inf)
-
-    sc_ = epi_scorer(p1.inv() @ qs, uvs1, uvs, intr)
-    sc1 = jnp.nan_to_num(sc_.sum(1), nan=jnp.inf)
-
-    sc = sc0 + sc1
-
-    # Choose 
-    # TODO: Resample?
-    i = jnp.argmin(sc)
-    q = qs[i]
-
-    return q
 
 
 # # # # # # # # # # # # # # # # # # # # 

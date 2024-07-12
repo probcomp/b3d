@@ -26,7 +26,7 @@ def unit_disc_to_sphere(x):
     xs = jnp.concatenate(
         [jnp.sin(r * jnp.pi / 2) * phi, jnp.cos(r * jnp.pi / 2)], axis=1
     )
-    return xs
+    return jnp.where(r==0, jnp.array([0.,0.,0.,1.]), xs)
 
 
 def volume_of_3_ball(r):

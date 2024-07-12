@@ -12,9 +12,10 @@ from b3d.utils import downsize_images
 
 DESCR = """
 FeatureTrackData:
-    Timesteps: {data.uv.shape[0]}
+    Num Frames: {data.uv.shape[0]}
     Num Keypoints: {data.uv.shape[1]}
-    Sensor shape (width x height): {data.rgb.shape[2]} x {data.rgb.shape[1]}
+    Image shape (width x height): {data.rgb.shape[2]} x {data.rgb.shape[1]}
+    FPS: {data.fps:0.0f}
 """
 
 @dataclass
@@ -122,7 +123,22 @@ class FeatureTrackData:
     def vis(self): return self.visibility
 
     @property
-    def rgb(self): return self.rgbd_images[...,:3]
+    def rgb_float(self): 
+        rgb = self.rgbd_images[...,:3]
+        if rgb.max() > 1.: rgb = rgb/255
+        return rgb
+    
+    @property
+    def rgb_uint(self): 
+        rgb = self.rgbd_images[...,:3]
+        if rgb.max() <= 1.: rgb = (rgb*255).astype(jnp.uint8)
+        return rgb
+
+    @property
+    def rgb(self): 
+        rgb = self.rgbd_images[...,:3]
+        if rgb.max() > 1.: rgb = rgb/255
+        return self.rgb_float
     
     @property
     def visibility(self): return self.keypoint_visibility
@@ -340,10 +356,10 @@ class FeatureTrackData:
             ax.set_aspect(1)
             ax.axis("off")
 
-        rgb  = downsize_images(self.rgb, downsize)
+        rgb  = downsize_images(self.rgb_float, downsize)
         if t is None:
             h,w = self.rgb.shape[1:3]
-            ax.imshow(np.concatenate(rgb/255, axis=1))
+            ax.imshow(np.concatenate(rgb, axis=1))
             ax.scatter(*np.concatenate(
                 [
                     self.uv[t, self.vis[t]]/downsize + np.array([t*w,0])/downsize 
@@ -351,7 +367,7 @@ class FeatureTrackData:
                 ]
             ).T, s=1)
         else:
-            ax.imshow(rgb[t]/255)
+            ax.imshow(rgb[t])
             ax.scatter(*(self.uv[t, self.vis[t]]/downsize).T, s=1)
 
 

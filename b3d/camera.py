@@ -90,7 +90,7 @@ def camera_from_screen_and_depth(
 
 
 def camera_from_screen(uv: ScreenCoordinates, intrinsics) -> CameraCoordinates:
-    z = jnp.ones_like(uv.shape[-1:])
+    z = jnp.ones(uv.shape[:-1])
     return camera_from_screen_and_depth(uv, z, intrinsics)
 
 
@@ -136,14 +136,12 @@ def screen_from_camera(xyz: CameraCoordinates, intrinsics) -> ScreenCoordinates:
     Returns:
         (...,2) array of screen coordinates.
     """
-    # TODO: check this
-    xyz = jnp.clip(xyz,
-            jnp.array([-jnp.inf, -jnp.inf, intrinsics.near]),
-            jnp.array([jnp.inf, jnp.inf, intrinsics.far]))
-    _, _, fx, fy, cx, cy, _, _ = intrinsics
+    # TODO: We need to clip? Culling?
+    _, _, fx, fy, cx, cy, near, _ = intrinsics
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
     u = x * fx / z + cx
     v = y * fy / z + cy
+
     return jnp.stack([u, v], axis=-1)
 
 
@@ -154,6 +152,9 @@ def screen_from_world(x, cam, intr):
     """Maps to screen coordintaes `uv` from world coordinates `xyz`."""
     return screen_from_camera(cam.inv().apply(x), intr)
 
+def world_from_screen(uv, cam, intr):
+    """Maps to world coordintaes `xyz` from screen coords `uv`."""
+    return cam.apply(camera_from_screen(uv, intr))
 
 def camera_matrix_from_intrinsics(intr: Intrinsics) -> CameraMatrix3x3:
     """

@@ -220,6 +220,13 @@ class Pose:
     def __getitem__(self, index):
         return Pose(self.pos[index], self.quat[index])
 
+    # TODO: implement `.at[].set()`` 
+    def _at_set(self, key, p):
+        return Pose(
+            self.pos.at[key].set(p.pos),
+            self.quat.at[key].set(p.quat)
+        )
+    
     def slice(self, i):
         return Pose(self.pos[i], self.quat[i])
 

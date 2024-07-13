@@ -3,7 +3,7 @@ import cv2
 import imageio
 from b3d.io.feature_track_data import FeatureTrackData
 
-def create_keypoints_gif(data: FeatureTrackData, output_path='output.gif', res: float=200, fps: float=10, slow_gif: float=1):
+def create_keypoints_gif(data: FeatureTrackData, output_path='output.gif', res: float=200, fps: float=10, slow: float=1):
     Nframe = data.rgbd_images.shape[0]
     frames = []
 
@@ -55,4 +55,5 @@ def create_keypoints_gif(data: FeatureTrackData, output_path='output.gif', res: 
         frames.append(combined_image)
 
     # Adjust fps to account for skipping frames
-    imageio.mimsave(output_path, frames, fps=fps * slow_gif)
+    imageio.mimsave(output_path, frames, fps=slow * fps)
+    print(f"Saved {output_path}")

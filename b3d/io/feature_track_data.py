@@ -15,7 +15,7 @@ FeatureTrackData:
     Num Frames: {data.uv.shape[0]}
     Num Keypoints: {data.uv.shape[1]}
     Image shape (width x height): {data.rgb.shape[2]} x {data.rgb.shape[1]}
-    FPS: {data.fps:0.0f}
+    FPS: {fps}
 """
 
 @dataclass
@@ -155,7 +155,7 @@ class FeatureTrackData:
         return Intrinsics.from_array(self.camera_intrinsics)
 
     def __str__(self):
-        return DESCR.format(data=self)
+        return DESCR.format(data=self, fps=self.fps or "None")
 
     def __repr__(self):
         return self.__str__()

@@ -234,12 +234,16 @@ from b3d.pose import uniform_pose_in_ball
 vmap_uniform_pose = jax.jit(jax.vmap(uniform_pose_in_ball.sample, (0,None,None,None)))
 
 
-def make_two_frame_proposal(loss_func):
+def make_two_frame_proposal(loss_func, choose_winner=jnp.argmin):
     """
-        Returns a pose proposal, using the following recipe.
-         - Sample *uniformly* around target pose, then
-         - compute the lossess, and
-         - return the the argmin.
+    Returns a pose proposal, using the following recipe.
+        - Sample *uniformly* around target pose, then
+        - compute the lossess, and
+        - return the the argmin.
+
+    Args:
+        loss_func: Function that takes `(q, uvs0, uvs1, intr)` and returns `(losses_per_keypoint, aux)`.
+        choose_winner: Function that takes `losses_per_pose` and returns a winner index `i`.
     """
 
     def proposal(key, p0, p1, uvs0, uvs1, intr, rx=1.5, rq=0.25, S=100):
@@ -257,19 +261,20 @@ def make_two_frame_proposal(loss_func):
 
         # Sample and score
         # test poses
-        key, keys = keysplit(key, 1, S)
+        _, key = jax.random.split(key)
+        keys = jax.random.split(key, S)
         qs = vmap_uniform_pose(keys, q, rx, rq)
         losses_ = jax.vmap(loss_func, (0,None,None,None))(qs, uvs0, uvs1, intr)[0]
-        loss = jnp.nan_to_num(losses_.sum(1), nan=jnp.inf)
+        losses = jnp.nan_to_num(losses_.sum(1), nan=jnp.inf)
 
         # Pick best test pose
         # TODO: Resample?
-        i = jnp.argmin(loss)
+        i = choose_winner(losses)
         q = qs[i]
 
-        aux = {"proposals": qs, "loss": loss, "winner_index": i, "winner_loss": loss[i]}
+        aux = {"proposals": p0@qs, "loss": losses, "winner_index": i, "winner_loss": losses[i]}
 
-        return q, aux
+        return p0@q, aux
 
     return proposal
 

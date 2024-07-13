@@ -13,7 +13,7 @@ from jax.scipy.spatial.transform import Rotation as Rot
 from b3d.pose.pose_utils import (
     uniform_samples_from_disc,
 )
-from .dynamic_gps import DynamicGPS
+from .sparse.dynamic_gps import DynamicGPS
 from typing import TypeAlias
 
 
@@ -75,6 +75,67 @@ def cov_from_dq_composition(diag, quat):
     U = Rot.from_quat(quat).as_matrix()
     C = U @ jnp.diag(diag) @ U.T
     return C
+
+
+from jax.scipy.linalg import inv
+
+
+# TODO: Check that
+def gaussian_pdf_product(mean1, cov1, mean2, cov2):
+    """
+    Computes the product of two 3D Gaussian PDFs.
+
+    Args:
+        mean1: Mean vector of the first Gaussian (3-dimensional).
+        cov1: Covariance matrix of the first Gaussian (3x3 matrix).
+        mean2: Mean vector of the second Gaussian (3-dimensional).
+        cov2: Covariance matrix of the second Gaussian (3x3 matrix).
+    
+    Returns:
+        mean_prod: Mean vector of the product Gaussian.
+        cov_prod: Covariance matrix of the product Gaussian.
+    """    
+    # Someone bless the internet:
+    # > https://math.stackexchange.com/questions/157172/product-of-two-multivariate-gaussians-distributions
+    cov_prod  = inv(inv(cov1) + inv(cov2)) 
+    mean_prod = cov_prod @ (inv(cov1) @ mean1 + inv(cov2) @ mean2)
+    
+    return mean_prod, cov_prod
+
+
+# TODO: Check that
+def gaussian_pdf_product_multiple(means, covariances):
+    """
+    Computes the product of multiple 3D Gaussian PDFs.
+    
+    Args:
+    means: A 2D array where each row is a mean vector of a Gaussian (N x 3).
+    covariances: A 3D array where each slice along the first dimension is a 3x3 covariance matrix (N x 3 x 3).
+    
+    Returns:
+    mean_prod: Mean vector of the product Gaussian.
+    cov_prod: Covariance matrix of the product Gaussian.
+    """
+    # Convert means and covariances to JAX arrays
+    means = jnp.asarray(means)
+    covariances = jnp.asarray(covariances)
+    
+    # Compute the inverse of each covariance matrix
+    inv_covariances = jax.vmap(inv)(covariances)
+    
+    # Sum of the inverses of covariance matrices
+    cov_prod_inv = jnp.sum(inv_covariances, axis=0)
+    
+    # Compute the product covariance matrix
+    cov_prod = inv(cov_prod_inv)
+    
+    # Compute the weighted sum of means
+    weighted_means_sum = jnp.sum(jax.vmap(lambda inv_cov, mean: inv_cov @ mean)(inv_covariances, means), axis=0)
+    
+    # Compute the product mean vector
+    mean_prod = cov_prod @ weighted_means_sum
+    
+    return mean_prod, cov_prod
 
 
 # TODO: Test this code

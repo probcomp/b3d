@@ -61,72 +61,17 @@ def _latent_keypoint_from_lines(u0, u1, cam0, cam1, intr):
     return x
 
 
+
 # # # # # # # # # # # # # # # # # # # # # # # # 
 # 
 #   Gaussian Inference
 # 
 # # # # # # # # # # # # # # # # # # # # # # # # 
-from jax.scipy.linalg import inv
-
-
-# TODO: Check that
-def gaussian_pdf_product(mean1, cov1, mean2, cov2):
-    """
-    Computes the product of two 3D Gaussian PDFs.
-
-    Args:
-        mean1: Mean vector of the first Gaussian (3-dimensional).
-        cov1: Covariance matrix of the first Gaussian (3x3 matrix).
-        mean2: Mean vector of the second Gaussian (3-dimensional).
-        cov2: Covariance matrix of the second Gaussian (3x3 matrix).
-    
-    Returns:
-        mean_prod: Mean vector of the product Gaussian.
-        cov_prod: Covariance matrix of the product Gaussian.
-
-    
-    """    
-    # Someone bless the internet:
-    # > https://math.stackexchange.com/questions/157172/product-of-two-multivariate-gaussians-distributions
-    cov_prod  = inv(inv(cov1) + inv(cov2)) 
-    mean_prod = cov_prod @ (inv(cov1) @ mean1 + inv(cov2) @ mean2)
-    
-    return mean_prod, cov_prod
-
-
-# TODO: Check that
-def gaussian_pdf_product_multiple(means, covariances):
-    """
-    Computes the product of multiple 3D Gaussian PDFs.
-    
-    Args:
-    means: A 2D array where each row is a mean vector of a Gaussian (N x 3).
-    covariances: A 3D array where each slice along the first dimension is a 3x3 covariance matrix (N x 3 x 3).
-    
-    Returns:
-    mean_prod: Mean vector of the product Gaussian.
-    cov_prod: Covariance matrix of the product Gaussian.
-    """
-    # Convert means and covariances to JAX arrays
-    means = jnp.asarray(means)
-    covariances = jnp.asarray(covariances)
-    
-    # Compute the inverse of each covariance matrix
-    inv_covariances = jax.vmap(inv)(covariances)
-    
-    # Sum of the inverses of covariance matrices
-    cov_prod_inv = jnp.sum(inv_covariances, axis=0)
-    
-    # Compute the product covariance matrix
-    cov_prod = inv(cov_prod_inv)
-    
-    # Compute the weighted sum of means
-    weighted_means_sum = jnp.sum(jax.vmap(lambda inv_cov, mean: inv_cov @ mean)(inv_covariances, means), axis=0)
-    
-    # Compute the product mean vector
-    mean_prod = cov_prod @ weighted_means_sum
-    
-    return mean_prod, cov_prod
+from b3d.chisight.gps_utils import (
+    gaussian_pdf_product, 
+    gaussian_pdf_product_multiple,
+    cov_from_dq_composition
+)
 
 
 def rotation_from_first_column(key, a):
@@ -140,23 +85,13 @@ def rotation_from_first_column(key, a):
     return jnp.stack([a,b,c], axis=1)
 
 
-from b3d.pose import Pose, Rot
-def cov_from_dq_composition(diag, quat):
-    """
-    Covariance matrix from particle representation `(diag, quat)`,
-    where `diag` is an array of eigenvalues and `quat` is a quaternion
-    representing the matrix of eigenvectors.
-    """
-    U = Rot.from_quat(quat).as_matrix()
-    C = U @ jnp.diag(diag) @ U.T
-    return C
-
-
 def gaussian_from_keypoint(z, diag, u, cam, intr):
-    x = cam(camera_from_screen_and_depth(u, z, cam, intr))
-    p = Pose.from_position_and_target(cam.pos, x)
-    cov = cov_from_dq_composition(diag, p.quat)
-    return x, cov
+    x = camera_from_screen_and_depth(u, z, intr)
+    p = Pose.from_position_and_target(jnp.zeros(3), x, up=jnp.array([1.,0.,0.]))
+    quat = (cam@p).quat
+    mu = cam(x)
+    cov = cov_from_dq_composition(diag, quat)
+    return mu, cov
 
 
 def _gaussian_keypoint_posterior(z0, z1, diag0, diag1, u0, u1, cam0, cam1, intr):
@@ -164,3 +99,5 @@ def _gaussian_keypoint_posterior(z0, z1, diag0, diag1, u0, u1, cam0, cam1, intr)
     mu1, cov1 = gaussian_from_keypoint(z1, diag1, u1, cam1, intr)
     mu, cov = gaussian_pdf_product(mu0, cov0, mu1, cov1)
     return mu, cov
+
+

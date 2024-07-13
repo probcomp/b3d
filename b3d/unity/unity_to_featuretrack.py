@@ -1,92 +1,21 @@
 import jax.numpy as jnp
-import numpy as np
 import jax
-from jax.scipy.spatial.transform import Rotation as Rot
-from pose import Pose
-from b3d.camera import screen_from_camera, Intrinsics, unproject_depth
-from path_utils import get_assets_path
-from unity_data import UnityData
-from b3d.io.feature_track_data import FeatureTrackData
-from generate_visualization import create_keypoints_gif
 import os
 import shutil
-
-# Rotation of 90 degrees along the x-axis
-QUAT_90_DEG_X = Rot.from_rotvec(jnp.array([1., 0., 0.]) * jnp.pi / 2).as_quat()
-QUAT_90_DEG_X_Pose = Pose(np.array([0., 0., 0.]), QUAT_90_DEG_X)
-
-def convert_unity_to_cv2_object_pos(original_pos: jnp.ndarray) -> jnp.ndarray:
-    """Convert Unity position to OpenCV position."""
-    return jnp.array([original_pos[0], original_pos[2], original_pos[1]])
-
-def convert_unity_to_cv2_camera_pos_and_quat(
-    original_pos: jnp.ndarray, original_rot: jnp.ndarray, z_up: bool = False
-) -> Pose:
-    """Convert Unity position and quaternion to OpenCV position and quaternion."""
-    pose_unity = Pose(original_pos, original_rot)
-    pose_matrix = pose_unity.as_matrix()
-
-    x_axis_of_cam = pose_matrix[:3, 0] * jnp.array([1, 1, -1])
-    y_axis_of_cam = pose_matrix[:3, 1] * jnp.array([1, 1, -1])
-    z_axis_of_cam = pose_matrix[:3, 2] * jnp.array([1, 1, -1])
-
-    new_rotation_matrix = jnp.hstack([
-        x_axis_of_cam.reshape(3, 1),
-        -y_axis_of_cam.reshape(3, 1),
-        z_axis_of_cam.reshape(3, 1)
-    ])
-
-    camera_pos = jnp.array([original_pos[0], original_pos[1], -original_pos[2]])
-    new_pose = Pose(camera_pos, Rot.from_matrix(new_rotation_matrix).quat)
-
-    new_pose = QUAT_90_DEG_X_Pose @ new_pose
-
-    if z_up:
-        new_pose = new_pose @ QUAT_90_DEG_X_Pose
-
-    return new_pose.pos, new_pose._quaternion
-
-def project_to_screen(
-    x: jnp.ndarray, camera_pos: jnp.ndarray, camera_quat: jnp.ndarray, intr: jnp.ndarray
-) -> jnp.ndarray:
-    """Project 3D points into 2D camera view."""
-    intr = Intrinsics(*intr)
-    cam = Pose(camera_pos, camera_quat)
-    return screen_from_camera(cam.inv().apply(x), intr)
-
-def clamp_and_replace_with_nan(
-    obs_array: np.ndarray, width: int, height: int
-) -> np.ndarray:
-    """Clamp values within specified ranges and replace out-of-bounds values with NaN."""
-    mask_x = (obs_array[..., 0] < 0) | (obs_array[..., 0] >= width)
-    mask_y = (obs_array[..., 1] < 0) | (obs_array[..., 1] >= height)
-
-    array_clamped = np.copy(obs_array)
-    array_clamped[..., 0] = np.clip(obs_array[..., 0], 0, width)
-    array_clamped[..., 1] = np.clip(obs_array[..., 1], 0, height)
-
-    array_clamped[..., 0][mask_x] = np.nan
-    array_clamped[..., 1][mask_y] = np.nan
-
-    return array_clamped
-
-def convert_rgb_float_to_uint(rgb: jnp.ndarray) -> jnp.ndarray:
-    """Convert RGB floats to uint8."""
-    return (rgb * 255).astype(jnp.uint8)
-
-def convert_depth_float_to_xyz(
-    depth: jnp.ndarray, intrinsics: jnp.ndarray
-) -> jnp.ndarray:
-    """Unproject depth floats into xyz."""
-    return unproject_depth(depth, intrinsics)
-
-def is_point_in_front(
-    point_position: jnp.ndarray, camera_position: jnp.ndarray, camera_quaternion: jnp.ndarray
-) -> bool:
-    """Check if a point is in front of the camera."""
-    camera_pose = Pose(camera_position, camera_quaternion)
-    point_camera = camera_pose.inv().apply(point_position)
-    return jnp.where(point_camera[2] >= 0, True, False)
+from unity_data import UnityData
+from b3d.io.feature_track_data import FeatureTrackData
+from b3d.utils import downsize_images
+from generate_visualization import create_keypoints_gif
+from path_utils import get_assets_path
+from dataclasses import replace
+from unity_to_python import (
+    convert_unity_to_cv2_camera_pos_and_quat, 
+    project_to_screen, 
+    convert_unity_to_cv2_object_pos, 
+    clamp_and_replace_with_nan, 
+    is_point_in_front,
+    downsize_2d_coordinates
+)
 
 def convert_unity_to_feature_track(unity_data: UnityData) -> FeatureTrackData:
     """Convert Unity data to FeatureTrackData."""
@@ -123,8 +52,8 @@ def convert_unity_to_feature_track(unity_data: UnityData) -> FeatureTrackData:
     
     observed_keypoints_positions = jnp.where(in_frustum_mask[..., None], observed_keypoints_positions, jnp.nan)
 
-    depth_expanded = np.expand_dims(unity_data.depth, axis=-1)
-    rgbd = np.concatenate((unity_data.rgb, depth_expanded), axis=-1)
+    depth_expanded = jnp.expand_dims(unity_data.depth, axis=-1)
+    rgbd = jnp.concatenate((unity_data.rgb, depth_expanded), axis=-1)
 
     return FeatureTrackData(
         observed_keypoints_positions=observed_keypoints_positions,
@@ -143,16 +72,45 @@ def convert_from_zip(zip_path: str) -> FeatureTrackData:
     feature_track_data = convert_unity_to_feature_track(unity_data)
     return feature_track_data
 
+def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
+    camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
+
+    rgbd = downsize_images(data.rgbd, 4)
+    observed_keypoints_positions = downsize_2d_coordinates(data.observed_keypoints_positions, k)
+
+    return replace(
+        data,
+        camera_intrinsics=camera_intrinsics,
+        rgbd_images=rgbd,
+        observed_keypoints_positions=observed_keypoints_positions
+    )
+
+def save_downscaled_feature_track(data: FeatureTrackData, target_res: int, file_info: dict) -> None:
+    folder_path = get_assets_path('f', file_info['scene_folder'], file_info['data_name'])
+    file_name = f"{file_info['light_setting']}_{file_info['background_setting']}_{target_res}p.input.npz"
+    filepath = str(folder_path / file_name)
+
+    k = int(data.camera_intrinsics[0] / target_res)
+    small_version = downsize_feature_track(data, k)
+    small_version.save(filepath)
+
 def process(zip_path: str, moveFile: bool=True) -> None:
     """Process a ZIP file and save the feature track data."""
     unity_data = UnityData.from_zip(zip_path)
     feature_track_data = convert_unity_to_feature_track(unity_data)
     
     file_info = unity_data.file_info
-    filepath = get_assets_path('f', file_info['scene_folder'], file_info['base_name']) + f"{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
+    folder_path = get_assets_path('f', file_info['scene_folder'], file_info['data_name'])
+    file_name = f"{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
+    filepath = str(folder_path / file_name)
     
     # Save feature_track_data and create a GIF
     feature_track_data.save(filepath)
+
+    # Save a 200p version
+    save_downscaled_feature_track(feature_track_data, 200, file_info)
+
+    # Create a gif
     create_keypoints_gif(feature_track_data, filepath.replace('.npz', '.gif'))
 
     # move zip_path file into FBData/processed folder

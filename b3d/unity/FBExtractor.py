@@ -115,7 +115,7 @@ class FBExtractor:
 
         return {
             'scene_folder': scene_folder,
-            'base_name': base_name,
+            'data_name': base_name,
             'light_setting': light_setting,
             'background_setting': background_setting,
             'resolution': resolution

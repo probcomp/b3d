@@ -7,3 +7,5 @@ assets/bop/*
 assets/ycbineoat/*
 **/.ipynb_checkpoints
 b3d/unity/FBData/*
+b3d/unity/Processed/*
+b3d/unity/*.ipynb

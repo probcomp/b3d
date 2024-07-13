@@ -34,12 +34,12 @@ class UnityData:
 
     rgb: Array
     depth: Array
-    segmentation: Array
+    segmentation: Optional[Array] = None
     camera_position: Array
     camera_quaternion: Array
     camera_intrinsics: Array
-    object_positions: Array
-    object_quaternions: Array
+    object_positions: Optional[Array] = None
+    object_quaternions: Optional[Array] = None
     object_catalog_ids: Optional[Array] = None
     latent_keypoint_positions: Array
     keypoint_visibility: Optional[Array] = None
@@ -89,10 +89,10 @@ class UnityData:
         # rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
         rgb = extractor.extract_rgb()
         depth = extractor.extract_depth()
-        segmentation = extractor.extract_segmentation()
+        # segmentation = extractor.extract_segmentation()
 
         camera_position, camera_quaternion = extractor.extract_camera_poses()
-        object_positions, object_quaternions = extractor.extract_object_poses()
+        # object_positions, object_quaternions = extractor.extract_object_poses()
         object_catalog_ids = extractor.extract_object_catalog()
         object_assignments = extractor.extract_keypoints_object_assignment()
         keypoint_positions, keypoint_visibility = extractor.extract_keypoints()
@@ -103,12 +103,12 @@ class UnityData:
         instance = cls(
             rgb=rgb,
             depth=depth,
-            segmentation=segmentation,
+            # segmentation=segmentation,
             camera_position=camera_position,
             camera_quaternion=camera_quaternion,
             camera_intrinsics=camera_intrinsics,
-            object_positions=object_positions,
-            object_quaternions=object_quaternions,
+            # object_positions=object_positions,
+            # object_quaternions=object_quaternions,
             object_catalog_ids=object_catalog_ids,
             latent_keypoint_positions=keypoint_positions,
             keypoint_visibility=keypoint_visibility,

@@ -8,6 +8,8 @@ from path_utils import get_assets_path
 from unity_data import UnityData
 from b3d.io.feature_track_data import FeatureTrackData
 from generate_visualization import create_keypoints_gif
+import os
+import shutil
 
 # Rotation of 90 degrees along the x-axis
 QUAT_90_DEG_X = Rot.from_rotvec(jnp.array([1., 0., 0.]) * jnp.pi / 2).as_quat()
@@ -136,21 +138,27 @@ def convert_unity_to_feature_track(unity_data: UnityData) -> FeatureTrackData:
         camera_quaternion=camera_quaternion
     )
 
-def convert(zip_path: str) -> FeatureTrackData:
+def convert_from_zip(zip_path: str) -> FeatureTrackData:
     unity_data = UnityData.from_zip(zip_path)
     feature_track_data = convert_unity_to_feature_track(unity_data)
     return feature_track_data
 
-def process(zip_path: str) -> None:
+def process(zip_path: str, moveFile: bool=True) -> None:
     """Process a ZIP file and save the feature track data."""
     unity_data = UnityData.from_zip(zip_path)
     feature_track_data = convert_unity_to_feature_track(unity_data)
     
     file_info = unity_data.file_info
-    filepath = get_assets_path('f', file_info['scene_folder'], file_info['base_name']) + f"/{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
+    filepath = get_assets_path('f', file_info['scene_folder'], file_info['base_name']) + f"{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
     
     # Save feature_track_data and create a GIF
     feature_track_data.save(filepath)
     create_keypoints_gif(feature_track_data, filepath.replace('.npz', '.gif'))
+
+    # move zip_path file into FBData/processed folder
+    if (moveFile):
+        processed_folder = 'Processed'
+        os.makedirs(processed_folder, exist_ok=True)
+        shutil.move(zip_path, processed_folder)
 
     print(f"Saved to {filepath}")

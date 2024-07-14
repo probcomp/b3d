@@ -3,14 +3,14 @@ name = "b3d-prototype"
 version = "0.1.0"
 description = "Add a short description here"
 authors = [{name = "Aaron Steele", email = "eightysteele@gmail.com"}]
-requires-python = ">= 3.11"
+requires-python = ">= 3.12"
 dependencies = [
 "genjax==0.5.0.post13.dev0+973fb60d",
 "pyransac3d>=0.6.0,<0.7",
 "opencv-python>=4.10.0.84,<4.10.1",
 "torch>=2.3.1,<2.4",
 #"torchaudio>=2.3.1,<2.4",
-#"torchvision>=0.18.1,<0.19",
+"torchvision>=0.18.1,<0.19",
 "pyliblzfse>=0.4.1,<0.5"]
 
 [build-system]
@@ -18,8 +18,12 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.pixi.project]
-channels = ["conda-forge", "pytorch", "pytorch-nightly"] #, "pytorch", "nvidia"]
+#channels = ["conda-forge", "pytorch", "pytorch-nightly"] #, "pytorch", "nvidia"]
 #channels = ["conda-forge", "pytorch", "nvidia"]
+#channels = ["conda-forge", "pytorch"]
+#channels = ["nvidia/label/cuda-12.1.0", "nvidia", "conda-forge", "pytorch"]
+channels = ["nvidia", "conda-forge", "pytorch"]
+
 platforms = ["linux-64"]
 
 [tool.pixi.pypi-options]
@@ -32,10 +36,10 @@ b3d = { path = ".", editable = true }
 [tool.pixi.tasks]
 
 [tool.pixi.dependencies]
-pytorch = { version = ">=2.0.1", channel = "pytorch" }
-torchvision = { version = ">=0.15", channel = "pytorch" }
+#pytorch = { version = ">=2.0.1", channel = "pytorch" }
+#torchvision = { version = ">=0.15", channel = "pytorch" }
 polars = ">=0.20,<0.21"
-python = "3.11.*"
+python = ">=3.12.*"
 pytest = "*"
 
 mesalib = ">=24.1.3,<24.2"
@@ -65,13 +69,15 @@ ipython = ">=8.26.0,<8.27"
 
 [tool.pixi.feature.cuda]
 platforms = ["linux-64"]
-channels = ["nvidia", { channel = "pytorch", priority = -1 }]
-system-requirements = { cuda = "12.1" }
+#channels = ["conda-forge", "nvidia", { channel = "pytorch", priority = -1 }]
+#channels = ["nvidia/label/cuda-12.1.0", { channel = "nvidia", priority = -1}, { channel = "conda-forge", priority = -1 }, { channel = "pytorch", priority = -1 }]
+system-requirements = { cuda = "11.8" }
+channels = ["nvidia", "conda-forge", "pytorch"]
 
 
 #system-requirements = { cuda = "12" }
-#[tool.pixi.feature.cuda.pypi-dependencies]
-#jax = { version = ">=0.4.28", extras = ["cuda12"] }
+[tool.pixi.feature.cuda.pypi-dependencies]
+jax = { version = ">=0.4.28", extras = ["cuda12"] }
 #nvidia-cuda-nvcc-cu12 = ">=12.5.82,<12.6"
 #nvidia-nvjitlink-cu12 = ">=12.5.82,<12.6"
 #nvidia-cuda-nvcc-cu12 = "*"
@@ -79,9 +85,19 @@ system-requirements = { cuda = "12.1" }
 #pytorch-cuda = "*"
 
 [tool.pixi.feature.cuda.dependencies]
-pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
-# jax = ">=0.4.28"
-# jaxlib = { version = ">=0.4.28", build = "cuda12*" }
+pytorch = { version = "~=2.3.0", channel = "pytorch" }
+pytorch-cuda = { version = "11.8", channel = "pytorch" }
+cuda = {version = "*"} #, channel="nvidia/label/cuda-12.4.0"}
+#pytorch = {version = "2.0.1", channel="pytorch"}
+#torchvision = {version = "0.15.2.*", channel="pytorch"}
+#torchaudio = {version = "2.0.2", channel="pytorch"}
+#pytorch-cuda = {version = "12.4", channel="pytorch"}
+#jax = { version = ">=0.4.28", channel = "conda-forge" }
+#jaxlib = { version = ">=0.4.28", build = "cuda12*", channel = "conda-forge" }
+
+
+# cuda = {version = "*", channel="nvidia/label/cuda-12.1.0"}
+# pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
 
 
 #cuda-toolkit = { version = "12.1.*", channel = "nvidia" }
@@ -90,7 +106,7 @@ pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
 # jax = ">=0.4.28"
 # jaxlib = { version = ">=0.4.28", build = "cuda12*" }
 # cuda-nvcc = "*"
-# libnvjitlink = "*"
+#libnvjitlink = "*"
 #cuda-toolkit = "*"
 
 [tool.pixi.feature.cuda.tasks]

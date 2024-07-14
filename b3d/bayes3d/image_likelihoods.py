@@ -14,19 +14,32 @@ import functools
 # returned values should bee log probs!
 
 def gaussian_depth_likelihood(observed_depth, rendered_depth, depth_variance):
-    return -jnp.power((observed_depth-rendered_depth)/depth_variance, 2)
+    probabilities = jax.scipy.stats.norm.logpdf(
+        observed_depth, rendered_depth, depth_variance
+    )
+    return probabilities
 
-def gaussian_rgb_likelihood(observed_rgb, rendered_rgb, rgb_variance):
-    return -jnp.power((b3d.colors.rgb_to_lab(observed_rgb)-b3d.colors.rgb_to_lab(rendered_rgb))/rgb_variance, 2)
+def gaussian_rgb_likelihood(observed_rgb, rendered_rgb, lab_variance):
+
+    probabilities = jax.scipy.stats.norm.logpdf(
+        b3d.colors.rgb_to_lab(observed_rgb), b3d.colors.rgb_to_lab(rendered_rgb), lab_variance
+    )
+    return probabilities
 
 def gaussian_iid_pix_model(observed_rgbd, rendered_rgbd, likelihood_args):
 
     rgb_variance = likelihood_args["rgb_tolerance"]
     depth_variance = likelihood_args["depth_tolerance"]
+    outlier_prob = likelihood_args["outlier_prob"]
     rgb_score = gaussian_rgb_likelihood(observed_rgbd[...,:3], rendered_rgbd[...,:3], rgb_variance).sum(axis=2)
     depth_score = gaussian_depth_likelihood(observed_rgbd[...,3], rendered_rgbd[...,3], depth_variance)
-    score = rgb_score + depth_score
-    return score.sum(), {'pix_score': score, 
+    probabilities = rgb_score + depth_score
+
+    probabilities_adjusted = jnp.logaddexp(
+        probabilities + jnp.log(1.0 - outlier_prob),
+        jnp.log(outlier_prob)
+    )
+    return probabilities_adjusted.sum(), {'pix_score': probabilities_adjusted, 
                          'rgb_pix_score': rgb_score,
                          'depth_pix_score': depth_score}
 
@@ -201,11 +214,11 @@ def kray_likelihood_intermediate(observed_rgbd, rendered_rgbd, likelihood_args):
     observed_areas = (observed_depth_corrected / fx) * (observed_depth_corrected / fy)
 
     A = 5
-    V = 0.025
     inlier_contribution = inlier_score * inliers * rendered_areas * (1-outlier_prob)/A
 
     teleport_factor = 0.00001
-    #V = 1/3 * jnp.power(far, 3) * width * height * 1/(fx * fy)
+    V = 1/3 * jnp.power(far, 3) * image_width * image_height * 1/(fx * fy)
+    # V = 0.025
     outlier_contribution_teleporation = teleport_outliers * observed_areas / V * teleport_factor * outlier_prob
     outlier_contribution_not_teleportation = nonteleport_outliers * observed_areas / V * outlier_prob 
 

@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax
 from b3d import Pose
 import trimesh
-from b3d.bayes3d.image_likelihoods import threedp3_gmm_likelihood_vec, kray_likelihood_intermediate_vec
+from b3d.bayes3d.image_likelihoods import gaussian_iid_pix_likelihood_vec, threedp3_gmm_likelihood_vec, kray_likelihood_intermediate_vec
 import rerun as rr
 import matplotlib
 
@@ -95,23 +95,24 @@ test_poses_batches = test_poses.split(100)
 
 scores = []
 
-# likelihood_args = {'rgb_tolerance': 120.0,
-#                    'depth_tolerance': 1.0}
+# gaussian iid args
+likelihood_args = {'rgb_tolerance': 120.0,
+                   'depth_tolerance': 1.0}
 
+# GMM args
 # likelihood_args = {'variance': 0.05,
 #                    'outlier_prob': 0.05,
 #                    'outlier_volume': 10**3,
 #                    'filter_size': 3,
 #                    'intrinsics': (100,100,200.0,200.0,50.0,50.0,0.01,10.0,)}
 
-# TODO: debug the ray lik test
-
-likelihood_args = {'color_tolerance': 100.0, #100
-                    'depth_tolerance': 0.005, #0.005
-                    'inlier_score': 25.0,
-                    'outlier_prob': 0.01,
-                    'multiplier': 10000.0,
-                    'intrinsics': (100,100,200.0,200.0,50.0,50.0,0.01,10.0,)}
+# ray-tracing likelihood args
+# likelihood_args = {'color_tolerance': 100.0, #100
+#                     'depth_tolerance': 0.005, #0.005
+#                     'inlier_score': 25.0,
+#                     'outlier_prob': 0.01,
+#                     'multiplier': 10000.0,
+#                     'intrinsics': (100,100,200.0,200.0,50.0,50.0,0.01,10.0,)}
 
 for batch in test_poses_batches:
     rgb_ims, depth_ims = renderer.render_attribute_many(
@@ -123,9 +124,9 @@ for batch in test_poses_batches:
     )
     rendered_imgs = jnp.concatenate((rgb_ims, depth_ims[...,None]),axis=3)
 
-    #scores_batch, _ = threedp3_gmm_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
-    scores_dict = kray_likelihood_intermediate_vec(gt_img, rendered_imgs,  likelihood_args)
-    scores_batch = scores_dict[0]
+    scores_batch, _ = gaussian_iid_pix_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
+    # scores_batch, _ = threedp3_gmm_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
+    # scores_batch, _ = kray_likelihood_intermediate_vec(gt_img, rendered_imgs,  likelihood_args)
     scores.append(scores_batch)
 
 scores = jnp.concatenate(scores)
@@ -155,8 +156,9 @@ original_view_images, original_view_depths = renderer.render_attribute_many(
 
 rendered_imgs = jnp.concatenate((original_view_images, original_view_depths[...,None]),axis=3)
 
-#_, pixel_scores = threedp3_gmm_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
-_, pixel_scores = kray_likelihood_intermediate_vec(gt_img, rendered_imgs,  likelihood_args)
+_, pixel_scores = gaussian_iid_pix_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
+# _, pixel_scores = threedp3_gmm_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
+# _, pixel_scores = kray_likelihood_intermediate_vec(gt_img, rendered_imgs,  likelihood_args)
 
 
 

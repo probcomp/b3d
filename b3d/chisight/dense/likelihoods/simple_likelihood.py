@@ -31,24 +31,36 @@ def simple_likelihood(observed_rgbd, scene_mesh, renderer, likelihood_args):
 
     bounds = likelihood_args["bounds"]
 
+
+
     color_match = (jnp.abs(observed_lab - rendered_lab) < bounds[:3]).all(-1) * is_hypothesized * is_observed_data_rgb
     depth_match = (jnp.abs(observed_depth - rendered_depth) < bounds[3]) * is_hypothesized * is_observed_data_depth
-
     is_match = color_match * depth_match
-    is_color_matched_but_no_depth_data = color_match * ~is_observed_data_depth
+
+    
     is_mismatched = (
-        is_hypothesized * ~is_match * ~is_color_matched_but_no_depth_data * is_observed_data_rgb * is_observed_data_depth
+        is_hypothesized * ~is_match * is_observed_data_depth * is_observed_data_rgb
     )
 
+    
+    is_mismatched_teleportation = (
+        is_mismatched * (rendered_depth < observed_depth)
+    )
+    is_mismatched_non_teleportation = (
+        is_mismatched * ~is_mismatched_teleportation
+    )
 
     score = jnp.sum(
-        is_match * rendered_areas * 3.0 + is_mismatched * rendered_areas * -1.0
+        is_match * rendered_areas * 4.0 + 
+        is_mismatched_non_teleportation * rendered_areas * -1.0 + 
+        is_mismatched_teleportation * rendered_areas * -2.0
     ) * likelihood_args["multiplier"]
 
     return {
         "score": score,
         "is_match": is_match,
-        "is_mismatched": is_mismatched,
+        "is_mismatched": is_mismatched_non_teleportation,
+        "is_mismatched_teleportation": is_mismatched_teleportation,
         "color_match": color_match,
         "depth_match": depth_match,
         "is_hypothesized": is_hypothesized, 

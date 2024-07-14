@@ -32,8 +32,12 @@ def run_tracking(scene=None, object=None, debug=False):
 
     b3d.rr_init()
 
-
-    scenes = [scene] if scene is not None else range(48, 60)
+    if scene is None:
+        scenes = range(48, 60)
+    elif isinstance(scene, int):
+        scenes = [scene]
+    elif isinstance(scene, list):
+        scenes = scene
 
     for scene_id in scenes:
         print(f"Scene {scene_id}")
@@ -93,7 +97,7 @@ def run_tracking(scene=None, object=None, debug=False):
             rr.log("rgb/overlay/depth_rendering", rr.DepthImage(rendered_rgbd[...,3]))
             info_string = f"# Score : {trace.get_score()}"
             
-            for add in ["is_match", "is_mismatched", "color_match", "depth_match", "is_hypothesized"]:
+            for add in ["is_match", "is_mismatched", "color_match", "depth_match", "is_hypothesized", "is_mismatched_teleportation"]:
                 rr.log(f"/rgb/overlay/{add}", rr.DepthImage(intermediate_info[add] * 1.0))
             rr.log("/info", rr.TextDocument(info_string))
 
@@ -153,7 +157,7 @@ def run_tracking(scene=None, object=None, debug=False):
                 )
                 saved_trace = trace
                 potential_traces = []
-                for var in [0.05, 0.02, 0.01, 0.005, 0.05, 0.02, 0.01, 0.005]:
+                for var in [0.1, 0.06, 0.04, 0.02, 0.01, 0.005]:
                     trace = saved_trace
                     trace, key = gvmf_and_select_best_move(trace, key, var, 700.0, Pytree.const("object_pose_0"), 700)
                     trace, key = gvmf_and_select_best_move(trace, key, var, 700.0, Pytree.const("object_pose_0"), 700)
@@ -162,6 +166,7 @@ def run_tracking(scene=None, object=None, debug=False):
                     potential_traces.append(trace)
                 scores = jnp.array([t.get_score() for t in potential_traces])
                 trace = potential_traces[scores.argmax()]
+                print(trace.get_score())
                 tracking_results[t] = trace
             
             inferred_poses = Pose.stack_poses(
@@ -192,7 +197,7 @@ def run_tracking(scene=None, object=None, debug=False):
             ).save(f"SCENE_{scene_id}_OBJECT_INDEX_{IDX}_POSES.png")
 
             if debug:
-
+                b3d.rr_init()
                 for i in range(len(all_data)):
                     rerun_visualize_trace_t(tracking_results[i], i)
 

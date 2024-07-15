@@ -6,6 +6,7 @@ import trimesh
 from jax.tree_util import register_pytree_node_class
 import rerun as rr
 
+@jax.jit
 def merge_meshes(meshes):
     vertices = jnp.concatenate([meshes[i].vertices for i in range(len(meshes))])
     vertices_cumsum = jnp.cumsum(jnp.array([0] + [meshes[i].vertices.shape[0] for i in range(len(meshes))]))
@@ -13,8 +14,8 @@ def merge_meshes(meshes):
     vertex_attributes = jnp.concatenate([meshes[i].vertex_attributes for i in range(len(meshes))])
     return Mesh(vertices, faces, vertex_attributes)
 
-merge_meshes_jit = jax.jit(merge_meshes)
 
+@jax.jit
 def transform_and_merge_meshes(meshes, poses):
     vertices = jnp.concatenate([poses[i].apply(meshes[i].vertices) for i in range(len(meshes))])
     vertices_cumsum = jnp.cumsum(jnp.array([0] + [meshes[i].vertices.shape[0] for i in range(len(meshes))]))
@@ -22,9 +23,18 @@ def transform_and_merge_meshes(meshes, poses):
     vertex_attributes = jnp.concatenate([meshes[i].vertex_attributes for i in range(len(meshes))])
     return Mesh(vertices, faces, vertex_attributes)
 
-transform_and_merge_meshes_jit = jax.jit(transform_and_merge_meshes)
+
+@jax.jit
+def squeeze_mesh(mesh):
+    vertices = jnp.concatenate(mesh.vertices)
+    vertices_cumsum = jnp.arange(mesh.vertices.shape[0]) * mesh.vertices.shape[1]
+    faces = jnp.concatenate(mesh.faces + vertices_cumsum[:,None,None])
+    vertex_attributes = jnp.concatenate(mesh.vertex_attributes)
+    full_mesh = b3d.mesh.Mesh(vertices, faces, vertex_attributes)
+    return full_mesh
 
 
+@jax.jit
 def transform_mesh(mesh, pose):
     return Mesh(
         pose.apply(mesh.vertices),
@@ -32,7 +42,6 @@ def transform_mesh(mesh, pose):
         mesh.vertex_attributes
     )
 
-transform_mesh_jit = jax.jit(transform_mesh)
 
 def rr_visualize_mesh(channel, mesh):
     rr.log(channel, rr.Mesh3D(
@@ -77,7 +86,7 @@ class Mesh:
 
     def transform(self, pose):
         return transform_mesh(self, pose)
-    
+
     def __repr__(self) -> str:
         return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
 
@@ -89,11 +98,9 @@ class Mesh:
         return Mesh(self.vertices[index], self.faces[index], self.vertex_attributes[index])
 
     merge_meshes = staticmethod(merge_meshes)
-    merge_meshes_jit = staticmethod(merge_meshes_jit)
     transform_and_merge_meshes = staticmethod(transform_and_merge_meshes)
-    transform_and_merge_meshes_jit = staticmethod(transform_and_merge_meshes_jit)
     transform_mesh = staticmethod(transform_mesh)
-    transform_mesh_jit = staticmethod(transform_mesh_jit)
+    squeeze_mesh = staticmethod(squeeze_mesh)
 
     def rr_visualize(self, channel):
         rr_visualize_mesh(channel, self)
@@ -102,7 +109,7 @@ class Mesh:
         return Mesh(self.vertices * scale, self.faces, self.vertex_attributes)
 
     @staticmethod
-    def cube_mesh(dimensions=jnp.ones(3)):
+    def cube_mesh(dimensions=jnp.ones(3), color=jnp.array([1., 0., 0.])):
         vertices = jnp.array([[-0.5, -0.5, -0.5],
               [-0.5, -0.5, -0.5],
               [-0.5, -0.5, -0.5],
@@ -139,7 +146,7 @@ class Mesh:
               [ 2, 15,  5],
               [ 3, 17, 21],
               [ 3, 21, 10]])
-        vertex_attributes = jnp.tile(jnp.array([1., 0., 0.]), (len(vertices), 1))
+        vertex_attributes = jnp.tile(color, (len(vertices), 1))
         return Mesh(vertices, faces, vertex_attributes)
 
     @property

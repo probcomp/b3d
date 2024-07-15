@@ -114,7 +114,7 @@ def run_tracking(scene=None, object=None, debug=False):
             "depth_tolerance": 0.01,
             "outlier_prob": 0.000001,
             "multiplier": 10000.0,
-            "bounds": jnp.array([90.0, 45.0, 45.0, 0.005]),
+            "bounds": jnp.array([90.0, 40.0, 40.0, 0.005]),
             "variances" : jnp.zeros(4)
         }
 
@@ -157,7 +157,7 @@ def run_tracking(scene=None, object=None, debug=False):
                 )
                 saved_trace = trace
                 potential_traces = []
-                for var in [0.1, 0.06, 0.04, 0.02, 0.01, 0.005]:
+                for var in [0.1, 0.06, 0.04, 0.02, 0.01, 0.005, 0.1, 0.06, 0.04, 0.02, 0.01, 0.005]:
                     trace = saved_trace
                     trace, key = gvmf_and_select_best_move(trace, key, var, 700.0, Pytree.const("object_pose_0"), 700)
                     trace, key = gvmf_and_select_best_move(trace, key, var, 700.0, Pytree.const("object_pose_0"), 700)
@@ -194,7 +194,7 @@ def run_tracking(scene=None, object=None, debug=False):
                 [
                     a,b, b3d.overlay_image(a,b)
                 ]
-            ).save(f"SCENE_{scene_id}_OBJECT_INDEX_{IDX}_POSES.png")
+            ).save(f"photo_SCENE_{scene_id}_OBJECT_INDEX_{IDX}_POSES.png")
 
             if debug:
                 b3d.rr_init()

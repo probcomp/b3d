@@ -7,7 +7,7 @@ import zipfile
 import jax.numpy as jnp
 from jax import vmap
 
-from data_utils import extract_vector2_data, extract_vector3_data, extract_quaternion_data
+from data_processing_utils import extract_vector2_data, extract_vector3_data, extract_quaternion_data
 
 from FBOutput.FBCameraIntrinsics import FBCameraIntrinsics
 from FBOutput.FBMetaData import FBMetaData

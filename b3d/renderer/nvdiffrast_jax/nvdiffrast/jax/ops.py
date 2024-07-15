@@ -62,6 +62,13 @@ def _get_plugin(gl=False):
 
     # Linker options for the GL-interfacing plugin.
     ldflags = []
+    logging.getLogger("nvdiffrast").warning(
+            "LD_LIBRARY_PATH"
+        )
+    logging.getLogger("nvdiffrast").warning(
+            os.environ["LD_LIBRARY_PATH"]
+        )
+    print("LD_LIBRARY_PATH ", os.environ["LD_LIBRARY_PATH"])
     if gl:
         if os.name == "posix":
             ldflags = ["-lGL", "-lEGL"]

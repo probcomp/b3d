@@ -43,8 +43,15 @@ polars = ">=0.20,<0.21"
 python = ">=3.12.*"
 pytest = "*"
 
-mesalib = ">=24.1.3,<24.2"
+#mesalib = ">=24.1.3,<24.2"
+#mesa-libegl-devel-cos7-x86_64 = "*"
+
+
+mesa-libegl-cos7-x86_64 = "*"
 mesa-libegl-devel-cos7-x86_64 = "*"
+libglib = "*"
+libglu = "*"
+
 glfw = "*"
 mesa-libgl-devel-cos7-x86_64 = "*"
 mesa-libglu-devel-cos7-x86_64 = "*"
@@ -57,7 +64,10 @@ pillow = "==10.3.0"
 trimesh = ">=4.4.3,<4.5"
 matplotlib = ">=3.9.1,<3.10"
 scipy = ">=1.14.0,<1.15"
-ninja = ">=1.12.1,<1.13"
+
+# pixi global install ninja
+#ninja = ">=1.12.1,<1.13"
+
 jupyter = ">=1.0.0,<1.1"
 pdoc3 = ">=0.11.1,<0.12"
 optax = ">=0.2.2,<0.3"
@@ -116,11 +126,13 @@ cuda = "*"
 #libnvjitlink = "*"
 #cuda-toolkit = "*"
 
+# cp /lib/x86_64-linux-gnu/libEGL.so .pixi/envs/cuda/x86_64-conda-linux-gnu/sysroot/usr/lib64/
+
 [tool.pixi.feature.cuda.tasks]
 rerun = "rerun --port 8812"
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
 ld = "env"
-test = { cmd = "env && pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST ="8.5", CPLUS_INCLUDE_PATH = "/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include" } }
+test = { cmd = "pytest tests", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST ="8.5", CPLUS_INCLUDE_PATH = "/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include", LD_LIBRARY_PATH = "/lib/x86_64-linux-gnu" } }
 
 
 

@@ -7,7 +7,6 @@ from b3d.io.feature_track_data import FeatureTrackData
 from b3d.utils import downsize_images
 from generate_visualization import create_keypoints_gif
 from path_utils import get_assets_path
-from dataclasses import replace
 from unity_to_python import (
     convert_unity_to_cv2_camera_pos_and_quat, 
     project_to_screen, 
@@ -80,7 +79,7 @@ def convert_unity_to_feature_track(unity_data: UnityData) -> FeatureTrackData:
     )
 
 def convert_from_zip(zip_path: str) -> FeatureTrackData:
-    unity_data = UnityData.from_zip(zip_path)
+    unity_data = UnityData.feature_track_data_from_zip(zip_path)
     feature_track_data = convert_unity_to_feature_track(unity_data)
     return feature_track_data
 
@@ -93,23 +92,28 @@ def save_feature_track_data(data: FeatureTrackData, file_info: dict, create_gif:
     print(f"Saved {filepath}")
 
     if (create_gif):
-        gifname = f"{file_info['data_name']}.gif"
+        gifname = f"{file_info['data_name']}_{file_info['light_setting']}_{file_info['background_setting']}_keypoints.gif"
         create_keypoints_gif(data, str(folder_path / gifname))
 
 def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
-    # camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
-    camera_intrinsics = data.camera_intrinsics
-    camera_intrinsics[0] /= k
-    camera_intrinsics[1] /= k
+    camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
+    # camera_intrinsics = data.camera_intrinsics.copy()
+    # camera_intrinsics[0] /= k
+    # camera_intrinsics[1] /= k
 
-    rgbd = downsize_images(data.rgbd, 4)
+    rgbd = downsize_images(data.rgbd, k)
     observed_keypoints_positions = downsize_2d_coordinates(data.observed_keypoints_positions, k)
 
-    return replace(
-        data,
+    return FeatureTrackData(
+        observed_keypoints_positions=observed_keypoints_positions,
+        keypoint_visibility=data.keypoint_visibility,
         camera_intrinsics=camera_intrinsics,
         rgbd_images=rgbd,
-        observed_keypoints_positions=observed_keypoints_positions
+        fps=data.fps,
+        latent_keypoint_positions=data.latent_keypoint_positions,
+        object_assignments=data.object_assignments,
+        camera_position=data.camera_position,
+        camera_quaternion=data.camera_quaternion
     )
 
 def save_downscaled_feature_track(data: FeatureTrackData, target_res: int, file_info: dict, create_gif: bool=False) -> None:
@@ -121,7 +125,7 @@ def save_downscaled_feature_track(data: FeatureTrackData, target_res: int, file_
 
 def process(zip_path: str, moveFile: bool=True) -> None:
     """Process a ZIP file and save the feature track data."""
-    unity_data = UnityData.from_zip(zip_path)
+    unity_data = UnityData.feature_track_data_from_zip(zip_path)
     feature_track_data = convert_unity_to_feature_track(unity_data)
 
     # Save feature_track_data

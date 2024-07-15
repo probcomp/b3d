@@ -41,12 +41,12 @@ class UnityData:
     object_positions: Optional[Array] = None
     object_quaternions: Optional[Array] = None
     object_catalog_ids: Optional[Array] = None
-    latent_keypoint_positions: Array
+    latent_keypoint_positions: Optional[Array] = None
     keypoint_visibility: Optional[Array] = None
-    object_assignments: Array
+    object_assignments: Optional[Array] = None
     Nframe: int
     Nobjects: int
-    Nkeypoints: int
+    Nkeypoints: Optional[Array] = None
     fps: Optional[float] = None
     file_info: Optional[Dict[str, str]] = None
 
@@ -78,7 +78,7 @@ class UnityData:
         self.object_assignments = subsampled_object_assignment
 
     @classmethod
-    def from_zip(cls, zip_path):
+    def feature_track_data_from_zip(cls, zip_path):
         # Create an instance of FBExtractor
         extractor = FBExtractor(zip_path)
         
@@ -86,13 +86,10 @@ class UnityData:
         camera_intrinsics = extractor.extract_camera_intrinsics()
         Nframe, Nobjects, Nkeypoints, samplingrate = extractor.extract_metadata()
         
-        # rgb, depth, segmentation = extractor.extract_videos(Nframe, width, height, far)
         rgb = extractor.extract_rgb()
         depth = extractor.extract_depth()
-        # segmentation = extractor.extract_segmentation()
 
         camera_position, camera_quaternion = extractor.extract_camera_poses()
-        # object_positions, object_quaternions = extractor.extract_object_poses()
         object_catalog_ids = extractor.extract_object_catalog()
         object_assignments = extractor.extract_keypoints_object_assignment()
         keypoint_positions, keypoint_visibility = extractor.extract_keypoints()
@@ -103,12 +100,9 @@ class UnityData:
         instance = cls(
             rgb=rgb,
             depth=depth,
-            # segmentation=segmentation,
             camera_position=camera_position,
             camera_quaternion=camera_quaternion,
             camera_intrinsics=camera_intrinsics,
-            # object_positions=object_positions,
-            # object_quaternions=object_quaternions,
             object_catalog_ids=object_catalog_ids,
             latent_keypoint_positions=keypoint_positions,
             keypoint_visibility=keypoint_visibility,
@@ -122,6 +116,47 @@ class UnityData:
 
         # Only keep keypoints that are visible in at least one frame
         instance.subsample_keypoints()
+
+        # Return an instance of UnityData
+        return instance
+    
+    
+
+    @classmethod
+    def segmented_video_input_data_from_zip(cls, zip_path):
+        # Create an instance of FBExtractor
+        extractor = FBExtractor(zip_path)
+        
+        # Extract all data using the extractor
+        camera_intrinsics = extractor.extract_camera_intrinsics()
+        Nframe, Nobjects, _, samplingrate = extractor.extract_metadata()
+        
+        rgb = extractor.extract_rgb()
+        depth = extractor.extract_depth()
+        segmentation = extractor.extract_segmentation()
+
+        camera_position, camera_quaternion = extractor.extract_camera_poses()
+        object_positions, object_quaternions = extractor.extract_object_poses()
+        object_catalog_ids = extractor.extract_object_catalog()
+        file_info = extractor.extract_file_info()
+
+        extractor.close()
+
+        instance = cls(
+            rgb=rgb,
+            depth=depth,
+            segmentation=segmentation,
+            camera_position=camera_position,
+            camera_quaternion=camera_quaternion,
+            camera_intrinsics=camera_intrinsics,
+            object_positions=object_positions,
+            object_quaternions=object_quaternions,
+            object_catalog_ids=object_catalog_ids,
+            Nframe=Nframe,
+            Nobjects=Nobjects,
+            fps=samplingrate,
+            file_info=file_info
+        )
 
         # Return an instance of UnityData
         return instance

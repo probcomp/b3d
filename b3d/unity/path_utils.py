@@ -86,7 +86,7 @@ def get_assets_path(
 
     Args:
         data_class (str): Short code for the data class ('f' for feature track data, 's' for segmented video input, 'v' for video input).
-        scenefolder (str, optional): Specific folder within the data class directory.
+        scenefolder (str, optional): Scene folder within the data class directory.
         datafolder (str, optional): Specific data folder within the scene folder.
 
     Returns:

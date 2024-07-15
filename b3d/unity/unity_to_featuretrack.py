@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import numpy as np
 import jax
 import os
 import shutil
@@ -96,10 +97,10 @@ def save_feature_track_data(data: FeatureTrackData, file_info: dict, create_gif:
         create_keypoints_gif(data, str(folder_path / gifname))
 
 def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
-    camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
-    # camera_intrinsics = data.camera_intrinsics.copy()
-    # camera_intrinsics[0] /= k
-    # camera_intrinsics[1] /= k
+    # camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
+    camera_intrinsics = np.array(data.camera_intrinsics).copy()
+    camera_intrinsics[0] /= k
+    camera_intrinsics[1] /= k
 
     rgbd = downsize_images(data.rgbd, k)
     observed_keypoints_positions = downsize_2d_coordinates(data.observed_keypoints_positions, k)

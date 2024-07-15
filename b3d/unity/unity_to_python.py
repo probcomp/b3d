@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import jax
 from jax.scipy.spatial.transform import Rotation as Rot
+from functools import partial
 from pose import Pose
 from b3d.camera import screen_from_camera, Intrinsics, unproject_depth
 
@@ -14,6 +15,33 @@ def convert_unity_to_cv2_object_pos(original_pos: jnp.ndarray) -> jnp.ndarray:
 
 def convert_unity_to_cv2_camera_pos_and_quat(
     original_pos: jnp.ndarray, original_rot: jnp.ndarray, z_up: bool = False
+) -> Pose:
+    """Convert Unity position and quaternion to OpenCV position and quaternion."""
+    pose_unity = Pose(original_pos, original_rot)
+    pose_matrix = pose_unity.as_matrix()
+
+    x_axis_of_cam = pose_matrix[:3, 0] * jnp.array([1, 1, -1])
+    y_axis_of_cam = pose_matrix[:3, 1] * jnp.array([1, 1, -1])
+    z_axis_of_cam = pose_matrix[:3, 2] * jnp.array([1, 1, -1])
+
+    new_rotation_matrix = jnp.hstack([
+        x_axis_of_cam.reshape(3, 1),
+        -y_axis_of_cam.reshape(3, 1),
+        z_axis_of_cam.reshape(3, 1)
+    ])
+
+    camera_pos = jnp.array([original_pos[0], original_pos[1], -original_pos[2]])
+    new_pose = Pose(camera_pos, Rot.from_matrix(new_rotation_matrix).quat)
+
+    new_pose = QUAT_90_DEG_X_Pose @ new_pose
+
+    if z_up:
+        new_pose = new_pose @ QUAT_90_DEG_X_Pose
+
+    return new_pose.pos, new_pose._quaternion
+
+def convert_unity_to_cv2_world_pos_and_quat(
+    original_pos: jnp.ndarray, original_rot: jnp.ndarray, z_up: bool = True
 ) -> Pose:
     """Convert Unity position and quaternion to OpenCV position and quaternion."""
     pose_unity = Pose(original_pos, original_rot)
@@ -84,3 +112,10 @@ def is_point_in_front(
 def downsize_2d_coordinates(points, k):
     resized_points = points.at[..., 0].mul(1/k).at[..., 1].mul(1/k)
     return resized_points
+
+@partial(jax.jit, static_argnums=1)
+def downsize_images_1D(ims, k):
+    """Downsize an array of images by a given factor."""
+    shape = (ims.shape[1]//k, ims.shape[2]//k)
+    return jax.vmap(jax.image.resize, (0,None, None))(
+            ims, shape,"linear")

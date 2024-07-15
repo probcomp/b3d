@@ -90,7 +90,7 @@ class VideoInput:
             camera_quaternions=None, 
             camera_intrinsics_rgb=None, 
             camera_intrinsics_depth=None,
-            fps = None
+            # fps = None
         ):
         self.rgb = rgb
         self.xyz = xyz
@@ -98,7 +98,7 @@ class VideoInput:
         self.camera_quaternions = camera_quaternions
         self.camera_intrinsics_rgb = camera_intrinsics_rgb
         self.camera_intrinsics_depth = camera_intrinsics_depth
-        self.fps = fps
+        # self.fps = fps
 
 
     def __post_init__(self):
@@ -120,7 +120,7 @@ class VideoInput:
             "camera_quaternions": self.camera_quaternions,
             "camera_intrinsics_rgb": self.camera_intrinsics_rgb,
             "camera_intrinsics_depth": self.camera_intrinsics_depth,
-            "fps": self.fps
+            # "fps": self.fps
         }
 
     def save(self, filepath: str):
@@ -133,7 +133,7 @@ class VideoInput:
             camera_quaternions=self.camera_quaternions,
             camera_intrinsics_rgb=self.camera_intrinsics_rgb,
             camera_intrinsics_depth=self.camera_intrinsics_depth,
-            fps=self.fps
+            # fps=self.fps
         )
 
     def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
@@ -147,7 +147,7 @@ class VideoInput:
             camera_quaternions=self.camera_quaternions[start_t:end_t],
             camera_intrinsics_rgb=self.camera_intrinsics_rgb,
             camera_intrinsics_depth=self.camera_intrinsics_depth,
-            fps=self.fps
+            # fps=self.fps
         )
 
     @classmethod
@@ -170,7 +170,7 @@ class VideoInput:
                 camera_quaternions=jnp_array_or_none(data["camera_quaternions"]),
                 camera_intrinsics_rgb=jnp_array_or_none(data["camera_intrinsics_rgb"]),
                 camera_intrinsics_depth=jnp_array_or_none(data["camera_intrinsics_depth"]),
-                fps=fps
+                # fps=fps
             )
 
     @property

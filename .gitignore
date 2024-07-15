@@ -4,6 +4,7 @@
 assets/shared_data_bucket/*
 assets/test_results/*
 assets/bop/*
+assets/nuscenes/*
 assets/ycbineoat/*
 **/.ipynb_checkpoints
 **/**.mp4

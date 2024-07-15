@@ -666,6 +666,7 @@ def voxelize(data, resolution):
     return data, indices, occurences
 
 
+@jax.jit
 def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,fy,cx,cy, far,tolerance):
     grid_in_cam_frame = camera_pose.inv().apply(grid)
     height,width = depth_image.shape[:2]
@@ -688,3 +689,10 @@ def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,f
     occluded = occluded * (1.0 - occupied)
     _free = (1.0 - occluded) * (1.0 - occupied)
     return 1.0 * occupied  -  1.0 * _free, real_rgb_values
+
+voxel_occupied_occluded_free_parallel_camera = jax.jit(
+    jax.vmap(voxel_occupied_occluded_free, in_axes=(0, None, None, None, None, None, None, None, None, None))
+)
+voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
+    jax.vmap(voxel_occupied_occluded_free, in_axes=(0, 0, 0, None, None, None, None, None, None, None))
+)

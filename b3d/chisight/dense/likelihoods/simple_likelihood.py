@@ -51,7 +51,7 @@ def simple_likelihood(observed_rgbd, scene_mesh, renderer, likelihood_args):
     )
 
     score = jnp.sum(
-        is_match * rendered_areas * 4.0 + 
+        is_match * rendered_areas * 6.0 + 
         is_mismatched_non_teleportation * rendered_areas * -1.0 + 
         is_mismatched_teleportation * rendered_areas * -2.0
     ) * likelihood_args["multiplier"]

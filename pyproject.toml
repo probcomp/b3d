@@ -55,6 +55,7 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "*"
 trimesh = ">=4.4.3,<4.5"
 tqdm = "==4.66.2"
+ninja = "*"
 
 [tool.pixi.feature.dev.tasks]
 egl = "cd .pixi/envs/gpu/x86_64-conda-linux-gnu/sysroot/usr/lib64/ && ln -s libEGL_mesa.so.0.0.0 libEGL.so"

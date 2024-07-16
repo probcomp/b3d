@@ -7,7 +7,7 @@ PIPX_BIN="$HOME/.local/bin"
 export PATH=$PIXI_BIN:$PIPX_BIN:$PATH
 
 pipx-installed() {
-	if command -v pipx &>/dev/null; then
+	if command -v "$PIXI_BIN/pipx" &>/dev/null; then
 		return 0
 	else
 		return 1
@@ -23,7 +23,7 @@ pipx-global-install() {
 }
 
 keyring-installed() {
-	if command -v keyring &>/dev/null; then
+	if command -v "$PIPX_BIN/keyring" &>/dev/null; then
 		return 0
 	else
 		return 1
@@ -60,7 +60,7 @@ pipx-inject-google-artifact-registry() {
 }
 
 gcloud-installed() {
-	if command -v gcloud &>/dev/null; then
+	if command -v "$PIXI_BIN/gcloud" &>/dev/null; then
 		return 0
 	else
 		return 1

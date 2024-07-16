@@ -1629,7 +1629,7 @@ packages:
   name: b3d-prototype
   version: 0.1.0
   path: .
-  sha256: 26453ca940b6470c4bf2824524fb7d3c1ad01222e1f3baf0d08545cda1f1c705
+  sha256: e54331b3f5c19e1863afba034fcd889f6e633ab268e3442be4bc33f1cad9aedb
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - pyransac3d>=0.6.0,<0.7

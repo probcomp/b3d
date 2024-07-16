@@ -5,6 +5,7 @@ import jax
 import trimesh
 from jax.tree_util import register_pytree_node_class
 import rerun as rr
+import numpy as np
 
 @jax.jit
 def merge_meshes(meshes):
@@ -78,11 +79,27 @@ class Mesh:
     @staticmethod
     def from_obj_file(path):
         trimesh_mesh = trimesh.load_mesh(path, process=False, validate=False)
+        return Mesh.from_trimesh(trimesh_mesh)
+
+    @staticmethod
+    def from_trimesh(trimesh_mesh):
         vertices = jnp.array(trimesh_mesh.vertices)
-        vertices = vertices - jnp.mean(vertices, axis=0)
         faces = jnp.array(trimesh_mesh.faces)
-        vertex_colors = jnp.array(trimesh_mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
+        if not isinstance(trimesh_mesh.visual, trimesh.visual.color.ColorVisuals):
+            vertex_colors = jnp.array(trimesh_mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
+        else:
+            vertex_colors = jnp.array(trimesh_mesh.visual.vertex_colors)[..., :3] / 255.0
         return Mesh(vertices, faces, vertex_colors)
+    
+    def save(self, filename):
+        trimesh_mesh = trimesh.Trimesh(self.vertices, self.faces, 
+                                            vertex_colors=np.array(self.vertex_attributes * 255).astype(np.uint8))
+        with open(filename, "w") as f:
+            f.write(
+                trimesh.exchange.obj.export_obj(
+                    trimesh_mesh, include_normals=True, include_texture=True
+                )
+            )
 
     def transform(self, pose):
         return transform_mesh(self, pose)

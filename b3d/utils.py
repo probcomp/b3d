@@ -407,7 +407,7 @@ def multivmap(f, args=None):
 def update_choices(trace, key, addresses, *values):
     return trace.update(
         key,
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses, values)})
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
     )[0]
 
 

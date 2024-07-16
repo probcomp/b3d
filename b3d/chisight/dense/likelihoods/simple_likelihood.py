@@ -65,4 +65,6 @@ def simple_likelihood(observed_rgbd, scene_mesh, renderer, likelihood_args):
         "depth_match": depth_match,
         "is_hypothesized": is_hypothesized, 
         "rendered_rgbd": rendered_rgbd,     
+        "alternate_color_space": observed_lab,     
+        "alternate_color_spcae_rendered": rendered_lab,     
     }

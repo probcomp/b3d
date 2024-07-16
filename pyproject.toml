@@ -67,3 +67,6 @@ pytest = "*"
 
 [tool.pixi.environments]
 gpu = ["dev"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

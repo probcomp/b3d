@@ -10,6 +10,7 @@ import os
 
 from genjax import Pytree
 
+
 KRaysImageLikelihoodArgs = namedtuple('KRaysImageLikelihoodArgs', [
     'color_tolerance',
     'depth_tolerance',

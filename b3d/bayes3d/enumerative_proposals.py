@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import b3d
 from b3d.pose import Pose
 import genjax
+from genjax import Pytree
 
 
 def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
@@ -23,20 +24,19 @@ enumerate_and_select_best_move = jax.jit(
 )
 
 def _gvmf_and_select_best_move(trace, key, variance, concentration, address, number):
-    addr = address.const
     test_poses = Pose.concatenate_poses(
         [
             jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
-                jax.random.split(key, number), trace.get_choices()[addr], variance, concentration
+                jax.random.split(key, number), trace.get_choices()[address.const], variance, concentration
             ),
-            trace.get_choices()[addr][None,...]
+            trace.get_choices()[address.const][None,...]
         ]
     )
     test_poses_batches = test_poses.split(10)
     scores = jnp.concatenate(
         [
             b3d.enumerate_choices_get_scores(
-                trace, key, (addr,), poses
+                trace, key, Pytree.const((address.const,)), poses
             )
             for poses in test_poses_batches
         ]
@@ -44,7 +44,7 @@ def _gvmf_and_select_best_move(trace, key, variance, concentration, address, num
     trace = b3d.update_choices(
         trace,
         jax.random.PRNGKey(0),
-        (addr,),
+        (address,),
         test_poses[scores.argmax()],
     )
     key = jax.random.split(key, 2)[-1]

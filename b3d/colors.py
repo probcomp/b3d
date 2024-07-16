@@ -39,6 +39,33 @@ def rgb_to_lab(rgb):
     return lab
 
 
+@partial(jnp.vectorize, signature="(k)->(k)")
+def rgb_to_hsv(rgb):
+    r, g, b = rgb[0], rgb[1], rgb[2]
+    
+    max_c = jnp.max(rgb)
+    min_c = jnp.min(rgb)
+    delta = max_c - min_c
+    
+    # Hue calculation
+    def hue_func(r, g, b, max_c, delta):
+        h = jnp.where(max_c == r, (g - b) / delta % 6, 0)
+        h = jnp.where(max_c == g, (b - r) / delta + 2, h)
+        h = jnp.where(max_c == b, (r - g) / delta + 4, h)
+        return h * 60
+
+    h = hue_func(r, g, b, max_c, delta)
+    h = jnp.where(delta == 0, 0, h)
+    
+    # Saturation calculation
+    s = jnp.where(max_c == 0, 0, delta / max_c)
+    
+    # Value calculation
+    v = max_c
+    
+    return jnp.array([h, s, v])
+
+
 def cie94_err(lab1, lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2

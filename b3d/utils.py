@@ -56,10 +56,21 @@ def get_shared() -> Path:
 
     return data_dir_path
 
+def get_shared_large() -> Path:
+    """The absolute path of the extended assets directory on current machine"""
+    data_dir_path = get_assets() / "large_data_bucket"
+
+    if not os.path.exists(data_dir_path):
+        os.makedirs(data_dir_path)
+        print(f"Initialized empty directory for shared bucket data at {data_dir_path}.")
+
+    return data_dir_path
 
 def get_gcloud_bucket_ref() -> str:
     return "gs://b3d_bucket"
 
+def get_gcloud_large_bucket_ref() -> str:
+    return "gs://b3d_bucket_large"
 
 def keysplit(key, *ns):
     if len(ns) == 0:

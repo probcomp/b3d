@@ -2,6 +2,7 @@
 *.pyc
 *.png
 assets/shared_data_bucket/*
+assets/large_data_bucket/*
 assets/test_results/*
 assets/bop/*
 assets/nuscenes/*

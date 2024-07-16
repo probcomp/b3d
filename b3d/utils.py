@@ -86,6 +86,11 @@ from b3d.pose import Pose, Rot
 from functools import partial
 # TODO: Refactor utils into core and others, to avoid circular imports
 
+@partial(jax.jit, static_argnums=(1,2))
+def resize_image(rgbd, height, width):
+    return jax.image.resize(
+        rgbd, (height, width, rgbd.shape[-1]), method="nearest"
+    )
 
 @partial(jax.jit, static_argnums=1)
 def downsize_images(ims, k):
@@ -193,15 +198,15 @@ def get_rgb_pil_image(image, max=1.0):
         PIL.Image: RGB image visualized as a PIL image.
     """
     image = np.clip(image, 0.0, max)
-    if image.shape[-1] == 3:
-        image_type = "RGB"
-    else:
-        image_type = "RGBA"
+    # if image.shape[-1] == 3:
+    #     image_type = "RGB"
+    # else:
+    #     image_type = "RGBA"
 
     img = Image.fromarray(
-        np.rint(image / max * 255.0).astype(np.int8),
-        mode=image_type,
-    ).convert("RGB")
+        np.rint(image[...,:3] / max * 255.0).astype(np.int8),
+        mode="RGB"
+    )
     return img
 
 viz_rgb = get_rgb_pil_image
@@ -661,6 +666,7 @@ def voxelize(data, resolution):
     return data, indices, occurences
 
 
+@jax.jit
 def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,fy,cx,cy, far,tolerance):
     grid_in_cam_frame = camera_pose.inv().apply(grid)
     height,width = depth_image.shape[:2]
@@ -683,3 +689,10 @@ def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,f
     occluded = occluded * (1.0 - occupied)
     _free = (1.0 - occluded) * (1.0 - occupied)
     return 1.0 * occupied  -  1.0 * _free, real_rgb_values
+
+voxel_occupied_occluded_free_parallel_camera = jax.jit(
+    jax.vmap(voxel_occupied_occluded_free, in_axes=(0, None, None, None, None, None, None, None, None, None))
+)
+voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
+    jax.vmap(voxel_occupied_occluded_free, in_axes=(0, 0, 0, None, None, None, None, None, None, None))
+)

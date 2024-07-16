@@ -33,6 +33,7 @@ fire = ">=0.6.0,<0.7"
 glfw = "*"
 ipython = ">=8.26.0,<8.27"
 jax = "*"
+jaxlib = { version = "*", build = "cuda12*" }
 jupyter = ">=1.0.0,<1.1"
 libglib = "*"
 libglu = "*"
@@ -56,18 +57,13 @@ torchvision = "*"
 trimesh = ">=4.4.3,<4.5"
 tqdm = "==4.66.2"
 ninja = "*"
+pytest = "*"
 
-[tool.pixi.feature.dev.tasks]
+[tool.pixi.tasks]
 egl = "cd .pixi/envs/gpu/x86_64-conda-linux-gnu/sysroot/usr/lib64/ && ln -s libEGL_mesa.so.0.0.0 libEGL.so"
 rerun = "rerun --port 8812"
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
 test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.5", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"} }
-
-[tool.pixi.feature.dev.dependencies]
-pytest = "*"
-
-[tool.pixi.environments]
-gpu = ["dev"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

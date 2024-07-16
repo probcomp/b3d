@@ -140,11 +140,11 @@ __wrap__() {
 
 		# install environment
 		echo "installing b3d project dependencies..."
-		echo "  'pixi install --environment gpu'..."
-		pixi install --environment gpu
+		echo "  pixi install..."
+		pixi install
 
 		# copy in libEGL.so
-		cp assets/system/libEGL.so .pixi/envs/gpu/x86_64-conda-linux-gnu/sysroot/usr/lib64/
+		cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/
 
 		printf "\ninstall done! run these commands:\n"
 		printf "  1) source %s\n" "$shell_config"

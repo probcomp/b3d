@@ -179,7 +179,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/ipywidgets-8.1.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/isoduration-20.11.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/jax-0.4.28-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/jaxlib-0.4.28-cpu_py312h17e8b90_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/jaxlib-0.4.28-cuda120py312h4008524_200.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jedi-0.19.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jinja2-3.1.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/joblib-1.4.2-pyhd8ed1ab_0.conda
@@ -1156,7 +1156,7 @@ packages:
   name: b3d-prototype
   version: 0.1.0
   path: .
-  sha256: 664ff64bac3940922273ef85de0bb1f38dcf7d224823efee5d2b22e850cda280
+  sha256: f9e12726749af0bf616bb7cf8a7d297dfd3fbb90aa5b5f77c54ecc28688cf3c9
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1
@@ -3821,20 +3821,34 @@ packages:
 - kind: conda
   name: jaxlib
   version: 0.4.28
-  build: cpu_py312h17e8b90_0
+  build: cuda120py312h4008524_200
+  build_number: 200
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/jaxlib-0.4.28-cpu_py312h17e8b90_0.conda
-  sha256: da4f6df0fee57bdd6cc3215610941139b24f1e0b0a7c74195ab9efeaafbd49cb
-  md5: 0a1155329b797e00309e3bfd994ab2dd
+  url: https://conda.anaconda.org/conda-forge/linux-64/jaxlib-0.4.28-cuda120py312h4008524_200.conda
+  sha256: c38b0c91570573ae75c431529915056304ff8014d09e1e158a67e6884f6db68c
+  md5: 91faec839d3abd26508af9ad8c7fe230
   depends:
+  - __cuda
   - __glibc >=2.17,<3.0.a0
+  - cuda-cudart >=12.0.107,<13.0a0
+  - cuda-cupti >=12.0.90,<13.0a0
+  - cuda-nvcc
+  - cuda-nvtx >=12.0.76,<13.0a0
+  - cuda-version >=12.0,<13
+  - cudnn >=8.9.7.29,<9.0a0
   - libabseil * cxx17*
   - libabseil >=20240116.2,<20240117.0a0
+  - libcublas >=12.0.1.189,<13.0a0
+  - libcufft >=11.0.0.21,<12.0a0
+  - libcurand >=10.3.1.50,<11.0a0
+  - libcusolver >=11.4.2.57,<12.0a0
+  - libcusparse >=12.0.0.76,<13.0a0
   - libgcc-ng >=12
   - libgrpc >=1.62.2,<1.63.0a0
   - libstdcxx-ng >=12
   - libzlib >=1.3.1,<2.0a0
   - ml_dtypes >=0.2.0
+  - nccl >=2.22.3.1,<3.0a0
   - numpy >=1.19,<3
   - openssl >=3.3.1,<4.0a0
   - python >=3.12,<3.13.0a0
@@ -3846,8 +3860,8 @@ packages:
   license_family: APACHE
   purls:
   - pkg:pypi/jaxlib?source=conda-forge-mapping
-  size: 53896190
-  timestamp: 1720642938426
+  size: 87314826
+  timestamp: 1720649030129
 - kind: pypi
   name: jaxtyping
   version: 0.2.33

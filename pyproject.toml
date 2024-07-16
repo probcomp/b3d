@@ -17,6 +17,9 @@ platforms = ["linux-64"]
 [tool.pixi.system-requirements]
 cuda = "12"
 
+[tool.pixi.activation]
+scripts = ["scripts/env-activation.sh"]
+
 [tool.pixi.pypi-options]
 index-url = "https://pypi.org/simple"
 extra-index-urls = ["https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple"]
@@ -60,10 +63,10 @@ ninja = "*"
 pytest = "*"
 
 [tool.pixi.tasks]
-egl = "cd .pixi/envs/gpu/x86_64-conda-linux-gnu/sysroot/usr/lib64/ && ln -s libEGL_mesa.so.0.0.0 libEGL.so"
+foo = "export FOO=8"
 rerun = "rerun --port 8812"
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
-test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.5", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"} }
+test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"} }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

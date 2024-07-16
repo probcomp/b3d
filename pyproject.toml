@@ -4,27 +4,14 @@ version = "0.1.0"
 description = "Add a short description here"
 authors = [{name = "Aaron Steele", email = "eightysteele@gmail.com"}]
 requires-python = ">= 3.12"
-dependencies = [
-"genjax==0.5.0.post13.dev0+973fb60d",
-"pyransac3d>=0.6.0,<0.7",
-"opencv-python>=4.10.0.84,<4.10.1",
-"torch>=2.3.0,<2.4",
-#"torchaudio>=2.3.1,<2.4",
-#"torchvision>=0.18.1,<0.19",
-"torchvision",
-"pyliblzfse>=0.4.1,<0.5"]
+dependencies = ["genjax==0.5.0.post13.dev0+973fb60d", "opencv-python>=4.10.0.84,<4.10.1", "pyliblzfse>=0.4.1,<0.5", "pyransac3d>=0.6.0,<0.7"]
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.pixi.project]
-#channels = ["conda-forge", "pytorch", "pytorch-nightly"] #, "pytorch", "nvidia"]
-#channels = ["conda-forge", "pytorch", "nvidia"]
-#channels = ["conda-forge", "pytorch"]
-#channels = ["nvidia/label/cuda-12.1.0", "nvidia", "conda-forge", "pytorch"]
-#channels = ["nvidia", "conda-forge", "pytorch"]
 channels = ["conda-forge"]
-
 platforms = ["linux-64"]
 
 [tool.pixi.pypi-options]
@@ -37,139 +24,51 @@ b3d = { path = ".", editable = true }
 [tool.pixi.tasks]
 
 [tool.pixi.dependencies]
-polars = ">=0.20,<0.21"
-python = ">=3.12.*"
-pytest = "*"
-
-# mesalib! does that give libEGL? does it replace any of the other deps here?
-mesalib = "*"
-#mesa-libegl-devel-cos7-x86_64 = "*"
-
-
-#mesa-libegl-cos7-x86_64 = "*"
-#mesa-libegl-devel-cos7-x86_64 = "*"
+distinctipy = ">=1.3.4,<1.4"
+ffmpeg = "*"
+fire = ">=0.6.0,<0.7"
+glfw = "*"
+ipython = ">=8.26.0,<8.27"
+jupyter = ">=1.0.0,<1.1"
 libglib = "*"
 libglu = "*"
-
-glfw = "*"
-#mesa-libgl-devel-cos7-x86_64 = "*"
-#mesa-libglu-devel-cos7-x86_64 = "*"
-ffmpeg = "*"
-#python = "*"
-rerun-sdk = "==0.16.1"
-tqdm = "==4.66.2"
-numpy = "==1.26.4"
-pillow = "==10.3.0"
-trimesh = ">=4.4.3,<4.5"
 matplotlib = ">=3.9.1,<3.10"
-scipy = ">=1.14.0,<1.15"
-
-# pixi global install ninja
-#ninja = ">=1.12.1,<1.13"
-
-jupyter = ">=1.0.0,<1.1"
-pdoc3 = ">=0.11.1,<0.12"
-optax = ">=0.2.2,<0.3"
-fire = ">=0.6.0,<0.7"
+mesalib = "*"
 natsort = ">=8.4.0,<8.5"
-distinctipy = ">=1.3.4,<1.4"
+numpy = "==1.26.4"
+optax = ">=0.2.2,<0.3"
+pdoc3 = ">=0.11.1,<0.12"
+pillow = "==10.3.0"
+polars = ">=0.20,<0.21"
+python = ">=3.12"
+pytest = "*"
+rerun-sdk = "==0.16.1"
 scikit-learn = ">=1.5.1,<1.6"
-ipython = ">=8.26.0,<8.27"
-#pytorch = { version = "*", channel = "pytorch-nightly" }
+scipy = ">=1.14.0,<1.15"
+torchvision = { version = "*" }
+trimesh = ">=4.4.3,<4.5"
+tqdm = "==4.66.2"
 
 [tool.pixi.feature.cuda]
 platforms = ["linux-64"]
-#channels = ["conda-forge", "nvidia", { channel = "pytorch", priority = -1 }]
-#channels = ["nvidia/label/cuda-12.1.0", { channel = "nvidia", priority = -1}, { channel = "conda-forge", priority = -1 }, { channel = "pytorch", priority = -1 }]
 system-requirements = { cuda = "12" }
-#channels = ["nvidia", "conda-forge", "pytorch"]
-
-
-#system-requirements = { cuda = "12" }
-#[tool.pixi.feature.cuda.pypi-dependencies]
-#jax = { version = ">=0.4.28", extras = ["cuda12"] }
-#nvidia-cuda-nvcc-cu12 = ">=12.5.82,<12.6"
-#nvidia-nvjitlink-cu12 = ">=12.5.82,<12.6"
-#nvidia-cuda-nvcc-cu12 = "*"
-#nvidia-nvjitlink-cu12 = "*"
-#pytorch-cuda = "*"
 
 [tool.pixi.feature.cuda.dependencies]
-#pytorch = { version = "~=2.3.0", channel = "pytorch" }
-#pytorch-cuda = { version = "12.1", channel = "pytorch" }
-#cuda = {version = "*"} #, channel="nvidia/label/cuda-12.4.0"}
-
+cuda = "*"
+cuda-toolkit = "*"
 jax = "*"
 pytorch = {version = "==2.3.0", build = "cuda12*"}
-cuda-toolkit = "*"
-cuda = "*"
 
-#pytorch = {version = "2.0.1", channel="pytorch"}
-#torchvision = {version = "0.15.2.*", channel="pytorch"}
-#torchaudio = {version = "2.0.2", channel="pytorch"}
-#pytorch-cuda = {version = "12.4", channel="pytorch"}
-#jax = { version = ">=0.4.28"}
-#jaxlib = { version = ">=0.4.28", build = "cuda12*"}
-
-
-# cuda = {version = "*", channel="nvidia/label/cuda-12.1.0"}
-# pytorch-cuda = { version = "12.1.*", channel = "pytorch" }
-
-
-#cuda-toolkit = { version = "12.1.*", channel = "nvidia" }
-
-# pytorch-cuda = { version = "*", channel = "pytorch" }
-# jax = ">=0.4.28"
-# jaxlib = { version = ">=0.4.28", build = "cuda12*" }
-# cuda-nvcc = "*"
-#libnvjitlink = "*"
-#cuda-toolkit = "*"
-
-# cp /lib/x86_64-linux-gnu/libEGL.so .pixi/envs/cuda/x86_64-conda-linux-gnu/sysroot/usr/lib64/
-# i think just missing a symlink for libEGL_mesa.so.0.0.0 (like libGL.so)!
 [tool.pixi.feature.cuda.tasks]
 rerun = "rerun --port 8812"
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
-ld = "env"
-test = { cmd = "pytest tests", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST ="8.5", CPLUS_INCLUDE_PATH = "/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include", LD_LIBRARY_PATH = "/lib/x86_64-linux-gnu" } }
-
-
-
-
-
-
-
-[tool.pixi.feature.test.dependencies]
-pytest = "*"
-
-[tool.pixi.feature.test.tasks]
 test = { cmd = "pytest tests", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST ="8.5" } }
 
-# CPLUS_INCLUDE_PATH = "/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include"
+[tool.pixi.feature.dev.dependencies]
+pytest = "*"
+
+[tool.pixi.feature.dev.tasks]
+
 
 [tool.pixi.environments]
-#cuda = {features = ["cuda", "test"], solve-group = "default"}
 cuda = ["cuda"]
-
-
-
-# current state
-# strange linking errors when running that test.
-
-# CUDA and pixi
-# https://discord.com/channels/1082332781146800168/1255825423653404672
-
-# WARN These conda-packages will be overridden by pypi: 
-#        pytorch
-
-# :/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cuda_runtime/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cuda_runtime/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cusparse/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cuda_runtime/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cusparse/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cublas/include:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/lib/python3.12/site-packages/nvidia/cusolver/include
-
-
-
-# ln -s /home/eighty/code/github/eightysteele/b3d/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL_mesa.so.0 /home/eighty/code/github/eightysteele/b3d/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL.so
-# ln -s /home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL_mesa.so.0 /home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL.so
-
-# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64:/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/x86_64-conda-linux-gnu/sysroot/usr/lib64
-# export LDFLAGS="$LDFLAGS -L/home/eighty/code/github/eightysteele/b3d/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64 -L/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/x86_64-conda-linux-gnu/sysroot/usr/lib64"
-
-# export TORCH_CUDA_ARCH_LIST=8.5

@@ -24,8 +24,6 @@ extra-index-urls = ["https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-
 [tool.pixi.pypi-dependencies]
 b3d = { path = ".", editable = true }
 
-[tool.pixi.tasks]
-
 [tool.pixi.dependencies]
 cuda = "*"
 cuda-toolkit = "*"
@@ -50,7 +48,6 @@ optax = ">=0.2.2,<0.3"
 pdoc3 = ">=0.11.1,<0.12"
 pillow = "==10.3.0"
 polars = ">=0.20,<0.21"
-pytest = "*"
 pytorch = {version = "==2.3.0", build = "cuda12*"}
 rerun-sdk = "==0.16.1"
 scikit-learn = ">=1.5.1,<1.6"
@@ -63,7 +60,7 @@ tqdm = "==4.66.2"
 egl = "cd .pixi/envs/gpu/x86_64-conda-linux-gnu/sysroot/usr/lib64/ && ln -s libEGL_mesa.so.0.0.0 libEGL.so"
 rerun = "rerun --port 8812"
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
-test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.5", CPLUS_INCLUDE_PATH = "/home/eighty/code/github/eightysteele/b3d/.pixi/envs/cuda/targets/x86_64-linux/include"} }
+test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.5", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"} }
 
 [tool.pixi.feature.dev.dependencies]
 pytest = "*"

@@ -66,6 +66,7 @@ jobs:
           RUNNER_DEBUG: true
         with:
           pixi-version: v0.25.0
+          locked: false
           # activate-environment: true
           cache: true
       - run: |

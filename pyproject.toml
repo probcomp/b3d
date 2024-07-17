@@ -1,5 +1,5 @@
 [project]
-name = "b3d-prototype"
+name = "b3d"
 version = "0.1.0"
 description = "Add a short description here"
 authors = [{name = "Aaron Steele", email = "eightysteele@gmail.com"}]

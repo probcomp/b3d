@@ -1153,10 +1153,10 @@ packages:
   size: 275723
   timestamp: 1719000071367
 - kind: pypi
-  name: b3d-prototype
+  name: b3d
   version: 0.1.0
   path: .
-  sha256: 2f423f6e4e9be1f7d82810e3250c2819b67a35182341b8119da563cfbe67760e
+  sha256: a6738ad0989056ab1ee8c9889dd36af38258ceb26625acee5c1e87be2f730f0f
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1

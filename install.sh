@@ -139,6 +139,11 @@ __wrap__() {
 		./check-auth.sh
 		popd &>/dev/null
 
+    if [ "${GITHUB_CI:-}" = "true" ]; then
+        rm "$PIXI_BIN/pixi"
+        return 0
+    fi
+
 		# install environment
 		echo "installing b3d project dependencies..."
 		echo "  pixi install..."
@@ -151,9 +156,6 @@ __wrap__() {
 		printf "  1) source %s\n" "$shell_config"
 		printf "  3) pixi task list\n\n"
 
-    if [ "${GITHUB_CI:-}" = "true" ]; then
-      rm "$PIXI_BIN/pixi"
-    fi
 	}
 
 	init-dev-environment

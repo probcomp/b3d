@@ -69,4 +69,6 @@ jobs:
           manifest-path: pyproject.toml
           activate-environment: true
           cache: true
-      - run: pixi run all-tests-ci
+      - run: |
+          cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/
+          pixi run all-tests-ci

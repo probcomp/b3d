@@ -38,17 +38,22 @@ jobs:
         run: ./install.sh
 
       - name: Setup caching for test assets
+        id: cache-assets
         uses: actions/cache@v4
         with:
           path: assets
           key: ${{ runner.os }}-${{ matrix.runner }}-assets
           restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
+
+      - name: Setup pixi cache
+        id: cache-pixi
+        uses: actions/cache@v4
         with:
           path: .pixi
           key: ${{ runner.os }}-${{ matrix.runner }}-pixi
           restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
-      - name: Run tests
+     - name: Run tests
         run: pixi run all-tests-ci
 
       # - name: Run tests

@@ -43,11 +43,18 @@ jobs:
           path: assets
           key: ${{ runner.os }}-${{ matrix.runner }}-assets
           restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
+        with:
+          path: .pixi
+          key: ${{ runner.os }}-${{ matrix.runner }}-pixi
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
       - name: Run tests
-        uses: prefix-dev/setup-pixi@v0.8.1
-        with:
-          pixi-version: v0.25.0
-          manifest-path: pyproject.toml
-          cache: true
-      - run: pixi run all-tests-ci
+        run: pixi run all-tests-ci
+
+      # - name: Run tests
+      #   uses: prefix-dev/setup-pixi@v0.8.1
+      #   with:
+      #     pixi-version: v0.25.0
+      #     manifest-path: pyproject.toml
+      #     cache: true
+      # - run: pixi run all-tests-ci

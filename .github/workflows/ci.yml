@@ -57,6 +57,7 @@ jobs:
       - name: Run tests
         env:
           PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+          CONDA_PREFIX: "/home/runner/.pixi/envs/default"
         run: pixi run all-tests-ci
 
       # - name: Run tests

@@ -24,7 +24,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - id: auth
+      - name: Setup asset caching
+        id: cache-assets
+        uses: actions/cache@v4
+        with:
+          path: assets
+          key: ${{ runner.os }}-${{ matrix.runner }}-assets
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
+
+      - name: Setup pixi caching
+        id: cache-pixi
+        uses: actions/cache@v4
+        with:
+          path: .pixi
+          key: ${{ runner.os }}-${{ matrix.runner }}-pixi
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
+
+      - name: Authenticate gcloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
@@ -37,23 +54,9 @@ jobs:
           GITHUB_CI: "true"
         run: ./install.sh
 
-      - name: Setup caching for test assets
-        id: cache-assets
-        uses: actions/cache@v4
-        with:
-          path: assets
-          key: ${{ runner.os }}-${{ matrix.runner }}-assets
-          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
-
-      - name: Setup pixi cache
-        id: cache-pixi
-        uses: actions/cache@v4
-        with:
-          path: .pixi
-          key: ${{ runner.os }}-${{ matrix.runner }}-pixi
-          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
-
       - name: Run tests
+        env:
+          PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
         run: pixi run all-tests-ci
 
       # - name: Run tests

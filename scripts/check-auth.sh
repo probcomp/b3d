@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+CI="${GITHUB_CI:-}"
 PIXI_BIN="$HOME/.pixi/bin"
 PIPX_BIN="$HOME/.local/bin"
 export PATH=$PIXI_BIN:$PIPX_BIN:$PATH
@@ -76,7 +77,7 @@ gcloud-global-install() {
 }
 
 gcloud-authenticated() {
-  if [ "${GITHUB_CI:-}" = "true" ]; then
+    if [ "${GITHUB_CI:-}" = "true" ]; then
     return 0
 	elif gcloud auth application-default print-access-token >/dev/null; then
 		return 0

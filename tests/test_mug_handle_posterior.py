@@ -7,7 +7,7 @@ from b3d import Pose
 import b3d
 import b3d.bayes3d as bayes3d
 import trimesh
-
+from genjax import Pytree
 
 PORT = 8812
 rr.init("233")
@@ -116,7 +116,7 @@ class TestMugHandlePosterior:
             scores = jnp.concatenate(
                 [
                     b3d.enumerate_choices_get_scores_jit(
-                        gt_trace, key, ("object_pose_0",), poses
+                        gt_trace, key, Pytree.const(("object_pose_0",)), poses
                     )
                     for poses in test_poses_batches
                 ]
@@ -149,7 +149,7 @@ class TestMugHandlePosterior:
                 trace_ = b3d.update_choices_jit(
                     gt_trace,
                     key,
-                    ("object_pose_0",),
+                    Pytree.const(("object_pose_0",)),
                     test_poses[samples[t]],
                 )
                 bayes3d.rerun_visualize_trace_t(trace_, t)

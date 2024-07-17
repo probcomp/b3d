@@ -16,6 +16,7 @@ from b3d import Pose
 import rerun as rr
 from tqdm import tqdm
 import unittest
+from genjax import Pytree
 
 
 class UpsamplingRenderer(b3d.Renderer):
@@ -299,7 +300,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         scores = jnp.concatenate(
             [
                 b3d.enumerate_choices_get_scores_jit(
-                    gt_trace, key, ("object_pose_0",), poses
+                    gt_trace, key, Pytree.const(("object_pose_0",)), poses
                 )
                 for poses in test_poses_batches
             ]

@@ -10,7 +10,7 @@ import b3d.bayes3d as bayes3d
 from tqdm import tqdm
 import trimesh
 import genjax
-
+from genjax import Pytree
 
 
 def test_renderer_full(renderer):
@@ -139,7 +139,7 @@ def test_renderer_full(renderer):
                 trace2,
                 key,
             ) = bayes3d.gvmf_and_sample(
-                trace, key, params[0], params[1], ("object_pose_0",), 10000
+                trace, key, params[0], params[1], "object_pose_0", 10000
             )
             if trace2.get_score() > trace.get_score():
                 trace = trace2
@@ -180,7 +180,7 @@ def test_renderer_full(renderer):
             scores = jnp.concatenate(
                 [
                     b3d.enumerate_choices_get_scores_jit(
-                        trace, key, ("object_pose_0",), poses
+                        trace, key, Pytree.const(("object_pose_0",)), poses
                     )
                     for poses in test_poses_batches
                 ]
@@ -198,7 +198,7 @@ def test_renderer_full(renderer):
             trace = b3d.update_choices_jit(
                 trace,
                 key,
-                ("object_pose_0",),
+                Pytree.const(("object_pose_0",)),
                 test_poses[samples[0]],
             )
             print(trace.get_score())
@@ -226,7 +226,7 @@ def test_renderer_full(renderer):
             trace = b3d.update_choices_jit(
                 trace,
                 key,
-                ("object_pose_0",),
+                Pytree.const(("object_pose_0",)),
                 test_poses[samples[t]],
             )
             bayes3d.rerun_visualize_trace_t(trace, counter)

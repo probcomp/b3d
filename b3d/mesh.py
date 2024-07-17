@@ -81,6 +81,8 @@ class Mesh:
         trimesh_mesh = trimesh.load_mesh(path, process=False, validate=False)
         return Mesh.from_trimesh(trimesh_mesh)
 
+    from_obj = staticmethod(from_obj_file)
+
     @staticmethod
     def from_trimesh(trimesh_mesh):
         vertices = jnp.array(trimesh_mesh.vertices)

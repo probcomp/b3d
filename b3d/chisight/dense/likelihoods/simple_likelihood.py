@@ -2,16 +2,11 @@ import jax.numpy as jnp
 import jax
 import b3d
 
-def simple_likelihood(observed_rgbd, scene_mesh, renderer, likelihood_args):
-    rendered_rgbd = renderer.render_rgbd(
-        scene_mesh.vertices,
-        scene_mesh.faces,
-        scene_mesh.vertex_attributes,
-    )
-
-    fx = renderer.fx
-    fy = renderer.fy
-    far = renderer.far
+@jax.jit
+def simple_likelihood(observed_rgbd, rendered_rgbd, likelihood_args):
+    fx = likelihood_args["fx"]
+    fy = likelihood_args["fy"]
+    far = likelihood_args["far"]
 
     rendered_rgb = rendered_rgbd[..., :3]
     observed_rgb = observed_rgbd[..., :3]

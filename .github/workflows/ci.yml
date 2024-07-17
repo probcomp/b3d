@@ -66,8 +66,7 @@ jobs:
           RUNNER_DEBUG: true
         with:
           pixi-version: v0.25.0
-          manifest-path: pyproject.toml
-          activate-environment: true
+          # activate-environment: true
           cache: true
       - run: |
           cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/

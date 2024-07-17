@@ -470,7 +470,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.4.1-py312h9a8786e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tqdm-4.66.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.14.3-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/trimesh-4.4.3-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/trimesh-4.2.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/types-python-dateutil-2.9.0.20240316-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.12.2-hd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.12.2-pyha770c72_0.conda
@@ -1156,7 +1156,7 @@ packages:
   name: b3d-prototype
   version: 0.1.0
   path: .
-  sha256: c33c185c67b89b15e3c413683764562b67c22b38e7bc41ca941ddb5805379847
+  sha256: 2f423f6e4e9be1f7d82810e3250c2819b67a35182341b8119da563cfbe67760e
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1
@@ -9613,44 +9613,44 @@ packages:
   timestamp: 1713535244513
 - kind: conda
   name: trimesh
-  version: 4.4.3
+  version: 4.2.4
   build: pyhd8ed1ab_0
   subdir: noarch
   noarch: python
-  url: https://conda.anaconda.org/conda-forge/noarch/trimesh-4.4.3-pyhd8ed1ab_0.conda
-  sha256: 495691ecbb8bd9a4e597a77f377c235a9a938d924d3b5101bea6b4021506d060
-  md5: 18d82414bf3312981fe05a2efc070086
+  url: https://conda.anaconda.org/conda-forge/noarch/trimesh-4.2.4-pyhd8ed1ab_0.conda
+  sha256: 4124f4536e09b4ca7cc89858ab814e79ecf848b8bb7baee8e1de09c074514d74
+  md5: 5d6794698cf7953d5275f46984e39313
   depends:
   - numpy
   - python >=2.7
   constrains:
-  - jsonschema
   - pycollada
   - shapely
-  - scipy
-  - mapbox_earcut
-  - colorlog
-  - scikit-image
-  - meshio
-  - svg.path
-  - pillow
-  - msgpack-python
-  - requests
-  - sympy
-  - pyglet
-  - setuptools
-  - rtree
-  - psutil
-  - lxml
-  - networkx
-  - chardet
   - xxhash
+  - msgpack-python
+  - pyglet
+  - psutil
+  - colorlog
+  - scipy
+  - meshio
+  - chardet
+  - lxml
+  - scikit-image
+  - setuptools
+  - jsonschema
+  - svg.path
+  - sympy
+  - requests
+  - pillow
+  - networkx
+  - mapbox_earcut
+  - rtree
   license: MIT
   license_family: MIT
   purls:
   - pkg:pypi/trimesh?source=conda-forge-mapping
-  size: 563248
-  timestamp: 1720735781617
+  size: 559157
+  timestamp: 1711932340288
 - kind: pypi
   name: typeguard
   version: 2.13.3

@@ -25,7 +25,8 @@ from sklearn.utils import Bunch
 # # # # # # # # # # # # 
 
 def get_root_path() -> Path:
-    return Path(Path(b3d.__file__).parents[1])
+    """Returns the project root directory."""
+    return Path(Path(b3d.__file__).parents[2])
 
 
 def get_assets() -> Path:

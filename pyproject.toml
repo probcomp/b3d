@@ -47,25 +47,31 @@ mesa-libegl-cos7-x86_64 = "*"
 mesa-libglu-devel-cos7-x86_64 = "*"
 mesa-libglu-cos7-x86_64 = "*"
 natsort = ">=8.4.0,<8.5"
+ninja = "*"
 numpy = "==1.26.4"
 optax = ">=0.2.2,<0.3"
 pdoc3 = ">=0.11.1,<0.12"
 pillow = "==10.3.0"
 polars = ">=0.20,<0.21"
+pytest = "*"
 pytorch = {version = "==2.3.0", build = "cuda12*"}
 rerun-sdk = "==0.16.1"
 scikit-learn = ">=1.5.1,<1.6"
 scipy = ">=1.14.0,<1.15"
 torchvision = "*"
-trimesh = ">=4.4.3,<4.5"
+trimesh = "==4.2.4"
 tqdm = "==4.66.2"
-ninja = "*"
-pytest = "*"
 
 [tool.pixi.tasks]
-b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
+b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "src/b3d/bucket_utils" }
+
 rerun = "rerun --port 8812"
+
 test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9"} }
+
+all-tests-local = { cmd = "pytest --ignore=tests/sama4d/video_to_tracks_and_segmentation/keypoint_tracking_and_segmentation_test.py --ignore=tests/test_feature_track_data.py --ignore=tests/test_image_posterior_resolution_invariance.py --ignore=tests/test_likelihood_invariances.py --ignore=tests/test_mug_handle_posterior.py --ignore=tests/test_mug_smc_pose_inference_synthetic_and_real.py tests", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9"} }
+
+all-tests-ci = { cmd = "pytest --ignore=tests/sama4d/video_to_tracks_and_segmentation/keypoint_tracking_and_segmentation_test.py --ignore=tests/test_feature_track_data.py --ignore=tests/test_image_posterior_resolution_invariance.py --ignore=tests/test_likelihood_invariances.py --ignore=tests/test_mug_handle_posterior.py --ignore=tests/test_mug_smc_pose_inference_synthetic_and_real.py tests", depends-on = ["b3d-pull"], env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9"} }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

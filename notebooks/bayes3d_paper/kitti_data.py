@@ -98,10 +98,22 @@ rgbs = jnp.array(rgbs)
 depths = jnp.array(depths)
 mask.shape
 
-output_data = {
-    "rgb": jnp.array(rgbs),
-    "depth": jnp.array(depths),
-    "camera_intrinsics": (fx,fy,cx,cy, 0.001, 100.0),
-    "image_size": (height,width),
-    
-}
+
+kitti_data_path = b3d.get_assets_path() / "shared_data_bucket/foundation_pose_tracking_datasets/kitti_initial_data.npz"
+np.savez(kitti_data_path,
+         rgb=np.array(rgbs)/255.0,
+         depths=np.array(depths),
+            camera_intrinsics=np.array([fx,fy,cx,cy, 0.001, 100.0]),
+            object_position=np.array(pose.pos[None,...]),
+            object_quaternion=np.array(pose.quat[None,...]),
+            mask=np.array(mask[None,...]))
+
+kitti_mesh_path = b3d.get_assets_path() / "shared_data_bucket/foundation_pose_tracking_datasets/kitti_initial_data.obj"
+full_mesh.save(kitti_mesh_path)
+
+import numpy as np
+import b3d
+d = np.load(kitti_data_path)
+
+for (i,v) in d.items():
+    print(i, v.shape)

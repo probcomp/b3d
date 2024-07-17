@@ -52,7 +52,9 @@ jobs:
       - name: Install system environment and project dependencies
         env:
           GITHUB_CI: "true"
-        run: ./install.sh
+        run: |
+          ./install.sh
+          source ~/.bashrc
 
       # - name: Run tests
       #   env:
@@ -67,8 +69,7 @@ jobs:
           RUNNER_DEBUG: true
         with:
           pixi-version: v0.25.0
-          locked: false
-          # activate-environment: true
+          activate-environment: true
           cache: true
       - run: |
           cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/

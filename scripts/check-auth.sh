@@ -76,7 +76,7 @@ gcloud-global-install() {
 }
 
 gcloud-authenticated() {
-  if [ "$GITHUB_CI" = "true" ]; then
+  if [ "${GITHUB_CI:-}" = "true" ]; then
     return 0
 	elif gcloud auth application-default print-access-token >/dev/null; then
 		return 0

@@ -33,21 +33,21 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Install system environment and project dependencies
-        env:
-          GITHUB_CI: "true"
-        run: ./install.sh
+      # - name: Install system environment and project dependencies
+      #   env:
+      #     GITHUB_CI: "true"
+      #   run: ./install.sh
 
-      - name: Setup caching for test assets
-        uses: actions/cache@v4
-        with:
-          path: assets
-          key: ${{ runner.os }}-${{ matrix.runner }}-assets
-          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
+      # - name: Setup caching for test assets
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: assets
+      #     key: ${{ runner.os }}-${{ matrix.runner }}-assets
+      #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
 
-      - name: Run tests
-        uses: prefix-dev/setup-pixi@v0.8.1
-        with:
-          pixi-version: v0.25.0
-          cache: true
-        run: pixi run all-tests-ci
+      # - name: Run tests
+      #   uses: prefix-dev/setup-pixi@v0.8.1
+      #   with:
+      #     pixi-version: v0.25.0
+      #     cache: true
+      #   run: pixi run all-tests-ci

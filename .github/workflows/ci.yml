@@ -53,7 +53,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.runner }}-pixi
           restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
-     - name: Run tests
+      - name: Run tests
         run: pixi run all-tests-ci
 
       # - name: Run tests

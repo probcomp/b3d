@@ -63,10 +63,9 @@ ninja = "*"
 pytest = "*"
 
 [tool.pixi.tasks]
-foo = "export FOO=8"
-rerun = "rerun --port 8812"
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "b3d/bucket_utils" }
-test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"} }
+rerun = "rerun --port 8812"
+test = { cmd = "pytest tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9"} }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

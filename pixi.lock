@@ -1156,7 +1156,7 @@ packages:
   name: b3d-prototype
   version: 0.1.0
   path: .
-  sha256: bdd715a11b829d0cd12a913edbd8290fda18c4eea572252a04c421d77fd19409
+  sha256: c33c185c67b89b15e3c413683764562b67c22b38e7bc41ca941ddb5805379847
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1

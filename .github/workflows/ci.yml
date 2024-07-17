@@ -22,7 +22,6 @@ jobs:
         runner: [ParallelHoss]
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: Clone repo
       - uses: actions/checkout@v4
 
       # - id: auth

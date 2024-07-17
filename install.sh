@@ -142,13 +142,18 @@ __wrap__() {
 		# install environment
 		echo "installing b3d project dependencies..."
 		echo "  pixi install..."
-                pixi install
-		# copy in libEGL.so
+    pixi install
+
+    # copy in libEGL.so
 		cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/
 
 		printf "\ninstall done! run these commands:\n"
 		printf "  1) source %s\n" "$shell_config"
 		printf "  3) pixi task list\n\n"
+
+    if [ "${GITHUB_CI:-}" = "true" ]; then
+      rm "$PIXI_BIN/pixi"
+    fi
 	}
 
 	init-dev-environment

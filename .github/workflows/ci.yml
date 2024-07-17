@@ -24,21 +24,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup asset caching
-        id: cache-assets
-        uses: actions/cache@v4
-        with:
-          path: assets
-          key: ${{ runner.os }}-${{ matrix.runner }}-assets
-          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
+      # - name: Setup asset caching
+      #   id: cache-assets
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: assets
+      #     key: ${{ runner.os }}-${{ matrix.runner }}-assets
+      #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-assets
 
-      - name: Setup pixi caching
-        id: cache-pixi
-        uses: actions/cache@v4
-        with:
-          path: .pixi
-          key: ${{ runner.os }}-${{ matrix.runner }}-pixi
-          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
+      # - name: Setup pixi caching
+      #   id: cache-pixi
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: .pixi
+      #     key: ${{ runner.os }}-${{ matrix.runner }}-pixi
+      #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
       - name: Authenticate gcloud
         id: auth
@@ -54,16 +54,19 @@ jobs:
           GITHUB_CI: "true"
         run: ./install.sh
 
-      - name: Run tests
-        env:
-          PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-          CONDA_PREFIX: "/home/runner/.pixi/envs/default"
-        run: pixi run all-tests-ci
-
       # - name: Run tests
-      #   uses: prefix-dev/setup-pixi@v0.8.1
-      #   with:
-      #     pixi-version: v0.25.0
-      #     manifest-path: pyproject.toml
-      #     cache: true
-      # - run: pixi run all-tests-ci
+      #   env:
+      #     PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+      #     CONDA_PREFIX: "/home/runner/.pixi/envs/default"
+      #   run: pixi run all-tests-ci
+
+      - name: Run tests
+        uses: prefix-dev/setup-pixi@v0.8.1
+        env:
+          RUNNER_DEBUG: true
+        with:
+          pixi-version: v0.25.0
+          manifest-path: pyproject.toml
+          activate-environment: true
+          cache: true
+      - run: pixi run all-tests-ci

@@ -96,12 +96,9 @@ meshes = b3d.mesh.transform_mesh(
 full_mesh = b3d.mesh.Mesh.squeeze_mesh(meshes)
 full_mesh.rr_visualize("mesh")
 
-
+mesh_filename =  filename + ".mesh.obj"
 # Save the mesh
-jnp.savez(
-    filename + ".mesh.npz",
-    full_mesh.vertices,
-    full_mesh.faces,
-    full_mesh.vertex_attributes
-)
+print(f"Saving obj file to {mesh_filename}")
+full_mesh.save(mesh_filename)
+
 # full_mesh = b3d.Mesh(*jnp.load(filename + ".mesh.npz").values())

@@ -64,9 +64,11 @@ jobs:
       - name: System debugging
         run: |
           nvidia-smi
+          ldconfig -p | grep EGL
+          ldconfig -p | grep GL
           ls -la /usr/share/glvnd/
           ls -la /usr/share/glvnd/egl_vendor.d/
-          sudo find / -name "*libEGL*nvidia*.so*"
+          sudo find / -name "*GL*nvidia*.so*"
       # - name: Run tests
       #   env:
       #     PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"

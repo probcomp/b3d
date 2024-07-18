@@ -73,7 +73,7 @@ jobs:
           source ~/.bashrc
           export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
           export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-          cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
+          sudo cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
           pixi tree
           pixi run -vv test-ci
 

@@ -61,6 +61,8 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "*"
 trimesh = "==4.2.4"
 tqdm = "==4.66.2"
+libglvnd-devel-cos7-x86_64 = ">=1.0.1,<1.1"
+libglvnd-cos7-x86_64 = ">=1.0.1,<1.1"
 
 [tool.pixi.tasks]
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "src/b3d/bucket_utils" }

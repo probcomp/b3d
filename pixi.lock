@@ -258,8 +258,13 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgfortran5-14.1.0-hc5f4f2c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libglib-2.80.3-h8a4344b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libglu-9.0.0-ha6d2627_1004.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-core-devel-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-devel-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-egl-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-gles-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-glx-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/libglvnd-opengl-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgomp-14.1.0-h77fa898_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgoogle-cloud-2.26.0-h26d7fe4_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libgoogle-cloud-storage-2.26.0-ha262f82_0.conda
@@ -1156,7 +1161,7 @@ packages:
   name: b3d
   version: 0.1.0
   path: .
-  sha256: 3f675b2f678a68913d2a9e59ae6a5f2eb7fac15aec87836d1fdcdfc70dd11c83
+  sha256: 5787e035bd06a27a114a6a37ab522305de2af9ccf329bdf4206ac25258010c21
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1
@@ -5395,6 +5400,23 @@ packages:
   size: 325824
   timestamp: 1718880563533
 - kind: conda
+  name: libglvnd-core-devel-cos7-x86_64
+  version: 1.0.1
+  build: h9b0a68f_1105
+  build_number: 1105
+  subdir: noarch
+  noarch: generic
+  url: https://conda.anaconda.org/conda-forge/noarch/libglvnd-core-devel-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+  sha256: 6ed9aeb6d5b475cb02d2b9f28fca231ce1c3141c2b086442d49dd581291da20c
+  md5: d0bc379b8c2fec83d136ac36676147db
+  depends:
+  - sysroot_linux-64 2.17.*
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 22309
+  timestamp: 1627496763566
+- kind: conda
   name: libglvnd-cos7-x86_64
   version: 1.0.1
   build: h9b0a68f_1105
@@ -5411,6 +5433,66 @@ packages:
   purls: []
   size: 133420
   timestamp: 1627496448251
+- kind: conda
+  name: libglvnd-devel-cos7-x86_64
+  version: 1.0.1
+  build: h9b0a68f_1105
+  build_number: 1105
+  subdir: noarch
+  noarch: generic
+  url: https://conda.anaconda.org/conda-forge/noarch/libglvnd-devel-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+  sha256: 14ba9da004f23a9d2483cdff54abe6f8a9982ef25388129aca6afb49dbc7f817
+  md5: 62b944caeb3346378370eba2f0d69974
+  depends:
+  - libglvnd-core-devel-cos7-x86_64 ==1.0.1 *_1105
+  - libglvnd-cos7-x86_64 ==1.0.1 *_1105
+  - libglvnd-egl-cos7-x86_64 ==1.0.1 *_1105
+  - libglvnd-gles-cos7-x86_64 ==1.0.1 *_1105
+  - libglvnd-glx-cos7-x86_64 ==1.0.1 *_1105
+  - libglvnd-opengl-cos7-x86_64 ==1.0.1 *_1105
+  - sysroot_linux-64 2.17.*
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 14814
+  timestamp: 1627507120616
+- kind: conda
+  name: libglvnd-egl-cos7-x86_64
+  version: 1.0.1
+  build: h9b0a68f_1105
+  build_number: 1105
+  subdir: noarch
+  noarch: generic
+  url: https://conda.anaconda.org/conda-forge/noarch/libglvnd-egl-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+  sha256: 0c920339496e8261169ae4dcff643eebd698743805e39a16e7b29b98a09f4ce7
+  md5: f6c25c37939d1f82a98594176a1e881f
+  depends:
+  - libglvnd-cos7-x86_64 ==1.0.1 *_1105
+  - mesa-libegl-cos7-x86_64 >=13.0.4 *_1105
+  - sysroot_linux-64 2.17.*
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 52905
+  timestamp: 1627505938919
+- kind: conda
+  name: libglvnd-gles-cos7-x86_64
+  version: 1.0.1
+  build: h9b0a68f_1105
+  build_number: 1105
+  subdir: noarch
+  noarch: generic
+  url: https://conda.anaconda.org/conda-forge/noarch/libglvnd-gles-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+  sha256: 16e3147cae64d2c5f45f13a51a96d79776bbad1e0aaad74b67e746387ea49ea8
+  md5: 4feeadd256e6afd6a20111ce8f595132
+  depends:
+  - libglvnd-cos7-x86_64 ==1.0.1 *_1105
+  - sysroot_linux-64 2.17.*
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 46370
+  timestamp: 1627498179356
 - kind: conda
   name: libglvnd-glx-cos7-x86_64
   version: 1.0.1
@@ -5429,6 +5511,24 @@ packages:
   purls: []
   size: 180318
   timestamp: 1627502249243
+- kind: conda
+  name: libglvnd-opengl-cos7-x86_64
+  version: 1.0.1
+  build: h9b0a68f_1105
+  build_number: 1105
+  subdir: noarch
+  noarch: generic
+  url: https://conda.anaconda.org/conda-forge/noarch/libglvnd-opengl-cos7-x86_64-1.0.1-h9b0a68f_1105.tar.bz2
+  sha256: 8cf3adc7eec55af6c7fdd87b379c71d5b74a6adc6f0dc91930c5c1f673f6a518
+  md5: c81196f3a5364e7e982b0286dc3ca02e
+  depends:
+  - libglvnd-cos7-x86_64 ==1.0.1 *_1105
+  - sysroot_linux-64 2.17.*
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 62116
+  timestamp: 1627499423237
 - kind: conda
   name: libgomp
   version: 14.1.0

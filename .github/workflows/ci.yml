@@ -45,37 +45,37 @@ jobs:
       #     key: ${{ runner.os }}-${{ matrix.runner }}-pixi
       #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
-      - name: System debugging
-        run: |
-          nvidia-smi
-          ldconfig -p | grep EGL
-          ldconfig -p | grep GL
-          ls -la /usr/share/glvnd/
-          ls -la /usr/share/glvnd/egl_vendor.d/
-          cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
-          sudo find / -name "*nvidia.so*"
-          sudo find / -name "*nvidia*"
-
-      # - name: Authenticate gcloud
-      #   id: auth
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
-
-      # - name: Setup gcloud
-      #   uses: google-github-actions/setup-gcloud@v2
-
-      # - name: Install system environment and project dependencies
-      #   env:
-      #     GITHUB_CI: "true"
+      # - name: System debugging
       #   run: |
-      #     ./install.sh
-      #     source ~/.bashrc
-      #     export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-      #     export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-      #     sudo cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
-      #     pixi tree
-      #     pixi run -vv test-ci
+      #     nvidia-smi
+      #     ldconfig -p | grep EGL
+      #     ldconfig -p | grep GL
+      #     ls -la /usr/share/glvnd/
+      #     ls -la /usr/share/glvnd/egl_vendor.d/
+      #     cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
+      #     sudo find / -name "*nvidia.so*"
+      #     sudo find / -name "*nvidia*"
+
+      - name: Authenticate gcloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install system environment and project dependencies
+        env:
+          GITHUB_CI: "true"
+        run: |
+          ./install.sh
+          source ~/.bashrc
+          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
+          sudo cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
+          pixi tree
+          pixi run -vv test-ci
 
 
 

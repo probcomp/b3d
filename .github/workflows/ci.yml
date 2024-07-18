@@ -26,7 +26,7 @@ jobs:
       - name: Install nvdiffrast dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libglvnd0 libgl1 libglx0 libegl1 libgles2 libglvnd-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev libnvidia-gl-535
+          packages: libglvnd0 libgl1 libglx0 libegl1 libgles2 libglvnd-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev libnvidia-gl-535 mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev ffmpeg
           version: 1.0
 
       # - name: Setup asset caching
@@ -77,8 +77,8 @@ jobs:
           sudo cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
           pixi tree
           export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
-          sudo cp -v /lib/x86_64-linux-gnu/libEGL_nvidia.so.0 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
-          sudo cp -v /lib/x86_64-linux-gnu/libEGL_nvidia.so.0 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL_nvidia.so"
+          #sudo cp -v /lib/x86_64-linux-gnu/libEGL_nvidia.so.0 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
+          #sudo cp -v /lib/x86_64-linux-gnu/libEGL_nvidia.so.0 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL_nvidia.so"
           env
           pixi run -vv test-ci
 

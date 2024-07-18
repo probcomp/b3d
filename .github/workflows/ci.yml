@@ -68,7 +68,10 @@ jobs:
           ldconfig -p | grep GL
           ls -la /usr/share/glvnd/
           ls -la /usr/share/glvnd/egl_vendor.d/
-          sudo find / -name "*GL*nvidia*.so*"
+          cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
+          sudo find / -name "*nvidia.so*"
+          sudo find / -name "*nvidia*"
+
       # - name: Run tests
       #   env:
       #     PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"

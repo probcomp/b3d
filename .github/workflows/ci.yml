@@ -39,14 +39,14 @@ jobs:
       #     key: ${{ runner.os }}-${{ matrix.runner }}-pixi
       #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
-      - name: Authenticate gcloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+      # - name: Authenticate gcloud
+      #   id: auth
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+      # - name: Setup gcloud
+      #   uses: google-github-actions/setup-gcloud@v2
 
       # - name: Install system environment and project dependencies
       #   env:
@@ -63,9 +63,10 @@ jobs:
 
       - name: System debugging
         run: |
+          nvidia-smi
           ls -la /usr/share/glvnd/
           ls -la /usr/share/glvnd/egl_vendor.d/
-          sudo find / -name "*libEGL_nvidia.so.0*"
+          sudo find / -name "*libEGL*nvidia*.so*"
       # - name: Run tests
       #   env:
       #     PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"

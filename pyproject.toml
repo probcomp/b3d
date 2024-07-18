@@ -71,7 +71,7 @@ rerun = "rerun --port 8812"
 
 test = { cmd = "pytest -s --log-cli-level=WARN tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "./targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9", LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu" } }
 
-test-ci = { cmd = "pytest -s --log-cli-level=DEBUG tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.9"} }
+test-ci = { cmd = "pytest -s --log-cli-level=WARN tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.9", LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu" } }
 
 all-tests-local = { cmd = "pytest --ignore=tests/sama4d/video_to_tracks_and_segmentation/keypoint_tracking_and_segmentation_test.py --ignore=tests/test_feature_track_data.py --ignore=tests/test_image_posterior_resolution_invariance.py --ignore=tests/test_likelihood_invariances.py --ignore=tests/test_mug_handle_posterior.py --ignore=tests/test_mug_smc_pose_inference_synthetic_and_real.py tests", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9"} }
 

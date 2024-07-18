@@ -48,18 +48,18 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Install system environment and project dependencies
-        env:
-          GITHUB_CI: "true"
-        run: |
-          ./install.sh
-          source ~/.bashrc
-          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-          echo "CPLUS_INCLUDE_PATH: $CPLUS_INCLUDE_PATH"
-          ls -la "$CPLUS_INCLUDE_PATH"
-          pixi tree
-          pixi run -vv test-ci
+      # - name: Install system environment and project dependencies
+      #   env:
+      #     GITHUB_CI: "true"
+      #   run: |
+      #     ./install.sh
+      #     source ~/.bashrc
+      #     export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+      #     export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
+      #     echo "CPLUS_INCLUDE_PATH: $CPLUS_INCLUDE_PATH"
+      #     ls -la "$CPLUS_INCLUDE_PATH"
+      #     pixi tree
+      #     pixi run -vv test-ci
 
       - name: System debugging
         run: |

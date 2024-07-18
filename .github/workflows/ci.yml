@@ -52,9 +52,11 @@ jobs:
       - name: Install system environment and project dependencies
         env:
           GITHUB_CI: "true"
+          PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
         run: |
           ./install.sh
           source ~/.bashrc
+          pixi run -vv test
 
       # - name: Run tests
       #   env:
@@ -62,16 +64,16 @@ jobs:
       #     CONDA_PREFIX: "/home/runner/.pixi/envs/default"
       #   run: pixi run all-tests-ci
 
-      - name: Run tests
-        uses: prefix-dev/setup-pixi@v0.8.1
-        env:
-          PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-          RUNNER_DEBUG: true
-        with:
-          pixi-version: v0.25.0
-          activate-environment: true
-          cache: true
-      - run: |
-          ls -la .pixi/envs/default
+      # - name: Run tests
+      #   uses: prefix-dev/setup-pixi@v0.8.1
+      #   env:
+      #     PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+      #     RUNNER_DEBUG: true
+      #   with:
+      #     pixi-version: v0.25.0
+      #     activate-environment: true
+      #     cache: true
+      # - run: |
+      #     ls -la .pixi/envs/default
           #cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/
           #pixi run test

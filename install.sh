@@ -139,15 +139,15 @@ __wrap__() {
 		./check-auth.sh
 		popd &>/dev/null
 
-    if [ "${GITHUB_CI:-}" = "true" ]; then
-        rm "$PIXI_BIN/pixi"
-        return 0
-    fi
+    # if [ "${GITHUB_CI:-}" = "true" ]; then
+    #     rm "$PIXI_BIN/pixi"
+    #     return 0
+    # fi
 
 		# install environment
 		echo "installing b3d project dependencies..."
 		echo "  pixi install..."
-    pixi install
+    pixi install --locked -vv
 
     # copy in libEGL.so
 		cp assets/system/libEGL.so .pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/

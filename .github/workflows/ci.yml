@@ -52,10 +52,10 @@ jobs:
       - name: Install system environment and project dependencies
         env:
           GITHUB_CI: "true"
-          PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
         run: |
           ./install.sh
           source ~/.bashrc
+          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
           pixi run -vv test
 
       # - name: Run tests

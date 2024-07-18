@@ -69,7 +69,7 @@ b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "src/b3d/bucket_utils" }
 
 rerun = "rerun --port 8812"
 
-test = { cmd = "pytest -s --log-cli-level=DEBUG tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "./targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9"} }
+test = { cmd = "pytest -s --log-cli-level=DEBUG tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", CPLUS_INCLUDE_PATH = "./targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9", LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" } }
 
 test-ci = { cmd = "pytest -s --log-cli-level=DEBUG tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform", TORCH_CUDA_ARCH_LIST = "8.9"} }
 

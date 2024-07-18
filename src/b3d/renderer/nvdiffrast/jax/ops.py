@@ -213,6 +213,13 @@ class RasterizeGLContext:
         else:
             with torch.cuda.device(device):
                 cuda_device_idx = torch.cuda.current_device()
+
+        plugin = _get_plugin(gl=True)
+
+        logging.getLogger("nvdiffrast").warning(
+            f"cuda_device_idx: {cuda_device_idx}, plugin: {plugin}, gl: {plugin.RasterizeGLStateWrapper}"
+        )
+
         self.cpp_wrapper = _get_plugin(gl=True).RasterizeGLStateWrapper(
             output_db, mode == "automatic", cuda_device_idx
         )

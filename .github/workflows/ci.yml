@@ -61,6 +61,11 @@ jobs:
           pixi tree
           pixi run -vv test-ci
 
+      - name: System debugging
+        run: |
+          ls -la /usr/share/glvnd/
+          ls -la /usr/share/glvnd/egl_vendor.d/
+          sudo find / -name "*libEGL_nvidia.so.0*"
       # - name: Run tests
       #   env:
       #     PATH: "/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"

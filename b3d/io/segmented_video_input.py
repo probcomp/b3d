@@ -13,7 +13,7 @@ class SegmentedVideoInput(VideoInput):
         at time t.  The range of values is {-1, 0, 1, 2, ..., O - 1}, where O is the number of objects
         in the scene. The value -1 is used to indicate empty space in synthetic data.
         Shape: (T, H, W)
-        Type: uint32
+        Type: int
     - object_positions
         segmented_video_input['object_positions'] is a float32 array of shape (T, O, 3) containing the positions
         of the objects in the scene, at each time.
@@ -50,7 +50,7 @@ class SegmentedVideoInput(VideoInput):
             return cls(
                 rgb=jnp.array(data['rgb']),
                 xyz=jnp.array(data['xyz']),
-                segmentation=jnp.array(data['segmentation']),
+                segmentation=jnp.array(data['segmentation'], dtype=jnp.int32),
                 camera_positions=jnp.array(data['camera_positions']),
                 camera_quaternions=jnp.array(data['camera_quaternions']),
                 camera_intrinsics_rgb=jnp.array(data['camera_intrinsics_rgb']),

@@ -56,7 +56,7 @@ def convert_unity_to_segmented_video_input(unity_data: UnityData) -> SegmentedVi
     return SegmentedVideoInput(
         rgb=rgb,
         xyz=xyz,
-        segmentation=unity_data.segmentation,
+        segmentation=jnp.array(unity_data.segmentation, dtype=jnp.int32),
         camera_positions=camera_position,
         camera_quaternions=camera_quaternion,
         camera_intrinsics_rgb=unity_data.camera_intrinsics,
@@ -101,7 +101,7 @@ def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoI
     return SegmentedVideoInput(
         rgb=rgb,
         xyz=xyz,
-        segmentation=segmentation,
+        segmentation=jnp.array(segmentation, dtype=jnp.int32),
         camera_positions=data.camera_positions,
         camera_quaternions=data.camera_quaternions,
         camera_intrinsics_rgb=camera_intrinsics,

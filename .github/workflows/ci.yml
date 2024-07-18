@@ -74,9 +74,11 @@ jobs:
           source ~/.bashrc
           export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
           export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-          #sudo cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
+          sudo cp -v "$GITHUB_WORKSPACE/assets/system/10_nvidia.json" /usr/share/glvnd/egl_vendor.d/
           pixi tree
           export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+          sudo cp -v /lib/x86_64-linux-gnu/libEGL_nvidia.so.0 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
+          sudo cp -v /lib/x86_64-linux-gnu/libEGL_nvidia.so.0 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/libEGL_nvidia.so"
           env
           pixi run -vv test-ci
 

@@ -55,7 +55,7 @@ jobs:
           ./install.sh
           source ~/.bashrc
           export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-          export CPLUS_INCLUDE_PATH="/home/runner/.pixi/envs/default/targets/x86_64-linux/include"
+          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
           echo "CPLUS_INCLUDE_PATH: $CPLUS_INCLUDE_PATH"
           ls -la "$CPLUS_INCLUDE_PATH"
           pixi tree

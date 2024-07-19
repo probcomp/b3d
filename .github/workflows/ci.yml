@@ -75,9 +75,9 @@ jobs:
           export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
           export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
           pixi tree
-          export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
+          #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
           env
-          pixi run -vv test-ci
+          pixi run -vv test
 
 
 

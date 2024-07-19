@@ -2,7 +2,6 @@
 *.pyc
 *.png
 assets/shared_data_bucket/*
-assets/test_results/*
 assets/bop/*
 assets/ycbineoat/*
 **/.ipynb_checkpoints

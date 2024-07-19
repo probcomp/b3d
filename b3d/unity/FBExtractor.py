@@ -187,10 +187,14 @@ class FBExtractor:
                 self.extract_object_poses_from_file(f"frame_objects{f}.dat")
             )
             if (len(dynamic_positions) > 0) and (len(dynamic_quaternions) > 0):
-                position = np.concatenate([dynamic_positions, static_positions], axis=0)
-                quaternion = np.concatenate(
-                    [dynamic_quaternions, static_quaternions], axis=0
-                )
+                if (len(static_positions) > 0) and (len(static_positions) > 0):
+                    position = np.concatenate([dynamic_positions, static_positions], axis=0)
+                    quaternion = np.concatenate(
+                        [dynamic_quaternions, static_quaternions], axis=0
+                    )
+                else:
+                    position = dynamic_positions
+                    quaternion = dynamic_quaternions
             else:
                 position = static_positions
                 quaternion = static_quaternions

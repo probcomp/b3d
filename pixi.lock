@@ -196,7 +196,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_events-0.10.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_server-2.14.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_server_terminals-0.5.3-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/jupyterlab-4.2.3-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/jupyterlab-4.2.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyterlab_pygments-0.3.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyterlab_server-2.27.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/jupyterlab_widgets-3.0.11-pyhd8ed1ab_0.conda
@@ -451,7 +451,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scikit-learn-1.5.1-py312h775a589_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scipy-1.14.0-py312hc2bc53b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/send2trash-1.8.3-pyh0d859eb_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-71.0.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-71.0.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/sip-6.7.12-py312h30efb56_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.16.0-pyh6c4a22f_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/sleef-3.6.1-h3400bea_1.conda
@@ -1161,7 +1161,7 @@ packages:
   name: b3d
   version: 0.1.0
   path: .
-  sha256: 18d97c8e9233b3c85126011130771de76f00f5837445b3cacfb7efdc034d139b
+  sha256: 3e87b74c9229fec0d69af8f698ed265d1b891fb35766223d199cf2aa6047f937
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1
@@ -4221,13 +4221,13 @@ packages:
   timestamp: 1710262791393
 - kind: conda
   name: jupyterlab
-  version: 4.2.3
+  version: 4.2.4
   build: pyhd8ed1ab_0
   subdir: noarch
   noarch: python
-  url: https://conda.anaconda.org/conda-forge/noarch/jupyterlab-4.2.3-pyhd8ed1ab_0.conda
-  sha256: f1241eb715870fa70cc64afc6003181de19686ddfec81fe3590a1a29a4c35c77
-  md5: fc3e207aa4596a682acc725da4b845ad
+  url: https://conda.anaconda.org/conda-forge/noarch/jupyterlab-4.2.4-pyhd8ed1ab_0.conda
+  sha256: e3b585b55634da48871ed3082c429652a62bf0cf7733641b1382b9c314f1c901
+  md5: 28f3334e97c39de2b7ac15743b041784
   depends:
   - async-lru >=1.0.0
   - httpx >=0.25.0
@@ -4250,8 +4250,8 @@ packages:
   license_family: BSD
   purls:
   - pkg:pypi/jupyterlab?source=conda-forge-mapping
-  size: 7832005
-  timestamp: 1719418789516
+  size: 8187486
+  timestamp: 1721396667021
 - kind: conda
   name: jupyterlab_pygments
   version: 0.3.0
@@ -9257,21 +9257,21 @@ packages:
   timestamp: 1712585140895
 - kind: conda
   name: setuptools
-  version: 71.0.1
+  version: 71.0.3
   build: pyhd8ed1ab_0
   subdir: noarch
   noarch: python
-  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-71.0.1-pyhd8ed1ab_0.conda
-  sha256: b09ba557d62111d315f1841176cf01fd75e5ae0ae9d6360ccb6aaca1e9a6935f
-  md5: aede3d5c0882ebed2f07024400a111ed
+  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-71.0.3-pyhd8ed1ab_0.conda
+  sha256: f8d9838c63165d99b7bc6a001f1b6d0e54a095965060c73be8fff62ed864ff9b
+  md5: d4b6e6ce2f7bcaec484b81c447df1028
   depends:
   - python >=3.8
   license: MIT
   license_family: MIT
   purls:
   - pkg:pypi/setuptools?source=conda-forge-mapping
-  size: 1411474
-  timestamp: 1721294193795
+  size: 1462348
+  timestamp: 1721405076416
 - kind: conda
   name: sip
   version: 6.7.12

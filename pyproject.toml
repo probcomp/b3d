@@ -34,6 +34,7 @@ distinctipy = ">=1.3.4,<1.4"
 ffmpeg = "*"
 fire = ">=0.6.0,<0.7"
 glfw = "*"
+gcc = "*"
 ipython = ">=8.26.0,<8.27"
 jax = "*"
 jaxlib = { version = "*", build = "cuda12*" }
@@ -72,8 +73,9 @@ rerun = "rerun --port 8812"
 #tests/test_diff_renderer.py
 #tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py
 
-test = { cmd = "pytest -s --log-cli-level=INFO tests/test_diff_renderer.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" } } #, CPLUS_INCLUDE_PATH = "./targets/x86_64-linux/include", TORCH_CUDA_ARCH_LIST = "8.9" } }
+test = { cmd = "pytest -s --log-cli-level=INFO tests/test_diff_renderer.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include" } } #, TORCH_CUDA_ARCH_LIST = "8.9" } }
 
+#:/usr/include:/usr/include:/usr/include/x86_64-linux-gnu:
 
 test-ci = { cmd = "pytest -s --log-cli-level=INFO tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" } }
 

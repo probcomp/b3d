@@ -38,9 +38,25 @@ gcloud compute config-ssh
 ssh $INSTANCE_NAME.$ZONE.$PROJECT_ID
 ```
 
+## Environment Variables
+
+Add the following to your bash_rc:
+
+```sh
+export XLA_PYTHON_CLIENT_PREALLOCATE="false"
+export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
+```
+
 # Installing b3d
 
-On the machine, close the `b3d` repo:
+`b3d`'s GenJAX dependency is hosted in Google Artifact Registry. To configure your machine to access the package:
+
+- Check if you can access the [GenJAX Users
+  Group](https://groups.google.com/u/1/a/chi-fro.org/g/genjax-users), and if not, run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack
+- [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
+- Run `gcloud auth application-default login`.  (This command needs to be rerun ever time your machine reboots.)
+
+Next, on the machine, close the `b3d` repo:
 
 ```sh
 git clone https://github.com/probcomp/b3d.git
@@ -51,15 +67,7 @@ Create and activate `b3d` conda environment:
 
 ```sh
 conda create -n b3d python=3.12
-conda activate b3d
 ```
-
-`b3d`'s GenJAX dependency is hosted in Google Artifact Registry. To configure your machine to access the package:
-
-- Check if you can access the [GenJAX Users
-  Group](https://groups.google.com/u/1/a/chi-fro.org/g/genjax-users), and if not, run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack
-- [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
-- Run `gcloud auth application-default login`.  (This command needs to be rerun ever time your machine reboots.)
 
 When that completes, run the install script:
 
@@ -67,13 +75,10 @@ When that completes, run the install script:
 bash -i install.sh
 ```
 
-## Environment Variables
-
-Add the following to your bash_rc:
+Then activate the conda environment:
 
 ```sh
-export XLA_PYTHON_CLIENT_PREALLOCATE="false"
-export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
+conda activate b3d
 ```
 
 ## Visualizer

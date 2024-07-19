@@ -44,7 +44,7 @@ def initial_particle_system_state(
 
     # Initial camera pose in world coordinates
     initial_camera_pose = (
-        uniform_pose_in_ball(*camera_pose_prior_params) 
+        uniform_pose_in_ball(*camera_pose_prior_params)
         @ "initial_camera_pose"
     )
 
@@ -87,7 +87,7 @@ def particle_system_state_step(carried_state, _):
 
     # Updated camera pose in world coordinates
     new_camera_pose = (
-        uniform_pose_in_ball(camera_pose, 0.1, 0.2) 
+        uniform_pose_in_ball(camera_pose, 0.1, 0.2)
         @ "camera_pose"
     )
 
@@ -174,7 +174,7 @@ def make_dense_gps_model(likelihood):
         absolute_particle_poses_last_frame = particle_dynamics_summary["absolute_particle_poses"][-1]
         camera_pose_last_frame = particle_dynamics_summary["camera_pose"][-1]
         absolute_particle_poses_in_camera_frame = camera_pose_last_frame.inv() @ absolute_particle_poses_last_frame
-        
+
         batched_mesh, likelihood_args = dense_model_args
         merged_mesh = Mesh.transform_and_merge_meshes(batched_mesh, absolute_particle_poses_in_camera_frame)
         image = likelihood(merged_mesh, likelihood_args) @ "obs"

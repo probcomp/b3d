@@ -148,7 +148,7 @@ def render_to_average(
     - image (H, W, A)
     """
     weights, attributes = render_to_dist_params(renderer, vertices, faces, vertex_attributes, hyperparams=hyperparams)
-    return dist_params_to_average(weights, attributes, background_attribute)    
+    return dist_params_to_average(weights, attributes, background_attribute)
 
 def dist_params_to_average(weights, attributes, background_attribute):
     extended_attributes = jnp.concatenate([jnp.tile(background_attribute, (attributes.shape[0], attributes.shape[1], 1, 1)), attributes], axis=2)
@@ -216,13 +216,13 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
         fill_value = -1
     ) - 1
     unique_triangle_values_safe = jnp.where(unique_triangle_values < 0, unique_triangle_values[0], unique_triangle_values)
-    
+
     signed_dist_values, barycentric_coords = get_signed_dists_and_barycentric_coords(
         ij, unique_triangle_values_safe, vertices, faces, hyperparams_and_intrinsics
     )
     z_values = get_z_values(ij, unique_triangle_values_safe, vertices, faces, hyperparams_and_intrinsics)
     z_values = jnp.where(unique_triangle_values >= 0, z_values, z_values.max())
-    
+
     # Math from the softras paper
     signed_dist_scores = jax.nn.sigmoid(jnp.sign(signed_dist_values) * signed_dist_values ** 2 / SIGMA)
 
@@ -238,7 +238,7 @@ def get_weights_and_barycentric_coords(ij, vertices, faces, triangle_intersected
     unnorm_weights = jnp.where(unique_triangle_values >= 0, unnorm_weights, 0.0)
     unnorm_weights = jnp.concatenate([jnp.array([jnp.exp(jnp.clip(EPSILON/GAMMA, -20, 20))]), unnorm_weights])
     weights = unnorm_weights / jnp.sum(unnorm_weights)
-    
+
     extended_triangle_indices = jnp.concatenate([jnp.array([-10]), unique_triangle_values])
     barycentric_coords = jnp.where(unique_triangle_values[:, None] >= 0, barycentric_coords, -jnp.ones_like(barycentric_coords))
     return (extended_triangle_indices, weights, barycentric_coords)
@@ -295,7 +295,7 @@ def get_signed_dist_and_barycentric_coords(ij, triangle_idx, vertices, faces, hy
     bary = jnp.array([a, b, c]) / (a + b + c + 1e-6)
     bary = jnp.clip(bary, 0., 1.)
     bary = bary / (jnp.sum(bary) + 1e-6)
-    
+
     return (signed_distance, bary)
 
 def pt_is_in_plane(triangle, point_on_plane):
@@ -353,7 +353,7 @@ def project_ray_to_plane(ray_origin, ray_dir, triangle):
 
     t = jnp.dot(normal, vertex1 - ray_origin) / (denom + 1e-5)
     intersection_point = ray_origin + t * ray_dir
-    
+
     return jnp.where(
         jnp.abs(denom) < 1e-6, -jnp.ones(3), intersection_point
     )

@@ -9,6 +9,6 @@ class DummyTracksToSegmentationSolver(Solver):
             task_spec["keypoint_tracks_2D"].shape[1],
             dtype=int
         )
-    
+
     def visualize_solver_state(self, task_spec):
         pass

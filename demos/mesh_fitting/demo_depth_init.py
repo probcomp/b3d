@@ -47,7 +47,7 @@ trace, weight = jax.jit(model.importance)(
 
 m.rr_log_trace(trace, renderer, "mytrace", [0], [0])
 
-### 
+###
 
 frames = [0]
 @jax.jit

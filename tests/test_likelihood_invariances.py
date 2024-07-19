@@ -62,12 +62,12 @@ def test_resolution_invariance(renderer):
 
     for SCALING_FACTOR in [2,3,4,5,6,7,8]:
         rgb_resized = jax.image.resize(
-            rgb_near, 
+            rgb_near,
             (rgb_near.shape[0] * SCALING_FACTOR, rgb_near.shape[1] * SCALING_FACTOR, 3),
             "nearest"
         )
         depth_resized = jax.image.resize(
-            depth_near, 
+            depth_near,
             (depth_near.shape[0] * SCALING_FACTOR, depth_near.shape[1] * SCALING_FACTOR),
             "nearest"
         )
@@ -169,4 +169,3 @@ def test_distance_to_camera_invarance(renderer):
 
 
     assert jnp.isclose(near_score, far_score, rtol=0.03)
-

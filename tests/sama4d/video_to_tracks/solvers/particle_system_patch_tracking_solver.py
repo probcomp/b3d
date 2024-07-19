@@ -67,7 +67,7 @@ class AdamPatchTracker_UsingSingleframeParticleSystemTraces(Solver):
             keypoints_3D_C, r.get_intrinsics_object()
         )[:, :, ::-1]
         return inferred_keypoints_2D
-    
+
     def visualize_solver_state(self, task_spec):
         pos0_C = self.poses_CP_at_time0.pos
         quat0_C = self.poses_CP_at_time0.xyzw
@@ -84,7 +84,7 @@ class AdamPatchTracker_UsingSingleframeParticleSystemTraces(Solver):
         for t in range(len(self.all_positions_W)):
             rr.set_time_sequence("frame", t)
             trace = self.get_trace(self.all_positions_C[t], self.all_quaternions_C[t], task_spec["video"][t])
-            
+
             _rerun_log_patchtracking_trace(
                 trace, task_spec["renderer"], prefix="PatchTrackingTrace",
                 # Viz uses World coordinate frame; trace uses Camera coordinate frame.

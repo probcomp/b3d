@@ -29,7 +29,7 @@ def single_object_model_factory(
     def model(vertices_O, faces, vertex_colors, likelihood_args):
         X_WO = uniform_pose(jnp.ones(3)*-10.0, jnp.ones(3)*10.0) @ "pose"
         X_WC = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"camera_pose"
-        
+
         vertices_W = X_WO.apply(vertices_O)
         vertices_C = X_WC.inv().apply(vertices_W)
 
@@ -54,7 +54,7 @@ def rr_log_trace(trace, renderer, prefix="trace"):
     (vertices, faces, vertex_colors, _) = trace.get_args()
     pose = trace["pose"]
     cam_pose = trace["camera_pose"]
-    
+
     rr.log(f"3D/{prefix}/mesh", rr.Mesh3D(
         vertex_positions=pose.apply(vertices),
         triangle_indices=faces,
@@ -102,10 +102,10 @@ def multiple_object_model_factory(
         Xs_WO = genjax.map_combinator(in_axes=(0, 0))(uniform_pose)(
             jnp.ones((N, 3))*-10.0, jnp.ones((N, 3))*10.0
         ) @ "poses"
-        
+
         vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
         vertices_C = X_WC.inv().apply(vertices_W.reshape(-1, 3))
-        
+
         v = vertices_C.reshape(-1, 3)
         vc = vertex_colors.reshape(-1, 3)
 
@@ -139,7 +139,7 @@ def rr_log_multiobject_trace(trace, renderer):
     f = f.reshape(-1, 3)
 
     cam_pose = trace["camera_pose"]
-    
+
     rr.log("/3D/trace/mesh", rr.Mesh3D(
         vertex_positions=vertices_W.reshape(-1, 3),
         triangle_indices=f,

@@ -66,7 +66,7 @@ class AdamPatchTracker_UsingDenseOnlyTraces(Solver):
             keypoints_3D_C, r.get_intrinsics_object()
         )[:, :, ::-1]
         return inferred_keypoints_2D
-    
+
     def visualize_solver_state(self, task_spec):
         pos0_C = self.poses_CP_at_time0.pos
         quat0_C = self.poses_CP_at_time0.xyzw

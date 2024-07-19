@@ -14,3 +14,4 @@ assets/ycbineoat/*
 **/**.json
 **/**.npy
 **/**.txt
+assets/kitti/*

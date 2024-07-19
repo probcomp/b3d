@@ -14,7 +14,7 @@ def get_mesh_and_gt_render(renderer, particle_centers, particle_widths, particle
     vertices_og, faces, colors, triangle_to_particle_index = jax.vmap(
         b3d.square_center_width_color_to_vertices_faces_colors
     )(jnp.arange(len(particle_centers)), particle_centers, particle_widths, particle_colors)
-    
+
     vertices = vertices_og.reshape(-1, 3)
     faces = faces.reshape(-1, 3)
     colors = colors.reshape(-1, 3)

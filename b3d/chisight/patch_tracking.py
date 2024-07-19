@@ -24,7 +24,7 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, pose_WC, fx):
     Centers given as (N, 2) storing (y, x) pixel coordinates.
     """
     xyzs_C = pose_WC.inv().apply(xyzs_W)
-    
+
     # TODO: this would be better to do in terms of the min x dist and y dist
     # between any two centers
     pairwise_euclidean_dists = jnp.linalg.norm(centers[:, None] - centers[None], axis=-1)
@@ -45,7 +45,7 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, pose_WC, fx):
         pose_CP = Pose.from_translation(mean_position_nonzero)
         pose_WP = pose_WC @ pose_CP
         patch_vertices_P = pose_CP.inv().apply(patch_vertices_C)
-        patches = Mesh(patch_vertices_P, patch_faces, patch_vertex_colors)        
+        patches = Mesh(patch_vertices_P, patch_faces, patch_vertex_colors)
         return (patches, pose_WP, patch_points_C)
 
     return jax.vmap(get_patch, in_axes=(0,))(centers)
@@ -58,7 +58,7 @@ def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity())
         - patch_faces: The faces of the patch. Shape (N, F, 3)
         - patch_vertex_colors: The vertex colors of the patch. Shape (N, V, 3)
         - pose_WC: The camera pose. Default is the identity pose.
-        
+
     Returns:
     - get_initial_tracker_state:
         A function from the initial patch poses, poses_WP, to an initial state object `tracker_state` for the patch tracker.
@@ -77,7 +77,7 @@ def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity())
     @jax.jit
     def importance_from_pos_quat(positions, quaternions, observed_rgbd):
         key = jax.random.PRNGKey(0) # This value shouldn't matter, in the current model version.
-        
+
         max_num_timesteps = genjax.Pytree.const(1)
         num_particles = genjax.Pytree.const(positions.shape[0])
         num_clusters = genjax.Pytree.const(positions.shape[0])
@@ -118,10 +118,10 @@ def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity())
 
         trace, weight = model.importance(key, constraints, model_args)
         return trace, weight
-    
+
     def weight_from_pos_quat(pos, quat, observed_rgbd):
         return importance_from_pos_quat(pos, quat, observed_rgbd)[1]
-    
+
     @jax.jit
     def get_trace(pos, quat, observed_rgbd):
         return importance_from_pos_quat(pos, quat, observed_rgbd)[0]
@@ -160,12 +160,12 @@ def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity())
         quat = poses_WP._quaternion
         tracker_state = (opt_state_pos, opt_state_quat, pos, quat, None)
         return tracker_state
-    
+
     def update_tracker_state(tracker_state, new_observed_rgbd):
         updated_tracker_state = (*tracker_state[:4], new_observed_rgbd)
         (opt_state_pos, opt_state_quat, pos, quat, _) = unfold_300_steps(updated_tracker_state)
         return (pos, quat), (opt_state_pos, opt_state_quat, pos, quat, new_observed_rgbd)
-    
+
     return (get_initial_tracker_state, update_tracker_state, get_trace)
 
 def get_default_multiobject_model_for_patchtracking(renderer):
@@ -184,5 +184,5 @@ def get_default_multiobject_model_for_patchtracking(renderer):
         return obs, {"diffrend_output": (weights, attributes)}
 
     model = b3d.chisight.particle_system.make_dense_gps_model(wrapped_likelihood)
-    
+
     return model

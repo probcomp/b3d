@@ -88,14 +88,14 @@ def compute_face_normals(vertices, faces):
     v0 = vertices[faces[:, 0]]
     v1 = vertices[faces[:, 1]]
     v2 = vertices[faces[:, 2]]
-    
+
     # Vectors for the sides of the triangle
     edge1 = v1 - v0
     edge2 = v2 - v0
-    
+
     # Cross product to get face normals
     face_normals = jnp.cross(edge1, edge2)
-    
+
     # Normalize the face normals
     face_normals = face_normals / jnp.linalg.norm(face_normals, axis=1, keepdims=True)
     return face_normals
@@ -107,36 +107,36 @@ def compute_vertex_normals(vertices, faces):
     vertex_normals = jnp.zeros_like(vertices)
     for i in range(3):
         vertex_normals = vertex_normals.at[faces[:, i]].add(face_normals)
-    
+
     # Normalize the vertex normals
     vertex_normals = vertex_normals / jnp.linalg.norm(vertex_normals, axis=1, keepdims=True)
-    
+
     return vertex_normals
 
 
 
 def adjust_vertex_colors(vertices, faces, vertex_colors, light_position, ambient_light=0.1):
     normals = compute_vertex_normals(vertices, faces)
-    
+
     # Vector from vertices to light source
     light_vectors = light_position - vertices
     light_vectors = light_vectors / jnp.linalg.norm(light_vectors, axis=1, keepdims=True)
-    
+
     # Dot product of normals and light vectors (cosine of angle)
     light_intensity = jnp.sum(normals * light_vectors, axis=1, keepdims=True)
-    
+
     # Clamp values to range [0, 1]
     light_intensity = jnp.clip(light_intensity, 0.0, 1.0)
-    
+
     # Combine ambient and diffuse lighting
     light_intensity = ambient_light + (1 - ambient_light) * light_intensity
-    
+
     # Adjust vertex colors based on light intensity
     adjusted_colors = vertex_colors * light_intensity
-    
+
     # Ensure colors are in range [0, 1]
     adjusted_colors = jnp.clip(adjusted_colors, 0.0, 1.0)
-    
+
     return adjusted_colors
 
 def viz_timestep(timestep, frame_number, vertices, faces, attributes, image=None):
@@ -196,7 +196,7 @@ for i in tqdm(range(60)):
                                       jnp.array([0.3, 0.3, 0.2]), ambient_light=0.5)
     mask = (object_library.vertex_index_to_object == 1)[...,None]
 
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, 
+    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces,
                  new_colors *mask + object_library.attributes * ~mask
     )
     frame_number += 1
@@ -379,7 +379,7 @@ for i in tqdm(range(20)):
 #     light_position = jnp.array([0.0, 0.0, 0.0])
 
 #     # Vector from vertices to light source
-#     light_vectors = light_position - face_centers_image 
+#     light_vectors = light_position - face_centers_image
 #     light_vectors = light_vectors / jnp.linalg.norm(light_vectors, axis=-1, keepdims=True)
 
 #     light_intensity = jnp.sum(normals_image * light_vectors, axis=-1, keepdims=True)
@@ -397,9 +397,9 @@ for i in tqdm(range(20)):
 #     # Ensure colors are in range [0, 1]
 #     adjusted_colors = jnp.clip(adjusted_colors, 0.0, 1.0)
 
-#     mask = 
+#     mask =
 
-#     viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, None, 
+#     viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, None,
 #                     image = adjusted_colors[...,:3] * mask + rendered_rgbd[...,:3] * ~mask
 #         )
 #     frame_number += 1

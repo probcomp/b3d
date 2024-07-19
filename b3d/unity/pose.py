@@ -41,6 +41,7 @@ def logpdf_uniform_pose(pose, low, high):
     position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high - low)))
     return position_score.sum() + jnp.pi**2
 
+
 def camera_from_position_and_target(position, target, up=jnp.array([0.0, 0.0, 1.0])):
     """
     Create a camera pose at `position` with the camera-z-axis pointint at `target`.

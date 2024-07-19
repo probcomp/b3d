@@ -11,7 +11,7 @@ from typing import Dict
 class UnityData:
     """
     Unity data class. Note: Spatial units are measured in meters.
-    Unity coordinate system is left-handed with x right, y up, and z forward. 
+    Unity coordinate system is left-handed with x right, y up, and z forward.
     For object_positions, quaternions, and catalog; dynamic objects are indexed first, then static objects.
 
     Args:
@@ -44,12 +44,11 @@ class UnityData:
     latent_keypoint_positions: Optional[Array] = None
     keypoint_visibility: Optional[Array] = None
     object_assignments: Optional[Array] = None
-    Nframe: int
-    Nobjects: int
-    Nkeypoints: Optional[Array] = None
+    num_frames: int
+    num_objects: int
+    num_keypoints: Optional[Array] = None
     fps: Optional[float] = None
     file_info: Optional[Dict[str, str]] = None
-
 
     def save(self, filepath: str):
         """Saves input to file"""
@@ -62,7 +61,7 @@ class UnityData:
         with open(filepath, "rb") as f:
             data = jnp.load(f, allow_pickle=False)
             return cls(**{k: jnp.array(v) for k, v in data.items()})  # type: ignore
-    
+
     def subsample_keypoints(self):
         # Create a mask where each point is at least true once across all frames
         mask = np.any(self.keypoint_visibility, axis=0)
@@ -81,11 +80,11 @@ class UnityData:
     def feature_track_data_from_zip(cls, zip_path):
         # Create an instance of FBExtractor
         extractor = FBExtractor(zip_path)
-        
+
         # Extract all data using the extractor
         camera_intrinsics = extractor.extract_camera_intrinsics()
-        Nframe, Nobjects, Nkeypoints, samplingrate = extractor.extract_metadata()
-        
+        num_frames, num_objects, num_keypoints, sampling_rate = extractor.extract_metadata()
+
         rgb = extractor.extract_rgb()
         depth = extractor.extract_depth()
 
@@ -107,11 +106,11 @@ class UnityData:
             latent_keypoint_positions=keypoint_positions,
             keypoint_visibility=keypoint_visibility,
             object_assignments=object_assignments,
-            Nframe=Nframe,
-            Nobjects=Nobjects,
-            Nkeypoints=Nkeypoints, 
-            fps=samplingrate,
-            file_info=file_info
+            num_frames=num_frames,
+            num_objects=num_objects,
+            num_keypoints=num_keypoints,
+            fps=sampling_rate,
+            file_info=file_info,
         )
 
         # Only keep keypoints that are visible in at least one frame
@@ -119,18 +118,16 @@ class UnityData:
 
         # Return an instance of UnityData
         return instance
-    
-    
 
     @classmethod
     def segmented_video_input_data_from_zip(cls, zip_path):
         # Create an instance of FBExtractor
         extractor = FBExtractor(zip_path)
-        
+
         # Extract all data using the extractor
         camera_intrinsics = extractor.extract_camera_intrinsics()
-        Nframe, Nobjects, _, samplingrate = extractor.extract_metadata()
-        
+        num_frames, num_objects, _, sampling_rate = extractor.extract_metadata()
+
         rgb = extractor.extract_rgb()
         depth = extractor.extract_depth()
         segmentation = extractor.extract_segmentation()
@@ -152,10 +149,10 @@ class UnityData:
             object_positions=object_positions,
             object_quaternions=object_quaternions,
             object_catalog_ids=object_catalog_ids,
-            Nframe=Nframe,
-            Nobjects=Nobjects,
-            fps=samplingrate,
-            file_info=file_info
+            num_frames=num_frames,
+            num_objects=num_objects,
+            fps=sampling_rate,
+            file_info=file_info,
         )
 
         # Return an instance of UnityData

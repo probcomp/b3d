@@ -84,4 +84,3 @@ def _gvmf_and_sample(trace, key, variance, concentration, address, number):
 
 
 gvmf_and_sample = jax.jit(_gvmf_and_sample, static_argnames=["address", "number"])
-

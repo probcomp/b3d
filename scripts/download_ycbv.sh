@@ -6,4 +6,3 @@ wget $SRC/ycbv/ycbv_test_all.zip -P assets/bop    # All test images ("_bop19" fo
 unzip assets/bop/ycbv_base.zip -d assets/bop
 unzip assets/bop/ycbv_models.zip -d assets/bop/ycbv
 unzip assets/bop/ycbv_test_all.zip -d assets/bop/ycbv
-

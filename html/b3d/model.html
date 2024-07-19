@@ -109,7 +109,7 @@ def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance):
     observed_lab = b3d.rgb_to_lab(observed_rgb)
     rendered_lab = b3d.rgb_to_lab(rendered_rgb)
     error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
     )
     inlier_match_mask = (error &lt; lab_tolerance)
@@ -127,7 +127,7 @@ class RGBSensorModel(ExactDensity,genjax.JAXGenerativeFunction):
 
     def logpdf(self, observed_rgb,
                rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
-        
+
         inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
             observed_rgb, rendered_rgb, lab_tolerance
         )
@@ -150,7 +150,7 @@ rgb_sensor_model = RGBSensorModel()
 def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
     def model(
-        _num_obj_arr, # new 
+        _num_obj_arr, # new
 
         color_error,
         depth_error,
@@ -166,8 +166,8 @@ def model_multiobject_gl_factory(renderer):
         object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
         object_indices = jnp.empty((0,), dtype=int)
         camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f&#34;camera_pose&#34;
-            
-        for i in range(_num_obj_arr.shape[0]):        
+
+        for i in range(_num_obj_arr.shape[0]):
             object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f&#34;object_{i}&#34;
             object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
 
@@ -201,16 +201,16 @@ def get_object_ids_from_trace(trace):
     return jnp.array([
         trace[f&#34;object_{i}&#34;] for i in range(len(trace.get_args()[0]))
     ])
-    
+
 def get_rgb_inlier_outlier_from_trace(trace):
     lab_tolerance = trace.get_args()[1]
     observed_rgb, rendered_rgb = trace.get_retval()[0]
     inlier_match_mask = color_error_helper(
         observed_rgb, rendered_rgb, lab_tolerance
     )[0]
-    
+
     return (inlier_match_mask, 1 - inlier_match_mask)
-    
+
 def get_depth_inlier_outlier_from_trace(trace):
     depth_tolerance = trace.get_args()[2]
     observed_depth, rendered_depth = trace.get_retval()[1]
@@ -223,9 +223,9 @@ def get_depth_inlier_outlier_from_trace(trace):
 def get_rgb_depth_inlier_outlier_from_trace(trace):
     rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]
     depth_inlier_mask = get_depth_inlier_outlier_from_trace(trace)[0]
-    
+
     rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
-    
+
     return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)
 
 def rerun_visualize_trace_t(trace, t):
@@ -261,7 +261,7 @@ def rerun_visualize_trace_t(trace, t):
     observed_lab = b3d.rgb_to_lab(observed_rgb)
     rendered_lab = b3d.rgb_to_lab(rendered_rgb)
     error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
     )
     inlier_match_mask = (error &lt; lab_tolerance)
@@ -335,9 +335,9 @@ def rerun_visualize_trace_t(trace, t):
 <pre><code class="python">def get_rgb_depth_inlier_outlier_from_trace(trace):
     rgb_inlier_mask = get_rgb_inlier_outlier_from_trace(trace)[0]
     depth_inlier_mask = get_depth_inlier_outlier_from_trace(trace)[0]
-    
+
     rgb_and_depth_inlier_mask = rgb_inlier_mask * depth_inlier_mask
-    
+
     return (rgb_and_depth_inlier_mask, 1 - rgb_and_depth_inlier_mask)</code></pre>
 </details>
 </dd>
@@ -356,7 +356,7 @@ def rerun_visualize_trace_t(trace, t):
     inlier_match_mask = color_error_helper(
         observed_rgb, rendered_rgb, lab_tolerance
     )[0]
-    
+
     return (inlier_match_mask, 1 - inlier_match_mask)</code></pre>
 </details>
 </dd>
@@ -372,7 +372,7 @@ def rerun_visualize_trace_t(trace, t):
 <pre><code class="python">def model_multiobject_gl_factory(renderer):
     @genjax.static_gen_fn
     def model(
-        _num_obj_arr, # new 
+        _num_obj_arr, # new
 
         color_error,
         depth_error,
@@ -388,8 +388,8 @@ def rerun_visualize_trace_t(trace, t):
         object_poses = Pose(jnp.zeros((0,3)), jnp.zeros((0,4)))
         object_indices = jnp.empty((0,), dtype=int)
         camera_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f&#34;camera_pose&#34;
-            
-        for i in range(_num_obj_arr.shape[0]):        
+
+        for i in range(_num_obj_arr.shape[0]):
             object_identity = uniform_discrete(jnp.arange(-1, len(object_library.ranges))) @ f&#34;object_{i}&#34;
             object_indices = jnp.concatenate((object_indices, jnp.array([object_identity])))
 
@@ -714,7 +714,7 @@ print(console.render(tr))
 
     def logpdf(self, observed_rgb,
                rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
-        
+
         inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
             observed_rgb, rendered_rgb, lab_tolerance
         )
@@ -771,7 +771,7 @@ measure).</p>
 </summary>
 <pre><code class="python">def logpdf(self, observed_rgb,
            rendered_rgb, lab_tolerance, inlier_score, outlier_prob, multiplier):
-    
+
     inlier_match_mask, num_data_points, num_inliers, num_no_data, num_outliers = color_error_helper(
         observed_rgb, rendered_rgb, lab_tolerance
     )

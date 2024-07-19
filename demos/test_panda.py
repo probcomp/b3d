@@ -155,5 +155,3 @@ import pickle
             if skips > 5:
                 print(f"skip {t}")
                 break
-
-

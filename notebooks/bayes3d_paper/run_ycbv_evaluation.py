@@ -84,7 +84,7 @@ def run_tracking(scene=None, object=None, debug=False):
             observed_rgbd = trace.get_retval()["image"]
 
             intermediate_info = intermediate_likelihood_func(
-                trace.get_retval()["image"], 
+                trace.get_retval()["image"],
                 trace.get_retval()["scene_mesh"],
                 renderer,
                 trace.get_args()[2]
@@ -96,7 +96,7 @@ def run_tracking(scene=None, object=None, debug=False):
             rr.log("rgb/overlay/depth", rr.DepthImage(observed_rgbd[...,3]))
             rr.log("rgb/overlay/depth_rendering", rr.DepthImage(rendered_rgbd[...,3]))
             info_string = f"# Score : {trace.get_score()}"
-            
+
             for add in ["is_match", "is_mismatched", "color_match", "depth_match", "is_hypothesized", "is_mismatched_teleportation"]:
                 rr.log(f"/rgb/overlay/{add}", rr.DepthImage(intermediate_info[add] * 1.0))
             rr.log("/info", rr.TextDocument(info_string))
@@ -128,7 +128,7 @@ def run_tracking(scene=None, object=None, debug=False):
                 dict(
                     [
                         ("object_pose_0",  pose),
-                        ("image", 
+                        ("image",
                             b3d.utils.resize_image(
                                 all_data[0]["rgbd"], renderer.height, renderer.width
                             )
@@ -151,7 +151,7 @@ def run_tracking(scene=None, object=None, debug=False):
             if debug:
                 rerun_visualize_trace_t(trace, 0)
                 intermediate_info = intermediate_likelihood_func(
-                    trace.get_retval()["image"], 
+                    trace.get_retval()["image"],
                     trace.get_retval()["scene_mesh"],
                     renderer,
                     trace.get_args()[2]
@@ -159,7 +159,7 @@ def run_tracking(scene=None, object=None, debug=False):
                 rr.set_time_sequence("time", 0)
                 rr.log("rgb/overlay/alternate_color_space", rr.Image(intermediate_info["alternate_color_space"]))
                 rr.log("rgb/overlay/alternate_color_spcae_rendered", rr.Image(intermediate_info["alternate_color_space_rendered"]))
-                
+
             key = jax.random.PRNGKey(100)
 
 
@@ -195,7 +195,7 @@ def run_tracking(scene=None, object=None, debug=False):
 
             trace = tracking_results[len(all_data) - 1]
             intermediate_info = intermediate_likelihood_func(
-                trace.get_choices()["image"], 
+                trace.get_choices()["image"],
                 trace.get_retval()["scene_mesh"],
                 renderer,
                 trace.get_args()[2]
@@ -238,17 +238,17 @@ def run_tracking(scene=None, object=None, debug=False):
 
 
                 intermediate_info = intermediate_likelihood_func(
-                    trace.get_retval()["image"], 
+                    trace.get_retval()["image"],
                     trace.get_retval()["scene_mesh"],
                     renderer,
                     trace.get_args()[2]
                 )
                 hsv_observed_image = b3d.colors.rgb_to_hsv(trace.get_choices()["image"][...,:3])
-                hsv_rendered_image = b3d.colors.rgb_to_hsv(intermediate_info["rendered_rgbd"][...,:3])  
+                hsv_rendered_image = b3d.colors.rgb_to_hsv(intermediate_info["rendered_rgbd"][...,:3])
                 rr.set_time_sequence("time", 0)
                 rr.log("image", rr.Image(hsv_observed_image))
                 rr.log("image/r", rr.Image(hsv_rendered_image))
-                
+
                 # new_likelihood_args = {
                 #     "inlier_score": 20.0,
                 #     "color_tolerance": 20.0,

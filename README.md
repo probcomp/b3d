@@ -13,7 +13,7 @@ ChiSight systems (currently, SAMA4D).
 
 # Installing b3d
 
-Create `b3d` conda environment: 
+Create `b3d` conda environment:
 ```
 conda create -n b3d python=3.12
 ```

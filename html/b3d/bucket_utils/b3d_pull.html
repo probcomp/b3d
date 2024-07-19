@@ -54,7 +54,7 @@ def download_all(overwrite):
     &#34;&#34;&#34;
     Download all contents from the bucket.
     &#34;&#34;&#34;
-    if overwrite: 
+    if overwrite:
         confirm = input(&#34;WARNING:This will overwrite any existing local copy of the specified data with the version on the GCP bucket.\nContinue? [y/[n]]: &#34;)
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
@@ -63,7 +63,7 @@ def download_all(overwrite):
     print(&#34;===============================================&#34;)
     print(f&#34;Downloading all contents from {GCLOUD_BUCKET_NAME} into {LOCAL_BUCKET_PATH}...\n(overwrite={overwrite})&#34;)
     print(&#34;===============================================&#34;)
-    
+
     if overwrite:
         download_cmd = [&#34;gcloud&#34;, &#34;storage&#34;, &#34;cp&#34;, &#34;--recursive&#34;, GCLOUD_BUCKET_NAME + &#34;/*&#34;, LOCAL_BUCKET_PATH]
     else:
@@ -71,13 +71,13 @@ def download_all(overwrite):
 
     popen = subprocess.Popen(download_cmd, stdout=subprocess.PIPE, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, &#34;&#34;):
-        print(stdout_line) 
+        print(stdout_line)
     popen.stdout.close()
     return_code = popen.wait()
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, download_cmd)
-    
+
     return 0
 
 
@@ -88,7 +88,7 @@ def download_item(overwrite, filename):
     # clean trailing slash to prevent wrong local nesting
     while filename[-1] == &#39;/&#39;: filename = filename[:-1]
 
-    if overwrite: 
+    if overwrite:
         confirm = input(&#34;WARNING:This will overwrite any existing local copy of the specified data with the version on the GCP bucket.\nContinue? [y/[n]]: &#34;)
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
@@ -104,11 +104,11 @@ def download_item(overwrite, filename):
             download_cmd = [&#34;gcloud&#34;, &#34;storage&#34;, &#34;cp&#34;, &#34;--recursive&#34;, GCLOUD_BUCKET_NAME + &#34;/&#34; + filename, LOCAL_BUCKET_PATH + &#34;/&#34; + filename]
         else:
             download_cmd = [&#34;gcloud&#34;, &#34;storage&#34;, &#34;cp&#34;, &#34;-n&#34;, &#34;--recursive&#34;, GCLOUD_BUCKET_NAME + &#34;/&#34; + filename, LOCAL_BUCKET_PATH + &#34;/&#34; + filename]
-        
+
     # download a directory (preserve directory structures)
     else:
         # preprocessing
-        if filename.rfind(&#39;/&#39;) != -1:  # nested directory   
+        if filename.rfind(&#39;/&#39;) != -1:  # nested directory
             parent_dir = filename[:filename.rfind(&#39;/&#39;)]
             if not os.path.exists(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir):
                 os.makedirs(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir)
@@ -122,13 +122,13 @@ def download_item(overwrite, filename):
 
     popen = subprocess.Popen(download_cmd, stdout=subprocess.PIPE, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, &#34;&#34;):
-        print(stdout_line) 
+        print(stdout_line)
     popen.stdout.close()
     return_code = popen.wait()
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, download_cmd)
-    
+
     return 0
 
 def download_from_bucket():
@@ -136,7 +136,7 @@ def download_from_bucket():
     overwrite = opts.overwrite
     filename = opts.filename
 
-    if filename == &#39;&#39;:  
+    if filename == &#39;&#39;:
         # download the whole bucket
         return_code = download_all(overwrite)
     else:
@@ -170,7 +170,7 @@ if __name__ == &#34;__main__&#34;:
     &#34;&#34;&#34;
     Download all contents from the bucket.
     &#34;&#34;&#34;
-    if overwrite: 
+    if overwrite:
         confirm = input(&#34;WARNING:This will overwrite any existing local copy of the specified data with the version on the GCP bucket.\nContinue? [y/[n]]: &#34;)
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
@@ -179,7 +179,7 @@ if __name__ == &#34;__main__&#34;:
     print(&#34;===============================================&#34;)
     print(f&#34;Downloading all contents from {GCLOUD_BUCKET_NAME} into {LOCAL_BUCKET_PATH}...\n(overwrite={overwrite})&#34;)
     print(&#34;===============================================&#34;)
-    
+
     if overwrite:
         download_cmd = [&#34;gcloud&#34;, &#34;storage&#34;, &#34;cp&#34;, &#34;--recursive&#34;, GCLOUD_BUCKET_NAME + &#34;/*&#34;, LOCAL_BUCKET_PATH]
     else:
@@ -187,13 +187,13 @@ if __name__ == &#34;__main__&#34;:
 
     popen = subprocess.Popen(download_cmd, stdout=subprocess.PIPE, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, &#34;&#34;):
-        print(stdout_line) 
+        print(stdout_line)
     popen.stdout.close()
     return_code = popen.wait()
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, download_cmd)
-    
+
     return 0</code></pre>
 </details>
 </dd>
@@ -211,7 +211,7 @@ if __name__ == &#34;__main__&#34;:
     overwrite = opts.overwrite
     filename = opts.filename
 
-    if filename == &#39;&#39;:  
+    if filename == &#39;&#39;:
         # download the whole bucket
         return_code = download_all(overwrite)
     else:
@@ -238,7 +238,7 @@ if __name__ == &#34;__main__&#34;:
     # clean trailing slash to prevent wrong local nesting
     while filename[-1] == &#39;/&#39;: filename = filename[:-1]
 
-    if overwrite: 
+    if overwrite:
         confirm = input(&#34;WARNING:This will overwrite any existing local copy of the specified data with the version on the GCP bucket.\nContinue? [y/[n]]: &#34;)
         if confirm != &#39;y&#39;:
             print(&#34;Aborting.&#34;)
@@ -254,11 +254,11 @@ if __name__ == &#34;__main__&#34;:
             download_cmd = [&#34;gcloud&#34;, &#34;storage&#34;, &#34;cp&#34;, &#34;--recursive&#34;, GCLOUD_BUCKET_NAME + &#34;/&#34; + filename, LOCAL_BUCKET_PATH + &#34;/&#34; + filename]
         else:
             download_cmd = [&#34;gcloud&#34;, &#34;storage&#34;, &#34;cp&#34;, &#34;-n&#34;, &#34;--recursive&#34;, GCLOUD_BUCKET_NAME + &#34;/&#34; + filename, LOCAL_BUCKET_PATH + &#34;/&#34; + filename]
-        
+
     # download a directory (preserve directory structures)
     else:
         # preprocessing
-        if filename.rfind(&#39;/&#39;) != -1:  # nested directory   
+        if filename.rfind(&#39;/&#39;) != -1:  # nested directory
             parent_dir = filename[:filename.rfind(&#39;/&#39;)]
             if not os.path.exists(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir):
                 os.makedirs(LOCAL_BUCKET_PATH + &#34;/&#34; + parent_dir)
@@ -272,13 +272,13 @@ if __name__ == &#34;__main__&#34;:
 
     popen = subprocess.Popen(download_cmd, stdout=subprocess.PIPE, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, &#34;&#34;):
-        print(stdout_line) 
+        print(stdout_line)
     popen.stdout.close()
     return_code = popen.wait()
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, download_cmd)
-    
+
     return 0</code></pre>
 </details>
 </dd>

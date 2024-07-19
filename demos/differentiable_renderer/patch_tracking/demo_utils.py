@@ -142,5 +142,5 @@ def get_rotating_box_data(renderer):
     observed_rgbds = jnp.concatenate([rgbs, depths[...,None]], axis=-1)
     xyzs_C = utils.xyz_from_depth_vectorized(depths, renderer.fx, renderer.fy, renderer.cx, renderer.cy)
     xyzs_W = X_WC.apply(xyzs_C)
-    
+
     return (X_WC, rgbs, xyzs_W, observed_rgbds)

@@ -69,100 +69,100 @@ def cie94_err(lab1, lab2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     L2, a2, b2 = lab2
     C1 = jnp.sqrt(a1**2 + b1**2)
     C2 = jnp.sqrt(a2**2 + b2**2)
-    
-    deltaL = L1 - L2 
-    deltaa = a1 - a2 
-    deltab = b1 - b2 
-    deltaC_ab = C1 - C2 
+
+    deltaL = L1 - L2
+    deltaa = a1 - a2
+    deltab = b1 - b2
+    deltaC_ab = C1 - C2
     deltaH_ab = jnp.sqrt(deltaa**2 + deltab**2 - deltaC_ab**2) # can also use cie76
-    
+
     SL = 1
-    SC = 1 + K1*C1 
+    SC = 1 + K1*C1
     SH = 1 + K2*C1
-    
+
     deltaE_94 = jnp.sqrt((deltaL/(kL*SL))**2 + (deltaC_ab/(kC*SC))**2 + (deltaH_ab/(kH*SH))**2)
     return deltaE_94
 
 @partial(jnp.vectorize, signature=&#39;(n,a),(n,a)-&gt;(n)&#39;)
 def ciede2000_err(I1, I2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     &#34;&#34;&#34;
-    Calculates the CIEDE2000 standard difference between 
+    Calculates the CIEDE2000 standard difference between
     n pairs of L*a*b* space colors
-    
+
     In:
-    _lab1: (n, 3) array of colors 
+    _lab1: (n, 3) array of colors
     _lab2: (n, 3) array of colors
-    
-    Out: 
+
+    Out:
     (n, 1) array of CIEDE2000 color difference between the input colors
-    
+
     References:
-    https://www.wikiwand.com/en/Color_difference#CIEDE2000 
+    https://www.wikiwand.com/en/Color_difference#CIEDE2000
     &#34;&#34;&#34;
     TWOFIVE_7 = np.asarray(6103515625, np.int64)  # 25**7
-    
+
     C1 = jnp.sqrt(I1[...,1]**2 + I1[...,2]**2)
     C2 = jnp.sqrt(I2[...,1]**2 + I2[...,2]**2)
     Cbar = (C1 + C2)/2
-    
+
     G = 0.5 * (1 - ((jnp.sqrt((Cbar ** 7)/(Cbar ** 7 + TWOFIVE_7)))))
-    
+
     a1 = (1+G) * I1[...,1]
     a2 = (1+G) * I2[...,1]
     C1d = jnp.sqrt(a1 ** 2 + I1[...,2]**2)
     C2d = jnp.sqrt(a2 ** 2 + I2[...,2]**2)
-    
+
     # Calculating the Modified hue using the four-quadrant arctangent
     h1 = jnp.atan2(I1[...,2],a1)
     h2 = jnp.atan2(I2[...,2],a2)
-    
+
     # Typically, these functions return an angular value in radians ranging
     # from -pi to pi. This must be converted to a hue angle in degrees between
-    # 0° and 360° by addition of 2*pi to negative hue angles.  
+    # 0° and 360° by addition of 2*pi to negative hue angles.
     h1 = jnp.where(h1&lt;0, h1+2*jnp.pi, h1) #h1.at[h1&lt;0].set(h1[h1&lt;0] + 2*jnp.pi)
-    h2 = jnp.where(h2&lt;0, h2+2*jnp.pi, h2) #h2.at[h2&lt;0].set(h2[h2&lt;0] + 2*jnp.pi)        
+    h2 = jnp.where(h2&lt;0, h2+2*jnp.pi, h2) #h2.at[h2&lt;0].set(h2[h2&lt;0] + 2*jnp.pi)
     h1 = jnp.where((a1 == 0) &amp; (I1[...,2] == 0), 0, h1) #h1.at[((a1 == 0) * (I1[...,2] == 0))].set(0)
     h2 = jnp.where((a2 == 0) &amp; (I2[...,2] == 0), 0, h2) #h2.at[((a2 == 0) * (I2[...,2] == 0))].set(0)
 
-    ## Calculate dL, dC and dH    
+    ## Calculate dL, dC and dH
     # Here the following equations are laid to calculate the differences in
-    # L, C and H values of the colors under consideration    
+    # L, C and H values of the colors under consideration
     dL = I2[...,0] - I1[...,0]
-    dC = C2d - C1d   
-    hsub = h2 - h1    
+    dC = C2d - C1d
+    hsub = h2 - h1
     c1d_c2d_nonzero = (C1d*C2d != 0)
     hsub_under_pi = (abs(hsub) &lt;= jnp.pi)
     dh = jnp.zeros(h2.shape)
     dh = jnp.where(c1d_c2d_nonzero &amp; hsub_under_pi, hsub, dh)
     dh = jnp.where(c1d_c2d_nonzero &amp; (hsub &gt; jnp.pi), hsub - 2*jnp.pi, dh)
     dh = jnp.where(c1d_c2d_nonzero &amp; (hsub &lt; -jnp.pi), hsub + 2*jnp.pi, dh)
-    dh = jnp.where(jnp.logical_not(c1d_c2d_nonzero), 0, dh)    
+    dh = jnp.where(jnp.logical_not(c1d_c2d_nonzero), 0, dh)
     dH = 2*jnp.sqrt(C1d*C2d) * jnp.sin(dh/2)
 
-    ## Calculate CIEDE2000 Color-Difference dE00:    
-    Lbar = (I1[...,0] + I2[...,0])/2    
-    Cdbar = (C1d + C2d)/2    
-    hadd = h1 + h2    
-    hbar = jnp.zeros(h1.shape) 
+    ## Calculate CIEDE2000 Color-Difference dE00:
+    Lbar = (I1[...,0] + I2[...,0])/2
+    Cdbar = (C1d + C2d)/2
+    hadd = h1 + h2
+    hbar = jnp.zeros(h1.shape)
     hsub_under_pi = (abs(hsub) &lt;= jnp.pi)
     hadd_under_2pi = (hadd &lt; 2*jnp.pi)
     hbar = jnp.where(hsub_under_pi &amp; c1d_c2d_nonzero, hadd/2, hbar)
     hbar = jnp.where(jnp.logical_not(hsub_under_pi) &amp; hadd_under_2pi &amp; c1d_c2d_nonzero, (hadd + 2*jnp.pi)/2, hbar)
     hbar = jnp.where(jnp.logical_not(hsub_under_pi) &amp; hadd_under_2pi &amp; c1d_c2d_nonzero, (hadd - 2*jnp.pi)/2, hbar)
     hbar = jnp.where(jnp.logical_not(c1d_c2d_nonzero), hadd, hbar)
-    T = 1 - 0.17*jnp.cos(hbar - jnp.deg2rad(30)) + 0.24*jnp.cos(2*hbar) + 0.32*jnp.cos(3*hbar + jnp.deg2rad(6)) - 0.20*jnp.cos(4*hbar-jnp.deg2rad(63)); # check the format for cos    
-    dTheta = jnp.deg2rad(30)*jnp.exp(-((hbar - jnp.deg2rad(275))/jnp.deg2rad(25))**2);    
+    T = 1 - 0.17*jnp.cos(hbar - jnp.deg2rad(30)) + 0.24*jnp.cos(2*hbar) + 0.32*jnp.cos(3*hbar + jnp.deg2rad(6)) - 0.20*jnp.cos(4*hbar-jnp.deg2rad(63)); # check the format for cos
+    dTheta = jnp.deg2rad(30)*jnp.exp(-((hbar - jnp.deg2rad(275))/jnp.deg2rad(25))**2);
     RC = 2*jnp.sqrt((Cdbar**7)/(Cdbar**7 + TWOFIVE_7))
 
-    # Major parameters required to compute CIEDE2000:    
-    SL = 1 + ((K2*(Lbar - 50)**2)/(jnp.sqrt(20 + (Lbar - 50)**2)))    
-    SC = 1 + (K1*Cdbar)    
+    # Major parameters required to compute CIEDE2000:
+    SL = 1 + ((K2*(Lbar - 50)**2)/(jnp.sqrt(20 + (Lbar - 50)**2)))
+    SC = 1 + (K1*Cdbar)
     SH = 1 + (K2*Cdbar*T)
     RT = -jnp.sin(2*dTheta)*RC
-    
-    # CIEDE2000 Final Formula:    
+
+    # CIEDE2000 Final Formula:
     dE = jnp.sqrt((dL/(kL*SL))**2 + (dC/(kC*SC))**2 + (dH/(kH*SH))**2 + (RT*((dC/(kC*SC))*(dH/(kH*SH)))))
-    
+
     return dE
 
 
@@ -171,12 +171,12 @@ def color_error_helper(observed_rgb, rendered_rgb, lab_tolerance, cielab=False):
     # valid_data_mask = jnp.full(valid_data_mask.shape, True)
     observed_lab = rgb_to_lab(observed_rgb)
     rendered_lab = rgb_to_lab(rendered_rgb)
-    if cielab: 
+    if cielab:
         h,w,_ = observed_lab.shape
         error = ciede2000_err(observed_lab.reshape((h*w,3)), rendered_lab.reshape((h*w,3))).reshape((h,w))
     else:
         error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
         )
     inlier_match_mask = (error &lt; lab_tolerance)
@@ -217,17 +217,17 @@ if __name__ == &#39;__main__&#39;:
     L2, a2, b2 = lab2
     C1 = jnp.sqrt(a1**2 + b1**2)
     C2 = jnp.sqrt(a2**2 + b2**2)
-    
-    deltaL = L1 - L2 
-    deltaa = a1 - a2 
-    deltab = b1 - b2 
-    deltaC_ab = C1 - C2 
+
+    deltaL = L1 - L2
+    deltaa = a1 - a2
+    deltab = b1 - b2
+    deltaC_ab = C1 - C2
     deltaH_ab = jnp.sqrt(deltaa**2 + deltab**2 - deltaC_ab**2) # can also use cie76
-    
+
     SL = 1
-    SC = 1 + K1*C1 
+    SC = 1 + K1*C1
     SH = 1 + K2*C1
-    
+
     deltaE_94 = jnp.sqrt((deltaL/(kL*SL))**2 + (deltaC_ab/(kC*SC))**2 + (deltaH_ab/(kH*SH))**2)
     return deltaE_94</code></pre>
 </details>
@@ -252,83 +252,83 @@ _lab2: (n, 3) array of colors</p>
 <pre><code class="python">@partial(jnp.vectorize, signature=&#39;(n,a),(n,a)-&gt;(n)&#39;)
 def ciede2000_err(I1, I2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     &#34;&#34;&#34;
-    Calculates the CIEDE2000 standard difference between 
+    Calculates the CIEDE2000 standard difference between
     n pairs of L*a*b* space colors
-    
+
     In:
-    _lab1: (n, 3) array of colors 
+    _lab1: (n, 3) array of colors
     _lab2: (n, 3) array of colors
-    
-    Out: 
+
+    Out:
     (n, 1) array of CIEDE2000 color difference between the input colors
-    
+
     References:
-    https://www.wikiwand.com/en/Color_difference#CIEDE2000 
+    https://www.wikiwand.com/en/Color_difference#CIEDE2000
     &#34;&#34;&#34;
     TWOFIVE_7 = np.asarray(6103515625, np.int64)  # 25**7
-    
+
     C1 = jnp.sqrt(I1[...,1]**2 + I1[...,2]**2)
     C2 = jnp.sqrt(I2[...,1]**2 + I2[...,2]**2)
     Cbar = (C1 + C2)/2
-    
+
     G = 0.5 * (1 - ((jnp.sqrt((Cbar ** 7)/(Cbar ** 7 + TWOFIVE_7)))))
-    
+
     a1 = (1+G) * I1[...,1]
     a2 = (1+G) * I2[...,1]
     C1d = jnp.sqrt(a1 ** 2 + I1[...,2]**2)
     C2d = jnp.sqrt(a2 ** 2 + I2[...,2]**2)
-    
+
     # Calculating the Modified hue using the four-quadrant arctangent
     h1 = jnp.atan2(I1[...,2],a1)
     h2 = jnp.atan2(I2[...,2],a2)
-    
+
     # Typically, these functions return an angular value in radians ranging
     # from -pi to pi. This must be converted to a hue angle in degrees between
-    # 0° and 360° by addition of 2*pi to negative hue angles.  
+    # 0° and 360° by addition of 2*pi to negative hue angles.
     h1 = jnp.where(h1&lt;0, h1+2*jnp.pi, h1) #h1.at[h1&lt;0].set(h1[h1&lt;0] + 2*jnp.pi)
-    h2 = jnp.where(h2&lt;0, h2+2*jnp.pi, h2) #h2.at[h2&lt;0].set(h2[h2&lt;0] + 2*jnp.pi)        
+    h2 = jnp.where(h2&lt;0, h2+2*jnp.pi, h2) #h2.at[h2&lt;0].set(h2[h2&lt;0] + 2*jnp.pi)
     h1 = jnp.where((a1 == 0) &amp; (I1[...,2] == 0), 0, h1) #h1.at[((a1 == 0) * (I1[...,2] == 0))].set(0)
     h2 = jnp.where((a2 == 0) &amp; (I2[...,2] == 0), 0, h2) #h2.at[((a2 == 0) * (I2[...,2] == 0))].set(0)
 
-    ## Calculate dL, dC and dH    
+    ## Calculate dL, dC and dH
     # Here the following equations are laid to calculate the differences in
-    # L, C and H values of the colors under consideration    
+    # L, C and H values of the colors under consideration
     dL = I2[...,0] - I1[...,0]
-    dC = C2d - C1d   
-    hsub = h2 - h1    
+    dC = C2d - C1d
+    hsub = h2 - h1
     c1d_c2d_nonzero = (C1d*C2d != 0)
     hsub_under_pi = (abs(hsub) &lt;= jnp.pi)
     dh = jnp.zeros(h2.shape)
     dh = jnp.where(c1d_c2d_nonzero &amp; hsub_under_pi, hsub, dh)
     dh = jnp.where(c1d_c2d_nonzero &amp; (hsub &gt; jnp.pi), hsub - 2*jnp.pi, dh)
     dh = jnp.where(c1d_c2d_nonzero &amp; (hsub &lt; -jnp.pi), hsub + 2*jnp.pi, dh)
-    dh = jnp.where(jnp.logical_not(c1d_c2d_nonzero), 0, dh)    
+    dh = jnp.where(jnp.logical_not(c1d_c2d_nonzero), 0, dh)
     dH = 2*jnp.sqrt(C1d*C2d) * jnp.sin(dh/2)
 
-    ## Calculate CIEDE2000 Color-Difference dE00:    
-    Lbar = (I1[...,0] + I2[...,0])/2    
-    Cdbar = (C1d + C2d)/2    
-    hadd = h1 + h2    
-    hbar = jnp.zeros(h1.shape) 
+    ## Calculate CIEDE2000 Color-Difference dE00:
+    Lbar = (I1[...,0] + I2[...,0])/2
+    Cdbar = (C1d + C2d)/2
+    hadd = h1 + h2
+    hbar = jnp.zeros(h1.shape)
     hsub_under_pi = (abs(hsub) &lt;= jnp.pi)
     hadd_under_2pi = (hadd &lt; 2*jnp.pi)
     hbar = jnp.where(hsub_under_pi &amp; c1d_c2d_nonzero, hadd/2, hbar)
     hbar = jnp.where(jnp.logical_not(hsub_under_pi) &amp; hadd_under_2pi &amp; c1d_c2d_nonzero, (hadd + 2*jnp.pi)/2, hbar)
     hbar = jnp.where(jnp.logical_not(hsub_under_pi) &amp; hadd_under_2pi &amp; c1d_c2d_nonzero, (hadd - 2*jnp.pi)/2, hbar)
     hbar = jnp.where(jnp.logical_not(c1d_c2d_nonzero), hadd, hbar)
-    T = 1 - 0.17*jnp.cos(hbar - jnp.deg2rad(30)) + 0.24*jnp.cos(2*hbar) + 0.32*jnp.cos(3*hbar + jnp.deg2rad(6)) - 0.20*jnp.cos(4*hbar-jnp.deg2rad(63)); # check the format for cos    
-    dTheta = jnp.deg2rad(30)*jnp.exp(-((hbar - jnp.deg2rad(275))/jnp.deg2rad(25))**2);    
+    T = 1 - 0.17*jnp.cos(hbar - jnp.deg2rad(30)) + 0.24*jnp.cos(2*hbar) + 0.32*jnp.cos(3*hbar + jnp.deg2rad(6)) - 0.20*jnp.cos(4*hbar-jnp.deg2rad(63)); # check the format for cos
+    dTheta = jnp.deg2rad(30)*jnp.exp(-((hbar - jnp.deg2rad(275))/jnp.deg2rad(25))**2);
     RC = 2*jnp.sqrt((Cdbar**7)/(Cdbar**7 + TWOFIVE_7))
 
-    # Major parameters required to compute CIEDE2000:    
-    SL = 1 + ((K2*(Lbar - 50)**2)/(jnp.sqrt(20 + (Lbar - 50)**2)))    
-    SC = 1 + (K1*Cdbar)    
+    # Major parameters required to compute CIEDE2000:
+    SL = 1 + ((K2*(Lbar - 50)**2)/(jnp.sqrt(20 + (Lbar - 50)**2)))
+    SC = 1 + (K1*Cdbar)
     SH = 1 + (K2*Cdbar*T)
     RT = -jnp.sin(2*dTheta)*RC
-    
-    # CIEDE2000 Final Formula:    
+
+    # CIEDE2000 Final Formula:
     dE = jnp.sqrt((dL/(kL*SL))**2 + (dC/(kC*SC))**2 + (dH/(kH*SH))**2 + (RT*((dC/(kC*SC))*(dH/(kH*SH)))))
-    
+
     return dE</code></pre>
 </details>
 </dd>
@@ -346,12 +346,12 @@ def ciede2000_err(I1, I2, kC=1, kH=1, kL=1.0, K1=0.045, K2=0.015):
     # valid_data_mask = jnp.full(valid_data_mask.shape, True)
     observed_lab = rgb_to_lab(observed_rgb)
     rendered_lab = rgb_to_lab(rendered_rgb)
-    if cielab: 
+    if cielab:
         h,w,_ = observed_lab.shape
         error = ciede2000_err(observed_lab.reshape((h*w,3)), rendered_lab.reshape((h*w,3))).reshape((h,w))
     else:
         error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
         )
     inlier_match_mask = (error &lt; lab_tolerance)

@@ -261,7 +261,7 @@ def multiple_mh_for_100_steps(key, tr, pos_stds, rot_concs):
         ret_st, metadatum = jax.lax.scan(pose_then_rot_mh_kernel, st, jnp.arange(100))
         metadata.append(metadatum)
         (key, tr, _, _) = ret_st
-    
+
     return ret_st, metadata
 
 import time

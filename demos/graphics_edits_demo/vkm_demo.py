@@ -167,7 +167,7 @@ for t in range(start_t, end_t):
         object_pose =  Pose.from_translation(vertices.mean(0))
         vertices_centered = object_pose.inverse().apply(vertices)
         poses[1] = object_pose
-    
+
         objects[1] = (vertices_centered, faces, vertex_colors)
         merged_vertices, merged_faces, merged_vertex_colors, vertex_to_index = merge_objects(objects, poses)
 
@@ -211,14 +211,14 @@ def compute_face_normals(vertices, faces):
     v0 = vertices[faces[:, 0]]
     v1 = vertices[faces[:, 1]]
     v2 = vertices[faces[:, 2]]
-    
+
     # Vectors for the sides of the triangle
     edge1 = v1 - v0
     edge2 = v2 - v0
-    
+
     # Cross product to get face normals
     face_normals = jnp.cross(edge1, edge2)
-    
+
     # Normalize the face normals
     face_normals = face_normals / jnp.linalg.norm(face_normals, axis=1, keepdims=True)
     return face_normals
@@ -230,36 +230,36 @@ def compute_vertex_normals(vertices, faces):
     vertex_normals = jnp.zeros_like(vertices)
     for i in range(3):
         vertex_normals = vertex_normals.at[faces[:, i]].add(face_normals)
-    
+
     # Normalize the vertex normals
     vertex_normals = vertex_normals / jnp.linalg.norm(vertex_normals, axis=1, keepdims=True)
-    
+
     return vertex_normals
 
 
 
 def adjust_vertex_colors(vertices, faces, vertex_colors, light_position, ambient_light=0.1):
     normals = compute_vertex_normals(vertices, faces)
-    
+
     # Vector from vertices to light source
     light_vectors = light_position - vertices
     light_vectors = light_vectors / jnp.linalg.norm(light_vectors, axis=1, keepdims=True)
-    
+
     # Dot product of normals and light vectors (cosine of angle)
     light_intensity = jnp.sum(normals * light_vectors, axis=1, keepdims=True)
-    
+
     # Clamp values to range [0, 1]
     light_intensity = jnp.clip(light_intensity, 0.0, 1.0)
-    
+
     # Combine ambient and diffuse lighting
     light_intensity = ambient_light + (1 - ambient_light) * light_intensity
-    
+
     # Adjust vertex colors based on light intensity
     adjusted_colors = vertex_colors * light_intensity
-    
+
     # Ensure colors are in range [0, 1]
     adjusted_colors = jnp.clip(adjusted_colors, 0.0, 1.0)
-    
+
     return adjusted_colors
 
 t = len(video_input.rgb)
@@ -485,7 +485,7 @@ def slerp(q1, q2, t):
 
     theta = jnp.arccos(jnp.clip(dot_product, -1.0, 1.0))
     sin_theta = jnp.sin(theta)
-    
+
     def small_angle_case(_):
         return q1  # If the angle is very small, return q1
 

@@ -24,7 +24,7 @@ def get_rgb_depth_inliers_from_observed_rendered_args(observed_rgb, rendered_rgb
     observed_lab = b3d.colors.rgb_to_lab(observed_rgb)
     rendered_lab = b3d.colors.rgb_to_lab(rendered_rgb)
     error = (
-        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+        jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
         jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
     )
 
@@ -67,7 +67,7 @@ def make_krays_image_observation_model(renderer):
                 1.0 * jnp.sum(undecided * areas)  +
                 outlier_prob * jnp.sum(outliers * areas)
             ) * multiplier
-        
+
     krays_image_likelihood = KRaysImageLikelihood()
 
     @genjax.gen

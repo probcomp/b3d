@@ -232,9 +232,9 @@ _N = _vs.shape[1]
 
 print(
     f"""
-Loaded mesh data from 
+Loaded mesh data from
     {fname}
-    
+
 Num timesteps: {_T}
 Num particles: {_N}
 _vs.shape: {_vs.shape}

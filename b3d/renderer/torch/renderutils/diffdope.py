@@ -209,7 +209,7 @@
 #     depth = depth.reshape(shape_keep)[..., 2] * -1
 
 #     # mask   , _ = dr.interpolate(torch.ones(pos_idx.shape).cuda(), rast_out, pos_idx)
-#     mask, _ = dr.interpolate(torch.ones(pos_idx.shape).cuda(), 
+#     mask, _ = dr.interpolate(torch.ones(pos_idx.shape).cuda(),
 #         rast_out, pos_idx[0],rast_db=rast_out_db,diff_attrs="all")
 #     mask       = dr.antialias(mask, rast_out, pos_clip_ja, pos_idx[0])
 
@@ -973,7 +973,7 @@
 #         self.qx = None  # to load on cpu and not gpu
 
 #         if model_path is None:
-#             self.mesh = None    
+#             self.mesh = None
 #         else:
 #             self.mesh = Mesh(path_model=model_path, scale=scale)
 
@@ -1424,7 +1424,7 @@
 
 #             else:
 #                 crop = find_crop(self.optimization_results[index][render_selection][0])
-        
+
 #         if batch_index is None:
 #             # make a grid
 #             if self.cfg.render_images.crop_around_mask:

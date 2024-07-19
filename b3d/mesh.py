@@ -72,7 +72,7 @@ class Mesh:
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         return cls(*children)
-    
+
     def copy(mesh):
         return Mesh(jnp.copy(mesh.vertices), jnp.copy(mesh.faces), jnp.copy(mesh.vertex_attributes))
 
@@ -92,9 +92,9 @@ class Mesh:
         else:
             vertex_colors = jnp.array(trimesh_mesh.visual.vertex_colors)[..., :3] / 255.0
         return Mesh(vertices, faces, vertex_colors)
-    
+
     def save(self, filename):
-        trimesh_mesh = trimesh.Trimesh(self.vertices, self.faces, 
+        trimesh_mesh = trimesh.Trimesh(self.vertices, self.faces,
                                             vertex_colors=np.array(self.vertex_attributes * 255).astype(np.uint8))
         with open(filename, "w") as f:
             f.write(
@@ -174,7 +174,7 @@ class Mesh:
 
     def __len__(self):
         return self.vertices.shape[0]
-    
+
     def __iter__(self):
         self.current = 0
         return self

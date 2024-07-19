@@ -167,5 +167,3 @@ def test_diff_renderer(renderer):
             for img in images[::10]
         ]
         b3d.make_video_from_pil_images(viz_images, b3d.get_root_path() / f"assets/test_results/{title}.mp4")
-
-

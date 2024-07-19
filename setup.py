@@ -60,7 +60,6 @@ setuptools.setup(
         "optax==0.2.2",
         "fire==0.6.0",
         "torch==2.2.2",
-        "torchaudio==2.2.2",
         "torchvision==0.17.2",
         "jax[cuda12]==0.4.28",
         "natsort",

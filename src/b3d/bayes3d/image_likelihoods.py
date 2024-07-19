@@ -13,12 +13,14 @@ import functools
 
 # returned values should bee log probs!
 
+# @jax.jit
 def gaussian_depth_likelihood(observed_depth, rendered_depth, depth_variance):
     probabilities = jax.scipy.stats.norm.logpdf(
         observed_depth, rendered_depth, depth_variance
     )
     return probabilities
 
+# @jax.jit
 def gaussian_rgb_likelihood(observed_rgb, rendered_rgb, lab_variance):
 
     probabilities = jax.scipy.stats.norm.logpdf(
@@ -26,6 +28,7 @@ def gaussian_rgb_likelihood(observed_rgb, rendered_rgb, lab_variance):
     )
     return probabilities
 
+# @jax.jit
 def gaussian_iid_pix_model(observed_rgbd, rendered_rgbd, likelihood_args):
 
     rgb_variance = likelihood_args["rgb_tolerance"]
@@ -43,9 +46,9 @@ def gaussian_iid_pix_model(observed_rgbd, rendered_rgbd, likelihood_args):
                          'rgb_pix_score': rgb_score,
                          'depth_pix_score': depth_score}
 
-gaussian_iid_pix_likelihood_vec = jax.vmap(
+gaussian_iid_pix_likelihood_vec = jax.jit(jax.vmap(
     gaussian_iid_pix_model, in_axes=(None, 0, None)
-)
+))
 
 ###########
 @functools.partial(
@@ -95,6 +98,7 @@ def threedp3_likelihood_per_pixel_old(
     outlier_volume,
     filter_size,
 ):
+    #filter_size = 3
     rendered_xyz_padded = jax.lax.pad(
         rendered_xyz,
         -100.0,
@@ -140,7 +144,7 @@ def threedp3_gmm_likelihood(
     variance = likelihood_args['variance']
     outlier_prob = likelihood_args['outlier_prob']
     outlier_volume = likelihood_args['outlier_volume']
-    filter_size = likelihood_args['filter_size']
+    filter_size = 3#likelihood_args['filter_size']
     intrinsics = likelihood_args['intrinsics']
 
     observed_xyz = unproject_depth(observed_rgbd[...,3], intrinsics)
@@ -152,9 +156,9 @@ def threedp3_gmm_likelihood(
     
     return log_probabilities_per_pixel['pix_score'].sum(), log_probabilities_per_pixel
 
-threedp3_gmm_likelihood_vec = jax.vmap(
+threedp3_gmm_likelihood_vec = jax.jit(jax.vmap(
     threedp3_gmm_likelihood, in_axes=(None, 0, None)
-)
+))
 
 
 def get_rgb_depth_inliers_from_observed_rendered_args(
@@ -237,7 +241,7 @@ def kray_likelihood_intermediate(observed_rgbd, rendered_rgbd, likelihood_args):
                             "pix_score": final_score_per_pix}
                             
 
-kray_likelihood_intermediate_vec = jax.vmap(
+kray_likelihood_intermediate_vec = jax.jit(jax.vmap(
     kray_likelihood_intermediate, in_axes=(None, 0, None)
-)
+))
 

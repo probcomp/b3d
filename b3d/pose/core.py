@@ -77,7 +77,7 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
             keys[0], mean_pose.pos, var * jnp.eye(3))
     q = tfp.distributions.VonMisesFisher(
             mean_pose.quat, concentration).sample(seed=keys[1])
-    
+
     return Pose(x, q)
 
 def logpdf_gaussian_vmf_pose(pose, mean_pose, std, concentration):
@@ -188,7 +188,7 @@ class Pose:
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         return cls(*children)
-    
+
     def copy(self):
         return Pose(jnp.array(self.pos), jnp.array(self.quat))
 
@@ -332,7 +332,7 @@ class Pose:
     @staticmethod
     def from_xyzw(xyzw):
         """Create a pose from a quaternion. With zero translation."""
-        return Pose(jnp.zeros((*xyzw.shape[:-1], 1)), xyzw) 
+        return Pose(jnp.zeros((*xyzw.shape[:-1], 1)), xyzw)
 
     from_quat = from_xyzw
 
@@ -363,5 +363,7 @@ class Pose:
     from_position_and_target = camera_from_position_and_target
 
     sample_uniform_pose = sample_uniform_pose
+    sample_uniform_pose_jit = jax.jit(sample_uniform_pose)
+    sample_uniform_pose_vmap = jax.vmap(sample_uniform_pose, in_axes=(0, None, None))
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
     sample_gaussian_vmf_pose_jit = jax.jit(sample_gaussian_vmf_pose)

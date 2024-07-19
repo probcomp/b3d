@@ -18,11 +18,11 @@ import distinctipy
 
 from sklearn.utils import Bunch
 
-# # # # # # # # # # # # 
-# 
+# # # # # # # # # # # #
+#
 #  Core
-# 
-# # # # # # # # # # # # 
+#
+# # # # # # # # # # # #
 
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])
@@ -86,13 +86,13 @@ def keysplit(key, *ns):
         for n in ns:
             keys.append(keysplit(key, n))
         return keys
-    
 
-# # # # # # # # # # # # 
-# 
+
+# # # # # # # # # # # #
+#
 #  Other
-# 
-# # # # # # # # # # # # 
+#
+# # # # # # # # # # # #
 from b3d.pose import Pose, Rot
 from functools import partial
 # TODO: Refactor utils into core and others, to avoid circular imports
@@ -161,7 +161,7 @@ def pad_with_1(x):
 
 
 def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolutions):
-    box_mesh = trimesh.load(os.path.join(b3d.get_assets_path(), "objs/cube.obj"))    
+    box_mesh = trimesh.load(os.path.join(b3d.get_assets_path(), "objs/cube.obj"))
     base_vertices, base_faces = jnp.array(box_mesh.vertices), jnp.array(box_mesh.faces)
 
     def process_ith_ball(i, positions, colors, base_vertices, base_faces, resolutions):
@@ -197,7 +197,7 @@ def get_vertices_faces_colors_from_mesh(mesh):
     vertices = vertices - jnp.mean(vertices, axis=0)
     faces = jnp.array(mesh.faces)
     vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
-    return vertices, faces, vertex_colors    
+    return vertices, faces, vertex_colors
 
 def get_rgb_pil_image(image, max=1.0):
     """Convert an RGB image to a PIL image.
@@ -265,6 +265,57 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
 
 
 from PIL import Image, ImageDraw, ImageFont
+
+
+def vstack_images(images, border=10):
+    """Stack images vertically.
+
+    Args:
+        images (list): List of PIL images.
+        border (int): Border between images.
+    Returns:
+        PIL.Image: Stacked image.
+    """
+    max_w = 0
+    sum_h = (len(images) - 1) * border
+    for img in images:
+        w, h = img.size
+        max_w = max(max_w, w)
+        sum_h += h
+
+    full_image = Image.new("RGB", (max_w, sum_h), (255, 255, 255))
+    running_h = 0
+    for img in images:
+        w, h = img.size
+        full_image.paste(img, (int(max_w / 2 - w / 2), running_h))
+        running_h += h + border
+    return full_image
+
+
+def hstack_images(images, border=10):
+    """Stack images horizontally.
+
+    Args:
+        images (list): List of PIL images.
+        border (int): Border between images.
+    Returns:
+        PIL.Image: Stacked image.
+    """
+    max_h = 0
+    sum_w = (len(images) - 1) * border
+    for img in images:
+        w, h = img.size
+        max_h = max(max_h, h)
+        sum_w += w
+
+    full_image = Image.new("RGB", (sum_w, max_h), (255, 255, 255))
+    running_w = 0
+    for img in images:
+        w, h = img.size
+        full_image.paste(img, (running_w, int(max_h / 2 - h / 2)))
+        running_w += w + border
+    return full_image
+
 
 def multi_panel(
     images,
@@ -418,7 +469,7 @@ def multivmap(f, args=None):
 def update_choices(trace, key, addresses, *values):
     return trace.update(
         key,
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses, values)})
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
     )[0]
 
 

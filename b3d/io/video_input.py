@@ -83,12 +83,12 @@ class VideoInput:
     def rgbd(self):
         return jnp.concatenate([self.rgb, self.depth], axis=-1)
 
-    def __init__(self, 
-            rgb, 
-            xyz=None, 
-            camera_positions=None, 
-            camera_quaternions=None, 
-            camera_intrinsics_rgb=None, 
+    def __init__(self,
+            rgb,
+            xyz=None,
+            camera_positions=None,
+            camera_quaternions=None,
+            camera_intrinsics_rgb=None,
             camera_intrinsics_depth=None,
             # fps = None
         ):
@@ -162,7 +162,7 @@ class VideoInput:
             data = jnp.load(f, allow_pickle=True)
 
             fps = data["fps"] if ("fps" in data) else None
-            
+
             return cls(
                 rgb=jnp.array(data["rgb"]),
                 xyz=jnp_array_or_none(data["xyz"]),

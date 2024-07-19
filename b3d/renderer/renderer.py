@@ -82,7 +82,7 @@ class Renderer(object):
             intrinsics.near,
             intrinsics.far,
         )
-    
+
     def get_intrinsics_object(self):
         return Intrinsics(
             self.width, self.height, self.fx, self.fy, self.cx, self.cy, self.near, self.far

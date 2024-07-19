@@ -10,20 +10,15 @@ import os
 
 from genjax import Pytree
 
-def make_image_likelihood(intermediate_func, renderer):
+def make_image_likelihood(intermediate_func):
     @Pytree.dataclass
     class ImageLikelihood(genjax.ExactDensity):
-        def sample(self, key, scene_mesh, likelihood_args):
-            rendered_rgbd = renderer.render_rgbd(
-                scene_mesh.vertices,
-                scene_mesh.faces,
-                scene_mesh.vertex_attributes,
-            )
+        def sample(self, key, rendered_rgbd, likelihood_args):
             return rendered_rgbd
 
-        def logpdf(self, observed_rgbd, scene_mesh, likelihood_args):
-            results = intermediate_func(observed_rgbd, scene_mesh, renderer, likelihood_args)
+        def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
+            results = intermediate_func(observed_rgbd, rendered_rgbd, likelihood_args)
             return results["score"]
-        
+
     image_likelihood = ImageLikelihood()
     return image_likelihood

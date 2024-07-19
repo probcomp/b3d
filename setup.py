@@ -40,7 +40,7 @@ setuptools.setup(
         "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
     ],
     install_requires=[
-        "genjax @ git+ssh://git@github.com/probcomp/genjax.git@v0.4.0",
+        "genjax==0.4.0",
         "rerun-sdk==0.16.1",
         "tqdm==4.66.2",
         "numpy==1.26.4",
@@ -60,7 +60,6 @@ setuptools.setup(
         "optax==0.2.2",
         "fire==0.6.0",
         "torch==2.2.2",
-        "torchaudio==2.2.2",
         "torchvision==0.17.2",
         "jax[cuda12]==0.4.28",
         "natsort",

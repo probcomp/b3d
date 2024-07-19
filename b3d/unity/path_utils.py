@@ -147,13 +147,13 @@ def get_unity_data_path(
         )
         for existing_file in folder_path.glob("*.npz"):
             if existing_file.is_file():
-                print(data_settings(existing_file.name))
+                print_data_settings(existing_file.name)
         raise FileNotFoundError(
             f"Specified file '{file_name}' not found in '{folder_path}'."
         )
 
 
-def data_settings(filename: str):
+def print_data_settings(filename: str):
     parts = filename.split("/")[-1].split("_")
 
     if len(parts) != 3:
@@ -163,4 +163,4 @@ def data_settings(filename: str):
     background_setting = True if (parts[1] == "bg") else False
     resolution = parts[2].split("p.")[0]
 
-    return f"resolution: {resolution}, background: {background_setting}, lighting: {light_setting}"
+    return print(f"resolution: {resolution}, background: {background_setting}, lighting: {light_setting}")

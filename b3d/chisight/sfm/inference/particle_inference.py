@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from jax.scipy.stats.norm import logpdf as normal_logpdf
 from b3d.pose import Pose, Rot
 from b3d.camera import (
     screen_from_world,
@@ -11,6 +12,73 @@ from b3d.camera import (
 from b3d.utils import keysplit
 from sklearn.utils import Bunch
 
+
+# # # # # # # # # # # # # # # # # # # # # # # # 
+# 
+#   Proposals and targets
+# 
+# # # # # # # # # # # # # # # # # # # # # # # # 
+def particle_vector_proposal_ti(key, t, i, ys, cams, intr, sig):
+        T, N = ys.shape[:2]
+        y   = ys[t,i]
+        cam = cams[t]
+
+        # Add sensor noise
+        key = jax.random.split(key)[1]
+        eps = sig*jax.random.normal(key,(2,))
+        y = y + eps
+
+        # Unproject with random depth along rays through y
+        key = jax.random.split(key)[1]
+        z = jax.random.uniform(key, minval=intr.near, maxval=intr.far)
+        x = cam(camera_from_screen_and_depth(y, z, intr))
+
+        # Compute the log scores
+        w  = - jnp.log(intr.far - intr.near)
+        w += normal_logpdf(eps, jnp.zeros(2), jnp.array([sig, sig])).sum()
+
+        return w, x
+
+def particle_vector_proposal_i(key, i, vis, ys, cams, intr, sig):
+    t = jax.random.categorical(key, jnp.log(jnp.where(vis[:,i], 1, 0)))
+    return particle_vector_proposal_ti(key, t, i, ys, cams, intr, sig)
+
+
+def particle_vector_proposal_t(key, t, ys, cams, intr, sig):
+        T, N = ys.shape[:2]
+        ys_t  = ys[t]
+        cam_t = cams[t]
+
+        # Add sensor noise
+        key = jax.random.split(key)[1]
+        eps = sig*jax.random.normal(key,(N,2))
+        ys_t = ys_t + eps
+
+        # Unproject with random depth along rays through y
+        key = jax.random.split(key)[1]
+        zs = jax.random.uniform(key, (N,), minval=intr.near, maxval=intr.far)
+        xs = cam_t(camera_from_screen_and_depth(ys_t, zs, intr))
+
+        # Compute the log scores
+        ws  = jnp.repeat(- jnp.log(intr.far - intr.near), N)
+        ws += normal_logpdf(eps, jnp.zeros((N,2)), jnp.tile(sig, (N,2))).sum(1)
+
+        return ws, xs
+
+# TODO: The score is approximate only, because we're actually sampling from a mixture over t.
+#   We have to add the weights for all the other t's.
+def particle_vector_proposal(key, vis, ys, cams, intr, sig):
+    N = ys.shape[1]
+    _,key = jax.random.split(key)
+    keys = jax.random.split(key, N)
+    return jax.vmap(particle_vector_proposal_i, (0, 0,None,None,None,None,None))(
+        keys, jnp.arange(N), vis, ys, cams, intr, sig)
+
+# # # # # # # # # # # # # # # # # # # # # # # # 
+# 
+#   Geometry
+# 
+# # # # # # # # # # # # # # # # # # # # # # # # 
 
 # TODO: Check this. ChatGPT spit that out.
 def closest_points_on_lines(x, v, x_prime, v_prime):

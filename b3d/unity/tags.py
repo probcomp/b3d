@@ -1,4 +1,3 @@
-import os
 import json
 
 tags_dict = {
@@ -11,7 +10,7 @@ tags_dict = {
 }
 
 def print_tags():
-    print(f"Available tags:")
+    print("Available tags:")
     for key, value in tags_dict.items():
         print(f"{key}: {value}")
 

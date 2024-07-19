@@ -4,7 +4,6 @@ import jax
 import os
 import tags
 import shutil
-from pathlib import Path
 from unity_data import UnityData
 from b3d.io.feature_track_data import FeatureTrackData
 from b3d.utils import downsize_images

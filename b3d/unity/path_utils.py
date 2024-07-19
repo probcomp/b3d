@@ -128,8 +128,8 @@ def get_unity_data_path(
     folder_path = get_unity_data_folder_path(data_name, data_class, scene_folder)
 
     # Construct the file name based on the specified settings
-    light_setting = 'lit' if (light == True) else 'unlit'
-    background_setting = 'bg' if (background == True) else 'nobg'
+    light_setting = 'lit' if (light) else 'unlit'
+    background_setting = 'bg' if (background) else 'nobg'
     file_name = f"{light_setting}_{background_setting}_{resolution}p.input.npz"
     file_path = folder_path / file_name
     

@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import jax
 import os
+import tags
 import shutil
 from unity_data import UnityData
 from b3d.io.segmented_video_input import SegmentedVideoInput
@@ -126,9 +127,23 @@ def save_teaser(data: SegmentedVideoInput, file_info: dict):
     if not os.path.exists(video_path):
         create_video(data.rgb, create_rgb_image, output_path=video_path, label=None, res=None, fps=10, slow=1, source_fps=30)
 
-def process(zip_path: str, moveFile: bool=True) -> None:
+
+def save_metadata(file_info: dict, tags_str):
+    folder_path = get_data_path(file_info['data_name'], file_info['scene_folder'])
+    file_name = "metadata.json"
+    file_path = folder_path / file_name
+    if not os.path.exists(file_path):
+        tags.init_metadata(file_path, tags_str)
+
+def process(zip_path: str, moveFile: bool=True, tags_str=None) -> None:
     """Process a ZIP file and save the segmented video input data."""
+    # Load unity data
     unity_data = UnityData.segmented_video_input_data_from_zip(zip_path)
+
+    # Save metadata
+    save_metadata(unity_data.file_info, tags_str)
+
+    # Convert unity data into segmented video input
     segmented_video_data = convert_unity_to_segmented_video_input(unity_data)
 
     # Save teaser

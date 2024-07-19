@@ -36,7 +36,7 @@ def rgb_to_lab(rgb):
     b = 200 * (xyz_f[1] - xyz_f[2])
 
     lab = jnp.stack([L, a, b], axis=-1)
-    return lab
+    return jnp.clip(lab, jnp.array([0, -128.0, -128.0]), jnp.array([100.0, 128.0, 128.0]))
 
 
 

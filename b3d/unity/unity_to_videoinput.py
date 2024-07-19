@@ -13,7 +13,7 @@ from unity_to_python import (
     convert_unity_to_cv2_camera_pos_and_quat, 
     convert_unity_to_cv2_world_pos_and_quat, 
     convert_rgb_float_to_uint, 
-    downsize_images_1D
+    downsize_single_channel_image
 )
 from b3d.camera import unproject_depth
 
@@ -94,8 +94,8 @@ def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoI
     depth_from_xyz = data.xyz[..., 2]
 
     rgb = downsize_images(data.rgb, k).astype(np.uint8)
-    depth = downsize_images_1D(depth_from_xyz, k)
-    segmentation = downsize_images_1D(data.segmentation, k)
+    depth = downsize_single_channel_image(depth_from_xyz, k)
+    segmentation = downsize_single_channel_image(data.segmentation, k)
     
     xyz = get_xyz(depth, data.camera_intrinsics_rgb)
 

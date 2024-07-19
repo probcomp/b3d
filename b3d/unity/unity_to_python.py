@@ -114,7 +114,7 @@ def downsize_2d_coordinates(points, k):
     return resized_points
 
 @partial(jax.jit, static_argnums=1)
-def downsize_images_1D(ims, k):
+def downsize_single_channel_image(ims, k):
     """Downsize an array of images by a given factor."""
     shape = (ims.shape[1]//k, ims.shape[2]//k)
     return jax.vmap(jax.image.resize, (0,None, None))(

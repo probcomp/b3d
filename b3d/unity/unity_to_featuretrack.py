@@ -6,8 +6,8 @@ import shutil
 from unity_data import UnityData
 from b3d.io.feature_track_data import FeatureTrackData
 from b3d.utils import downsize_images
-from generate_visualization import create_keypoints_gif
-from path_utils import get_assets_path
+from generate_visualization import create_feature_track_video, create_video, create_rgb_image
+from path_utils import get_assets_path, get_data_path
 from unity_to_python import (
     convert_unity_to_cv2_camera_pos_and_quat, 
     project_to_screen, 
@@ -85,7 +85,7 @@ def convert_from_zip(zip_path: str) -> FeatureTrackData:
     return feature_track_data
 
 def save_feature_track_data(data: FeatureTrackData, file_info: dict, create_gif: bool=False) -> None:
-    folder_path = get_assets_path('f', file_info['scene_folder'], file_info['data_name'])
+    folder_path = get_assets_path(file_info['data_name'], 'f', file_info['scene_folder'])
     file_name = f"{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
     filepath = str(folder_path / file_name)
 
@@ -93,8 +93,8 @@ def save_feature_track_data(data: FeatureTrackData, file_info: dict, create_gif:
     print(f"Saved {filepath}")
 
     if (create_gif):
-        gifname = f"{file_info['data_name']}_{file_info['light_setting']}_{file_info['background_setting']}_keypoints.gif"
-        create_keypoints_gif(data, str(folder_path / gifname))
+        gifname = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
+        create_feature_track_video(data, str(folder_path / gifname))
 
 def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
     # camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
@@ -124,10 +124,20 @@ def save_downscaled_feature_track(data: FeatureTrackData, target_res: int, file_
     file_info['resolution'] = f"{target_res}p"
     save_feature_track_data(small_version, file_info, create_gif)
 
+def save_teaser(data: FeatureTrackData, file_info: dict):
+    folder_path = get_data_path(file_info['data_name'], file_info['scene_folder'])
+    file_name = f"{file_info['data_name']}_teaser.mp4"
+    video_path = str(folder_path / file_name)
+    if not os.path.exists(video_path):
+        create_video(data.rgbd_images[:,:,:,:3], create_rgb_image, output_path=video_path, label=None, res=None, fps=10, slow=1, source_fps=30)
+
 def process(zip_path: str, moveFile: bool=True) -> None:
     """Process a ZIP file and save the feature track data."""
     unity_data = UnityData.feature_track_data_from_zip(zip_path)
     feature_track_data = convert_unity_to_feature_track(unity_data)
+
+    # Save teaser
+    save_teaser(feature_track_data, unity_data.file_info)
 
     # Save feature_track_data
     save_feature_track_data(feature_track_data, unity_data.file_info, create_gif=True)

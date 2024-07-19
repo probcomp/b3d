@@ -6,8 +6,8 @@ import shutil
 from unity_data import UnityData
 from b3d.io.segmented_video_input import SegmentedVideoInput
 from b3d.utils import downsize_images
-from generate_visualization import create_segmentation_data_gif
-from path_utils import get_assets_path
+from generate_visualization import create_segmented_video_input_video, create_video, create_rgb_image
+from path_utils import get_assets_path, get_data_path
 from unity_to_python import (
     convert_unity_to_cv2_camera_pos_and_quat, 
     convert_unity_to_cv2_world_pos_and_quat, 
@@ -73,7 +73,7 @@ def convert_from_zip(zip_path: str) -> SegmentedVideoInput:
     return segmented_video_input_data
 
 def save_segmented_video_input_data(data: SegmentedVideoInput, file_info: dict, create_gif: bool=False) -> None:
-    folder_path = get_assets_path('s', file_info['scene_folder'], file_info['data_name'])
+    folder_path = get_assets_path(file_info['data_name'], 's', file_info['scene_folder'])
     file_name = f"{file_info['light_setting']}_{file_info['background_setting']}_{file_info['resolution']}.input.npz"
     filepath = str(folder_path / file_name)
 
@@ -81,8 +81,8 @@ def save_segmented_video_input_data(data: SegmentedVideoInput, file_info: dict, 
     print(f"Saved {filepath}")
 
     if (create_gif):
-        gifname = f"{file_info['data_name']}_{file_info['light_setting']}_{file_info['background_setting']}_segmented.gif"
-        create_segmentation_data_gif(data, str(folder_path / gifname))
+        video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
+        create_segmented_video_input_video(data, str(folder_path / video_path))
 
 def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoInput:
     # camera_intrinsics = data.camera_intrinsics_rgb.at[0].mul(1/k).at[1].mul(1/k)
@@ -119,10 +119,20 @@ def save_downscaled_video_input(data: SegmentedVideoInput, target_res: int, file
     file_info['resolution'] = f"{target_res}p"
     save_segmented_video_input_data(small_version, file_info, create_gif)
 
+def save_teaser(data: SegmentedVideoInput, file_info: dict):
+    folder_path = get_data_path(file_info['data_name'], file_info['scene_folder'])
+    file_name = f"{file_info['data_name']}_teaser.mp4"
+    video_path = str(folder_path / file_name)
+    if not os.path.exists(video_path):
+        create_video(data.rgb, create_rgb_image, output_path=video_path, label=None, res=None, fps=10, slow=1, source_fps=30)
+
 def process(zip_path: str, moveFile: bool=True) -> None:
     """Process a ZIP file and save the segmented video input data."""
     unity_data = UnityData.segmented_video_input_data_from_zip(zip_path)
     segmented_video_data = convert_unity_to_segmented_video_input(unity_data)
+
+    # Save teaser
+    save_teaser(segmented_video_data, unity_data.file_info)
 
     # Save segmented_video_data
     save_segmented_video_input_data(segmented_video_data, unity_data.file_info, create_gif=True)

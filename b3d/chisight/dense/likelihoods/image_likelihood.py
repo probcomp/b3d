@@ -19,6 +19,6 @@ def make_image_likelihood(intermediate_func):
         def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
             results = intermediate_func(observed_rgbd, rendered_rgbd, likelihood_args)
             return results["score"]
-        
+
     image_likelihood = ImageLikelihood()
     return image_likelihood

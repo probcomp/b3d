@@ -232,7 +232,7 @@ void rasterizeInitGLContext(NVDR_CTX_ARGS, RasterizeGLState& s, int cudaDeviceId
                     layout(location = 1) uniform float in_dummy;
                 )
                 void main()
-                {   
+                {
                     out_raster = vec4(var_uvzw.x, var_uvzw.y, var_uvzw.z / var_uvzw.w, world_frame_vertex_out.z);
                     out_db = ivec4(seg_id, gl_PrimitiveID + 1, 0.0, 0.0);
                     IF_ZMODIFY(gl_FragDepth = gl_FragCoord.z + in_dummy;)
@@ -607,7 +607,7 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, fl
                 cmd.baseInstance  = first;
                 cmd.instanceCount = 1;
             }
-            
+
             NVDR_CHECK_CUDA_ERROR(cudaGraphicsMapResources(1, &s.cudaPoseTexture, stream));
             NVDR_CHECK_CUDA_ERROR(cudaGraphicsSubResourceGetMappedArray(&pose_array, s.cudaPoseTexture, 0, 0));
             NVDR_CHECK_CUDA_ERROR(cudaMemcpyToArrayAsync(
@@ -642,7 +642,7 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, fl
         p.extent.depth = poses_on_this_iter;
         p.kind = cudaMemcpyDeviceToDevice;
         NVDR_CHECK_CUDA_ERROR(cudaMemcpy3DAsync(&p, stream));
-    
+
         i = 1;
         NVDR_CHECK_CUDA_ERROR(cudaGraphicsSubResourceGetMappedArray(&array, s.cudaColorBuffer[i], 0, 0));
         NVDR_CHECK_CUDA_ERROR(cudaArrayGetInfo(&arrayDesc, &arrayExt, NULL, array));
@@ -659,7 +659,7 @@ void rasterizeRender(NVDR_CTX_ARGS, RasterizeGLState& s, cudaStream_t stream, fl
         p.extent.height = height;
         p.extent.depth = poses_on_this_iter;
         p.kind = cudaMemcpyDeviceToDevice;
-        NVDR_CHECK_CUDA_ERROR(cudaMemcpy3DAsync(&p, stream));    
+        NVDR_CHECK_CUDA_ERROR(cudaMemcpy3DAsync(&p, stream));
         NVDR_CHECK_CUDA_ERROR(cudaGraphicsUnmapResources(num_outputs, s.cudaColorBuffer, stream));
 
     }

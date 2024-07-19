@@ -99,9 +99,9 @@ def get_pixel_color(ij, triangle_intersected_padded, particle_centers, particle_
     # rr.log("influence", rr.DepthImage(influence))
 
     particle_colors_in_window = particle_colors[particle_indices_in_window]
-    particle_colors_in_window_masked = particle_colors_in_window 
+    particle_colors_in_window_masked = particle_colors_in_window
     # rr.log("particle_colors_in_window_masked", rr.Image(particle_colors_in_window_masked))
-    
+
     color_image = jnp.sum(particle_colors_in_window_masked * influence[...,None], axis=[0,1]) / (influence.sum() + 1e-10)
     depth_image = jnp.sum(particle_depth_in_window * influence, axis=[0,1]) / (influence.sum() + 1e-10)
 

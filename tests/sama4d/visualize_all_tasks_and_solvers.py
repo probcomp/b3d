@@ -23,7 +23,7 @@ for (groupname, pairs) in [
         rr.init(f"sama4d_TASK:{task.name}_SOLVER:{solver.name}")
         rr.connect("127.0.0.1:8812")
         metrics = task.run_solver_and_make_all_visualizations(solver)
-        
+
         print(f"----Metrics for solver {solver.name} on task {task.name}----")
         for key, value in metrics.items():
             print(f"\t{key}:\t {value}")

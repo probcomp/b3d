@@ -5,4 +5,3 @@ tar -vxzf $filename -C assets/shared_data_bucket/ycb_video_models/models
 rm $filename
 mv "assets/shared_data_bucket/ycb_video_models/models/$1/google_16k"/* "assets/shared_data_bucket/ycb_video_models/models/$1"
 rm -r "assets/shared_data_bucket/ycb_video_models/models/$1/google_16k/"
-

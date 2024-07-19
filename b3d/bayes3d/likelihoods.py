@@ -7,7 +7,7 @@ class PixelOutlier:
         observed_lab = b3d.colors.rgb_to_lab(observed_rgb)
         rendered_lab = b3d.colors.rgb_to_lab(rendered_rgb)
         error = (
-            jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) + 
+            jnp.linalg.norm(observed_lab[...,1:3] - rendered_lab[...,1:3], axis=-1) +
             jnp.abs(observed_lab[...,0] - rendered_lab[...,0])
         )
 
@@ -52,6 +52,6 @@ class PixelOutlier:
                 'undecided_score': undecided_score,
                 'outlier_score': outlier_score }
 
-    
+
 
 pixel_outlier_logpdfs = jax.vmap(PixelOutlier.logpdf, (None, None, 0, 0, None, None, None, None, None, None, None))

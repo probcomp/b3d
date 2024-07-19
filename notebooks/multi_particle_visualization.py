@@ -161,7 +161,7 @@ with open("poses.npy", "wb") as f:
               object_positions=compound_pose.pos,
               object_quaternions=compound_pose.quat
               )
-    
+
 with open("poses.npy", "rb") as f:
     data = np.load(f)
     object_positions = data["object_positions"]
@@ -177,7 +177,7 @@ rgbs, depths = renderer.render_attribute_many(
 
 xyzs = unproject_depth_vec(depths, intrinsics)
 
-# Set up generative model 
+# Set up generative model
 
 num_layers = 2048
 renderer = b3d.Renderer(width, height, fx, fy, cx, cy, near, far, num_layers)
@@ -302,7 +302,7 @@ for t in range(len(xyzs)):
     if t > num_frames_trail:
         rr.log(
             "strips",
-            rr.LineStrips3D(np.array(center_arr[:,t:t-num_frames_trail:-1,...]), colors=np.repeat(np.array([0,255,0])[None,...], num_points, axis=0), 
+            rr.LineStrips3D(np.array(center_arr[:,t:t-num_frames_trail:-1,...]), colors=np.repeat(np.array([0,255,0])[None,...], num_points, axis=0),
             radii= 0.0025*np.ones(num_points))
         )
 

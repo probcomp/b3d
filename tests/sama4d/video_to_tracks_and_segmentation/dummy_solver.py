@@ -14,8 +14,8 @@ class KeypointTrackingAndSegmentationDummySolver(Solver):
             "object_assignments": jnp.zeros(
                 task_spec["initial_keypoint_positions_2D"].shape[0], dtype=int
             )
-            
+
         }
-    
+
     def visualize_solver_state(self, task_spec):
         pass

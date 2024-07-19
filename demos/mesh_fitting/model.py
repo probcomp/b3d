@@ -16,7 +16,7 @@ class UniformDiscrete(genjax.ExactDensity, genjax.JAXGenerativeFunction):
         assert isinstance(low, int) or low.dtype == jnp.int32
         assert isinstance(high, int) or high.dtype == jnp.int32
         return jax.random.randint(key, self.shape, low, high)
-    
+
     def logpdf(self, value, low, high):
         assert isinstance(low, int) or low.dtype == jnp.int32
         assert isinstance(high, int) or high.dtype == jnp.int32
@@ -64,7 +64,7 @@ def model_factory(
         )(generate_frame)(camera_poses, vertices, faces, face_colors) @ "observed_rgbs"
 
         return (observed_rgbs, weights, attributes)
-    
+
     return model
 
 def rr_log_trace(

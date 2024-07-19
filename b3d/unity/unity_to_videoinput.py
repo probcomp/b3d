@@ -88,7 +88,7 @@ def convert_unity_to_segmented_video_input(
         object_positions=object_positions,
         object_quaternions=object_quaternions,
         object_catalog_ids=unity_data.object_catalog_ids,
-        # fps=unity_data.fps
+        fps=unity_data.fps
     )
 
 
@@ -142,7 +142,7 @@ def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoI
         object_positions=data.object_positions,
         object_quaternions=data.object_quaternions,
         object_catalog_ids=data.object_catalog_ids,
-        # fps=data.fps
+        fps=data.fps
     )
 
 
@@ -195,7 +195,7 @@ def process(zip_path: str, moveFile: bool = True, tags_str=None) -> None:
     # Convert unity data into segmented video input
     segmented_video_data = convert_unity_to_segmented_video_input(unity_data)
 
-    # Save teaser
+    # Save teaser video
     save_teaser(segmented_video_data, unity_data.file_info)
 
     # Save segmented_video_data

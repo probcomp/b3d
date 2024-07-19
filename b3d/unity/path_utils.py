@@ -29,17 +29,6 @@ def data_class_dir_map(data_class: str) -> str:
     
     return data_class_map[data_class]
 
-
-# def get_unity_dataclass(data_class: str) -> Path:
-    
-#     data_class_dir = data_class_dir_map(data_class)
-#     data_dir_path = get_unity() / data_class_dir
-
-#     if not os.path.exists(data_dir_path):
-#         os.makedirs(data_dir_path)
-#         print(f"Initialized empty directory for unity data at {data_dir_path}.")
-    # return data_dir_path
-
 def get_data_path(
         datafolder: str,
         scenefolder: str = None
@@ -96,14 +85,15 @@ def get_assets_path(
 
     return assets_dir_path
 
-def find_unity_data_folder_path(
+def get_unity_data_folder_path(
         data_name: str, 
         data_class: str= 'f', 
         scene_folder: str = None) -> Path:
     
-    data_class_dir = data_class_dir_map(data_class)
     unity_path = get_unity()
-    assets_dir_path = unity_path # / data_class_dir
+    assets_dir_path = unity_path 
+
+    data_class_dir = data_class_dir_map(data_class)
 
     # If scene_folder is specified, look only in that folder
     if scene_folder:
@@ -124,18 +114,18 @@ def find_unity_data_folder_path(
                             if folder.is_dir() and folder.name == data_class_dir:
                                 return folder
 
-    raise FileNotFoundError(f"Data name '{data_name}' not found in any scenefolder under data class '{data_class}'.")
+    raise FileNotFoundError(f"Data name '{data_name}' not found in any scenefolder under data class '{data_class_dir}'.")
 
-def find_unity_data_file_path(
+def get_unity_data_path(
         data_name: str, 
         data_class: str = 'f', 
         resolution: int = 200, 
         background: bool = True, 
-        scene_folder: str = None, 
-        light: bool = True) -> str:
+        light: bool = True, 
+        scene_folder: str = None) -> str:
     
     # Look for the data folder in shared_data_bucket' / 'input_data' / 'unity' / (data_class_folder / scene_folder)
-    folder_path = find_unity_data_folder_path(data_name, data_class, scene_folder)
+    folder_path = get_unity_data_folder_path(data_name, data_class, scene_folder)
 
     # Construct the file name based on the specified settings
     light_setting = 'lit' if (light == True) else 'unlit'

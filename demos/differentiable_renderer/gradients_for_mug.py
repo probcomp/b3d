@@ -21,12 +21,18 @@ from functools import partial
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
 
+
 def map_nested_fn(fn):
-  '''Recursively apply `fn` to the key-value pairs of a nested dict.'''
-  def map_fn(nested_dict):
-    return {k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
-            for k, v in nested_dict.items()}
-  return map_fn
+    """Recursively apply `fn` to the key-value pairs of a nested dict."""
+
+    def map_fn(nested_dict):
+        return {
+            k: (map_fn(v) if isinstance(v, dict) else fn(k, v))
+            for k, v in nested_dict.items()
+        }
+
+    return map_fn
+
 
 # Set up OpenGL renderer
 image_width = 200
@@ -72,7 +78,8 @@ depth = jax.image.resize(_depth, (image_height, image_width), "nearest")
 
 
 mesh_path = os.path.join(
-    b3d.get_root_path(), "assets/shared_data_bucket/ycb_video_models/models/025_mug/textured_simple.obj"
+    b3d.get_root_path(),
+    "assets/shared_data_bucket/ycb_video_models/models/025_mug/textured_simple.obj",
 )
 mesh = trimesh.load(mesh_path)
 object_library = b3d.MeshLibrary.make_empty_library()
@@ -96,25 +103,34 @@ pose = Pose.sample_gaussian_vmf_pose(
 )
 
 hyperparams = rendering.DEFAULT_HYPERPARAMS
+
+
 def render(params):
     image = rendering.render_to_average_rgbd(
         renderer,
-        b3d.Pose(params["position"], params["quaternion"]).apply(object_library.vertices),
+        b3d.Pose(params["position"], params["quaternion"]).apply(
+            object_library.vertices
+        ),
         object_library.faces,
         object_library.attributes,
-        background_attribute=jnp.array([0.0, 0.0, 0.0, 0])
+        background_attribute=jnp.array([0.0, 0.0, 0.0, 0]),
     )
     return image
+
 
 render_jit = jax.jit(render)
 
 gt_image = rgb
 
+
 def loss_func_rgbd(params, gt):
     image = render(params)
-    return jnp.mean(jnp.abs(image[...,:3] - gt[...,:3]))
+    return jnp.mean(jnp.abs(image[..., :3] - gt[..., :3]))
     #  + jnp.mean(jnp.abs(image[...,3] - gt[...,3]))
+
+
 loss_func_rgbd_grad = jax.jit(jax.value_and_grad(loss_func_rgbd, argnums=(0,)))
+
 
 @partial(jax.jit, static_argnums=(0,))
 def update_params(tx, params, gt_image, state):
@@ -123,14 +139,15 @@ def update_params(tx, params, gt_image, state):
     params = optax.apply_updates(params, updates)
     return params, state, loss
 
+
 label_fn = map_nested_fn(lambda k, _: k)
 
 tx = optax.multi_transform(
     {
-    'position': optax.adam(1e-2),
-    'quaternion': optax.adam(1e-2),
+        "position": optax.adam(1e-2),
+        "quaternion": optax.adam(1e-2),
     },
-    label_fn
+    label_fn,
 )
 
 
@@ -139,7 +156,7 @@ params = {
     "quaternion": pose.quaternion,
 }
 
-rr.log("image", rr.Image(gt_image[...,:3]), timeless=True)
+rr.log("image", rr.Image(gt_image[..., :3]), timeless=True)
 rr.log("cloud", rr.Points3D(gt_pose.apply(object_library.vertices)), timeless=True)
 rr.log("loss2", rr.SeriesLine(name="loss2"), timeless=True)
 
@@ -152,8 +169,15 @@ for t in pbar:
     pbar.set_description(f"Loss: {loss}")
     rr.set_time_sequence("frame", t)
     image = render_jit(params)
-    rr.log("image/reconstruction", rr.Image(image[...,:3]))
-    rr.log("cloud/reconstruction", rr.Points3D(b3d.Pose(params["position"], params["quaternion"]).apply(object_library.vertices)))
+    rr.log("image/reconstruction", rr.Image(image[..., :3]))
+    rr.log(
+        "cloud/reconstruction",
+        rr.Points3D(
+            b3d.Pose(params["position"], params["quaternion"]).apply(
+                object_library.vertices
+            )
+        ),
+    )
 
     rr.log(
         "loss2",

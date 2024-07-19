@@ -151,16 +151,15 @@ class PoseTests(unittest.TestCase):
         keys = keysplit(self.key, 2)
         pos = jax.random.uniform(keys[0], (3,))
         target = jax.random.uniform(keys[1], (3,))
-        pose   = camera_from_position_and_target(pos, target)
-        self.assertTrue( jnp.allclose(pose.pos, pose.position) )
-        self.assertTrue( jnp.allclose(pose.quat, pose.xyzw) )
-        self.assertTrue( jnp.allclose(pose.quaternion, pose.xyzw) )
+        pose = camera_from_position_and_target(pos, target)
+        self.assertTrue(jnp.allclose(pose.pos, pose.position))
+        self.assertTrue(jnp.allclose(pose.quat, pose.xyzw))
+        self.assertTrue(jnp.allclose(pose.quaternion, pose.xyzw))
 
     def test_loop_termination(self):
         keys = keysplit(self.key, 2)
         poses = Pose(
-            jax.random.uniform(keys[0], (10,3)),
-            jax.random.uniform(keys[1], (10,4))
+            jax.random.uniform(keys[0], (10, 3)), jax.random.uniform(keys[1], (10, 4))
         )
 
         def sum(poses):
@@ -168,11 +167,15 @@ class PoseTests(unittest.TestCase):
             for pose in poses:
                 sum = sum.at[0:3].add(pose.pos[0:3])
             return sum
+
         sum_jit = jax.jit(sum)
 
-        self.assertTrue( jnp.allclose(jnp.sum(poses.pos, axis=0), sum_jit(poses)))
+        self.assertTrue(jnp.allclose(jnp.sum(poses.pos, axis=0), sum_jit(poses)))
 
     def test_multiindexing(self):
         identity_pose = Pose.identity()
-        identity_pose_multiple_dimensions = identity_pose[None,None,...]
-        assert identity_pose_multiple_dimensions.shape == (1,1,), identity_pose_multiple_dimensions.shape
+        identity_pose_multiple_dimensions = identity_pose[None, None, ...]
+        assert identity_pose_multiple_dimensions.shape == (
+            1,
+            1,
+        ), identity_pose_multiple_dimensions.shape

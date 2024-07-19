@@ -23,13 +23,17 @@ enumerate_and_select_best_move = jax.jit(
     _enumerate_and_select_best_move, static_argnames=["addressses"]
 )
 
+
 def _gvmf_and_select_best_move(trace, key, variance, concentration, address, number):
     test_poses = Pose.concatenate_poses(
         [
             jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
-                jax.random.split(key, number), trace.get_choices()[address], variance, concentration
+                jax.random.split(key, number),
+                trace.get_choices()[address],
+                variance,
+                concentration,
             ),
-            trace.get_choices()[address][None,...]
+            trace.get_choices()[address][None, ...],
         ]
     )
     test_poses_batches = test_poses.split(10)
@@ -51,8 +55,9 @@ def _gvmf_and_select_best_move(trace, key, variance, concentration, address, num
     return trace, key
 
 
-gvmf_and_select_best_move = jax.jit(_gvmf_and_select_best_move, static_argnames=["address", "number"])
-
+gvmf_and_select_best_move = jax.jit(
+    _gvmf_and_select_best_move, static_argnames=["address", "number"]
+)
 
 
 def _gvmf_and_sample(trace, key, variance, concentration, address, number):
@@ -60,16 +65,17 @@ def _gvmf_and_sample(trace, key, variance, concentration, address, number):
     test_poses = Pose.concatenate_poses(
         [
             jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
-                jax.random.split(key, number), trace.get_choices()[addr], variance, concentration
+                jax.random.split(key, number),
+                trace.get_choices()[addr],
+                variance,
+                concentration,
             )
         ]
     )
     test_poses_batches = test_poses.split(10)
     scores = jnp.concatenate(
         [
-            b3d.enumerate_choices_get_scores(
-                trace, key, Pytree.const((addr,)), poses
-            )
+            b3d.enumerate_choices_get_scores(trace, key, Pytree.const((addr,)), poses)
             for poses in test_poses_batches
         ]
     )

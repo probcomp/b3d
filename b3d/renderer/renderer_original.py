@@ -14,6 +14,7 @@ import b3d
 import b3d.renderer.nvdiffrast_jax.nvdiffrast.jax as dr
 import rerun as rr
 
+
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
     view = jnp.eye(4)
@@ -42,48 +43,60 @@ def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     return orth @ persp @ view
 
 
-
 @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
 def rasterize_prim(self, pos, tri):
-    output, = _rasterize_fwd_custom_call(
+    (output,) = _rasterize_fwd_custom_call(
         self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
     )
     return output
 
+
 def rasterize_fwd(self, pos, tri):
-    output, = _rasterize_fwd_custom_call(
+    (output,) = _rasterize_fwd_custom_call(
         self, b3d.pad_with_1(pos) @ self.projection_matrix_t, tri, self.resolution
     )
     return output, (pos, tri)
 
+
 def rasterize_bwd(self, saved_tensors, diffs):
     pos, tri = saved_tensors
     return jnp.zeros_like(pos), jnp.zeros_like(tri)
+
 
 rasterize_prim.defvjp(rasterize_fwd, rasterize_bwd)
 
 
 @functools.partial(jax.custom_vjp, nondiff_argnums=(0,))
 def interpolate_prim(self, attr, rast, faces):
-    output, = _interpolate_fwd_custom_call(
-        self, attr, rast, faces
-    )
+    (output,) = _interpolate_fwd_custom_call(self, attr, rast, faces)
     return output
 
+
 def interpolate_fwd(self, attr, rast, faces):
-    output, = _interpolate_fwd_custom_call(
-        self, attr, rast, faces
-    )
+    (output,) = _interpolate_fwd_custom_call(self, attr, rast, faces)
     return output, (attr, rast, faces)
+
 
 def interpolate_bwd(self, saved_tensors, diffs):
     attr, rast, faces = saved_tensors
     return jnp.zeros_like(pos), jnp.zeros_like(tri)
 
+
 interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)
 
+
 class RendererOriginal(object):
-    def __init__(self, width=200, height=200, fx=150.0, fy=150.0, cx=100.0, cy=100.0, near=0.001, far=10.0):
+    def __init__(
+        self,
+        width=200,
+        height=200,
+        fx=150.0,
+        fy=150.0,
+        cx=100.0,
+        cy=100.0,
+        near=0.001,
+        far=10.0,
+    ):
         """
         Triangle mesh renderer.
 
@@ -125,37 +138,31 @@ class RendererOriginal(object):
         return rasterize_prim(self, pos, tri)
 
     def rasterize(self, pos, tri):
-        return self.rasterize_many(pos[None,...], tri)[0]
+        return self.rasterize_many(pos[None, ...], tri)[0]
 
     def rasterize_original(self, pos, tri):
-        return _rasterize_fwd_custom_call(
-            self, pos, tri, self.resolution
-        )
+        return _rasterize_fwd_custom_call(self, pos, tri, self.resolution)
 
     def interpolate_many(self, attr, rast, faces):
         return interpolate_prim(self, attr, rast, faces)
 
     def interpolate(self, attr, rast, faces):
-        return self.interpolate_many(attr[None,...], rast[None,...], faces)[0]
+        return self.interpolate_many(attr[None, ...], rast[None, ...], faces)[0]
 
     def render_many(self, pos, tri, attr):
         rast = self.rasterize_many(pos, tri)
         return self.interpolate_many(attr, rast, tri)
 
     def render(self, pos, tri, attr):
-        return self.render_many(pos[None,...], tri, attr[None,...])[0]
+        return self.render_many(pos[None, ...], tri, attr[None, ...])[0]
 
     def render_rgbd_many(self, pos, tri, attr):
         return self.render_many(
-            pos, tri,
-            jnp.concatenate([attr, pos[...,-1:]],axis=-1)
+            pos, tri, jnp.concatenate([attr, pos[..., -1:]], axis=-1)
         )
 
     def render_rgbd(self, pos, tri, attr):
-        return self.render_rgbd_many(
-            pos[None,...], tri,
-            attr[None,...]
-        )[0]
+        return self.render_rgbd_many(pos[None, ...], tri, attr[None, ...])[0]
 
     def render_rgbd_from_mesh(self, mesh):
         return self.render_rgbd(mesh.vertices, mesh.faces, mesh.vertex_attributes)
@@ -163,6 +170,7 @@ class RendererOriginal(object):
     @staticmethod
     def rr_log_rgbd(channel, rgbd):
         b3d.rr_log_rgbd(channel, rgbd)
+
 
 # XLA array layout in memory
 def default_layouts(*shapes):
@@ -176,17 +184,17 @@ def _register_custom_calls():
         xla_client.register_custom_call_target(_name, _value, platform="gpu")
 
 
-
-
 # ================================================================================================
 # Rasterize
 # ================================================================================================
 
 #### FORWARD ####
 
+
 # @functools.partial(jax.jit, static_argnums=(0,))
 def _rasterize_fwd_custom_call(r: "Renderer", pos, tri, resolution):
     return _build_rasterize_fwd_primitive(r).bind(pos, tri, resolution)
+
 
 @functools.lru_cache(maxsize=None)
 def _build_rasterize_fwd_primitive(r: "Renderer"):
@@ -203,11 +211,7 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
 
         dtype = dtypes.canonicalize_dtype(pos.dtype)
 
-        return [
-            ShapedArray(
-                (num_images, r.height, r.width, 4), dtype
-            )
-        ]
+        return [ShapedArray((num_images, r.height, r.width, 4), dtype)]
 
     # Provide an MLIR "lowering" of the rasterize primitive.
     def _rasterize_fwd_lowering(ctx, pos, tri, resolution):
@@ -270,18 +274,15 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
             ),
         ).results
 
-
     def _render_batch(args, axes):
         pos, tri, resolution = args
 
         original_shape = pos.shape
         pos_reshaped = pos.reshape(-1, *pos.shape[-2:])
 
-        rendered, = _rasterize_fwd_custom_call(
-            r, pos_reshaped, tri, resolution
-        )
+        (rendered,) = _rasterize_fwd_custom_call(r, pos_reshaped, tri, resolution)
 
-        rendered_reshaped = rendered.reshape(*pos.shape[:-2],*rendered.shape[-3:])
+        rendered_reshaped = rendered.reshape(*pos.shape[:-2], *rendered.shape[-3:])
         out_axes = (0,)
         return (rendered_reshaped,), out_axes
 
@@ -313,6 +314,7 @@ def _interpolate_fwd_custom_call(
         rast,
         faces,
     )
+
 
 # @functools.lru_cache(maxsize=None)
 def _build_interpolate_fwd_primitive(r: "Renderer"):
@@ -358,7 +360,7 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
             [num_images, num_vertices, num_attributes],
             [num_images, height, width],
             [num_triangles],
-            0
+            0,
         )
 
         op_name = "jax_interpolate_fwd_original"
@@ -392,11 +394,13 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
         attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
         rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
 
-        rendered, = _interpolate_fwd_custom_call(
+        (rendered,) = _interpolate_fwd_custom_call(
             r, attributes_reshaped, rast_reshaped, faces
         )
 
-        rendered_reshaped = rendered.reshape(*attributes.shape[:-2],*rendered.shape[-3:])
+        rendered_reshaped = rendered.reshape(
+            *attributes.shape[:-2], *rendered.shape[-3:]
+        )
         out_axes = (0,)
         return (rendered_reshaped,), out_axes
 

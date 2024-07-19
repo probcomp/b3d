@@ -6,12 +6,15 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 from .model import model_factory, get_likelihood, rr_log_trace
 
-RENDERER_HYPERPARAMS = b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
+RENDERER_HYPERPARAMS = (
+    b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(
+        3, 1e-5, 1e-2, -1
+    )
+)
+
 
 @genjax.gen
-def gt_informed_triangle_proposal(
-    gt_triangle, mindepth, maxdepth, fx, fy, cx, cy
-):
+def gt_informed_triangle_proposal(gt_triangle, mindepth, maxdepth, fx, fy, cx, cy):
     """
     Given a triangle `gt_triangle = [A, B, C]`, where A, B, C are 3-vectors
     in the camera frame, propose a new triangle `new_triangle = [D, E, F]` in
@@ -36,6 +39,7 @@ def gt_informed_triangle_proposal(
     new_triangle = jnp.stack([D, E, F], axis=0)
     return new_triangle
 
+
 def importance_sample_with_depth_in_partition(
     key, task_input, model, mindepth, maxdepth
 ):
@@ -59,18 +63,23 @@ def importance_sample_with_depth_in_partition(
     T = task_input["camera_path"].shape[0]
     trace, log_p_score = model.importance(
         key,
-        C.d({
-            "triangle_vertices": new_triangle_W,
-            "observed_rgbs": genjax.ChoiceMap.idx(jnp.arange(T), C.n().at["observed_rgb"].set(task_input["video"]))
-        }),
+        C.d(
+            {
+                "triangle_vertices": new_triangle_W,
+                "observed_rgbs": genjax.ChoiceMap.idx(
+                    jnp.arange(T), C.n().at["observed_rgb"].set(task_input["video"])
+                ),
+            }
+        ),
         (
             task_input["background_mesh"],
             task_input["triangle"]["color"],
-            task_input["camera_path"]
-        )
+            task_input["camera_path"],
+        ),
     )
 
     return trace, log_p_score - log_q_score
+
 
 class ImportanceSolver(Solver):
     def solve(self, task_input):
@@ -84,11 +93,18 @@ class ImportanceSolver(Solver):
 
         @jax.jit
         def get_tr_and_score(k, s, e):
-            tr, score = importance_sample_with_depth_in_partition(k, task_input, model, s, e)
+            tr, score = importance_sample_with_depth_in_partition(
+                k, task_input, model, s, e
+            )
             return (tr, score)
 
         trs_and_scores = [
-            get_tr_and_score(k, s, e) for (k, s, e) in zip(jax.random.split(key, len(partition_starts)), partition_starts, partition_ends)
+            get_tr_and_score(k, s, e)
+            for (k, s, e) in zip(
+                jax.random.split(key, len(partition_starts)),
+                partition_starts,
+                partition_ends,
+            )
         ]
         trs = [ts[0] for ts in trs_and_scores]
         joint_scores = jnp.array([ts[1] for ts in trs_and_scores])

@@ -33,12 +33,23 @@ camera_pose = b3d.Pose.from_position_and_target(
 
 NUM_IMAGES = 100
 w = 0.02
-cps = jax.random.uniform(jax.random.PRNGKey(0), (NUM_IMAGES, 3), minval=jnp.array([-w, -w, -jnp.pi]), maxval=jnp.array([w, w, jnp.pi]))
+cps = jax.random.uniform(
+    jax.random.PRNGKey(0),
+    (NUM_IMAGES, 3),
+    minval=jnp.array([-w, -w, -jnp.pi]),
+    maxval=jnp.array([w, w, jnp.pi]),
+)
 object_poses = jax.vmap(b3d.contact_parameters_to_pose)(cps)
 
 object_poses_in_cam_frame = camera_pose.inv() @ object_poses
 
-rgb, depth = renderer.render_attribute_many(object_poses_in_cam_frame[:,None,...], object_library.vertices, object_library.faces, jnp.array([[0, len(object_library.faces)]]), object_library.attributes)
+rgb, depth = renderer.render_attribute_many(
+    object_poses_in_cam_frame[:, None, ...],
+    object_library.vertices,
+    object_library.faces,
+    jnp.array([[0, len(object_library.faces)]]),
+    object_library.attributes,
+)
 rgb = jnp.clip(rgb, 0.0, 1.0)
 
 for i in range(NUM_IMAGES):
@@ -47,13 +58,19 @@ for i in range(NUM_IMAGES):
 
 video_input = b3d.io.VideoInput(
     rgb=(rgb * 255.0).astype(jnp.uint8),
-    xyz=jax.vmap(b3d.xyz_from_depth,in_axes=(0,None, None, None, None))(depth, fx, fy, cx, cy),
+    xyz=jax.vmap(b3d.xyz_from_depth, in_axes=(0, None, None, None, None))(
+        depth, fx, fy, cx, cy
+    ),
     camera_positions=jnp.zeros((NUM_IMAGES, 3)),
-    camera_quaternions=jnp.tile(Pose.identity_quaternion[None,...], (NUM_IMAGES, 1)),
+    camera_quaternions=jnp.tile(Pose.identity_quaternion[None, ...], (NUM_IMAGES, 1)),
     camera_intrinsics_rgb=jnp.array([width, height, fx, fy, cx, cy, near, far]),
     camera_intrinsics_depth=jnp.array([width, height, fx, fy, cx, cy, near, far]),
 )
 video_input.save(
-    b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input",
+    b3d.get_root_path()
+    / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input",
 )
-video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
+video_input = b3d.io.VideoInput.load(
+    b3d.get_root_path()
+    / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz"
+)

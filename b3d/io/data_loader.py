@@ -42,6 +42,7 @@ def remove_zero_pad(img_id):
         if ch != "0":
             return img_id[i:]
 
+
 def get_ycbv_num_test_images(ycb_dir, scene_id):
     scene_id = str(scene_id).rjust(6, "0")
 
@@ -52,7 +53,12 @@ def get_ycbv_num_test_images(ycb_dir, scene_id):
 
     scene_rgb_images_dir = os.path.join(scene_data_dir, "rgb")
     sorted(glob.glob(scene_rgb_images_dir + "/*.png"))[-1]
-    return int(os.path.basename(sorted(glob.glob(scene_rgb_images_dir + "/*.png"))[-1]).split(".")[0])
+    return int(
+        os.path.basename(sorted(glob.glob(scene_rgb_images_dir + "/*.png"))[-1]).split(
+            "."
+        )[0]
+    )
+
 
 def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
     scene_id = str(scene_id).rjust(6, "0")
@@ -89,17 +95,19 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
         )
         cam_pose = jnp.linalg.inv(cam_pose_w2c)
-        cam_pose = b3d.Pose.from_matrix(cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0))
+        cam_pose = b3d.Pose.from_matrix(
+            cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0)
+        )
         data["camera_pose"] = cam_pose
 
         cam_K = np.array(cam_K)
-        fx,fy,cx,cy = (
+        fx, fy, cx, cy = (
             cam_K[0, 0],
             cam_K[1, 1],
             cam_K[0, 2],
             cam_K[1, 2],
         )
-        data["camera_intrinsics"] = jnp.array([fx,fy,cx,cy])
+        data["camera_intrinsics"] = jnp.array([fx, fy, cx, cy])
 
         cam_depth_scale = image_cam_data["depth_scale"]
 
@@ -107,10 +115,13 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
         rgb = jnp.array(Image.open(os.path.join(scene_rgb_images_dir, f"{img_id}.png")))
 
         # get depth image
-        depth = jnp.array(Image.open(os.path.join(scene_depth_images_dir, f"{img_id}.png")))
-        rgbd = jnp.concatenate([rgb / 255.0,(depth * cam_depth_scale / 1000.0)[...,None]],axis=-1)
+        depth = jnp.array(
+            Image.open(os.path.join(scene_depth_images_dir, f"{img_id}.png"))
+        )
+        rgbd = jnp.concatenate(
+            [rgb / 255.0, (depth * cam_depth_scale / 1000.0)[..., None]], axis=-1
+        )
         data["rgbd"] = rgbd
-
 
         # get GT object model ID+poses
         objects_gt_data = scene_imgs_gt_data[remove_zero_pad(img_id)]
@@ -125,32 +136,34 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             model_pose = model_pose.at[:3, 3].set(model_pose[:3, 3] * 1.0 / 1000.0)
             gt_poses.append(model_pose)
 
-
             obj_id = d["obj_id"] - 1
-
 
             gt_ids.append(obj_id)
 
         data["object_types"] = jnp.array(gt_ids)
-        data["object_poses"] = cam_pose @ b3d.Pose.stack_poses([b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)])
+        data["object_poses"] = cam_pose @ b3d.Pose.stack_poses(
+            [b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)]
+        )
 
         all_data.append(data)
     return all_data
 
+
 def get_ycb_mesh(ycb_dir, id):
-    return b3d.Mesh.from_obj_file(os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')).scale(0.001)
+    return b3d.Mesh.from_obj_file(
+        os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+    ).scale(0.001)
+
 
 def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
-
     id_strs = []
 
     video_dir = os.path.join(ycbineaot_dir, f"{video_name}")
 
     color_files = sorted(glob.glob(f"{video_dir}/rgb/*.png"))
     K = np.loadtxt(f"{video_dir}/cam_K.txt").reshape(3, 3)
-    fx,fy,cx,cy = K[0,0], K[1,1], K[0,2], K[1,2]
+    fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
     gt_pose_files = sorted(glob.glob(f"{video_dir}/annotated_poses/*"))
-
 
     all_data = []
     for image_index in images_indices:
@@ -165,7 +178,9 @@ def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
             "sugar_box_yalehand0": "004_sugar_box",
             "tomato_soup_can_yalehand0": "005_tomato_soup_can",
         }
-        object_id = b3d.io.YCB_MODEL_NAMES.index(videoname_to_object[os.path.basename(video_dir)])
+        object_id = b3d.io.YCB_MODEL_NAMES.index(
+            videoname_to_object[os.path.basename(video_dir)]
+        )
         rgb = imageio.imread(color_files[image_index])[..., :3]
         depth = cv2.imread(color_files[image_index].replace("rgb", "depth"), -1) / 1e3
         depth[(depth < 0.1)] = 0
@@ -173,8 +188,8 @@ def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
         gt_pose = Pose.from_matrix(np.loadtxt(gt_pose_files[image_index]).reshape(4, 4))
         data = {}
         data["rgbd"] = rgbd
-        data["camera_intrinsics"]  = jnp.array([fx, fy, cx, cy])
-        data["object_poses"] = gt_pose[None,...]
+        data["camera_intrinsics"] = jnp.array([fx, fy, cx, cy])
+        data["object_poses"] = gt_pose[None, ...]
         data["object_types"] = jnp.array([object_id])
         data["camera_pose"] = Pose.identity()
 

@@ -10,14 +10,14 @@ import b3d
 import trimesh
 
 
-height=100
-width=100
-fx=200.0
-fy=200.0
-cx=50.0
-cy=50.0
-near=0.001
-far=6.0
+height = 100
+width = 100
+fx = 200.0
+fy = 200.0
+cx = 50.0
+cy = 50.0
+near = 0.001
+far = 6.0
 
 num_frames = 100
 
@@ -34,16 +34,24 @@ print("Number of frames: ", poses.shape[0])
 
 
 import os
+
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
 )
 object_library = b3d.MeshLibrary.make_empty_library()
 object_library.add_trimesh(trimesh.load(mesh_path))
 
-observed_images,_ = renderer.render_attribute_many(poses[:,None], object_library.vertices, object_library.faces, jnp.array([[0, len(object_library.faces)]]), object_library.attributes)
+observed_images, _ = renderer.render_attribute_many(
+    poses[:, None],
+    object_library.vertices,
+    object_library.faces,
+    jnp.array([[0, len(object_library.faces)]]),
+    object_library.attributes,
+)
 print("observed_images.shape", observed_images.shape)
 
 from b3d import Pose
+
 # Defines the enumeration schedule.
 key = jax.random.PRNGKey(0)
 # Gridding on translation only.
@@ -67,7 +75,7 @@ translation_deltas = Pose.concatenate_poses(
 rotation_deltas = Pose.concatenate_poses(
     [
         jax.vmap(Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
-            jax.random.split(jax.random.PRNGKey(0), N*N*N),
+            jax.random.split(jax.random.PRNGKey(0), N * N * N),
             Pose.identity(),
             0.00001,
             1000.0,
@@ -77,22 +85,33 @@ rotation_deltas = Pose.concatenate_poses(
 )
 
 
-likelihood = jax.vmap(
-    lambda x,y: jnp.mean(jnp.abs(x-y)), in_axes=(None, 0)
-)
+likelihood = jax.vmap(lambda x, y: jnp.mean(jnp.abs(x - y)), in_axes=(None, 0))
 
 
 def update_pose_estimate(pose_estimate, gt_image):
     proposals = pose_estimate @ translation_deltas
-    rendered_images,_ = renderer.render_attribute_many(proposals[:,None], object_library.vertices, object_library.faces, jnp.array([[0, len(object_library.faces)]]), object_library.attributes)
+    rendered_images, _ = renderer.render_attribute_many(
+        proposals[:, None],
+        object_library.vertices,
+        object_library.faces,
+        jnp.array([[0, len(object_library.faces)]]),
+        object_library.attributes,
+    )
     weights_new = likelihood(gt_image, rendered_images)
     pose_estimate = proposals[jnp.argmax(weights_new)]
 
     proposals = pose_estimate @ rotation_deltas
-    rendered_images,_ = renderer.render_attribute_many(proposals[:,None], object_library.vertices, object_library.faces, jnp.array([[0, len(object_library.faces)]]), object_library.attributes)
+    rendered_images, _ = renderer.render_attribute_many(
+        proposals[:, None],
+        object_library.vertices,
+        object_library.faces,
+        jnp.array([[0, len(object_library.faces)]]),
+        object_library.attributes,
+    )
     weights_new = likelihood(gt_image, rendered_images)
     pose_estimate = proposals[jnp.argmax(weights_new)]
     return pose_estimate, pose_estimate
+
 
 pose_estimate = poses[0]
 inference_program = jax.jit(lambda p, x: jax.lax.scan(update_pose_estimate, p, x)[1])

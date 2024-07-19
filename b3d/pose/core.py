@@ -52,7 +52,7 @@ def sample_uniform_pose(key, low, high):
 
 def logpdf_uniform_pose(pose, low, high):
     position = pose.pos
-    valid = ((low <= position) & (position <= high))
+    valid = (low <= position) & (position <= high)
     position_score = jnp.log((valid * 1.0) * (jnp.ones_like(position) / (high - low)))
     return position_score.sum() + jnp.pi**2
 
@@ -73,20 +73,23 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     """
     _, keys = keysplit(key, 1, 2)
     var = std**2
-    x = jax.random.multivariate_normal(
-            keys[0], mean_pose.pos, var * jnp.eye(3))
-    q = tfp.distributions.VonMisesFisher(
-            mean_pose.quat, concentration).sample(seed=keys[1])
+    x = jax.random.multivariate_normal(keys[0], mean_pose.pos, var * jnp.eye(3))
+    q = tfp.distributions.VonMisesFisher(mean_pose.quat, concentration).sample(
+        seed=keys[1]
+    )
 
     return Pose(x, q)
 
+
 def logpdf_gaussian_vmf_pose(pose, mean_pose, std, concentration):
     translation_score = tfp.distributions.MultivariateNormalDiag(
-        mean_pose.pos, jnp.ones(3) * std).log_prob(pose.pos)
+        mean_pose.pos, jnp.ones(3) * std
+    ).log_prob(pose.pos)
     quaternion_score = tfp.distributions.VonMisesFisher(
         mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
     ).log_prob(pose.quat)
     return translation_score + quaternion_score
+
 
 def camera_from_position_and_target(
     position, target=jnp.array([0.0, 0.0, 0.0]), up=jnp.array([0.0, 0.0, 1.0])
@@ -339,7 +342,10 @@ class Pose:
     @staticmethod
     def from_pos(position_vec):
         """Create a pose from a vector. With the identity rotation."""
-        return Pose(position_vec, jnp.tile(jnp.array([0.0, 0.0, 0.0, 1.0]), (*position_vec.shape[:-1],1)))
+        return Pose(
+            position_vec,
+            jnp.tile(jnp.array([0.0, 0.0, 0.0, 1.0]), (*position_vec.shape[:-1], 1)),
+        )
 
     from_translation = from_pos
 

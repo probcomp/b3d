@@ -26,5 +26,7 @@ def test_renderer_full(renderer):
         jnp.array([[0, len(object_library.faces)]]),
         object_library.attributes,
     )
-    b3d.get_rgb_pil_image(rgb).save(b3d.get_root_path() / "assets/test_results/test_ycb.png")
+    b3d.get_rgb_pil_image(rgb).save(
+        b3d.get_root_path() / "assets/test_results/test_ycb.png"
+    )
     assert rgb.sum() > 0

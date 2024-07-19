@@ -24,15 +24,14 @@ def add_argparse(f):
     parser = argparse.ArgumentParser(description=f.__doc__)
     sig = inspect.signature(f)
 
-    for k,v in sig.parameters.items():
+    for k, v in sig.parameters.items():
         # FYI: you get the type annotation
         # via `sig.parameters[k].annotation`
 
         if v.default is inspect.Parameter.empty:
             parser.add_argument(k)
         else:
-            parser.add_argument(f"-{k}", f"--{k}",
-                                default=v.default)
+            parser.add_argument(f"-{k}", f"--{k}", default=v.default)
 
     def g():
         args = parser.parse_args()
@@ -44,8 +43,10 @@ def add_argparse(f):
 def path_stem(path):
     """Removes ALL suffixes from a path."""
     name = Path(path).name
-    for _ in path.suffixes: name = name.rsplit('.')[0]
+    for _ in path.suffixes:
+        name = name.rsplit(".")[0]
     return name
+
 
 _video_summary = """
 File: \033[96m{info.fname.name}\033[0m
@@ -54,17 +55,26 @@ File: \033[96m{info.fname.name}\033[0m
 - w: \033[1m{info.width}\033[0m
 - fps: \033[1m{info.fps}\033[0m
 """
+
+
 class VideoInfo(Bunch):
-    def __str__(self): return _video_summary.format(info=self)
-    def __repr__(self): return self.__str__()
+    def __str__(self):
+        return _video_summary.format(info=self)
+
+    def __repr__(self):
+        return self.__str__()
 
     @property
-    def T(self): return self.timesteps
-    @property
-    def w(self): return self.width
-    @property
-    def h(self): return self.height
+    def T(self):
+        return self.timesteps
 
+    @property
+    def w(self):
+        return self.width
+
+    @property
+    def h(self):
+        return self.height
 
 
 def load_video_info(file_path):
@@ -80,7 +90,6 @@ def load_video_info(file_path):
         print("Error: Could not open video file.")
         return None
 
-
     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -92,7 +101,9 @@ def load_video_info(file_path):
     return VideoInfo(timesteps=T, width=w, height=h, fps=fps, fname=Path(file_path))
 
 
-def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color_channel=False):
+def load_video_to_numpy(
+    file_path, step=1, times=None, downsize=1, reverse_color_channel=False
+):
     """
     Read video file and convert to numpy array.
 
@@ -115,13 +126,13 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
         print("Error: Could not open video file.")
         return None
 
-
     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(cap.get(cv2.CAP_PROP_FPS))
 
-    if times is None: times = np.arange(T, step=step)
+    if times is None:
+        times = np.arange(T, step=step)
     t = -1
     frames = []
     while True:
@@ -130,7 +141,8 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
         ret, frame = cap.read()
 
         # Check if the frame was read successfully
-        if not ret: break
+        if not ret:
+            break
 
         t += 1
         if t not in times:
@@ -139,9 +151,12 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
         # Resize if necessary, and
         # add it to the list
         if downsize > 1:
-            frame = cv2.resize(frame, dsize=(w//downsize, h//downsize), interpolation=cv2.INTER_LINEAR)
+            frame = cv2.resize(
+                frame,
+                dsize=(w // downsize, h // downsize),
+                interpolation=cv2.INTER_LINEAR,
+            )
         frames.append(frame)
-
 
     # Release the video capture object
     cap.release()
@@ -155,33 +170,38 @@ def load_video_to_numpy(file_path, step=1, times=None, downsize=1, reverse_color
 
 
 def video_input_from_mp4(
-        video_fname,
-        intrinsics_fname,
-        step=1,
-        times=None,
-        downsize=1,
-        reverse_color_channel=False):
-    if times is None: times = np.arange(T, step=step)
+    video_fname,
+    intrinsics_fname,
+    step=1,
+    times=None,
+    downsize=1,
+    reverse_color_channel=False,
+):
+    if times is None:
+        times = np.arange(T, step=step)
 
     info = load_video_info(video_fname)
     intr = np.load(intrinsics_fname, allow_pickle=True)
-    vid  = load_video_to_numpy(video_fname,
-            times=times,
-            downsize=downsize,
-            reverse_color_channel=reverse_color_channel)
+    vid = load_video_to_numpy(
+        video_fname,
+        times=times,
+        downsize=downsize,
+        reverse_color_channel=reverse_color_channel,
+    )
 
-    fps = info.fps/(times[1] - times[0])
+    fps = info.fps / (times[1] - times[0])
 
     return VideoInput(rgb=vid, camera_intrinsics_rgb=intr, fps=fps)
 
 
 def plot_video_summary(
-        video_fname,
-        start=0,
-        end=None,
-        reverse_color_channel=False,
-        downsize=10,
-        num_summary_frames=10):
+    video_fname,
+    start=0,
+    end=None,
+    reverse_color_channel=False,
+    downsize=10,
+    num_summary_frames=10,
+):
     """
     Plots a summary of the video frames.
     """
@@ -189,42 +209,53 @@ def plot_video_summary(
     if video_fname.suffix not in [".mp4"]:
         raise ValueError(f"Only .mp4 files are supported. Got: {video_fname.suffix}")
 
-
     info = load_video_info(video_fname)
 
     T0 = start or 0
     T1 = end or info.timesteps
-    times = np.linspace(T0,T1-1, num_summary_frames).astype(int)
+    times = np.linspace(T0, T1 - 1, num_summary_frames).astype(int)
 
-    vid = load_video_to_numpy(video_fname, times=times, downsize=downsize, reverse_color_channel=reverse_color_channel)
+    vid = load_video_to_numpy(
+        video_fname,
+        times=times,
+        downsize=downsize,
+        reverse_color_channel=reverse_color_channel,
+    )
 
     w = vid.shape[2]
     h = vid.shape[1]
 
     # Create a plot with the summary
     # TODO: Should we hand in an axis?
-    fig, ax = plt.subplots(1,1, figsize=(15,4))
-    ax.set_title(f"\"{video_fname.name}\"\n(start = {T0}, end = {T1}, fps = {info.fps})")
+    fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+    ax.set_title(f'"{video_fname.name}"\n(start = {T0}, end = {T1}, fps = {info.fps})')
     _plot_frame_summary(vid, ticks=times, ax=ax)
 
 
-def _plot_frame_summary(
-    frames: Array,
-    ticks: Array = None,
-    ax=None):
-
+def _plot_frame_summary(frames: Array, ticks: Array = None, ax=None):
     w = frames.shape[2]
     h = frames.shape[1]
 
     # Create a plot with the summary
-    if ax is None: fig, ax = plt.subplots(1,1, figsize=(15,4))
-    ax.axis("off");
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+    ax.axis("off")
     ax.imshow(np.concatenate(frames, axis=1))
     if ticks is not None:
-        for i,t in enumerate(ticks):
-            ax.text(i*w + 7, h - 7, f"{t}", size=11, rotation=0.,
-                    ha="left", va="bottom", bbox=dict(boxstyle="square",
-                        ec=(1., 1., 1., 0.),
-                        fc=(1., 1., 1., 1.),))
+        for i, t in enumerate(ticks):
+            ax.text(
+                i * w + 7,
+                h - 7,
+                f"{t}",
+                size=11,
+                rotation=0.0,
+                ha="left",
+                va="bottom",
+                bbox=dict(
+                    boxstyle="square",
+                    ec=(1.0, 1.0, 1.0, 0.0),
+                    fc=(1.0, 1.0, 1.0, 1.0),
+                ),
+            )
 
     return ax

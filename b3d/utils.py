@@ -24,6 +24,7 @@ from sklearn.utils import Bunch
 #
 # # # # # # # # # # # #
 
+
 def get_root_path() -> Path:
     return Path(Path(b3d.__file__).parents[1])
 
@@ -43,8 +44,10 @@ def get_assets() -> Path:
 
 get_assets_path = get_assets
 
+
 def make_assets_path(subpath):
     return get_assets() / subpath
+
 
 def get_shared() -> Path:
     """The absolute path of the assets directory on current machine"""
@@ -97,18 +100,18 @@ from b3d.pose import Pose, Rot
 from functools import partial
 # TODO: Refactor utils into core and others, to avoid circular imports
 
-@partial(jax.jit, static_argnums=(1,2))
+
+@partial(jax.jit, static_argnums=(1, 2))
 def resize_image(rgbd, height, width):
-    return jax.image.resize(
-        rgbd, (height, width, rgbd.shape[-1]), method="nearest"
-    )
+    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="nearest")
+
 
 @partial(jax.jit, static_argnums=1)
 def downsize_images(ims, k):
     """Downsize an array of images by a given factor."""
-    shape = (ims.shape[1]//k, ims.shape[2]//k, ims.shape[3])
-    return jax.vmap(jax.image.resize, (0,None,None))(
-            ims, shape,"linear")
+    shape = (ims.shape[1] // k, ims.shape[2] // k, ims.shape[3])
+    return jax.vmap(jax.image.resize, (0, None, None))(ims, shape, "linear")
+
 
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
@@ -116,12 +119,25 @@ def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     y = (v - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
     return xyz
-xyz_from_depth_vectorized = jnp.vectorize(xyz_from_depth, excluded=(1,2,3,4,), signature='(h,w)->(h,w,3)')
+
+
+xyz_from_depth_vectorized = jnp.vectorize(
+    xyz_from_depth,
+    excluded=(
+        1,
+        2,
+        3,
+        4,
+    ),
+    signature="(h,w)->(h,w,3)",
+)
+
 
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
     x = fx * xyz[..., 0] / xyz[..., 2] + cx
     y = fy * xyz[..., 1] / xyz[..., 2] + cy
     return jnp.stack([y, x], axis=-1)
+
 
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
     c = sklearn.cluster.DBSCAN(eps=threshold).fit(point_cloud)
@@ -141,6 +157,7 @@ def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
         counter += 1
     return new_labels
 
+
 def aabb(object_points):
     """
     Returns the axis aligned bounding box of a point cloud.
@@ -155,6 +172,7 @@ def aabb(object_points):
     dims = maxs - mins
     center = (maxs + mins) / 2
     return dims, b3d.Pose.from_translation(center)
+
 
 def pad_with_1(x):
     return jnp.concatenate((x, jnp.ones((*x.shape[:-1], 1))), axis=-1)
@@ -192,12 +210,14 @@ def make_mesh_from_point_cloud_and_resolution(grid_centers, grid_colors, resolut
     face_colors = jnp.concatenate(face_colors_, axis=0)
     return vertices, faces, vertex_colors, face_colors
 
+
 def get_vertices_faces_colors_from_mesh(mesh):
     vertices = jnp.array(mesh.vertices)
     vertices = vertices - jnp.mean(vertices, axis=0)
     faces = jnp.array(mesh.faces)
     vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
     return vertices, faces, vertex_colors
+
 
 def get_rgb_pil_image(image, max=1.0):
     """Convert an RGB image to a PIL image.
@@ -215,12 +235,13 @@ def get_rgb_pil_image(image, max=1.0):
     #     image_type = "RGBA"
 
     img = Image.fromarray(
-        np.rint(image[...,:3] / max * 255.0).astype(np.int8),
-        mode="RGB"
+        np.rint(image[..., :3] / max * 255.0).astype(np.int8), mode="RGB"
     )
     return img
 
+
 viz_rgb = get_rgb_pil_image
+
 
 def overlay_image(img_1, img_2, alpha=0.5):
     """Overlay two images.
@@ -233,6 +254,7 @@ def overlay_image(img_1, img_2, alpha=0.5):
         PIL.Image: Overlayed image.
     """
     return Image.blend(img_1, img_2, alpha=alpha)
+
 
 def make_gif_from_pil_images(images, filename):
     """Save a list of PIL images as a GIF.
@@ -250,9 +272,12 @@ def make_gif_from_pil_images(images, filename):
         loop=0,
     )
 
+
 import tempfile
 import subprocess
 import os
+
+
 def make_video_from_pil_images(images, output_filename, fps=5.0):
     # Generate a random tmp directory name
     tmp_dir = tempfile.mkdtemp()
@@ -261,7 +286,20 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
     for i, img in enumerate(images):
         img.convert("RGB").save(os.path.join(tmp_dir, "%07d.png" % i))
 
-    subprocess.call(["ffmpeg", "-hide_banner", "-loglevel",  "error", "-y", "-r", str(fps), "-i", os.path.join(tmp_dir, "%07d.png"), output_filename])
+    subprocess.call(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-r",
+            str(fps),
+            "-i",
+            os.path.join(tmp_dir, "%07d.png"),
+            output_filename,
+        ]
+    )
 
 
 from PIL import Image, ImageDraw, ImageFont
@@ -355,21 +393,15 @@ def multi_panel(
 
     drawer = ImageDraw.Draw(dst)
     font_bottom = ImageFont.truetype(
-        os.path.join(
-            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
-        ),
+        os.path.join(b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"),
         bottom_fontsize,
     )
     font_label = ImageFont.truetype(
-        os.path.join(
-            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
-        ),
+        os.path.join(b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"),
         label_fontsize,
     )
     font_title = ImageFont.truetype(
-        os.path.join(
-            b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"
-        ),
+        os.path.join(b3d.get_assets(), "fonts", "IBMPlexSerif-Regular.ttf"),
         title_fontsize,
     )
 
@@ -468,8 +500,7 @@ def multivmap(f, args=None):
 
 def update_choices(trace, key, addresses, *values):
     return trace.update(
-        key,
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
+        key, genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
     )[0]
 
 
@@ -528,22 +559,29 @@ def rr_log_pose(channel, pose, scale=0.1):
     colors = jnp.eye(3)
     rr.log(
         channel,
-        rr.Arrows3D(origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors),
+        rr.Arrows3D(
+            origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors
+        ),
     )
+
 
 def rr_init(name="demo"):
     rr.init(name)
     rr.connect("127.0.0.1:8812")
 
+
 def rr_log_rgb(channel, rgb):
     rr.log(channel, rr.Image(rgb))
+
 
 def rr_log_depth(channel, depth):
     rr.log(channel, rr.DepthImage(depth))
 
+
 def rr_log_rgbd(channel, rgbd):
-    rr_log_rgb(channel + "/rgb", rgbd[...,:3])
-    rr_log_depth(channel + "/depth", rgbd[...,3])
+    rr_log_rgb(channel + "/rgb", rgbd[..., :3])
+    rr_log_depth(channel + "/depth", rgbd[..., 3])
+
 
 def normalize_log_scores(log_p):
     """
@@ -558,6 +596,7 @@ def normalize_log_scores(log_p):
 
 from typing import Any, NamedTuple, TypeAlias
 import jax
+
 Array: TypeAlias = jax.Array
 
 
@@ -586,10 +625,10 @@ def square_center_width_color_to_vertices_faces_colors(i, center, width, color):
     colors = jnp.ones((4, 3)) * color
     return vertices, faces, colors, jnp.ones(len(faces), dtype=jnp.int32) * i
 
+
 def all_pairs(X, Y):
     return jnp.swapaxes(
-        jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1),
-        0, 1
+        jnp.stack(jnp.meshgrid(jnp.arange(X), jnp.arange(Y)), axis=-1), 0, 1
     ).reshape(-1, 2)
 
 
@@ -606,6 +645,7 @@ def distinct_colors(num_colors, pastel_factor=0.5):
         np.array(i)
         for i in distinctipy.get_colors(num_colors, pastel_factor=pastel_factor)
     ]
+
 
 def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
     import pyransac3d
@@ -626,12 +666,11 @@ def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
     plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
     return plane_pose
 
+
 def fit_table_plane(
     point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration
 ):
-    plane_pose = Pose.fit_plane(
-        point_cloud, inlier_threshold, minPoints, maxIteration
-    )
+    plane_pose = Pose.fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration)
     points_in_plane_frame = plane_pose.inv().apply(point_cloud)
     inliers = jnp.abs(points_in_plane_frame[:, 2]) < inlier_threshold
     inlier_plane_points = points_in_plane_frame[inliers]
@@ -672,6 +711,7 @@ def separate_shared_vertices(vertices, faces):
 
     return unique_vertices, new_faces
 
+
 def triangle_color_mesh_to_vertex_color_mesh(vertices, faces, triangle_colors):
     """
     Given a mesh with the provided `vertices, faces, triangle_colors`,
@@ -682,9 +722,9 @@ def triangle_color_mesh_to_vertex_color_mesh(vertices, faces, triangle_colors):
     return vertices_2, faces_2, vertex_colors_2
 
 
-
-
 HIINTERFACE = None
+
+
 def carvekit_get_foreground_mask(image):
     global HIINTERFACE
     if HIINTERFACE is None:
@@ -707,6 +747,7 @@ def carvekit_get_foreground_mask(image):
     mask = jnp.array(imgs[0])[..., -1] > 0.5
     return mask
 
+
 def discretize(data, resolution):
     """
     Discretizes a point cloud.
@@ -724,15 +765,21 @@ def voxelize(data, resolution):
         data: (M,3) voxelized point cloud
     """
     data = discretize(data, resolution)
-    data, indices, occurences = jnp.unique(data, axis=0, return_index=True, return_counts=True)
+    data, indices, occurences = jnp.unique(
+        data, axis=0, return_index=True, return_counts=True
+    )
     return data, indices, occurences
 
 
 @jax.jit
-def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,fy,cx,cy, far,tolerance):
+def voxel_occupied_occluded_free(
+    camera_pose, rgb_image, depth_image, grid, fx, fy, cx, cy, far, tolerance
+):
     grid_in_cam_frame = camera_pose.inv().apply(grid)
-    height,width = depth_image.shape[:2]
-    pixels = b3d.xyz_to_pixel_coordinates(grid_in_cam_frame, fx,fy,cx,cy).astype(jnp.int32)
+    height, width = depth_image.shape[:2]
+    pixels = b3d.xyz_to_pixel_coordinates(grid_in_cam_frame, fx, fy, cx, cy).astype(
+        jnp.int32
+    )
     valid_pixels = (
         (0 <= pixels[:, 0])
         * (0 <= pixels[:, 1])
@@ -743,18 +790,24 @@ def voxel_occupied_occluded_free(camera_pose, rgb_image, depth_image, grid, fx,f
         1 - valid_pixels
     ) * (far + 1.0)
 
-
     projected_depth_vals = grid_in_cam_frame[:, 2]
     occupied = jnp.abs(real_depth_vals - projected_depth_vals) < tolerance
-    real_rgb_values = rgb_image[pixels[:, 0], pixels[:, 1]] * occupied[...,None]
+    real_rgb_values = rgb_image[pixels[:, 0], pixels[:, 1]] * occupied[..., None]
     occluded = real_depth_vals < projected_depth_vals
     occluded = occluded * (1.0 - occupied)
     _free = (1.0 - occluded) * (1.0 - occupied)
-    return 1.0 * occupied  -  1.0 * _free, real_rgb_values
+    return 1.0 * occupied - 1.0 * _free, real_rgb_values
+
 
 voxel_occupied_occluded_free_parallel_camera = jax.jit(
-    jax.vmap(voxel_occupied_occluded_free, in_axes=(0, None, None, None, None, None, None, None, None, None))
+    jax.vmap(
+        voxel_occupied_occluded_free,
+        in_axes=(0, None, None, None, None, None, None, None, None, None),
+    )
 )
 voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
-    jax.vmap(voxel_occupied_occluded_free, in_axes=(0, 0, 0, None, None, None, None, None, None, None))
+    jax.vmap(
+        voxel_occupied_occluded_free,
+        in_axes=(0, 0, 0, None, None, None, None, None, None, None),
+    )
 )

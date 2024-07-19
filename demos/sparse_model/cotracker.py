@@ -10,7 +10,6 @@ parser.add_argument("input", help=".r3d File", type=str)
 args = parser.parse_args()
 
 
-
 path = args.input
 
 # # Load date
@@ -22,17 +21,19 @@ video_input = b3d.io.VideoInput.load(path)
 frames = np.array(video_input.rgb)[::3]
 print(frames.shape)
 
-device = 'cuda'
+device = "cuda"
 cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2").to(device)
 
 video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
 
 grid_size = 70
 t0 = time.time()
-pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
+pred_tracks, pred_visibility = cotracker(
+    video, grid_size=grid_size
+)  # B T N 2,  B T N 1
 t1 = time.time()
 
-print("Cotracker took ", t1-t0, " seconds")
+print("Cotracker took ", t1 - t0, " seconds")
 
 # t0 = time.time()
 # pred_tracks, pred_visibility = cotracker(video, grid_siize=grid_size) # B T N 2,  B T N 1
@@ -47,4 +48,8 @@ print("Cotracker took ", t1-t0, " seconds")
 
 pred_tracks_ = pred_tracks.cpu().numpy()
 pred_visibility_ = pred_visibility.cpu().numpy()
-np.savez(path + "cotracker_output.npz", pred_tracks=pred_tracks_, pred_visibility=pred_visibility_)
+np.savez(
+    path + "cotracker_output.npz",
+    pred_tracks=pred_tracks_,
+    pred_visibility=pred_visibility_,
+)

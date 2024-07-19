@@ -116,6 +116,7 @@ def load_r3d_video_input(r3d_path):
         camera_intrinsics_depth=intrinsics_depth,
     )
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("r3d_to_video_input")
     parser.add_argument("input", help=".r3d File", type=str)

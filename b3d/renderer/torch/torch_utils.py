@@ -1,9 +1,10 @@
 import torch
 
+
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
     # transform from cv2 camera coordinates to opengl (flipping sign of y and z)
     view = torch.eye(4)
-    view[1:3] = (view[1:3] * -1)
+    view[1:3] = view[1:3] * -1
 
     # see http://ksimek.github.io/2013/06/03/calibrated_cameras_in_opengl/
     persp = torch.zeros((4, 4))

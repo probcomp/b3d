@@ -455,6 +455,7 @@ def multivmap(f, args=None):
     return multivmapped
 
 
+@jax.jit
 def update_choices(trace, key, addresses, *values):
     return trace.update(
         key,
@@ -462,28 +463,22 @@ def update_choices(trace, key, addresses, *values):
     )[0]
 
 
-update_choices_jit = jax.jit(update_choices, static_argnums=(2,))
 
-
+@jax.jit
 def update_choices_get_score(trace, key, addr_const, *values):
     return update_choices(trace, key, addr_const, *values).get_score()
 
 
-update_choices_get_score_jit = jax.jit(update_choices_get_score, static_argnums=(2,))
 
-enumerate_choices = jax.vmap(
+enumerate_choices = jax.jit(jax.vmap(
     update_choices,
     in_axes=(None, None, None, 0),
-)
-enumerate_choices_jit = jax.jit(enumerate_choices, static_argnums=(2,))
+))
 
-enumerate_choices_get_scores = jax.vmap(
+enumerate_choices_get_scores = jax.jit(jax.vmap(
     update_choices_get_score,
     in_axes=(None, None, None, 0),
-)
-enumerate_choices_get_scores_jit = jax.jit(
-    enumerate_choices_get_scores, static_argnums=(2,)
-)
+))
 
 
 def nn_background_segmentation(images):

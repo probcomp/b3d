@@ -6,3 +6,4 @@ assets/bop/*
 assets/ycbineoat/*
 **/.ipynb_checkpoints
 .pixi/envs/*
+.#*

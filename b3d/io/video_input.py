@@ -69,7 +69,7 @@ class VideoInput:
     camera_intrinsics_depth: (
         Array  # [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
     )
-    fps: Optional[Float] = None
+    fps: Optional[Float]
 
     @property
     def z(self):

@@ -209,7 +209,7 @@ def process(zip_path: str, moveFile: bool = True, tags_str=None) -> None:
     # Convert unity data into feature track
     feature_track_data = convert_unity_to_feature_track(unity_data)
 
-    # Save teaser
+    # Save teaser video
     save_teaser(feature_track_data, unity_data.file_info)
 
     # Save feature_track_data

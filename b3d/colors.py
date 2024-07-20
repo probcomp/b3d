@@ -62,7 +62,23 @@ def lab_to_rgb(lab):
     rgb = jnp.where(mask, 1.055 * (rgb ** (1.0 / 2.4)) - 0.055, 12.92 * rgb)
     return jnp.clip(rgb, 0, 1)
 
+def labd_to_rgbd(labd):
+    return jnp.concatenate(
+        [
+            b3d.colors.lab_to_rgb(labd[..., :3]),
+            labd[..., 3:4]
+        ],
+        axis=-1
+    )
 
+def rgbd_to_labd(rgbd):
+    return jnp.concatenate(
+        [
+            b3d.colors.rgb_to_lab(rgbd[..., :3]),
+            rgbd[..., 3:4]
+        ],
+        axis=-1
+    )
 
 @partial(jnp.vectorize, signature="(k)->(k)")
 def rgb_to_hsv(rgb):

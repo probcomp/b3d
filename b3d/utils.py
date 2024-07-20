@@ -16,7 +16,6 @@ import trimesh
 import rerun as rr
 import distinctipy
 
-from sklearn.utils import Bunch
 
 # # # # # # # # # # # #
 #
@@ -86,7 +85,6 @@ def keysplit(key, *ns):
 #
 # # # # # # # # # # # #
 from b3d.pose import Pose, Rot
-from functools import partial
 # TODO: Refactor utils into core and others, to avoid circular imports
 
 
@@ -263,8 +261,6 @@ def make_gif_from_pil_images(images, filename):
 
 
 import tempfile
-import subprocess
-import os
 
 
 def make_video_from_pil_images(images, output_filename, fps=5.0):
@@ -291,7 +287,7 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
     )
 
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import ImageDraw, ImageFont
 
 
 def vstack_images(images, border=10):
@@ -544,7 +540,7 @@ def nn_background_segmentation(images):
 
 def rr_log_pose(channel, pose, scale=0.1):
     origins = jnp.tile(pose.pos[None, ...], (3, 1))
-    vectors = jnp.eye(3)
+    jnp.eye(3)
     colors = jnp.eye(3)
     rr.log(
         channel,
@@ -583,7 +579,7 @@ def normalize_log_scores(log_p):
     return jnp.exp(log_p - jax.scipy.special.logsumexp(log_p))
 
 
-from typing import Any, NamedTuple, TypeAlias
+from typing import TypeAlias
 import jax
 
 Array: TypeAlias = jax.Array

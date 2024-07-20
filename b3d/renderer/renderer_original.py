@@ -8,11 +8,8 @@ from jax.core import ShapedArray
 from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
-import functools
-import os
 import b3d
 import b3d.renderer.nvdiffrast_jax.nvdiffrast.jax as dr
-import rerun as rr
 
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
@@ -277,7 +274,6 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     def _render_batch(args, axes):
         pos, tri, resolution = args
 
-        original_shape = pos.shape
         pos_reshaped = pos.reshape(-1, *pos.shape[-2:])
 
         (rendered,) = _rasterize_fwd_custom_call(r, pos_reshaped, tri, resolution)
@@ -390,7 +386,6 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
     def _interpolate_batch(args, axes):
         attributes, rast, faces = args
 
-        original_shape = attributes.shape
         attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
         rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
 

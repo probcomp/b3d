@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 import jax
-import trimesh
 import rerun as rr
 import b3d
 import optax
@@ -199,14 +198,14 @@ def viz_params(params, start_t, end_t):
             params["camera_positions"][t], params["camera_quaternions"][t]
         )
         rr.log(
-            f"/camera",
+            "/camera",
             rr.Transform3D(
                 translation=camera_pose.position,
                 rotation=rr.Quaternion(xyzw=camera_pose.xyzw),
             ),
         )
         rr.log(
-            f"/camera",
+            "/camera",
             rr.Pinhole(
                 resolution=[0.1, 0.1],
                 focal_length=0.1,
@@ -228,7 +227,6 @@ def viz_params(params, start_t, end_t):
         # rr.log("rgb", rr.Image(rgbs[t] / 255.0))
 
 
-import matplotlib.pyplot as plt
 from matplotlib import colormaps
 
 

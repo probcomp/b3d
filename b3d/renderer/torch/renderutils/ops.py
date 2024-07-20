@@ -8,9 +8,7 @@
 # its affiliates is strictly prohibited.
 
 import os
-import sys
 
-import numpy as np
 import torch
 import torch.utils.cpp_extension
 

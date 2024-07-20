@@ -3,7 +3,6 @@ import os
 import b3d
 import rerun as rr
 import jax
-import argparse
 import numpy as np
 from b3d import Pose
 

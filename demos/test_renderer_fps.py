@@ -1,12 +1,7 @@
-import argparse
 import os
-import pathlib
-import sys
 import numpy as np
 import torch
-import imageio
 import b3d
-from tqdm import tqdm
 import jax.numpy as jnp
 import b3d.nvdiffrast_original.torch as dr
 import time
@@ -153,7 +148,9 @@ for resolution in resolutions:
     print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
 
 
-convert_to_torch = lambda x: torch.utils.dlpack.from_dlpack(jax.dlpack.to_dlpack((x)))
+def convert_to_torch(x):
+    return torch.utils.dlpack.from_dlpack(jax.dlpack.to_dlpack(x))
+
 
 print("JAX through torch DLPACK")
 for resolution in resolutions:

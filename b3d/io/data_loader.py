@@ -5,11 +5,10 @@ import jax.numpy as jnp
 import cv2
 import imageio
 
-import jax.numpy as jnp
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from b3d import Mesh, Pose
+from b3d import Pose
 import glob
 
 YCB_MODEL_NAMES = [
@@ -70,7 +69,7 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
     scene_rgb_images_dir = os.path.join(scene_data_dir, "rgb")
     scene_depth_images_dir = os.path.join(scene_data_dir, "depth")
-    mask_visib_dir = os.path.join(scene_data_dir, "mask_visib")
+    os.path.join(scene_data_dir, "mask_visib")
 
     with open(os.path.join(scene_data_dir, "scene_camera.json")) as scene_cam_data_json:
         scene_cam_data = json.load(scene_cam_data_json)
@@ -156,8 +155,6 @@ def get_ycb_mesh(ycb_dir, id):
 
 
 def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
-    id_strs = []
-
     video_dir = os.path.join(ycbineaot_dir, f"{video_name}")
 
     color_files = sorted(glob.glob(f"{video_dir}/rgb/*.png"))

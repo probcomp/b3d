@@ -10,6 +10,10 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.5.2
     hooks:
+      - id: ruff
+        types_or: [ python, pyi, jupyter ]
+        args: [ --fix ]
+
       - id: ruff-format
         args: [ --exclude, kitti.ipynb ]
         types_or: [ python, pyi, jupyter ]

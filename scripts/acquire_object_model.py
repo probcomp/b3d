@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import os
 import b3d
 import rerun as rr
 import jax

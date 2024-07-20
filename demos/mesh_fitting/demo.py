@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import genjax
 import b3d
 import demos.mesh_fitting.tessellation as t
-import b3d.utils as u
 import os
 import rerun as rr
 import optax

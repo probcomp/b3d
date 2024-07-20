@@ -1,7 +1,6 @@
 import rerun as rr
 import genjax
 import os
-import numpy as np
 import jax.numpy as jnp
 import jax
 from b3d import Pose
@@ -9,7 +8,6 @@ import b3d
 import b3d.bayes3d as bayes3d
 from tqdm import tqdm
 import trimesh
-import genjax
 from genjax import Pytree
 
 
@@ -101,7 +99,7 @@ def test_renderer_full(renderer):
             renderer, bayes3d.rgbd_sensor_model
         )
 
-        importance_jit = jax.jit(model.importance)
+        jax.jit(model.importance)
         key = jax.random.PRNGKey(110)
 
         point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
@@ -155,7 +153,7 @@ def test_renderer_full(renderer):
             else:
                 params = jnp.array([params[0] * 0.5, params[1] * 2.0])
                 skips += 1
-                print(f"shrinking")
+                print("shrinking")
                 if skips > 5:
                     print(f"skip {t}")
                     break

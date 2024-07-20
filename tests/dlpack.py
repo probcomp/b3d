@@ -1,15 +1,9 @@
-import argparse
 import os
-import pathlib
-import sys
 import numpy as np
 import torch
-import imageio
 import b3d
-from tqdm import tqdm
 import jax.numpy as jnp
 import nvdiffrast.torch as dr
-import time
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 import trimesh
@@ -33,10 +27,14 @@ glctx = dr.RasterizeGLContext()  # if use_opengl else dr.RasterizeCudaContext()
 
 resolution = 1024
 
-convert_to_torch = lambda x: torch.utils.dlpack.from_dlpack(jax.dlpack.to_dlpack((x)))
-convert_to_jax = lambda x: jax.dlpack.from_dlpack(
-    torch.utils.dlpack.to_dlpack((x.contiguous()))
-)
+
+def convert_to_torch(x):
+    return torch.utils.dlpack.from_dlpack(jax.dlpack.to_dlpack(x))
+
+
+def convert_to_jax(x):
+    return jax.dlpack.from_dlpack(torch.utils.dlpack.to_dlpack(x.contiguous()))
+
 
 import jax
 

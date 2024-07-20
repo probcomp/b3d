@@ -1,5 +1,4 @@
 import b3d
-import os
 import jax.numpy as jnp
 import jax
 import fire
@@ -67,13 +66,13 @@ def visualize_video_input(path):
     for t in range(len(video_input.xyz)):
         rr.set_time_sequence("frame", t)
         rr.log(
-            f"/img",
+            "/img",
             rr.Points3D(
                 video_input.xyz[t].reshape(-1, 3),
                 colors=(rgbs_resized[t].reshape(-1, 3) * 255).astype(jnp.uint8),
             ),
         )
-        rr.log(f"/rgb", rr.Image(rgbs_resized[t]))
+        rr.log("/rgb", rr.Image(rgbs_resized[t]))
 
 
 if __name__ == "__main__":

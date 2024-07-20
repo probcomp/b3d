@@ -2,7 +2,6 @@ import pykitti
 import b3d
 import os
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import jax
 

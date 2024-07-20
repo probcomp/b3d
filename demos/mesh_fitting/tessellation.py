@@ -94,8 +94,8 @@ def triangle2D_to_integer_points(triangle, max_step_x, max_step_y):
     # Bounding box for the triangle
     min_x = jnp.floor(jnp.min(triangle[:, 0])).astype(int)
     min_y = jnp.floor(jnp.min(triangle[:, 1])).astype(int)
-    max_x = jnp.ceil(jnp.max(triangle[:, 0])).astype(int)
-    max_y = jnp.ceil(jnp.max(triangle[:, 1])).astype(int)
+    jnp.ceil(jnp.max(triangle[:, 0])).astype(int)
+    jnp.ceil(jnp.max(triangle[:, 1])).astype(int)
 
     # Generate all integer points within the bounding box
     x_coords = min_x + jnp.arange(0, max_step_x)

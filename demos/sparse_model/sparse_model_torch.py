@@ -1,5 +1,4 @@
 import rerun as rr
-from functools import partial
 from tqdm import tqdm
 import torch
 import b3d

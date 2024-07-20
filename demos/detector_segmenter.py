@@ -1,4 +1,3 @@
-import requests
 from PIL import Image
 import torch
 import b3d
@@ -54,7 +53,6 @@ rr.connect(addr=f"127.0.0.1:{PORT}")
 rr.log("image", rr.Image(np.array(image)))
 
 import io
-import requests
 from PIL import Image
 import torch
 import numpy

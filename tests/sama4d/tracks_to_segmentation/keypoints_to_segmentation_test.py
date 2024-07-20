@@ -1,5 +1,4 @@
 import pytest
-import jax.numpy as jnp
 from .registration import all_task_solver_pairs
 
 

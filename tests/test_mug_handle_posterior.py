@@ -45,10 +45,12 @@ class TestMugHandlePosterior:
             jnp.array([0.6, 0.0, 0.0]), jnp.array([0.0, 0.0, 0.0])
         )
 
-        cp_to_pose = lambda cp: Pose(
-            jnp.array([cp[0], cp[1], 0.0]),
-            b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat(),
-        )
+        def cp_to_pose(cp):
+            return Pose(
+                jnp.array([cp[0], cp[1], 0.0]),
+                b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat(),
+            )
+
         object_library = bayes3d.MeshLibrary.make_empty_library()
         object_library.add_object(vertices, faces, vertex_colors)
 
@@ -79,7 +81,7 @@ class TestMugHandlePosterior:
         ]
 
         model = bayes3d.model_multiobject_gl_factory(renderer)
-        importance_jit = jax.jit(model.importance)
+        jax.jit(model.importance)
 
         for text_index in range(len(cps_to_test)):
             gt_cp = cps_to_test[text_index]

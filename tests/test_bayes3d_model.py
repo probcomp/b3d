@@ -6,7 +6,6 @@ import jax
 import genjax
 from genjax import ChoiceMapBuilder as C
 import jax.numpy as jnp
-import pytest
 
 
 class TestGroup:
@@ -25,13 +24,13 @@ class TestGroup:
 
     @genjax.gen
     def object_gf(object_library):
-        object_identity = (
+        (
             b3d.modeling_utils.uniform_discrete(
                 jnp.arange(-1, object_library.get_num_objects())
             )
             @ "id"
         )
-        object_pose = (
+        (
             b3d.modeling_utils.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
             @ "pose"
         )

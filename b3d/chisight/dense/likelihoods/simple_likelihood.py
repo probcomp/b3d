@@ -7,7 +7,7 @@ import b3d
 def simple_likelihood(observed_rgbd, rendered_rgbd, likelihood_args):
     fx = likelihood_args["fx"]
     fy = likelihood_args["fy"]
-    far = likelihood_args["far"]
+    likelihood_args["far"]
 
     rendered_rgb = rendered_rgbd[..., :3]
     observed_rgb = observed_rgbd[..., :3]

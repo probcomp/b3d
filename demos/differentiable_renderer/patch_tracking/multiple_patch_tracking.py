@@ -13,7 +13,6 @@ import b3d.chisight.dense.likelihoods as l
 import b3d.chisight.dense.differentiable_renderer as r
 import os
 import trimesh
-import matplotlib.pyplot as plt
 import numpy as np
 import optax
 

@@ -1,11 +1,9 @@
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 
 # from b3d.utils import unproject_depth
@@ -309,13 +307,13 @@ def get_trajs(key, center_1, center_2, del_pix=5):
             trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
         )
         trace, key = b3d.enumerate_and_select_best_move(
-            trace, genjax.Pytree.const([f"object_pose_0"]), key, all_deltas
+            trace, genjax.Pytree.const(["object_pose_0"]), key, all_deltas
         )
 
-        patch_center = (trace["camera_pose"].inv() @ trace[f"object_pose_0"]).apply(
+        patch_center = (trace["camera_pose"].inv() @ trace["object_pose_0"]).apply(
             jnp.mean(object_library.vertices, axis=0)
         )
-        patch = (trace["camera_pose"].inv() @ trace[f"object_pose_0"]).apply(
+        patch = (trace["camera_pose"].inv() @ trace["object_pose_0"]).apply(
             object_library.vertices
         )
         patches.append(patch)

@@ -154,7 +154,7 @@ for t in tqdm(range(30)):
     else:
         params = jnp.array([params[0] * 0.5, params[1] * 2.0])
         skips += 1
-        print(f"shrinking")
+        print("shrinking")
         if skips > 5:
             print(f"skip {t}")
             break

@@ -3,7 +3,6 @@ from b3d.renderer.renderer_original import RendererOriginal
 from b3d.chisight.dense.likelihoods import (
     KRaysImageLikelihoodArgs,
     make_krays_image_observation_model,
-    get_rgb_depth_inliers_from_observed_rendered_args,
 )
 import jax
 import jax.numpy as jnp
@@ -11,11 +10,7 @@ import os
 from b3d import Pose, Mesh
 
 import b3d.chisight.particle_system as ps
-import genjax
 from genjax import Pytree
-import jax
-from b3d import Pose
-import b3d
 
 
 import importlib

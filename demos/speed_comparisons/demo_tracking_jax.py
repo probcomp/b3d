@@ -3,7 +3,6 @@ import time
 
 import jax
 import jax.numpy as jnp
-from IPython import embed
 from scipy.spatial.transform import Rotation as R
 
 import b3d
@@ -32,8 +31,6 @@ for t in range(num_frames - 1):
 poses = b3d.Pose.stack_poses(poses)
 print("Number of frames: ", poses.shape[0])
 
-
-import os
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"

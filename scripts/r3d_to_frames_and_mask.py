@@ -3,7 +3,6 @@ from typing import Optional
 
 import cv2
 import fire
-import imageio
 import jax
 import jax.numpy as jnp
 import numpy as np

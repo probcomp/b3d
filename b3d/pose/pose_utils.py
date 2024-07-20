@@ -94,4 +94,5 @@ class UniformPoseInBall(genjax.ExactDensity):
             volume_of_cap_around_north_pole(rq)
         )
 
+
 uniform_pose_in_ball = UniformPoseInBall()

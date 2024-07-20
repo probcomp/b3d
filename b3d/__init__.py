@@ -26,5 +26,5 @@ __all__ = [
     "Pose",
     "Rot",
     "MeshLibrary",
-    "Mesh"
+    "Mesh",
 ]

@@ -235,6 +235,7 @@ class IndexDist(ExactDensity):
 
 index_dist = IndexDist()
 
+
 @genjax.Pytree.dataclass
 class MixtureHack(ExactDensity):
     def sample(self, key, is_outlier, i, mus, covs, cam, intr):
@@ -256,7 +257,6 @@ class MixtureHack(ExactDensity):
         return jnp.where(
             in_bounds, jnp.where(is_outlier, outlier_logp, inlier_logp), -jnp.inf
         )
-
 
 
 # TODO: Test this code

@@ -10,6 +10,7 @@ import os
 
 from genjax import Pytree
 
+
 def make_image_likelihood(intermediate_func):
     @Pytree.dataclass
     class ImageLikelihood(genjax.ExactDensity):

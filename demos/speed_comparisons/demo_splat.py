@@ -66,7 +66,7 @@ def render_rgb(point_cloud, colors, scale, camera_pose):
         camera_pose.inv().apply(point_cloud),
         colors,
         jnp.ones((len(point_cloud), 1)),
-        jnp.ones((len(point_cloud), 3)) *scale,
+        jnp.ones((len(point_cloud), 3)) * scale,
         jnp.tile(wxyz, (len(point_cloud), 1)),
         image_width,
         image_height,
@@ -79,7 +79,9 @@ def render_rgb(point_cloud, colors, scale, camera_pose):
     )
     return jnp.permute_dims(rendered_image, (1, 2, 0)), rendered_depth
 
+
 render_rgb_jit = jax.jit(render_rgb)
+
 
 def loss_fun(point_cloud, colors, scale, camera_pose, observed_image, observed_depth):
     rendered_image, rendered_depth = render_rgb(point_cloud, colors, scale, camera_pose)
@@ -88,7 +90,17 @@ def loss_fun(point_cloud, colors, scale, camera_pose, observed_image, observed_d
     #     jnp.abs((rendered_depth - observed_depth))
     # )
 
-loss_grad = jax.jit(jax.value_and_grad(loss_fun, argnums=(0,1,2,)))
+
+loss_grad = jax.jit(
+    jax.value_and_grad(
+        loss_fun,
+        argnums=(
+            0,
+            1,
+            2,
+        ),
+    )
+)
 loss_grad_camera_pose = jax.jit(jax.value_and_grad(loss_fun, argnums=(3,)))
 
 scale = jnp.float32(0.005)
@@ -102,14 +114,22 @@ rr.log("/image", rr.Image(gt_image), timeless=True)
 
 pbar = tqdm(range(100))
 for t in pbar:
-    loss, (grad_point_cloud, grad_colors, grad_scale) = loss_grad(point_cloud, colors, scale, camera_pose, gt_image, gt_depth)
+    loss, (grad_point_cloud, grad_colors, grad_scale) = loss_grad(
+        point_cloud, colors, scale, camera_pose, gt_image, gt_depth
+    )
     scale = scale - grad_scale * 0.001
     # point_cloud = point_cloud - grad_point_cloud * 0.001
     grad_colors = grad_colors - grad_colors * 0.001
     pbar.set_description(f"Loss: {loss}")
     rr.set_time_sequence("/frame", t)
-    rr.log("/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
-    rr.log("/image/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
+    rr.log(
+        "/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
+    rr.log(
+        "/image/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
 
 
 t = 200
@@ -119,14 +139,20 @@ rr.log("/image", rr.Image(gt_image), timeless=True)
 
 pbar = tqdm(range(100))
 for t in pbar:
-    loss, (grad_camera_pose,) = loss_grad_camera_pose(point_cloud, colors, scale, camera_pose, gt_image, gt_depth)
+    loss, (grad_camera_pose,) = loss_grad_camera_pose(
+        point_cloud, colors, scale, camera_pose, gt_image, gt_depth
+    )
     camera_pose = camera_pose - grad_camera_pose * 0.0001
     pbar.set_description(f"Loss: {loss}")
     rr.set_time_sequence("/frame", t)
-    rr.log("/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
-    rr.log("/image/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
-
-
+    rr.log(
+        "/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
+    rr.log(
+        "/image/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
 
 
 camera_pose = Pose.identity()

@@ -73,7 +73,6 @@ model_args = b3d.ModelArgs(
 )
 
 
-
 # Defines the enumeration schedule.
 key = jax.random.PRNGKey(0)
 # Gridding on translation only.
@@ -117,11 +116,11 @@ colors = jax.image.resize(
     rgbs_resized[0], (xyzs[0].shape[0], xyzs[0].shape[1], 3), "linear"
 ).reshape(-1, 3)
 
-rr.log("xyz/", rr.Points3D(point_cloud.reshape(-1,3),
-    colors=(colors * 255).astype(jnp.uint8)))
-table_pose, table_dims = b3d.Pose.fit_table_plane(
-    point_cloud, 0.01, 0.02, 1000, 1000
+rr.log(
+    "xyz/",
+    rr.Points3D(point_cloud.reshape(-1, 3), colors=(colors * 255).astype(jnp.uint8)),
 )
+table_pose, table_dims = b3d.Pose.fit_table_plane(point_cloud, 0.01, 0.02, 1000, 1000)
 b3d.rr_log_pose("table_pose", table_pose)
 
 # `make_mesh_from_point_cloud_and_resolution` takes a 3D positions, colors, and sizes of the boxes that we want
@@ -138,10 +137,12 @@ vertices, faces, vertex_colors, face_colors = (
 )
 object_library.add_object(vertices, faces, vertex_colors)
 
-vertices, faces, vertex_colors, face_colors = b3d.make_mesh_from_point_cloud_and_resolution(
-    jnp.zeros((1,3)),
-    jnp.array([[0.0, 1.0, 0.0]]),
-    jnp.array([0.05]),
+vertices, faces, vertex_colors, face_colors = (
+    b3d.make_mesh_from_point_cloud_and_resolution(
+        jnp.zeros((1, 3)),
+        jnp.array([[0.0, 1.0, 0.0]]),
+        jnp.array([0.05]),
+    )
 )
 object_library.add_object(vertices, faces, vertex_colors)
 
@@ -194,7 +195,7 @@ trace, _ = importance_jit(
                     (rgbs_resized[START_T], xyzs[START_T, ..., 2]),
                 ),
                 ("object_pose_1", Pose.from_translation(jnp.array([0.0, 0.0, 0.5]))),
-                ("object_1",-1),
+                ("object_1", -1),
             ]
         )
     ),
@@ -217,17 +218,11 @@ for T_observed_image in tqdm(range(len(rgbs))):
     poses.append(trace["camera_pose"])
 
 
-trace = b3d.update_choices_jit(
-    trace,
-    key,
-    genjax.Pytree.const(["object_1"]),
-    1
-)
-
+trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_1"]), 1)
 
 
 test_poses = jax.vmap(
-    lambda i: table_pose @ Pose.from_translation(jnp.array([i[0], i[1],0.0]))
+    lambda i: table_pose @ Pose.from_translation(jnp.array([i[0], i[1], 0.0]))
 )(
     jnp.stack(
         jnp.meshgrid(
@@ -247,7 +242,7 @@ for T_observed_image in tqdm(range(len(rgbs))):
         genjax.Pytree.const(["observed_rgb_depth", "camera_pose", "object_1"]),
         (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         poses[T_observed_image],
-        1
+        1,
     )
     scores = b3d.enumerate_choices_get_scores_jit(
         trace,
@@ -257,27 +252,26 @@ for T_observed_image in tqdm(range(len(rgbs))):
     )
     samples = jax.random.categorical(key, scores, shape=(300,))
 
-    trace = b3d.update_choices_jit(
-        trace,
-        key,
-        genjax.Pytree.const(["object_1"]),
-        -1
-    )
+    trace = b3d.update_choices_jit(trace, key, genjax.Pytree.const(["object_1"]), -1)
     b3d.rerun_visualize_trace_t(trace, T_observed_image, modes=["rgb", "3d"])
 
     t = T_observed_image
-    rendered_images = jax.vmap(lambda pose: b3d.update_choices(trace, key, genjax.Pytree.const(["object_pose_1", "object_0", "object_1"]), pose, -1, 1).get_retval()[0][1])(test_poses[samples])
+    rendered_images = jax.vmap(
+        lambda pose: b3d.update_choices(
+            trace,
+            key,
+            genjax.Pytree.const(["object_pose_1", "object_0", "object_1"]),
+            pose,
+            -1,
+            1,
+        ).get_retval()[0][1]
+    )(test_poses[samples])
     rendered_images = rendered_images.max(0)
     rr.log("/image/hidden_object", rr.Image(rendered_images))
     test_poses = test_poses[samples]
 
 
-
-
 trace = b3d.update_choices_jit(
-    trace,
-    key,
-    genjax.Pytree.const(["object_1", "object_pose_1"]),
-    1, test_poses[0]
+    trace, key, genjax.Pytree.const(["object_1", "object_pose_1"]), 1, test_poses[0]
 )
 b3d.rerun_visualize_trace_t(trace, t, modes=["rgb", "3d"])

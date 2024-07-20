@@ -72,26 +72,28 @@ class VideoInput:
     @property
     def z(self):
         if self.xyz is not None:
-            return self.xyz[...,[3]]
+            return self.xyz[..., [3]]
         else:
             return jnp.zeros(self.rgb.shape[:-1] + (1,))
 
     @property
-    def depth(self): return self.z
+    def depth(self):
+        return self.z
 
     @property
     def rgbd(self):
         return jnp.concatenate([self.rgb, self.depth], axis=-1)
 
-    def __init__(self,
-            rgb,
-            xyz=None,
-            camera_positions=None,
-            camera_quaternions=None,
-            camera_intrinsics_rgb=None,
-            camera_intrinsics_depth=None,
-            fps = None
-        ):
+    def __init__(
+        self,
+        rgb,
+        xyz=None,
+        camera_positions=None,
+        camera_quaternions=None,
+        camera_intrinsics_rgb=None,
+        camera_intrinsics_depth=None,
+        fps=None,
+    ):
         self.rgb = rgb
         self.xyz = xyz
         self.camera_positions = camera_positions
@@ -99,7 +101,6 @@ class VideoInput:
         self.camera_intrinsics_rgb = camera_intrinsics_rgb
         self.camera_intrinsics_depth = camera_intrinsics_depth
         self.fps = fps
-
 
     def __post_init__(self):
         super().__init__()
@@ -120,7 +121,7 @@ class VideoInput:
             "camera_quaternions": self.camera_quaternions,
             "camera_intrinsics_rgb": self.camera_intrinsics_rgb,
             "camera_intrinsics_depth": self.camera_intrinsics_depth,
-            "fps": self.fps
+            "fps": self.fps,
         }
 
     def save(self, filepath: str):
@@ -133,7 +134,7 @@ class VideoInput:
             camera_quaternions=self.camera_quaternions,
             camera_intrinsics_rgb=self.camera_intrinsics_rgb,
             camera_intrinsics_depth=self.camera_intrinsics_depth,
-            fps=self.fps
+            fps=self.fps,
         )
 
     def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
@@ -147,7 +148,7 @@ class VideoInput:
             camera_quaternions=self.camera_quaternions[start_t:end_t],
             camera_intrinsics_rgb=self.camera_intrinsics_rgb,
             camera_intrinsics_depth=self.camera_intrinsics_depth,
-            fps=self.fps
+            fps=self.fps,
         )
 
     @classmethod
@@ -155,8 +156,10 @@ class VideoInput:
         """Loads VideoInput from file"""
 
         def jnp_array_or_none(x):
-            if x is None or x[()] is None: return None
-            else: return jnp.array(x)
+            if x is None or x[()] is None:
+                return None
+            else:
+                return jnp.array(x)
 
         with open(filepath, "rb") as f:
             data = jnp.load(f, allow_pickle=True)
@@ -169,8 +172,10 @@ class VideoInput:
                 camera_positions=jnp_array_or_none(data["camera_positions"]),
                 camera_quaternions=jnp_array_or_none(data["camera_quaternions"]),
                 camera_intrinsics_rgb=jnp_array_or_none(data["camera_intrinsics_rgb"]),
-                camera_intrinsics_depth=jnp_array_or_none(data["camera_intrinsics_depth"]),
-                fps=fps
+                camera_intrinsics_depth=jnp_array_or_none(
+                    data["camera_intrinsics_depth"]
+                ),
+                fps=fps,
             )
 
     @property

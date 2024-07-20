@@ -22,12 +22,10 @@ rr.connect("127.0.0.1:8812")
     renderer,
     (observed_rgbds, gt_rots),
     ((patch_vertices_P, patch_faces, patch_vertex_colors), X_WP),
-    X_WC
+    X_WC,
 ) = du.get_renderer_boxdata_and_patch()
 
-hyperparams = r.DifferentiableRendererHyperparams(
-    3, 1e-5, 1e-2, -1
-)
+hyperparams = r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
 
 depth_scale = 0.0001
 color_scale = 0.002
@@ -37,23 +35,22 @@ likelihood = l.get_uniform_multilaplace_image_dist_with_fixed_params(
     renderer.height, renderer.width, depth_scale, color_scale, mindepth, maxdepth
 )
 
-model = m.single_object_model_factory(
-    renderer,
-    likelihood,
-    hyperparams
-)
+model = m.single_object_model_factory(renderer, likelihood, hyperparams)
 
 key = jax.random.PRNGKey(0)
 
 ### Generate image samples from the observation model ###
 
+
 def generate_image(key):
     trace, weight = model.importance(
         key,
-        genjax.choice_map({ "pose": X_WP, "camera_pose": X_WC }),
-        (patch_vertices_P, patch_faces, patch_vertex_colors, ())
+        genjax.choice_map({"pose": X_WP, "camera_pose": X_WC}),
+        (patch_vertices_P, patch_faces, patch_vertex_colors, ()),
     )
     return trace.get_retval()[0]
+
+
 images = jax.vmap(generate_image)(jax.random.split(key, 100))
 for i, image in enumerate(images):
     rr.set_time_sequence("image_sample", i)
@@ -62,28 +59,43 @@ for i, image in enumerate(images):
 
 ### Patch tracking ###
 
+
 def importance_from_pos_quat_v3(pos, quat, timestep):
     pose = Pose.from_vec(jnp.concatenate([pos, quat]))
     trace, weight = model.importance(
         key,
-        genjax.choice_map({
-            "pose": pose,
-            "camera_pose": X_WC,
-            "observed_rgbd": observed_rgbds[timestep]
-        }),
-        (patch_vertices_P, patch_faces, patch_vertex_colors, ())
+        genjax.choice_map(
+            {
+                "pose": pose,
+                "camera_pose": X_WC,
+                "observed_rgbd": observed_rgbds[timestep],
+            }
+        ),
+        (patch_vertices_P, patch_faces, patch_vertex_colors, ()),
     )
     return trace, weight
 
+
 trace, wt = importance_from_pos_quat_v3(X_WP._position, X_WP._quaternion, 0)
+
 
 def weight_from_pos_quat_v3(pos, quat, timestep):
     return importance_from_pos_quat_v3(pos, quat, timestep)[1]
 
-grad_jitted_3 = jax.jit(jax.grad(weight_from_pos_quat_v3, argnums=(0, 1,)))
+
+grad_jitted_3 = jax.jit(
+    jax.grad(
+        weight_from_pos_quat_v3,
+        argnums=(
+            0,
+            1,
+        ),
+    )
+)
 
 optimizer_pos = optax.adam(learning_rate=1e-4, b1=0.7)
 optimizer_quat = optax.adam(learning_rate=4e-3)
+
 
 @jax.jit
 def optimizer_kernel(st, i):
@@ -95,10 +107,12 @@ def optimizer_kernel(st, i):
     quat = optax.apply_updates(quat, updates_quat)
     return (opt_state_pos, opt_state_quat, pos, quat, timestep), (pos, quat)
 
+
 @jax.jit
 def unfold_100_steps(st):
     ret_st, _ = jax.lax.scan(optimizer_kernel, st, jnp.arange(100))
     return ret_st
+
 
 opt_state_pos = optimizer_pos.init(X_WP._position)
 opt_state_quat = optimizer_quat.init(X_WP._quaternion)

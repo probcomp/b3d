@@ -8,6 +8,7 @@ import b3d.chisight.dense.differentiable_renderer as rendering
 import rerun as rr
 import numpy as np
 
+
 def uniformpose_meshes_to_image_model__factory(likelihood):
     """
     This factory returns a generative function which
@@ -22,17 +23,24 @@ def uniformpose_meshes_to_image_model__factory(likelihood):
 
     @genjax.gen
     def uniformpose_meshes_to_image_model(vertices_O, faces, vertex_colors):
-        X_WC = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ "camera_pose"
+        X_WC = uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
 
         N = vertices_O.shape[0]
-        Xs_WO = uniform_pose.vmap(in_axes=(0, 0))(
-            jnp.ones((N, 3))*-10.0, jnp.ones((N, 3))*10.0
-        ) @ "poses"
+        Xs_WO = (
+            uniform_pose.vmap(in_axes=(0, 0))(
+                jnp.ones((N, 3)) * -10.0, jnp.ones((N, 3)) * 10.0
+            )
+            @ "poses"
+        )
 
-        (observed_image, likelihood_metadata) = meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors) @ "observed_image"
+        (observed_image, likelihood_metadata) = (
+            meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors)
+            @ "observed_image"
+        )
         return (observed_image, likelihood_metadata)
 
     return uniformpose_meshes_to_image_model
+
 
 def meshes_to_image_model__factory(likelihood):
     """
@@ -47,6 +55,7 @@ def meshes_to_image_model__factory(likelihood):
         Should return (observed_image, metadata).
     - renderer_hyperparams: last argument for the likelihood
     """
+
     @genjax.gen
     def meshes_to_image_model(X_WC, Xs_WO, vertices_O, faces, vertex_colors):
         #                        (N, V, 3)    (N, F, 3)   (N, V, 3)
@@ -54,7 +63,9 @@ def meshes_to_image_model__factory(likelihood):
         # Coordinate frames:
         # W = world frame; C = camera frame; O = object frame
 
-        vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
+        vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(
+            Xs_WO, vertices_O
+        )
         vertices_C = X_WC.inv().apply(vertices_W.reshape(-1, 3))
 
         v = vertices_C.reshape(-1, 3)
@@ -62,7 +73,9 @@ def meshes_to_image_model__factory(likelihood):
 
         # shift up each object's face indices by the number of vertices in the previous objects
         N = vertices_O.shape[0]
-        f = jax.vmap(lambda i, f: f + i*vertices_O.shape[1], in_axes=(0, 0))(jnp.arange(N), faces)
+        f = jax.vmap(lambda i, f: f + i * vertices_O.shape[1], in_axes=(0, 0))(
+            jnp.arange(N), faces
+        )
         f = f.reshape(-1, 3)
 
         observed_image, likelihood_metadata = likelihood(v, f, vc) @ "observed_image"
@@ -71,23 +84,34 @@ def meshes_to_image_model__factory(likelihood):
 
     return meshes_to_image_model
 
+
 ### Visualization code
 def rr_log_uniformpose_meshes_to_image_model_trace(trace, renderer, **kwargs):
     """
     Log to rerun a visualization of a trace from `uniformpose_meshes_to_image_model`.
     """
-    return rr_log_meshes_to_image_model_trace(trace, renderer, **kwargs,
-                                              model_args_to_densemodel_args=(
-        lambda args: (trace.get_choices()["camera_pose"], trace.get_choices()("poses").c.v, *args)
-    ))
+    return rr_log_meshes_to_image_model_trace(
+        trace,
+        renderer,
+        **kwargs,
+        model_args_to_densemodel_args=(
+            lambda args: (
+                trace.get_choices()["camera_pose"],
+                trace.get_choices()("poses").c.v,
+                *args,
+            )
+        ),
+    )
+
 
 def rr_log_meshes_to_image_model_trace(
-        trace, renderer,
-        prefix="trace",
-        timeless=False,
-        model_args_to_densemodel_args=(lambda x: x),
-        transform_Viz_Trace=Pose.identity()
-    ):
+    trace,
+    renderer,
+    prefix="trace",
+    timeless=False,
+    model_args_to_densemodel_args=(lambda x: x),
+    transform_Viz_Trace=Pose.identity(),
+):
     """
     Log to rerun a visualization of a trace from `meshes_to_image_model`.
 
@@ -103,8 +127,16 @@ def rr_log_meshes_to_image_model_trace(
     """
     # 2D:
     (observed_rgbd, metadata) = trace.get_retval()
-    rr.log(f"/{prefix}/rgb/observed", rr.Image(np.array(observed_rgbd[:, :, :3])), timeless=timeless)
-    rr.log(f"/{prefix}/depth/observed", rr.DepthImage(np.array(observed_rgbd[:, :, 3])), timeless=timeless)
+    rr.log(
+        f"/{prefix}/rgb/observed",
+        rr.Image(np.array(observed_rgbd[:, :, :3])),
+        timeless=timeless,
+    )
+    rr.log(
+        f"/{prefix}/depth/observed",
+        rr.DepthImage(np.array(observed_rgbd[:, :, 3])),
+        timeless=timeless,
+    )
 
     # Visualization path for the average render,
     # if the likelihood metadata contains the output of the differentiable renderer.
@@ -113,45 +145,85 @@ def rr_log_meshes_to_image_model_trace(
         avg_obs = rendering.dist_params_to_average(weights, attributes, jnp.zeros(4))
         avg_obs_rgb_clipped = jnp.clip(avg_obs[:, :, :3], 0, 1)
         avg_obs_depth_clipped = jnp.clip(avg_obs[:, :, 3], 0, 1)
-        rr.log(f"/{prefix}/rgb/average_render", rr.Image(np.array(avg_obs_rgb_clipped)), timeless=timeless)
-        rr.log(f"/{prefix}/depth/average_render", rr.DepthImage(np.array(avg_obs_depth_clipped)), timeless=timeless)
+        rr.log(
+            f"/{prefix}/rgb/average_render",
+            rr.Image(np.array(avg_obs_rgb_clipped)),
+            timeless=timeless,
+        )
+        rr.log(
+            f"/{prefix}/depth/average_render",
+            rr.DepthImage(np.array(avg_obs_depth_clipped)),
+            timeless=timeless,
+        )
 
     # 3D:
-    rr.log(f"/{prefix}/3D/", rr.Transform3D(translation=transform_Viz_Trace.pos, mat3x3=transform_Viz_Trace.rot.as_matrix()), timeless=timeless)
+    rr.log(
+        f"/{prefix}/3D/",
+        rr.Transform3D(
+            translation=transform_Viz_Trace.pos,
+            mat3x3=transform_Viz_Trace.rot.as_matrix(),
+        ),
+        timeless=timeless,
+    )
 
-    (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(trace.get_args())
-    vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(Xs_WO, vertices_O)
+    (X_WC, Xs_WO, vertices_O, faces, vertex_colors) = model_args_to_densemodel_args(
+        trace.get_args()
+    )
+    vertices_W = jax.vmap(lambda X_WO, v_O: X_WO.apply(v_O), in_axes=(0, 0))(
+        Xs_WO, vertices_O
+    )
     N = vertices_O.shape[0]
-    f = jax.vmap(lambda i, f: f + i*vertices_O.shape[1], in_axes=(0, 0))(jnp.arange(N), faces)
+    f = jax.vmap(lambda i, f: f + i * vertices_O.shape[1], in_axes=(0, 0))(
+        jnp.arange(N), faces
+    )
     f = f.reshape(-1, 3)
 
-    rr.log(f"/{prefix}/3D/mesh", rr.Mesh3D(
-        vertex_positions=np.array(vertices_W.reshape(-1, 3)),
-        triangle_indices=np.array(f),
-        vertex_colors=np.array(vertex_colors.reshape(-1, 3))
-    ), timeless=timeless)
+    rr.log(
+        f"/{prefix}/3D/mesh",
+        rr.Mesh3D(
+            vertex_positions=np.array(vertices_W.reshape(-1, 3)),
+            triangle_indices=np.array(f),
+            vertex_colors=np.array(vertex_colors.reshape(-1, 3)),
+        ),
+        timeless=timeless,
+    )
 
-    rr.log(f"/{prefix}/3D/camera",
+    rr.log(
+        f"/{prefix}/3D/camera",
         rr.Pinhole(
             focal_length=[float(renderer.fx), float(renderer.fy)],
             width=renderer.width,
             height=renderer.height,
             principal_point=jnp.array([renderer.cx, renderer.cy]),
-            ), timeless=timeless
-        )
-    rr.log(f"/{prefix}/3D/camera", rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()), timeless=timeless)
-    xyzs_C = utils.xyz_from_depth(observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy)
+        ),
+        timeless=timeless,
+    )
+    rr.log(
+        f"/{prefix}/3D/camera",
+        rr.Transform3D(translation=X_WC.pos, mat3x3=X_WC.rot.as_matrix()),
+        timeless=timeless,
+    )
+    xyzs_C = utils.xyz_from_depth(
+        observed_rgbd[:, :, 3], renderer.fx, renderer.fy, renderer.cx, renderer.cy
+    )
     xyzs_W = X_WC.apply(xyzs_C)
-    rr.log(f"/{prefix}/3D/gt_pointcloud", rr.Points3D(
-        positions=np.array(xyzs_W.reshape(-1,3)),
-        colors=np.array(observed_rgbd[:, :, :3].reshape(-1,3)),
-        radii = 0.001*np.ones(xyzs_W.reshape(-1,3).shape[0])),
-        timeless=timeless
+    rr.log(
+        f"/{prefix}/3D/gt_pointcloud",
+        rr.Points3D(
+            positions=np.array(xyzs_W.reshape(-1, 3)),
+            colors=np.array(observed_rgbd[:, :, :3].reshape(-1, 3)),
+            radii=0.001 * np.ones(xyzs_W.reshape(-1, 3).shape[0]),
+        ),
+        timeless=timeless,
     )
 
     patch_centers_W = jax.vmap(lambda X_WO: X_WO.pos)(Xs_WO)
     rr.log(
         f"/{prefix}/3D/patch_centers",
-        rr.Points3D(positions=np.array(patch_centers_W), colors=np.array([0., 0., 1.]), radii=0.003),
-        timeless=timeless
+        rr.Points3D(
+            positions=np.array(patch_centers_W),
+            colors=np.array([0.0, 0.0, 1.0]),
+            radii=0.003,
+        ),
+        timeless=timeless,
     )

@@ -7,7 +7,9 @@ from .keypoint_tracking_and_segmentation_task import KeypointTrackingAndSegmenta
 from .dummy_solver import KeypointTrackingAndSegmentationDummySolver
 
 all_tasks = [
-    KeypointTrackingAndSegmentationTask(spec["feature_track_data_loader"], scene_name=spec["scene_name"], n_frames=3)
+    KeypointTrackingAndSegmentationTask(
+        spec["feature_track_data_loader"], scene_name=spec["scene_name"], n_frames=3
+    )
     for spec in get_loaders_for_all_curated_scenes()
 ]
 all_solvers = [KeypointTrackingAndSegmentationDummySolver()]

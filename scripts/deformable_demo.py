@@ -16,6 +16,7 @@ from b3d.io import MeshData
 from sklearn.utils import Bunch
 import rerun as rr
 
+
 # **************************
 #   Mesh Subsampling
 #   Methods
@@ -256,12 +257,12 @@ print(
 Subsampled mesh data:
     xs.shape: {xs.shape}
     scale = {(xs[0].max(0) - xs[0].min(0)).max()}
-""")
+"""
+)
 # scale = xs.var(1).max()
-scale = 0.25*(xs[0].max(0) - xs[0].min(0)).max()
-xs = xs - xs[0].mean(0)[None,None]
-xs = xs/scale
-
+scale = 0.25 * (xs[0].max(0) - xs[0].min(0)).max()
+xs = xs - xs[0].mean(0)[None, None]
+xs = xs / scale
 
 
 # **************************
@@ -299,9 +300,9 @@ relative_poses = cluster_poses[0].inv() @ absolute_poses
 diagonal_covariances = 0.1 * jnp.ones((N, 3))
 
 params = dict(
-    relative_poses = relative_poses,
-    diagonal_covariances = diagonal_covariances,
-    cluster_poses = cluster_poses,
+    relative_poses=relative_poses,
+    diagonal_covariances=diagonal_covariances,
+    cluster_poses=cluster_poses,
 )
 
 # Setting up the optimization
@@ -329,7 +330,10 @@ def step(carry, _):
 # **************************
 print(f"Fitting data...")
 num_runs = 20
-num_runs = int(input(f"Number of training iteration loops \n({num_runs} default): ").strip() or f"{num_runs}")
+num_runs = int(
+    input(f"Number of training iteration loops \n({num_runs} default): ").strip()
+    or f"{num_runs}"
+)
 for i in range(num_runs):
     (params, opt_state), losses = jax.lax.scan(
         step, (params, opt_state), xs=None, length=500

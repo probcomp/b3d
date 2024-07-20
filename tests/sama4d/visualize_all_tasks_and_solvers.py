@@ -2,21 +2,26 @@
 
 import b3d
 import sys
+
 sys.path.append(b3d.get_root_path())
 
 import rerun as rr
 from tests.sama4d.video_to_tracks.registration import all_task_solver_pairs as pairs_1
-from tests.sama4d.tracks_to_segmentation.registration import all_task_solver_pairs as pairs_2
-from tests.sama4d.video_to_tracks_and_segmentation.registration import all_task_solver_pairs as pairs_3
+from tests.sama4d.tracks_to_segmentation.registration import (
+    all_task_solver_pairs as pairs_2,
+)
+from tests.sama4d.video_to_tracks_and_segmentation.registration import (
+    all_task_solver_pairs as pairs_3,
+)
 
 # For now, only run the first two tasks and solvers from each group.
 # Due to a memory leak in `b3d.Renderer`, if we run more tasks,
 # the GPU runs out of memory.
 # Fixing this is a priority for the week of July 1, 2024.
-for (groupname, pairs) in [
+for groupname, pairs in [
     ("Video To Tracks", pairs_1[:2]),
     ("Tracks To Segmentation", pairs_2[:2]),
-    ("Video To Tracks And Segmentation", pairs_3[:2])
+    ("Video To Tracks And Segmentation", pairs_3[:2]),
 ]:
     print(f"****************{groupname}****************")
     for task, solver in pairs:

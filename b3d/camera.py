@@ -137,9 +137,11 @@ def screen_from_camera(xyz: CameraCoordinates, intrinsics) -> ScreenCoordinates:
         (...,2) array of screen coordinates.
     """
     # TODO: check this
-    xyz = jnp.clip(xyz,
-            jnp.array([-jnp.inf, -jnp.inf, intrinsics.near]),
-            jnp.array([jnp.inf, jnp.inf, intrinsics.far]))
+    xyz = jnp.clip(
+        xyz,
+        jnp.array([-jnp.inf, -jnp.inf, intrinsics.near]),
+        jnp.array([jnp.inf, jnp.inf, intrinsics.far]),
+    )
     _, _, fx, fy, cx, cy, _, _ = intrinsics
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
     u = x * fx / z + cx

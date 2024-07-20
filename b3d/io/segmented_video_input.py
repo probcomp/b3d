@@ -57,7 +57,8 @@ class SegmentedVideoInput(VideoInput):
                 camera_intrinsics_depth=jnp.array(data['camera_intrinsics_depth']),
                 object_positions=jnp.array(data['object_positions']),
                 object_quaternions=jnp.array(data['object_quaternions']),
-                object_catalog_ids=data['object_catalog_ids']
+                object_catalog_ids=data['object_catalog_ids'],
+                fps=data['fps']
             )
 
     @classmethod

@@ -163,4 +163,29 @@ def print_data_settings(filename: str):
     background_setting = True if (parts[1] == "bg") else False
     resolution = parts[2].split("p.")[0]
 
-    return print(f"resolution: {resolution}, background: {background_setting}, lighting: {light_setting}")
+    return print(
+        f"resolution: {resolution}, background: {background_setting}, lighting: {light_setting}"
+    )
+
+
+def get_file_info(file_path):
+    folder_parts = file_path.split("/")
+
+    scene_folder = folder_parts[-4]
+    base_name = folder_parts[-3]
+    data_class = folder_parts[-2]
+
+    settings = folder_parts[-1].split("_")
+
+    light_setting = True if (settings[0] == "lit") else False
+    background_setting = True if (settings[1] == "bg") else False
+    resolution = settings[2].split("p.")[0]
+
+    return {
+        "scene_folder": scene_folder,
+        "data_name": base_name,
+        "light_setting": light_setting,
+        "background_setting": background_setting,
+        "resolution": resolution,
+        "data_class": data_class,
+    }

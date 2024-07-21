@@ -42,6 +42,7 @@ def choose_good_quat(q):
     )
 
 
+@jax.jit
 def sample_uniform_pose(key, low, high):
     keys = jax.random.split(key, 2)
     pos = jax.random.uniform(keys[0], (3,)) * (high - low) + low
@@ -57,6 +58,7 @@ def logpdf_uniform_pose(pose, low, high):
     return position_score.sum() + jnp.pi**2
 
 
+@jax.jit
 def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     """
     Samples poses from the product of a diagonal normal distribution (for position) and
@@ -369,7 +371,7 @@ class Pose:
     from_position_and_target = camera_from_position_and_target
 
     sample_uniform_pose = sample_uniform_pose
-    sample_uniform_pose_jit = jax.jit(sample_uniform_pose)
-    sample_uniform_pose_vmap = jax.vmap(sample_uniform_pose, in_axes=(0, None, None))
+    sample_uniform_pose_vmap = jax.jit(jax.vmap(sample_uniform_pose, in_axes=(0, None, None)))
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
     sample_gaussian_vmf_pose_jit = jax.jit(sample_gaussian_vmf_pose)
+    sample_gaussian_vmf_pose_vmap = jax.vmap(sample_gaussian_vmf_pose, in_axes=(0, None, None, None))

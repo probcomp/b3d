@@ -494,22 +494,24 @@ def update_choices(trace, key, addresses, *values):
     )[0]
 
 
-
 @jax.jit
 def update_choices_get_score(trace, key, addr_const, *values):
     return update_choices(trace, key, addr_const, *values).get_score()
 
 
+enumerate_choices = jax.jit(
+    jax.vmap(
+        update_choices,
+        in_axes=(None, None, None, 0),
+    )
+)
 
-enumerate_choices = jax.jit(jax.vmap(
-    update_choices,
-    in_axes=(None, None, None, 0),
-))
-
-enumerate_choices_get_scores = jax.jit(jax.vmap(
-    update_choices_get_score,
-    in_axes=(None, None, None, 0),
-))
+enumerate_choices_get_scores = jax.jit(
+    jax.vmap(
+        update_choices_get_score,
+        in_axes=(None, None, None, 0),
+    )
+)
 
 
 def nn_background_segmentation(images):

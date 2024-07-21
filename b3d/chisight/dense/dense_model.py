@@ -6,9 +6,12 @@ import jax
 import jax.numpy as jnp
 import b3d.chisight.dense.likelihoods.image_likelihood
 
+
 def make_dense_multiobject_model(renderer, image_likelihood_func):
-    image_likelihood = b3d.chisight.dense.likelihoods.image_likelihood.make_image_likelihood(
-        image_likelihood_func
+    image_likelihood = (
+        b3d.chisight.dense.likelihoods.image_likelihood.make_image_likelihood(
+            image_likelihood_func
+        )
     )
 
     @genjax.gen
@@ -27,19 +30,22 @@ def make_dense_multiobject_model(renderer, image_likelihood_func):
 
         all_poses = []
         for i in range(num_objects.const):
-            object_pose = uniform_pose(jnp.ones(3)*-100.0, jnp.ones(3)*100.0) @ f"object_pose_{i}"
+            object_pose = (
+                uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
+                @ f"object_pose_{i}"
+            )
             all_poses.append(object_pose)
         all_poses = Pose.stack_poses(all_poses)
-        
+
         scene_mesh = Mesh.transform_and_merge_meshes(meshes, all_poses)
         latent_rgbd = renderer.render_rgbd_from_mesh(scene_mesh)
 
         image = image_likelihood(latent_rgbd, likelihood_args) @ "image"
         return {
-                    "likelihood_args": likelihood_args, 
-                    "scene_mesh": scene_mesh,
-                    "latent_rgbd": latent_rgbd,
-                    "image": image
-               }
-    
+            "likelihood_args": likelihood_args,
+            "scene_mesh": scene_mesh,
+            "latent_rgbd": latent_rgbd,
+            "image": image,
+        }
+
     return dense_multiobject_model

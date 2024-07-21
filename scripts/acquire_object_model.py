@@ -108,7 +108,7 @@ meshes = b3d.mesh.transform_mesh(
 full_mesh = b3d.mesh.Mesh.squeeze_mesh(meshes)
 full_mesh.rr_visualize("mesh")
 
-mesh_filename =  filename + ".mesh.obj"
+mesh_filename = filename + ".mesh.obj"
 # Save the mesh
 print(f"Saving obj file to {mesh_filename}")
 full_mesh.save(mesh_filename)

@@ -88,7 +88,7 @@ def convert_unity_to_segmented_video_input(
         object_positions=object_positions,
         object_quaternions=object_quaternions,
         object_catalog_ids=unity_data.object_catalog_ids,
-        fps=unity_data.fps
+        fps=unity_data.fps,
     )
 
 
@@ -98,9 +98,7 @@ def convert_from_zip(zip_path: str) -> SegmentedVideoInput:
     return segmented_video_input_data
 
 
-def save_segmented_video_input_data(
-    data: SegmentedVideoInput, file_info: dict, create_gif: bool = False
-) -> None:
+def save_segmented_video_input_data(data: SegmentedVideoInput, file_info: dict) -> None:
     folder_path = get_assets_path(
         file_info["data_name"], "s", file_info["scene_folder"]
     )
@@ -110,11 +108,15 @@ def save_segmented_video_input_data(
     data.save(filepath)
     print(f"Saved {filepath}")
 
-    if create_gif:
-        video_path = (
-            f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
-        )
-        create_segmented_video_input_video(data, str(folder_path / video_path))
+
+def create_segmented_video_input_mp4(
+    data: SegmentedVideoInput, file_info: dict
+) -> None:
+    folder_path = get_assets_path(
+        file_info["data_name"], "s", file_info["scene_folder"]
+    )
+    video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
+    create_segmented_video_input_video(data, str(folder_path / video_path))
 
 
 def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoInput:
@@ -142,7 +144,7 @@ def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoI
         object_positions=data.object_positions,
         object_quaternions=data.object_quaternions,
         object_catalog_ids=data.object_catalog_ids,
-        fps=data.fps
+        fps=data.fps,
     )
 
 
@@ -198,15 +200,14 @@ def process(zip_path: str, moveFile: bool = True, tags_str=None) -> None:
     # Save teaser video
     save_teaser(segmented_video_data, unity_data.file_info)
 
+    # Save mp4 preview
+    create_segmented_video_input_mp4(segmented_video_data, unity_data.file_info)
+
     # Save segmented_video_data
-    save_segmented_video_input_data(
-        segmented_video_data, unity_data.file_info, create_gif=True
-    )
+    save_segmented_video_input_data(segmented_video_data, unity_data.file_info)
 
     # Save a 200p version
-    save_downscaled_video_input(
-        segmented_video_data, 200, unity_data.file_info, create_gif=False
-    )
+    save_downscaled_video_input(segmented_video_data, 200, unity_data.file_info)
 
     # move zip_path file into FBData/processed folder
     if moveFile:

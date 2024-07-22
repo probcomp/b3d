@@ -15,7 +15,7 @@ def get_unity() -> Path:
 
 
 def map_data_class(data_class: str) -> str:
-    """Map a short code to the full data class name."""
+    """Map a short name code to the full data class name."""
     data_class_map = {
         "f": "feature_track_data",
         "feature_track_data": "feature_track_data",
@@ -33,39 +33,7 @@ def map_data_class(data_class: str) -> str:
     return data_class_map[data_class]
 
 
-def construct_data_path(data_name: str, scene_folder: str = None) -> Path:
-    """Construct and return the absolute path of the data directory."""
-    assets_dir_path = get_unity()
-    if scene_folder:
-        assets_dir_path /= scene_folder
-    if data_name:
-        assets_dir_path /= data_name
-    return assets_dir_path
-
-
-def get_data_path(data_name: str, scene_folder: str = None) -> Path:
-    """Return the absolute path of the data directory, creating it if necessary."""
-    assets_dir_path = construct_data_path(data_name, scene_folder)
-    if not assets_dir_path.exists():
-        assets_dir_path.mkdir(parents=True, exist_ok=True)
-        print(
-            f"Initialized empty directory for shared bucket data at {assets_dir_path}."
-        )
-    return assets_dir_path
-
-
-def get_assets_path(data_name: str, data_class: str, scene_folder: str = None) -> Path:
-    """Return the absolute path of the assets directory for the given data."""
-    assets_dir_path = get_data_path(data_name, scene_folder)
-    data_class_dir = map_data_class(data_class)
-    assets_dir_path /= data_class_dir
-    if not assets_dir_path.exists():
-        assets_dir_path.mkdir(parents=True, exist_ok=True)
-        print(f"Initialized empty directory for bucket data at {assets_dir_path}.")
-    return assets_dir_path
-
-
-def get_existing_unity_data_folder_path(
+def get_existing_data_folder_path(
     data_name: str, data_class: str = "f", scene_folder: str = None
 ) -> Path:
     unity_folder = get_unity()
@@ -76,8 +44,8 @@ def get_existing_unity_data_folder_path(
         if data_path.exists() and data_path.is_dir():
             return data_path
         raise FileNotFoundError(
-            f"Data '{data_name}' folder not found in scene folder '{scene_folder}' with data class '{data_class_dir}'."
-    )
+            f"Data '{data_name}' folder not found in specified scene folder '{scene_folder}' with data class '{data_class_dir}'."
+        )
     else:
         # Walk through all the directories and subdirectories in the 'unity' folder
         for root, dirs, files in os.walk(unity_folder):
@@ -91,7 +59,7 @@ def get_existing_unity_data_folder_path(
         )
 
 
-def get_unity_data_path(
+def get_data_path(
     data_name: str,
     data_class: str = "f",
     resolution: int = 200,
@@ -101,9 +69,7 @@ def get_unity_data_path(
 ) -> str:
     """Return the file path of the Unity data file based on specified settings."""
     # Look for the data folder in 'large_data_bucket' / 'unity' / 'scene_folder' / 'data_name' / 'data_class'
-    folder_path = get_existing_unity_data_folder_path(
-        data_name, data_class, scene_folder
-    )
+    folder_path = get_existing_data_folder_path(data_name, data_class, scene_folder)
     light_setting = "lit" if light else "unlit"
     background_setting = "bg" if background else "nobg"
     file_name = f"{light_setting}_{background_setting}_{resolution}p.input.npz"

@@ -122,9 +122,7 @@ def convert_from_zip(zip_path: str) -> FeatureTrackData:
     return feature_track_data
 
 
-def save_feature_track_data(
-    data: FeatureTrackData, file_info: dict, create_gif: bool = False
-) -> None:
+def save_feature_track_data(data: FeatureTrackData, file_info: dict) -> None:
     folder_path = get_assets_path(
         file_info["data_name"], "f", file_info["scene_folder"]
     )
@@ -134,9 +132,14 @@ def save_feature_track_data(
     data.save(filepath)
     print(f"Saved {filepath}")
 
-    if create_gif:
-        gifname = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
-        create_feature_track_video(data, str(folder_path / gifname))
+
+def create_feature_track_video_mp4(data: FeatureTrackData, file_info: dict) -> None:
+    folder_path = get_assets_path(
+        file_info["data_name"], "s", file_info["scene_folder"]
+    )
+
+    video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
+    create_feature_track_video(data, str(folder_path / video_path))
 
 
 def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
@@ -212,13 +215,14 @@ def process(zip_path: str, moveFile: bool = True, tags_str=None) -> None:
     # Save teaser video
     save_teaser(feature_track_data, unity_data.file_info)
 
+    # Save mp4 preview
+    create_feature_track_video_mp4(feature_track_data, unity_data.file_info)
+
     # Save feature_track_data
-    save_feature_track_data(feature_track_data, unity_data.file_info, create_gif=True)
+    save_feature_track_data(feature_track_data, unity_data.file_info)
 
     # Save a 200p version
-    save_downscaled_feature_track(
-        feature_track_data, 200, unity_data.file_info, create_gif=False
-    )
+    save_downscaled_feature_track(feature_track_data, 200, unity_data.file_info)
 
     # move zip_path file into FBData/processed folder
     if moveFile:

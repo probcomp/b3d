@@ -12,44 +12,35 @@ b3d.rr_init("acquire_object_model")
 
 
 parser = argparse.ArgumentParser("acquire_object_mode")
-parser.add_argument("input", help="Video Input File", type=str)
+parser.add_argument("input", help="r3d file", type=str)
 args = parser.parse_args()
 
 filename = args.input
-# filename = "assets/shared_data_bucket/input_data/lysol_static.r3d.video_input.npz"
-video_input = b3d.io.VideoInput.load(filename)
+data = b3d.io.load_r3d(filename)
 
 
-image_width, image_height, fx, fy, cx, cy, near, far = np.array(
-    video_input.camera_intrinsics_depth
-)
-image_width, image_height = int(image_width), int(image_height)
-fx, fy, cx, cy, near, far = (
-    float(fx),
-    float(fy),
-    float(cx),
-    float(cy),
-    float(near),
-    float(far),
-)
+_, _, fx, fy, cx, cy, near, far = data["camera_intrinsics_depth"]
+image_height, image_width = data["depth"].shape[1:3]
+num_scenes = data["depth"].shape[0]
 
-indices = jnp.arange(0, video_input.xyz.shape[0], 10)
+indices = jnp.arange(0, num_scenes, 10)
 
-
-camera_poses_full = b3d.Pose(
-    video_input.camera_positions, video_input.camera_quaternions
-)
-
+camera_poses_full = data["camera_pose"]
 camera_poses = camera_poses_full[indices]
 
-xyz = video_input.xyz[indices]
+xyz = b3d.xyz_from_depth_vectorized(data["depth"][indices], fx, fy, cx, cy)
 xyz_world_frame = camera_poses[:, None, None].apply(xyz)
 
+# for i in range(len(xyz_world_frame)):
+#     b3d.rr_set_time(i)
+#     b3d.utils.rr_log_cloud("xyz", xyz_world_frame[i])
+
 # Resize rgbs to be same size as depth.
+rgbs = data["rgb"]
 rgbs_resized = jnp.clip(
     jax.vmap(jax.image.resize, in_axes=(0, None, None))(
-        video_input.rgb[indices] / 255.0,
-        (video_input.xyz.shape[1], video_input.xyz.shape[2], 3),
+        rgbs[indices] / 255.0,
+        (image_height, image_width, 3),
         "linear",
     ),
     0.0,
@@ -60,12 +51,7 @@ rgbs_resized = jnp.clip(
 masks = [b3d.carvekit_get_foreground_mask(r) for r in rgbs_resized]
 masks_concat = jnp.stack(masks, axis=0)
 
-# for i in range(len(masks)):
-#     b3d.rr_set_time(i)
-#     b3d.rr_log_depth("depth", masks[i] * 1.0)
-
-
-grid_center = jnp.median(camera_poses[0].apply(video_input.xyz[0][masks[0]]), axis=0)
+grid_center = jnp.median(camera_poses[0].apply(xyz[0][masks[0]]), axis=0)
 W = 0.3
 D = 100
 grid = jnp.stack(
@@ -111,26 +97,22 @@ meshes = b3d.mesh.transform_mesh(
     ),
     b3d.Pose.from_translation(grid_points)[:, None],
 )
-object_mesh = b3d.mesh.Mesh.squeeze_mesh(meshes)
+_object_mesh = b3d.mesh.Mesh.squeeze_mesh(meshes)
 
-object_pose = Pose.from_translation(jnp.median(object_mesh.vertices, axis=0))
-object_mesh_centered = object_mesh.transform(object_pose.inv())
-object_mesh_centered.rr_visualize("mesh")
+object_pose = Pose.from_translation(jnp.median(_object_mesh.vertices, axis=0))
+object_mesh = _object_mesh.transform(object_pose.inv())
+object_mesh.rr_visualize("mesh")
 
 mesh_filename = filename + ".mesh.obj"
 # Save the mesh
 print(f"Saving obj file to {mesh_filename}")
-object_mesh_centered.save(mesh_filename)
-
+object_mesh.save(mesh_filename)
 
 renderer = b3d.RendererOriginal(image_width, image_height, fx, fy, cx, cy, near, far)
-
-b3d.utils.reload(b3d.mesh)
-
 rgbds = renderer.render_rgbd_many(
-    (camera_poses[:, None].inv() @ object_pose).apply(object_mesh_centered.vertices),
-    object_mesh_centered.faces,
-    jnp.tile(object_mesh_centered.vertex_attributes, (len(camera_poses), 1, 1)),
+    (camera_poses[:, None].inv() @ object_pose).apply(object_mesh.vertices),
+    object_mesh.faces,
+    jnp.tile(object_mesh.vertex_attributes, (len(camera_poses), 1, 1)),
 )
 
 sub_indices = jnp.array([0, 5, len(camera_poses) - 15, len(camera_poses) - 5])
@@ -164,25 +146,9 @@ object_poses = [
 ]
 
 scene_mesh = b3d.mesh.transform_and_merge_meshes(
-    [object_mesh_centered, background_mesh, object_mesh_centered, object_mesh_centered],
+    [object_mesh, background_mesh, object_mesh, object_mesh],
     object_poses,
 )
-
-
-# image_width, image_height, fx, fy, cx, cy, near, far = np.array(
-#     video_input.camera_intrinsics_rgb
-# )
-# image_width, image_height = int(image_width), int(image_height)
-# fx, fy, cx, cy, near, far = (
-#     float(fx),
-#     float(fy),
-#     float(cx),
-#     float(cy),
-#     float(near),
-#     float(far),
-# )
-# renderer = b3d.RendererOriginal(image_width, image_height, fx, fy, cx, cy, near, far)
-
 
 viz_images = []
 for t in tqdm(range(len(camera_poses_full))):
@@ -195,8 +161,3 @@ for t in tqdm(range(len(camera_poses_full))):
 
 b3d.make_video_from_pil_images(viz_images, filename + ".graphics_edits.mp4", fps=30.0)
 print(f"Saved video to {filename + '.graphics_edits.mp4'}")
-
-
-from IPython import embed
-
-embed()

@@ -42,6 +42,36 @@ def get_diffrend_likelihood(
     return wrapped_likelihood
 
 
+def get_simple_likelihood(renderer, color_scale=0.05, outlier_prob=0.05):
+    likelihood_dist = likelihoods.ArgMap(
+        likelihoods.get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
+            renderer.height, renderer.width, color_scale
+        ),
+        lambda colors: (
+            jnp.tile(
+                jnp.array([outlier_prob, 1.0 - outlier_prob]),
+                (colors.shape[0], colors.shape[1], 1),
+            ),
+            colors[:, :, None, ...],
+        ),
+    )
+
+    @genjax.gen
+    def wrapped_likelihood(mesh: b3d.Mesh, transform_World_Camera):
+        rgb, _ = renderer.render_attribute(
+            transform_World_Camera.inv()[None, ...],
+            mesh.vertices,
+            mesh.faces,
+            jnp.array([[0, len(mesh.faces)]]),
+            mesh.vertex_attributes,
+        )
+        assert rgb.shape == (renderer.height, renderer.width, 3)
+        obs = likelihood_dist(rgb) @ "image"
+        return obs, {"rasterized_rgb": rgb}
+
+    return wrapped_likelihood
+
+
 def model_factory(likelihood):  # renderer, renderer_hyperparams): #likelihood):
     """
     The provided likelihood should be a Generative Function with

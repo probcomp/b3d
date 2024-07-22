@@ -4,7 +4,12 @@ import jax.numpy as jnp
 import b3d
 import genjax
 from genjax import ChoiceMapBuilder as C
-from .model import model_factory, get_diffrend_likelihood, rr_log_trace
+from .model import (
+    model_factory,
+    get_diffrend_likelihood,
+    get_simple_likelihood,
+    rr_log_trace,
+)
 
 RENDERER_HYPERPARAMS = (
     b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(
@@ -125,3 +130,8 @@ class DiffrendImportanceSolver(ImportanceSolver):
         super().__init__(
             lambda renderer: get_diffrend_likelihood(renderer, renderer_hyperparams)
         )
+
+
+class SimpleLikelihoodImportanceSolver(ImportanceSolver):
+    def __init__(self):
+        super().__init__(get_simple_likelihood)

@@ -83,13 +83,14 @@ def importance_sample_with_depth_in_partition(
 
 
 class ImportanceSolver(Solver):
+    def __init__(self, renderer_to_likelihood):
+        self.renderer_to_likelihood = renderer_to_likelihood
+
     def solve(self, task_input):
         partition = task_input["depth_partition"]
         key = jax.random.PRNGKey(1)
         renderer = task_input["renderer"]
-        model = model_factory(
-            get_diffrend_likelihood(renderer, RENDERER_HYPERPARAMS)
-        )  # (renderer, RENDERER_HYPERPARAMS) # get_diffrend_likelihood(renderer, RENDERER_HYPERPARAMS))
+        model = model_factory(self.renderer_to_likelihood(renderer))
 
         partition_starts = partition[:-1]
         partition_ends = partition[1:]
@@ -117,3 +118,10 @@ class ImportanceSolver(Solver):
                 rr_log_trace(trs[i], task_input["renderer"], prefix=f"trace_{i}")
 
         return joint_scores - jax.scipy.special.logsumexp(joint_scores)
+
+
+class DiffrendImportanceSolver(ImportanceSolver):
+    def __init__(self, renderer_hyperparams=RENDERER_HYPERPARAMS):
+        super().__init__(
+            lambda renderer: get_diffrend_likelihood(renderer, renderer_hyperparams)
+        )

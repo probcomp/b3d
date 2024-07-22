@@ -135,7 +135,7 @@ def save_feature_track_data(data: FeatureTrackData, file_info: dict) -> None:
 
 def create_feature_track_video_mp4(data: FeatureTrackData, file_info: dict) -> None:
     folder_path = get_assets_path(
-        file_info["data_name"], "s", file_info["scene_folder"]
+        file_info["data_name"], "f", file_info["scene_folder"]
     )
 
     video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
@@ -167,13 +167,13 @@ def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData
 
 
 def save_downscaled_feature_track(
-    data: FeatureTrackData, target_res: int, file_info: dict, create_gif: bool = False
+    data: FeatureTrackData, target_res: int, file_info: dict
 ) -> None:
     k = int(data.camera_intrinsics[0] / target_res)
     small_version = downsize_feature_track(data, k)
 
     file_info["resolution"] = f"{target_res}p"
-    save_feature_track_data(small_version, file_info, create_gif)
+    save_feature_track_data(small_version, file_info)
 
 
 def save_teaser(data: FeatureTrackData, file_info: dict):

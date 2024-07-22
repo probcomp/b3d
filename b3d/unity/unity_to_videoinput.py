@@ -149,16 +149,13 @@ def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoI
 
 
 def save_downscaled_video_input(
-    data: SegmentedVideoInput,
-    target_res: int,
-    file_info: dict,
-    create_gif: bool = False,
+    data: SegmentedVideoInput, target_res: int, file_info: dict
 ) -> None:
     k = int(data.camera_intrinsics_rgb[0] / target_res)
     small_version = downsize_video_input(data, k)
 
     file_info["resolution"] = f"{target_res}p"
-    save_segmented_video_input_data(small_version, file_info, create_gif)
+    save_segmented_video_input_data(small_version, file_info)
 
 
 def save_teaser(data: SegmentedVideoInput, file_info: dict):

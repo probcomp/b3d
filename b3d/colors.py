@@ -36,7 +36,42 @@ def rgb_to_lab(rgb):
     b = 200 * (xyz_f[1] - xyz_f[2])
 
     lab = jnp.stack([L, a, b], axis=-1)
-    return lab
+    return jnp.clip(
+        lab, jnp.array([0, -100.0, -100.0]), jnp.array([100.0, 100.0, 100.0])
+    )
+
+
+@partial(jnp.vectorize, signature="(k)->(k)")
+def lab_to_rgb(lab):
+    D65 = (0.95047, 1.00000, 1.08883)  # Reference white
+    y = (lab[..., 0] + 16.0) / 116.0
+    x = lab[..., 1] / 500.0 + y
+    z = y - lab[..., 2] / 200.0
+
+    xyz = jnp.stack([x, y, z], axis=-1)
+    mask = xyz > 0.2068966
+    xyz = jnp.where(mask, xyz**3, (xyz - 16.0 / 116.0) / 7.787)
+
+    xyz = xyz * jnp.array(D65)
+    mat = jnp.array(
+        [
+            [3.2406, -1.5372, -0.4986],
+            [-0.9689, 1.8758, 0.0415],
+            [0.0557, -0.2040, 1.0570],
+        ]
+    )
+    rgb = jnp.tensordot(xyz, mat, axes=([-1], [1]))
+    mask = rgb > 0.0031308
+    rgb = jnp.where(mask, 1.055 * (rgb ** (1.0 / 2.4)) - 0.055, 12.92 * rgb)
+    return jnp.clip(rgb, 0, 1)
+
+
+def labd_to_rgbd(labd):
+    return jnp.concatenate([lab_to_rgb(labd[..., :3]), labd[..., 3:4]], axis=-1)
+
+
+def rgbd_to_labd(rgbd):
+    return jnp.concatenate([rgb_to_lab(rgbd[..., :3]), rgbd[..., 3:4]], axis=-1)
 
 
 @partial(jnp.vectorize, signature="(k)->(k)")

@@ -5,6 +5,7 @@ import rerun as rr
 import jax
 import numpy as np
 from b3d import Pose
+import trimesh
 
 rr.init("vkm_demo2")
 rr.connect("127.0.0.1:8812")
@@ -451,8 +452,6 @@ for t in range(15):
     ticker += 1
 
 
-import trimesh
-
 mesh_path = os.path.join(
     b3d.get_root_path(),
     "assets/shared_data_bucket/ycb_video_models/models/019_pitcher_base/textured.obj",
@@ -720,13 +719,10 @@ def _pixel_coordinates_to_image(pixel_coords, image_height, image_width):
     return img
 
 
-from jax.lax import cond
-
-
 def slerp(q1, q2, t):
     dot_product = jnp.dot(q1, q2)
 
-    q1 = cond(dot_product < 0.0, lambda q: -q, lambda q: q, q1)
+    q1 = jax.lax.cond(dot_product < 0.0, lambda q: -q, lambda q: q, q1)
     dot_product = jnp.abs(dot_product)
 
     theta = jnp.arccos(jnp.clip(dot_product, -1.0, 1.0))
@@ -740,7 +736,7 @@ def slerp(q1, q2, t):
         w2 = jnp.sin(t * theta) / sin_theta
         return w1 * q1 + w2 * q2
 
-    return cond(theta < 1e-6, small_angle_case, normal_case, operand=None)
+    return jax.lax.cond(theta < 1e-6, small_angle_case, normal_case, operand=None)
 
 
 def lerp(T1, T2, t):

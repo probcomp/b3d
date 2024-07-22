@@ -122,7 +122,6 @@ def load_video_to_numpy(
     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    int(cap.get(cv2.CAP_PROP_FPS))
 
     if times is None:
         times = np.arange(T, step=step)
@@ -214,9 +213,6 @@ def plot_video_summary(
         downsize=downsize,
         reverse_color_channel=reverse_color_channel,
     )
-
-    vid.shape[2]
-    vid.shape[1]
 
     # Create a plot with the summary
     # TODO: Should we hand in an axis?

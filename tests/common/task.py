@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class Task:
     """
     Lightweight base class for defining tasks to be solved by parts of the b3d codebase.
@@ -22,13 +25,13 @@ class Task:
     ### CORE TASK INTERFACE ###
     ### Task developers should define the following. ###
 
-    def get_task_specification() -> "Tuple[Any, Any]":
+    def get_task_specification() -> tuple[Any, Any]:
         """
         Outputs `task_spec`, the input given to a task solver.
         """
         raise NotImplementedError()
 
-    def score(self, solution, **kwargs) -> "Any":
+    def score(self, solution, **kwargs) -> Any:
         """
         Scores an attempted solution ot the task, returning a collection of metrics.
 

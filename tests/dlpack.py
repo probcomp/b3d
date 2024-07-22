@@ -4,9 +4,11 @@ import torch
 import b3d
 import jax.numpy as jnp
 import nvdiffrast.torch as dr
+import trimesh
+import jax
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-import trimesh
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
@@ -35,8 +37,6 @@ def convert_to_torch(x):
 def convert_to_jax(x):
     return jax.dlpack.from_dlpack(torch.utils.dlpack.to_dlpack(x.contiguous()))
 
-
-import jax
 
 vertices_jax_4 = jnp.array(vertices.cpu().numpy())
 vertices_jax = jnp.array(vertices.cpu().numpy())[..., :3]

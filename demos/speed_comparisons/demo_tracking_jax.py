@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation as R
 
 import b3d
 import trimesh
+from b3d import Pose
 
 
 height = 100
@@ -47,7 +48,6 @@ observed_images, _ = renderer.render_attribute_many(
 )
 print("observed_images.shape", observed_images.shape)
 
-from b3d import Pose
 
 # Defines the enumeration schedule.
 key = jax.random.PRNGKey(0)

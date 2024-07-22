@@ -7,6 +7,7 @@ import os
 from functools import partial
 from tqdm import tqdm
 import numpy as np
+from matplotlib import colormaps
 
 
 def map_nested_fn(fn):
@@ -225,9 +226,6 @@ def viz_params(params, start_t, end_t):
             "xyz/error", rr.Points3D(xyz_in_world_frame_over_time[t], colors=redness)
         )
         # rr.log("rgb", rr.Image(rgbs[t] / 255.0))
-
-
-from matplotlib import colormaps
 
 
 colors = colormaps["rainbow"](jnp.linspace(0, 1, len(gt_pixel_coordinates[0])))

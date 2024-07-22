@@ -5,6 +5,7 @@ from b3d.pose import Pose
 from .dynamic_gps import DynamicGPS
 from typing import Any, TypeAlias
 from b3d.camera import screen_from_world
+from genjax import ChoiceMapBuilder as C
 
 
 @genjax.gen
@@ -278,7 +279,6 @@ def get_dynamic_gps(tr: SparseGPSModelTrace):
 # -----------
 #   Setters
 # -----------
-from genjax import ChoiceMapBuilder as C
 
 
 def set_camera_choice(t, cam: Pose, ch=None):

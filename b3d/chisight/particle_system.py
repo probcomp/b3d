@@ -243,7 +243,6 @@ def visualize_particle_system(
         camera_pose_prior_params,
     ) = latent_particle_model_args
 
-    b3d.distinct_colors(num_clusters.const)
     absolute_particle_poses = particle_dynamics_summary["absolute_particle_poses"]
     object_poses = particle_dynamics_summary["object_poses"]
     camera_pose = particle_dynamics_summary["camera_pose"]

@@ -62,7 +62,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         faces = jnp.array(mesh.faces)
         vertex_colors = vertices * 0.0 + jnp.array([1.0, 0.0, 0.0])
         vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
-        jnp.array([[0, len(faces)]])
+
         self.object_library = bayes3d.MeshLibrary.make_empty_library()
         self.object_library.add_object(vertices, faces, vertex_colors)
         print(f"{self.object_library.get_num_objects()} object(s) in library")

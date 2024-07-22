@@ -69,7 +69,6 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
     scene_rgb_images_dir = os.path.join(scene_data_dir, "rgb")
     scene_depth_images_dir = os.path.join(scene_data_dir, "depth")
-    os.path.join(scene_data_dir, "mask_visib")
 
     with open(os.path.join(scene_data_dir, "scene_camera.json")) as scene_cam_data_json:
         scene_cam_data = json.load(scene_cam_data_json)

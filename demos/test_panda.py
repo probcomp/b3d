@@ -7,12 +7,13 @@ import trimesh
 import genjax
 from b3d import Pose
 from tqdm import tqdm
+import pickle
+
 
 PORT = 8812
 rr.init("mug sm2c inference")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
-import pickle
 
 # Load a pickle file
 path = os.path.join(

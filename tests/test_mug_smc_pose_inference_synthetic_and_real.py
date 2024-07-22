@@ -99,7 +99,6 @@ def test_renderer_full(renderer):
             renderer, bayes3d.rgbd_sensor_model
         )
 
-        jax.jit(model.importance)
         key = jax.random.PRNGKey(110)
 
         point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)

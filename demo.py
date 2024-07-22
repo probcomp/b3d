@@ -53,7 +53,6 @@ def test_demo():
     renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
     model = bayes3d.model_multiobject_gl_factory(renderer)
     importance_jit = jax.jit(model.importance)
-    jax.jit(model.update)
 
     # Arguments of the generative model.
     # These control the inlier / outlier decision boundary for color error and depth error.

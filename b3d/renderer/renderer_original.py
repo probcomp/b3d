@@ -189,12 +189,12 @@ def _register_custom_calls():
 
 
 # @functools.partial(jax.jit, static_argnums=(0,))
-def _rasterize_fwd_custom_call(r: "Renderer", pos, tri, resolution):
+def _rasterize_fwd_custom_call(r: "RendererOriginal", pos, tri, resolution):
     return _build_rasterize_fwd_primitive(r).bind(pos, tri, resolution)
 
 
 @functools.lru_cache(maxsize=None)
-def _build_rasterize_fwd_primitive(r: "Renderer"):
+def _build_rasterize_fwd_primitive(r: "RendererOriginal"):
     _register_custom_calls()
     # For JIT compilation we need a function to evaluate the shape and dtype of the
     # outputs of our op for some given inputs
@@ -300,7 +300,7 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
 
 # @functools.partial(jax.jit, static_argnums=(0,))
 def _interpolate_fwd_custom_call(
-    r: "Renderer",
+    r: "RendererOriginal",
     attributes,
     rast,
     faces,
@@ -313,7 +313,7 @@ def _interpolate_fwd_custom_call(
 
 
 # @functools.lru_cache(maxsize=None)
-def _build_interpolate_fwd_primitive(r: "Renderer"):
+def _build_interpolate_fwd_primitive(r: "RendererOriginal"):
     _register_custom_calls()
     # For JIT compilation we need a function to evaluate the shape and dtype of the
     # outputs of our op for some given inputs

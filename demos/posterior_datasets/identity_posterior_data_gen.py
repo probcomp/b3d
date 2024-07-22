@@ -4,6 +4,8 @@ import trimesh
 import jax.numpy as jnp
 import jax
 import os
+import rerun as rr
+
 
 width = 200
 height = 200
@@ -17,7 +19,6 @@ far = 16.0
 renderer = b3d.Renderer(int(width), int(height), fx, fy, cx, cy, near, far)
 
 ## rerun for mesh viz
-import rerun as rr
 
 PORT = 8812
 rr.init("fork-knife")

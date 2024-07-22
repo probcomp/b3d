@@ -8,6 +8,7 @@ import b3d
 from b3d import Pose
 import rerun as rr
 from tqdm import tqdm
+import pickle
 
 
 rr.init("demo_visualize3")
@@ -23,8 +24,6 @@ path = os.path.join(
 )
 video_input = b3d.VideoInput.load(path)
 
-
-import pickle
 
 data, object_library = pickle.load(open("demo_data.dat", "rb"))
 

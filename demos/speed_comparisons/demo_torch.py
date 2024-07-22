@@ -7,6 +7,12 @@ from tqdm import tqdm
 import torch
 import b3d.torch
 import b3d.torch.renderutils
+import b3d.nvdiffrast_original.torch as dr
+
+
+import pytorch3d.transforms
+import time
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device("cuda")
@@ -38,7 +44,6 @@ faces = torch.tensor(mesh.faces, dtype=torch.int32)
 object_vertices = vertices - torch.mean(vertices, axis=0)
 vertex_colors = torch.tensor(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
 
-import b3d.nvdiffrast_original.torch as dr
 
 glctx = dr.RasterizeGLContext()  # if use_opengl else dr.RasterizeCudaContext()
 
@@ -47,9 +52,6 @@ def from_translation(translations):
     M = torch.eye(4).tile(*(*translations.shape[:-1], 1, 1))
     M[..., :3, 3] = translations
     return M
-
-
-import pytorch3d.transforms
 
 
 def from_quaternion(quaternions):
@@ -150,7 +152,6 @@ def update(pose_estimate, gt_image):
 
 pose_estimate = torch.tensor(poses[0], requires_grad=True)
 
-import time
 
 sum_total = 0.0
 pose_estimates = []

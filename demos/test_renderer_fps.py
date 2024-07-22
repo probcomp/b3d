@@ -5,9 +5,13 @@ import b3d
 import jax.numpy as jnp
 import b3d.nvdiffrast_original.torch as dr
 import time
+import jax
+import trimesh
+import rerun as rr
+from b3d.renderer_original import Renderer as RendererOriginal
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-import trimesh
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
@@ -50,7 +54,6 @@ vertex_colors = torch.tensor(np.array(vertex_colors), device=device)
 
 glctx = dr.RasterizeGLContext()  # if use_opengl else dr.RasterizeCudaContext()
 
-import rerun as rr
 
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
@@ -85,10 +88,8 @@ vertex_colors_jax = jnp.array(vertex_colors.cpu().numpy())
 ranges_jax = jnp.array([[0, len(faces_jax)]])
 poses = b3d.Pose.from_translation(jnp.array([0.0, 0.0, 5.1]))[None, None, ...]
 
-import jax
 
 print("JAX NVdiffrast Original")
-from b3d.renderer_original import Renderer as RendererOriginal
 
 for resolution in resolutions:
     renderer = RendererOriginal(
@@ -117,8 +118,6 @@ for resolution in resolutions:
 
     print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
 
-
-import jax
 
 print("JAX")
 for resolution in resolutions:

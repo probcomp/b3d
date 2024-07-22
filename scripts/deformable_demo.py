@@ -159,7 +159,6 @@ def gps_mesh_with_A(xs, As, r=1.0, cs=None, segs=10):
     n = xs.shape[0]
     v0, f0, _ = create_sphere_mesh(segs, r=r)
     nv = v0.shape[0]
-    f0.shape[0]
 
     vs = np.stack([v0 @ A.T for A in As], axis=0)
     fs = np.tile(f0, (n, 1, 1))
@@ -184,7 +183,6 @@ def gps_mesh(xs, r=1.0, cs=None, segs=10):
     n = xs.shape[0]
     v0, f0, _ = create_sphere_mesh(segs, r=r)
     nv = v0.shape[0]
-    f0.shape[0]
 
     vs = np.tile(v0, (n, 1, 1))
     fs = np.tile(f0, (n, 1, 1))
@@ -214,7 +212,7 @@ path = Path(
     input(f"Type Data directory \n(`{DEFAULT_PATH}` Default): ").strip() or DEFAULT_PATH
 )
 files = os.listdir(path)
-print("Listing files from diretory...")
+print("Listing files from directory...")
 for i, f in enumerate(files):
     print(f"{i}:", f)
 

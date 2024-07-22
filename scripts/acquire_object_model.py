@@ -5,6 +5,8 @@ import argparse
 from b3d import Pose
 from tqdm import tqdm
 import numpy as np
+from IPython import embed
+
 
 b3d.rr_init("acquire_object_model")
 
@@ -193,8 +195,5 @@ for t in tqdm(range(len(camera_poses_full))):
 
 b3d.make_video_from_pil_images(viz_images, filename + ".graphics_edits.mp4", fps=30.0)
 print(f"Saved video to {filename + '.graphics_edits.mp4'}")
-
-
-from IPython import embed
 
 embed()

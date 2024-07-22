@@ -7,6 +7,8 @@ import genjax
 import b3d.chisight.dense.differentiable_renderer as rendering
 import b3d.chisight.dense.likelihoods as likelihoods
 import demos.differentiable_renderer.utils as utils
+import time
+
 
 # Set up OpenGL renderer
 image_width = 120
@@ -303,7 +305,6 @@ def do_inference():
 
 do_inference()
 
-import time
 
 start = time.time()
 do_inference()

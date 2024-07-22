@@ -89,7 +89,6 @@ def load_r3d_video_input(r3d_path):
 
     color_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.jpg")))
     depth_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.depth")))
-    natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
 
     colors = jnp.array([load_color(color_paths[i]) for i in range(len(color_paths))])
     depths = jnp.array([load_depth(depth_paths[i]) for i in range(len(color_paths))])

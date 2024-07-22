@@ -81,7 +81,6 @@ class TestMugHandlePosterior:
         ]
 
         model = bayes3d.model_multiobject_gl_factory(renderer)
-        jax.jit(model.importance)
 
         for text_index in range(len(cps_to_test)):
             gt_cp = cps_to_test[text_index]

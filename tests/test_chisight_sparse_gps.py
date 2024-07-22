@@ -1,5 +1,4 @@
 import b3d
-from b3d.renderer.renderer_original import RendererOriginal
 import jax
 import jax.numpy as jnp
 from b3d import Pose
@@ -16,7 +15,6 @@ importlib.reload(ps)
 def test_sparse_gps_simulate():
     b3d.rr_init()
 
-    RendererOriginal()
     key = jax.random.PRNGKey(1000)
 
     num_timesteps = Pytree.const(10)

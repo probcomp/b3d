@@ -15,7 +15,11 @@ import os
 import trimesh
 import rerun as rr
 import distinctipy
-
+from typing import TypeAlias
+from PIL import ImageDraw, ImageFont
+import tempfile
+from b3d.pose import Pose, Rot
+# TODO: Refactor utils into core and others, to avoid circular imports
 
 # # # # # # # # # # # #
 #
@@ -84,8 +88,6 @@ def keysplit(key, *ns):
 #  Other
 #
 # # # # # # # # # # # #
-from b3d.pose import Pose, Rot
-# TODO: Refactor utils into core and others, to avoid circular imports
 
 
 @partial(jax.jit, static_argnums=(1, 2))
@@ -260,9 +262,6 @@ def make_gif_from_pil_images(images, filename):
     )
 
 
-import tempfile
-
-
 def make_video_from_pil_images(images, output_filename, fps=5.0):
     # Generate a random tmp directory name
     tmp_dir = tempfile.mkdtemp()
@@ -285,9 +284,6 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
             output_filename,
         ]
     )
-
-
-from PIL import ImageDraw, ImageFont
 
 
 def vstack_images(images, border=10):
@@ -537,7 +533,6 @@ def nn_background_segmentation(images):
 
 def rr_log_pose(channel, pose, scale=0.1):
     origins = jnp.tile(pose.pos[None, ...], (3, 1))
-    jnp.eye(3)
     colors = jnp.eye(3)
     rr.log(
         channel,
@@ -585,9 +580,6 @@ def normalize_log_scores(log_p):
     """
     return jnp.exp(log_p - jax.scipy.special.logsumexp(log_p))
 
-
-from typing import TypeAlias
-import jax
 
 Array: TypeAlias = jax.Array
 

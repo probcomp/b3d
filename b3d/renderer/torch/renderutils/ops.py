@@ -73,7 +73,7 @@ def _get_plugin():
         )
         if os.path.exists(lock_fn):
             print("Warning: Lock file exists in build directory: '%s'" % lock_fn)
-    except:
+    except Exception:
         pass
 
     # Compile and load.

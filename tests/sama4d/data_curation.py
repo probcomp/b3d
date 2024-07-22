@@ -30,7 +30,7 @@ def feature_track_data_from_scene_spec(spec):
     return b3d.io.FeatureTrackData.load(spec['path']).slice_time(
         start_frame=spec['start_frame']             ).downscale(
         spec['downscale_factor']
-    )
+    ).flip_xy()
 
 def get_curated_unity_scene_specifications():
     # These are filenames in 'shared_data_bucket/input_data/unity/keypoints/indoorplant/'

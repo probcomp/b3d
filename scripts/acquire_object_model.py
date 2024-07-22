@@ -36,11 +36,11 @@ fx, fy, cx, cy, near, far = (
 indices = jnp.arange(0, video_input.xyz.shape[0], 10)
 
 
-camera_poses_full = b3d.Pose(video_input.camera_positions, video_input.camera_quaternions)
+camera_poses_full = b3d.Pose(
+    video_input.camera_positions, video_input.camera_quaternions
+)
 
-camera_poses = camera_poses_full[
-    indices
-]
+camera_poses = camera_poses_full[indices]
 
 xyz = video_input.xyz[indices]
 xyz_world_frame = camera_poses[:, None, None].apply(xyz)
@@ -123,21 +123,22 @@ print(f"Saving obj file to {mesh_filename}")
 object_mesh_centered.save(mesh_filename)
 
 
-
 renderer = b3d.RendererOriginal(image_width, image_height, fx, fy, cx, cy, near, far)
 
 b3d.utils.reload(b3d.mesh)
 
 rgbds = renderer.render_rgbd_many(
-    (camera_poses[:,None].inv() @ object_pose).apply(object_mesh_centered.vertices), object_mesh_centered.faces, jnp.tile(object_mesh_centered.vertex_attributes, (len(camera_poses), 1,1))
+    (camera_poses[:, None].inv() @ object_pose).apply(object_mesh_centered.vertices),
+    object_mesh_centered.faces,
+    jnp.tile(object_mesh_centered.vertex_attributes, (len(camera_poses), 1, 1)),
 )
 
-sub_indices = jnp.array([0, 5, len(camera_poses)-15, len(camera_poses)-5])
-mask = (rgbds[sub_indices, ...,3] == 0.0)
+sub_indices = jnp.array([0, 5, len(camera_poses) - 15, len(camera_poses) - 5])
+mask = rgbds[sub_indices, ..., 3] == 0.0
 
 background_xyzs = xyz_world_frame[sub_indices][mask]
-colors = rgbs_resized[sub_indices][mask,:]
-distances_from_camera = xyz[sub_indices][...,2][mask][...,None] / fx
+colors = rgbs_resized[sub_indices][mask, :]
+distances_from_camera = xyz[sub_indices][..., 2][mask][..., None] / fx
 
 # subset = jax.random.choice(jax.random.PRNGKey(0), jnp.arange(background_xyzs.shape[0]), shape=(background_xyzs.shape[0]//3,), replace=False)
 
@@ -162,10 +163,10 @@ object_poses = [
     object_pose @ Pose.from_translation(jnp.array([-0.1, 0.0, -0.1])),
 ]
 
-scene_mesh = b3d.mesh.transform_and_merge_meshes([
-    object_mesh_centered, background_mesh, 
-    object_mesh_centered, object_mesh_centered
-], object_poses)
+scene_mesh = b3d.mesh.transform_and_merge_meshes(
+    [object_mesh_centered, background_mesh, object_mesh_centered, object_mesh_centered],
+    object_poses,
+)
 
 
 # image_width, image_height, fx, fy, cx, cy, near, far = np.array(
@@ -192,12 +193,10 @@ for t in tqdm(range(len(camera_poses_full))):
     viz_images.append(b3d.viz_rgb(rgbd))
 
 
-b3d.make_video_from_pil_images(
-    viz_images,
-    filename + ".graphics_edits.mp4",
-    fps=30.0
-)
+b3d.make_video_from_pil_images(viz_images, filename + ".graphics_edits.mp4", fps=30.0)
 print(f"Saved video to {filename + '.graphics_edits.mp4'}")
 
 
-from IPython import embed; embed()
+from IPython import embed
+
+embed()

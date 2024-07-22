@@ -568,12 +568,16 @@ def rr_log_rgbd(channel, rgbd):
     rr_log_rgb(channel + "/rgb", rgbd[..., :3])
     rr_log_depth(channel + "/depth", rgbd[..., 3])
 
+
 def rr_set_time(t=0):
     rr.set_time_sequence("time", t)
 
+
 def reload(x):
     import importlib
+
     importlib.reload(x)
+
 
 def normalize_log_scores(log_p):
     """

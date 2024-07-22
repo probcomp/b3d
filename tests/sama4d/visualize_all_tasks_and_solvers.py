@@ -14,9 +14,9 @@ from tests.sama4d.video_to_tracks_and_segmentation.registration import all_task_
 # the GPU runs out of memory.
 # Fixing this is a priority for the week of July 1, 2024.
 for (groupname, pairs) in [
-    ("Video To Tracks", pairs_1[:2]),
-    ("Tracks To Segmentation", pairs_2[:2]),
-    ("Video To Tracks And Segmentation", pairs_3[:2])
+    ("Video To Tracks", [pairs_1[0], pairs_1[-1]]),
+    ("Tracks To Segmentation", [pairs_2[0], pairs_2[-1]]),
+    ("Video To Tracks And Segmentation", [pairs_3[0], pairs_3[-1]])
 ]:
     print(f"****************{groupname}****************")
     for task, solver in pairs:
@@ -27,7 +27,3 @@ for (groupname, pairs) in [
         print(f"----Metrics for solver {solver.name} on task {task.name}----")
         for key, value in metrics.items():
             print(f"\t{key}:\t {value}")
-
-        # Free GPU memory if these are using any (e.g. to store videos)
-        del task
-        del solver

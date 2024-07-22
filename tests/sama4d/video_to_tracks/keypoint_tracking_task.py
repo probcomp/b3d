@@ -164,5 +164,5 @@ class KeypointTrackingTask(Task):
         for i in range(self.video.shape[0]):
             rr.set_time_sequence("frame", i)
             rr.log("/solution/keypoints_2D", rr.Points2D(
-                np.array(solution[i, :, ::-1]), colors=np.array([0., 0., 1.]), radii=0.3
+                np.array(solution[i, :, ::-1]), colors=np.array([0., 0., 1.]), radii=1.0
             ))

@@ -106,6 +106,20 @@ class FeatureTrackData:
         self.camera_position = camera_position
         self.camera_quaternion = camera_quaternion
 
+    def flip_xy(self):
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[..., ::-1],
+            observed_features=self.observed_features,
+            keypoint_visibility=self.keypoint_visibility,
+            rgbd_images=self.rgbd_images,
+            latent_keypoint_positions=self.latent_keypoint_positions,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions,
+            object_assignments=self.object_assignments,
+            camera_position=self.camera_position,
+            camera_quaternion=self.camera_quaternion,
+            camera_intrinsics=self.camera_intrinsics
+        )
+
     @property
     def num_frames(self): return self.observed_keypoints_positions.shape[0]
 

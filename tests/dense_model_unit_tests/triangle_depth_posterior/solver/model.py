@@ -11,8 +11,10 @@ def normalize(weights):
     return weights / jnp.sum(weights)
 
 
-def get_likelihood(renderer, color_scale=0.05, outlier_prob=0.05):
-    return likelihoods.ArgMap(
+def get_diffrend_likelihood(
+    renderer, renderer_hyperparams, color_scale=0.05, outlier_prob=0.05
+):
+    likelihood_dist = likelihoods.ArgMap(
         likelihoods.get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(
             renderer.height, renderer.width, color_scale
         ),
@@ -22,22 +24,45 @@ def get_likelihood(renderer, color_scale=0.05, outlier_prob=0.05):
         ),
     )
 
-
-def model_factory(renderer, likelihood, renderer_hyperparams):
     @genjax.gen
-    def generate_frame(camera_pose, vertices, faces, face_colors):
-        X_WC = camera_pose
-        vertices_W = vertices
-        # vertices_C = X_WC.inv().apply(vertices_W)
+    def wrapped_likelihood(mesh: b3d.Mesh, transform_World_Camera):
+        weights, attributes = (
+            b3d.chisight.dense.differentiable_renderer.render_to_dist_params(
+                renderer,
+                mesh.vertices,
+                mesh.faces,
+                mesh.vertex_attributes,
+                renderer_hyperparams,
+                transform=transform_World_Camera.inv(),
+            )
+        )
+        obs = likelihood_dist(weights, attributes) @ "image"
+        return obs, {"diffrend_output": (weights, attributes)}
 
-        v, f, vc = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(
+    return wrapped_likelihood
+
+
+def model_factory(likelihood):  # renderer, renderer_hyperparams): #likelihood):
+    """
+    The provided likelihood should be a Generative Function with
+    one latent choice at address `"image"`, which accepts `mesh` as input,
+    and outputs `(image, metadata)`.
+    The value `image` should be sampled at `"image"`.
+    """
+
+    @genjax.gen
+    def generate_frame(transform_World_Camera, vertices, faces, face_colors):
+        vertices_W = vertices
+
+        v_W, f, vc = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(
             vertices_W, faces, face_colors
         )
-        weights, attributes = rendering.render_to_dist_params(
-            renderer, v, f, vc, renderer_hyperparams, X_WC.inv()
+        mesh_W = b3d.Mesh(v_W, f, vc)
+
+        observed_rgb, metadata = (
+            likelihood(mesh_W, transform_World_Camera) @ "observed_rgb"
         )
-        observed_rgb = likelihood(weights, attributes) @ "observed_rgb"
-        return (observed_rgb, weights, attributes)
+        return (observed_rgb, metadata)
 
     @genjax.gen
     def model(background_mesh, triangle_color, camera_poses):
@@ -67,7 +92,7 @@ def model_factory(renderer, likelihood, renderer_hyperparams):
             [background_colors, jnp.array([triangle_color])], axis=0
         )
 
-        (observed_rgbs, weights, attributes) = (
+        (observed_rgbs, metadata) = (
             generate_frame.vmap(in_axes=(0, None, None, None))(
                 camera_poses, all_vertices, all_faces, all_face_colors
             )
@@ -75,8 +100,7 @@ def model_factory(renderer, likelihood, renderer_hyperparams):
         )
 
         metadata = {
-            "weights": weights,
-            "attributes": attributes,
+            "likelihood_metadata": metadata,
             "triangle_vertices": triangle_vertices,
         }
 
@@ -93,20 +117,25 @@ def rr_log_trace(
     frames_cameras_to_visualize=[0],
 ):
     (observed_rgbs, metadata) = trace.get_retval()
-    weights, attributes = metadata["weights"], metadata["attributes"]
-    avg_obs = jax.vmap(rendering.dist_params_to_average, in_axes=(0, 0, None))(
-        weights, attributes, jnp.zeros(3)
-    )
-    assert avg_obs.shape == observed_rgbs.shape
+    likelihood_metadata = metadata["likelihood_metadata"]
+
+    if "diffrend_output" in likelihood_metadata:
+        weights, attributes = likelihood_metadata["diffrend_output"]
+        avg_obs = jax.vmap(rendering.dist_params_to_average, in_axes=(0, 0, None))(
+            weights, attributes, jnp.zeros(3)
+        )
+        assert avg_obs.shape == observed_rgbs.shape
+
     for t in frames_images_to_visualize:
         rr.log(f"/{prefix}/rgb/{t}/observed", rr.Image(observed_rgbs[t, :, :]))
-        rr.log(f"/{prefix}/rgb/{t}/average_render", rr.Image(avg_obs[t, :, :]))
+        if "diffrend_output" in likelihood_metadata:
+            rr.log(f"/{prefix}/rgb/{t}/average_render", rr.Image(avg_obs[t, :, :]))
 
     for t in frames_cameras_to_visualize:
         rr.log(
             f"/3D/{prefix}/{t}/camera",
             rr.Pinhole(
-                focal_length=renderer.fx,
+                focal_length=float(renderer.fx),
                 width=renderer.width,
                 height=renderer.height,
                 principal_point=jnp.array([renderer.cx, renderer.cy]),

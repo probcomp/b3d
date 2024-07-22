@@ -336,7 +336,7 @@ class TrianglePosteriorGridApproximationTask(Task):
         r = self.renderer
         rr.log(
             "/3D/scene/camera",
-            rr.Pinhole(focal_length=r.fx, width=r.width, height=r.height),
+            rr.Pinhole(focal_length=float(r.fx), width=r.width, height=r.height),
             timeless=True,
         )
         rr.log(

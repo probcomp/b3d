@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import b3d
 import genjax
 from genjax import ChoiceMapBuilder as C
-from .model import model_factory, get_likelihood, rr_log_trace
+from .model import model_factory, get_diffrend_likelihood, rr_log_trace
 
 RENDERER_HYPERPARAMS = (
     b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(
@@ -67,7 +67,8 @@ def importance_sample_with_depth_in_partition(
             {
                 "triangle_vertices": new_triangle_W,
                 "observed_rgbs": genjax.ChoiceMap.idx(
-                    jnp.arange(T), C.n().at["observed_rgb"].set(task_input["video"])
+                    jnp.arange(T),
+                    C.n().at["observed_rgb", "image"].set(task_input["video"]),
                 ),
             }
         ),
@@ -86,7 +87,9 @@ class ImportanceSolver(Solver):
         partition = task_input["depth_partition"]
         key = jax.random.PRNGKey(1)
         renderer = task_input["renderer"]
-        model = model_factory(renderer, get_likelihood(renderer), RENDERER_HYPERPARAMS)
+        model = model_factory(
+            get_diffrend_likelihood(renderer, RENDERER_HYPERPARAMS)
+        )  # (renderer, RENDERER_HYPERPARAMS) # get_diffrend_likelihood(renderer, RENDERER_HYPERPARAMS))
 
         partition_starts = partition[:-1]
         partition_ends = partition[1:]

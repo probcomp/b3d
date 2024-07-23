@@ -41,6 +41,7 @@ def feature_track_data_from_scene_spec(spec):
         b3d.io.FeatureTrackData.load(spec["path"])
         .slice_time(start_frame=spec["start_frame"])
         .downscale(spec["downscale_factor"])
+        .flip_xy()
     )
 
 

@@ -211,6 +211,6 @@ class KeypointTrackingTask(Task):
                 rr.Points2D(
                     np.array(solution[i, :, ::-1]),
                     colors=np.array([0.0, 0.0, 1.0]),
-                    radii=0.3,
+                    radii=1.0,
                 ),
             )

@@ -9,6 +9,7 @@ import b3d.chisight.dense.differentiable_renderer
 import b3d.chisight.dense.differentiable_renderer as r
 import b3d.chisight.dense.likelihoods as likelihoods
 from b3d import Mesh, Pose
+from b3d.chisight.particle_system import make_dense_gps_model
 
 
 def get_patches(centers, rgbds, pose_WC, fx, fy, cx, cy):
@@ -232,6 +233,6 @@ def get_default_multiobject_model_for_patchtracking(renderer):
         obs = likelihood(weights, attributes) @ "image"
         return obs, {"diffrend_output": (weights, attributes)}
 
-    model = b3d.chisight.particle_system.make_dense_gps_model(wrapped_likelihood)
+    model = make_dense_gps_model(wrapped_likelihood)
 
     return model

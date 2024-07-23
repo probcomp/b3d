@@ -102,6 +102,7 @@ def downsize_images(ims, k):
     return jax.vmap(jax.image.resize, (0, None, None))(ims, shape, "linear")
 
 
+@jax.jit
 def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
     x = (u - cx) / fx
@@ -558,6 +559,10 @@ def rr_log_depth(channel, depth):
 def rr_log_rgbd(channel, rgbd):
     rr_log_rgb(channel + "/rgb", rgbd[..., :3])
     rr_log_depth(channel + "/depth", rgbd[..., 3])
+
+
+def rr_log_cloud(channel, cloud):
+    rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
 
 
 def rr_set_time(t=0):

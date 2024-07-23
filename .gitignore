@@ -13,5 +13,6 @@ assets/ycbineoat/*
 **/**.json
 **/**.npy
 **/**.txt
+!src/b3d/renderer/**/**.txt
 assets/kitti/*
 **/**.pth

@@ -12,7 +12,8 @@ import setuptools
 setuptools.setup(
     name="b3d",
     version="0.0.1",
-    packages=setuptools.find_packages(),
+    package_dir={"": "src"},
+    packages=setuptools.find_packages(where="src"),
     package_data={
         "b3d": [
             "nvdiffrast/common/*.h",
@@ -61,7 +62,7 @@ setuptools.setup(
         "fire==0.6.0",
         "torch==2.2.2",
         "torchvision==0.17.2",
-        "jax[cuda12]==0.4.28",
+        "jax[cuda12]~=0.4.28",
         "natsort",
         "distinctipy",
         "pyliblzfse",
@@ -79,5 +80,5 @@ setuptools.setup(
             "b3d_push = b3d.bucket_utils.b3d_push:upload_to_bucket",
         ]
     },
-    python_requires=">=3.6",
+    python_requires=">=3.10",
 )

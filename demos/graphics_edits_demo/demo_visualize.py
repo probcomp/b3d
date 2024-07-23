@@ -1,18 +1,15 @@
 #!/usr/bin/env python
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
-import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
-import genjax
-import rerun as rr
-from tqdm import tqdm
-import fire
+import pickle
 
+import b3d
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+import trimesh
+from b3d import Pose
+from tqdm import tqdm
 
 rr.init("demo_visualize3")
 rr.connect("127.0.0.1:8812")
@@ -28,9 +25,7 @@ path = os.path.join(
 video_input = b3d.VideoInput.load(path)
 
 
-import pickle
-data, object_library = pickle.load(open('demo_data.dat', 'rb'))
-
+data, object_library = pickle.load(open("demo_data.dat", "rb"))
 
 
 # Get intrinsics
@@ -62,26 +57,40 @@ rgbs_resized = jnp.clip(
 
 renderer = b3d.RendererOriginal(image_width, image_height, fx, fy, cx, cy, near, far)
 
-object_positions_over_time = jnp.array([
-    jnp.zeros((4,3)).at[:len(data[i][0])].set(data[i][0].pos)
-    for i in range(len(data))
-])
-object_quaternions_over_time = jnp.array([
-    jnp.tile(b3d.Pose.identity_quaternion, (4,1)).at[:len(data[i][0])].set(data[i][0].quat)
-    for i in range(len(data))
-])
+object_positions_over_time = jnp.array(
+    [
+        jnp.zeros((4, 3)).at[: len(data[i][0])].set(data[i][0].pos)
+        for i in range(len(data))
+    ]
+)
+object_quaternions_over_time = jnp.array(
+    [
+        jnp.tile(b3d.Pose.identity_quaternion, (4, 1))
+        .at[: len(data[i][0])]
+        .set(data[i][0].quat)
+        for i in range(len(data))
+    ]
+)
 object_poses_over_time = Pose(object_positions_over_time, object_quaternions_over_time)
 num_objects_in_frame_over_time = jnp.array([len(data[i][0]) for i in range(len(data))])
 
 camera_poses_over_time = Pose(
     jnp.array([data[i][1].pos for i in range(len(data))]),
-    jnp.array([data[i][1].quat for i in range(len(data))])
+    jnp.array([data[i][1].quat for i in range(len(data))]),
 )
 
-transformed_vertices = object_poses_over_time[0][object_library.vertex_index_to_object].apply(object_library.vertices) * (
-    object_library.vertex_index_to_object < num_objects_in_frame_over_time[...,None])[...,None]
+transformed_vertices = (
+    object_poses_over_time[0][object_library.vertex_index_to_object].apply(
+        object_library.vertices
+    )
+    * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[..., None]
+    )[..., None]
+)
 
 vertices = object_library.vertices
+
 
 def compute_face_normals(vertices, faces):
     # Step 1: Calculate the face normals
@@ -100,6 +109,7 @@ def compute_face_normals(vertices, faces):
     face_normals = face_normals / jnp.linalg.norm(face_normals, axis=1, keepdims=True)
     return face_normals
 
+
 def compute_vertex_normals(vertices, faces):
     face_normals = compute_face_normals(vertices, faces)
 
@@ -109,18 +119,23 @@ def compute_vertex_normals(vertices, faces):
         vertex_normals = vertex_normals.at[faces[:, i]].add(face_normals)
 
     # Normalize the vertex normals
-    vertex_normals = vertex_normals / jnp.linalg.norm(vertex_normals, axis=1, keepdims=True)
+    vertex_normals = vertex_normals / jnp.linalg.norm(
+        vertex_normals, axis=1, keepdims=True
+    )
 
     return vertex_normals
 
 
-
-def adjust_vertex_colors(vertices, faces, vertex_colors, light_position, ambient_light=0.1):
+def adjust_vertex_colors(
+    vertices, faces, vertex_colors, light_position, ambient_light=0.1
+):
     normals = compute_vertex_normals(vertices, faces)
 
     # Vector from vertices to light source
     light_vectors = light_position - vertices
-    light_vectors = light_vectors / jnp.linalg.norm(light_vectors, axis=1, keepdims=True)
+    light_vectors = light_vectors / jnp.linalg.norm(
+        light_vectors, axis=1, keepdims=True
+    )
 
     # Dot product of normals and light vectors (cosine of angle)
     light_intensity = jnp.sum(normals * light_vectors, axis=1, keepdims=True)
@@ -139,16 +154,15 @@ def adjust_vertex_colors(vertices, faces, vertex_colors, light_position, ambient
 
     return adjusted_colors
 
+
 def viz_timestep(timestep, frame_number, vertices, faces, attributes, image=None):
     if image is None:
-        rendered_rgbd = renderer.render_rgbd(
-            vertices, faces, attributes
-        )
+        rendered_rgbd = renderer.render_rgbd(vertices, faces, attributes)
     else:
         rendered_rgbd = image
     rr.set_time_sequence("frame", frame_number)
-    rr.log("/rerenderings", rr.Image(rendered_rgbd[...,:3]))
-    rr.log("/actual", rr.Image(rgbs_resized[timestep][...,:3]))
+    rr.log("/rerenderings", rr.Image(rendered_rgbd[..., :3]))
+    rr.log("/actual", rr.Image(rgbs_resized[timestep][..., :3]))
 
 
 #### INITIAL PLAY
@@ -157,22 +171,49 @@ frame_number = 0
 
 rerenderings = []
 for i in tqdm(range(100)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep, object_library.vertex_index_to_object]).apply(object_library.vertices) * (
-        object_library.vertex_index_to_object < num_objects_in_frame_over_time[timestep,None])[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep, object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[timestep, None]
+    )[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number += 1
     timestep += 1
 
 
-
 # MOVE OBJECT AROUND TABLE
 plane_pose = b3d.Pose.fit_plane(object_library.objects[0][0], 0.01, 1000, 10000)
-waypoints = [jnp.array([0.0, 0.0, 0.0]), jnp.array([-0.0, -0.1, 0.0]), jnp.array([0.0, 0.0, 0.0]), jnp.array([0.0, 0.1, 0.0]),jnp.array([0.0, 0.0, 0.0])]
-interpolated_waypoints = jnp.concatenate([jnp.linspace(waypoints[i], waypoints[i+1], 15) for i in range(len(waypoints)-1)], axis=0)
+waypoints = [
+    jnp.array([0.0, 0.0, 0.0]),
+    jnp.array([-0.0, -0.1, 0.0]),
+    jnp.array([0.0, 0.0, 0.0]),
+    jnp.array([0.0, 0.1, 0.0]),
+    jnp.array([0.0, 0.0, 0.0]),
+]
+interpolated_waypoints = jnp.concatenate(
+    [
+        jnp.linspace(waypoints[i], waypoints[i + 1], 15)
+        for i in range(len(waypoints) - 1)
+    ],
+    axis=0,
+)
 for i in range(len(interpolated_waypoints)):
     object_poses = data[timestep][0].copy()
     camera_pose = data[timestep][1]
-    new_pose = plane_pose @ b3d.Pose.from_translation(interpolated_waypoints[i]) @ plane_pose.inv() @ object_poses[1]
+    new_pose = (
+        plane_pose
+        @ b3d.Pose.from_translation(interpolated_waypoints[i])
+        @ plane_pose.inv()
+        @ object_poses[1]
+    )
     object_poses._position = object_poses.pos.at[1].set(new_pose.pos)
     object_poses._quaternion = object_poses.quat.at[1].set(new_pose.quat)
 
@@ -180,59 +221,122 @@ for i in range(len(interpolated_waypoints)):
 
     attributes = jnp.array(object_library.attributes)
 
-    transformed_vertices =  object_poses_in_camera_frame[object_library.vertex_index_to_object](object_library.vertices) * (object_library.vertex_index_to_object < len(object_poses))[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        object_poses_in_camera_frame[object_library.vertex_index_to_object](
+            object_library.vertices
+        )
+        * (object_library.vertex_index_to_object < len(object_poses))[..., None]
+    )
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number = frame_number + 1
 
 
 #### REPLACE the object with a blue texture
 for i in tqdm(range(60)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep][object_library.vertex_index_to_object]).apply(
-        object_library.vertices) *( (object_library.vertex_index_to_object < (num_objects_in_frame_over_time[timestep,None])) [...,None])
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep][object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        (
+            object_library.vertex_index_to_object
+            < (num_objects_in_frame_over_time[timestep, None])
+        )[..., None]
+    )
 
+    new_colors = adjust_vertex_colors(
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes * 0.0 + jnp.array([0.0, 0.0, 0.8]),
+        jnp.array([0.3, 0.3, 0.2]),
+        ambient_light=0.5,
+    )
+    mask = (object_library.vertex_index_to_object == 1)[..., None]
 
-    new_colors = adjust_vertex_colors(transformed_vertices,
-                                      object_library.faces, object_library.attributes * 0.0 + jnp.array([0.0, 0.0, 0.8]),
-                                      jnp.array([0.3, 0.3, 0.2]), ambient_light=0.5)
-    mask = (object_library.vertex_index_to_object == 1)[...,None]
-
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces,
-                 new_colors *mask + object_library.attributes * ~mask
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        new_colors * mask + object_library.attributes * ~mask,
     )
     frame_number += 1
     timestep += 1
 
 #### PLAY MORE FRAMES
 for i in tqdm(range(10)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep, object_library.vertex_index_to_object]).apply(object_library.vertices) * (
-        object_library.vertex_index_to_object < num_objects_in_frame_over_time[timestep,None])[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep, object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[timestep, None]
+    )[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number += 1
     timestep += 1
 
 #### FADE OUT THE BACKGROUND
-waypoints = [jnp.array([1.0 ]), jnp.array([0.5]), jnp.array([1.])]
-interpolated_waypoints = jnp.concatenate([jnp.linspace(waypoints[i], waypoints[i+1], 20) for i in range(len(waypoints)-1)], axis=0)
+waypoints = [jnp.array([1.0]), jnp.array([0.5]), jnp.array([1.0])]
+interpolated_waypoints = jnp.concatenate(
+    [
+        jnp.linspace(waypoints[i], waypoints[i + 1], 20)
+        for i in range(len(waypoints) - 1)
+    ],
+    axis=0,
+)
 for i in range(len(interpolated_waypoints)):
     object_poses = data[timestep][0].copy()
     camera_pose = data[timestep][1]
     object_poses_in_camera_frame = camera_pose.inv() @ object_poses
 
-    transformed_vertices = object_poses_in_camera_frame[object_library.vertex_index_to_object](object_library.vertices) * (object_library.vertex_index_to_object < len(object_poses))[...,None]
-    mask = (object_library.vertex_index_to_object == 0)[...,None]
-    attributes  = object_library.attributes
-    attributes_ = jnp.clip(attributes * interpolated_waypoints[i,0], 0.0, 1.0) * mask + attributes * ~mask
+    transformed_vertices = (
+        object_poses_in_camera_frame[object_library.vertex_index_to_object](
+            object_library.vertices
+        )
+        * (object_library.vertex_index_to_object < len(object_poses))[..., None]
+    )
+    mask = (object_library.vertex_index_to_object == 0)[..., None]
+    attributes = object_library.attributes
+    attributes_ = (
+        jnp.clip(attributes * interpolated_waypoints[i, 0], 0.0, 1.0) * mask
+        + attributes * ~mask
+    )
 
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, attributes_)
+    viz_timestep(
+        timestep, frame_number, transformed_vertices, object_library.faces, attributes_
+    )
     frame_number += 1
     timestep += 1
 
 
 #### PLAY MORE FRAMES
 for i in tqdm(range(20)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep, object_library.vertex_index_to_object]).apply(object_library.vertices) * (
-        object_library.vertex_index_to_object < num_objects_in_frame_over_time[timestep,None])[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep, object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[timestep, None]
+    )[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number += 1
     timestep += 1
 
@@ -262,17 +366,38 @@ num_objects = jnp.max(object_library.vertex_index_to_object)
 
 
 for i in tqdm(range(80)):
-    concatenated_object_poses = b3d.Pose.concatenate_poses([object_poses_over_time[timestep], object_poses_over_time[timestep][2][None,...]])
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ concatenated_object_poses[object_library.vertex_index_to_object]).apply(
-        object_library.vertices) * (
+    concatenated_object_poses = b3d.Pose.concatenate_poses(
+        [
+            object_poses_over_time[timestep],
+            object_poses_over_time[timestep][2][None, ...],
+        ]
+    )
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ concatenated_object_poses[object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
         jnp.logical_or(
-            object_library.vertex_index_to_object < (num_objects_in_frame_over_time[timestep,None] - 1),
-            object_library.vertex_index_to_object == num_objects))[...,None]
+            object_library.vertex_index_to_object
+            < (num_objects_in_frame_over_time[timestep, None] - 1),
+            object_library.vertex_index_to_object == num_objects,
+        )
+    )[..., None]
 
-    new_colors = adjust_vertex_colors(transformed_vertices,
-                                      object_library.faces, object_library.attributes, jnp.array([0.0, 0.0, 0.0]), ambient_light=0.8)
-    mask = (object_library.vertex_index_to_object == num_objects)[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, new_colors * mask + object_library.attributes * ~mask)
+    new_colors = adjust_vertex_colors(
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+        jnp.array([0.0, 0.0, 0.0]),
+        ambient_light=0.8,
+    )
+    mask = (object_library.vertex_index_to_object == num_objects)[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        new_colors * mask + object_library.attributes * ~mask,
+    )
     frame_number += 1
     timestep += 1
 print(frame_number)
@@ -280,9 +405,20 @@ print(frame_number)
 
 #### PLAY MORE FRAMES
 for i in tqdm(range(50)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep, object_library.vertex_index_to_object]).apply(object_library.vertices) * (
-        object_library.vertex_index_to_object < num_objects_in_frame_over_time[timestep,None])[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep, object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[timestep, None]
+    )[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number += 1
     timestep += 1
 
@@ -294,13 +430,29 @@ for i in tqdm(range(50)):
 # timestep = saved_timestep
 
 # MOVE OBJECT AROUND TABLE
-waypoints = [jnp.array([0.0]), jnp.array([-0.8]), jnp.array([0.0]), jnp.array([0.8]),jnp.array([0.0])]
-interpolated_waypoints = jnp.concatenate([jnp.linspace(waypoints[i], waypoints[i+1], 10) for i in range(len(waypoints)-1)], axis=0)
+waypoints = [
+    jnp.array([0.0]),
+    jnp.array([-0.8]),
+    jnp.array([0.0]),
+    jnp.array([0.8]),
+    jnp.array([0.0]),
+]
+interpolated_waypoints = jnp.concatenate(
+    [
+        jnp.linspace(waypoints[i], waypoints[i + 1], 10)
+        for i in range(len(waypoints) - 1)
+    ],
+    axis=0,
+)
 for i in range(len(interpolated_waypoints)):
     object_poses = data[timestep][0].copy()
     camera_pose = data[timestep][1]
     plane_rotation = b3d.Pose.from_quat(plane_pose.quat)
-    rotation = b3d.Pose.from_quat(b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, interpolated_waypoints[i,0]])).as_quat())
+    rotation = b3d.Pose.from_quat(
+        b3d.Rot.from_rotvec(
+            jnp.array([0.0, 0.0, interpolated_waypoints[i, 0]])
+        ).as_quat()
+    )
     new_pose = object_poses[3] @ plane_rotation @ rotation @ plane_rotation.inv()
     object_poses._position = object_poses.pos.at[3].set(new_pose.pos)
     object_poses._quaternion = object_poses.quat.at[3].set(new_pose.quat)
@@ -308,17 +460,38 @@ for i in range(len(interpolated_waypoints)):
 
     attributes = jnp.array(object_library.attributes)
 
-    transformed_vertices =  object_poses_in_camera_frame[object_library.vertex_index_to_object](object_library.vertices) * (object_library.vertex_index_to_object < len(object_poses))[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        object_poses_in_camera_frame[object_library.vertex_index_to_object](
+            object_library.vertices
+        )
+        * (object_library.vertex_index_to_object < len(object_poses))[..., None]
+    )
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number = frame_number + 1
-
 
 
 #### PLAY MORE FRAMES
 for i in tqdm(range(10)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep, object_library.vertex_index_to_object]).apply(object_library.vertices) * (
-        object_library.vertex_index_to_object < num_objects_in_frame_over_time[timestep,None])[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep, object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[timestep, None]
+    )[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number += 1
     timestep += 1
 
@@ -331,26 +504,40 @@ for i in range(40):
     object_poses = data[timestep][0].copy()
     camera_pose = data[timestep][1]
     object_poses_in_camera_frame = camera_pose.inv() @ object_poses
-    transformed_vertices = object_poses_in_camera_frame[object_library.vertex_index_to_object](object_library.vertices) * (object_library.vertex_index_to_object < len(object_poses))[...,None]
-    mask = (object_library.vertex_index_to_object == 3)[...,None]
-    attributes  = object_library.attributes
-    attributes_ = attributes[:,jnp.array([1,0,2])] * mask + attributes * ~mask
+    transformed_vertices = (
+        object_poses_in_camera_frame[object_library.vertex_index_to_object](
+            object_library.vertices
+        )
+        * (object_library.vertex_index_to_object < len(object_poses))[..., None]
+    )
+    mask = (object_library.vertex_index_to_object == 3)[..., None]
+    attributes = object_library.attributes
+    attributes_ = attributes[:, jnp.array([1, 0, 2])] * mask + attributes * ~mask
 
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, attributes_)
+    viz_timestep(
+        timestep, frame_number, transformed_vertices, object_library.faces, attributes_
+    )
     frame_number += 1
     timestep += 1
 
 #### PLAY MORE FRAMES
 for i in tqdm(range(20)):
-    transformed_vertices = (camera_poses_over_time[timestep].inv() @ object_poses_over_time[timestep, object_library.vertex_index_to_object]).apply(object_library.vertices) * (
-        object_library.vertex_index_to_object < num_objects_in_frame_over_time[timestep,None])[...,None]
-    viz_timestep(timestep, frame_number, transformed_vertices, object_library.faces, object_library.attributes)
+    transformed_vertices = (
+        camera_poses_over_time[timestep].inv()
+        @ object_poses_over_time[timestep, object_library.vertex_index_to_object]
+    ).apply(object_library.vertices) * (
+        object_library.vertex_index_to_object
+        < num_objects_in_frame_over_time[timestep, None]
+    )[..., None]
+    viz_timestep(
+        timestep,
+        frame_number,
+        transformed_vertices,
+        object_library.faces,
+        object_library.attributes,
+    )
     frame_number += 1
     timestep += 1
-
-
-
-
 
 
 # for i in tqdm(range(60)):

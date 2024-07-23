@@ -1,5 +1,7 @@
-import b3d
 import os
+
+import b3d
+
 
 def assert_valid_ftd(ftd):
     assert ftd.latent_keypoint_positions is not None
@@ -14,10 +16,11 @@ def assert_valid_ftd(ftd):
     assert len(ftd.rgbd_images.shape) == 4
     assert ftd.rgbd_images.shape[-1] == 4
 
+
 def test_unity_data():
     path = os.path.join(
         b3d.get_assets_path(),
-        "shared_data_bucket/dynamic_SfM/feature_track_data/slidingBooks_60fps_lit_bg_800p.input.npz"
+        "shared_data_bucket/dynamic_SfM/feature_track_data/slidingBooks_60fps_lit_bg_800p.input.npz",
     )
     ftd = b3d.io.FeatureTrackData.load(path)
     assert_valid_ftd(ftd)

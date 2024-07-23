@@ -5,9 +5,6 @@ import pytest
 # Arrange
 @pytest.fixture
 def renderer():
-    import b3d
-    import pytest
-
     width = 200
     height = 200
     fx = 200.0

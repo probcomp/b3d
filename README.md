@@ -54,7 +54,7 @@ export XLA_PYTHON_CLIENT_ALLOCATOR="platform"
 - Check if you can access the [GenJAX Users
   Group](https://groups.google.com/u/1/a/chi-fro.org/g/genjax-users), and if not, run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack
 - [Install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install).
-- Run `gcloud auth application-default login`.  (This command needs to be rerun ever time your machine reboots.)
+- Run `gcloud auth application-default login`.  (This command needs to be rerun every time your machine reboots.)
 
 Next, on the machine, close the `b3d` repo:
 

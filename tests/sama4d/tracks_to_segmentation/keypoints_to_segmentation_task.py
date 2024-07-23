@@ -1,7 +1,10 @@
-from tests.common.task import Task
+from typing import Callable
+
 import b3d
 import jax.numpy as jnp
-from typing import Callable
+
+from tests.common.task import Task
+
 
 class KeypointsToSegmentationTask(Task):
     """
@@ -24,10 +27,11 @@ class KeypointsToSegmentationTask(Task):
             (N,) array object segmentation, labeling each keypoint with a unique object index
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         feature_track_data_loader: Callable[[], b3d.io.FeatureTrackData],
         scene_name=None,
-        n_frames=None
+        n_frames=None,
     ):
         self.feature_track_data_loader = feature_track_data_loader
         self.n_frames = n_frames
@@ -58,7 +62,7 @@ class KeypointsToSegmentationTask(Task):
             "keypoint_tracks_2D": self.ftd.observed_keypoints_positions,
             "keypoint_visibility": self.ftd.keypoint_visibility,
             "poses_WC": self.poses_WC,
-            "renderer": self.renderer
+            "renderer": self.renderer,
         }
 
     def score(self, solution_object_assignments):
@@ -71,19 +75,19 @@ class KeypointsToSegmentationTask(Task):
         # in the ground truth, and if they are assigned to the same object in the solver solution.
         # Score how close these pairwise co-assignment matrices for GT and Solution are to each other.
         gt_coassociation_matrix = jnp.equal(
-            self.ftd.object_assignments[:, None],
-            self.ftd.object_assignments[None, :]
+            self.ftd.object_assignments[:, None], self.ftd.object_assignments[None, :]
         )
         inferred_coassociation_matrix = jnp.equal(
-            solution_object_assignments[:, None],
-            solution_object_assignments[None, :]
+            solution_object_assignments[:, None], solution_object_assignments[None, :]
         )
         fraction_pairwise_assignments_correct = jnp.mean(
             jnp.logical_or(
                 jnp.logical_and(gt_coassociation_matrix, inferred_coassociation_matrix),
-                jnp.logical_and(~gt_coassociation_matrix, ~inferred_coassociation_matrix)
+                jnp.logical_and(
+                    ~gt_coassociation_matrix, ~inferred_coassociation_matrix
+                ),
             ),
-            axis=(0, 1)
+            axis=(0, 1),
         )
         return {
             "object_count": {
@@ -93,7 +97,7 @@ class KeypointsToSegmentationTask(Task):
             },
             "object_assignment": {
                 "fraction_pairwise_assignments_correct": fraction_pairwise_assignments_correct
-            }
+            },
         }
 
     def assert_passing(self, scores):

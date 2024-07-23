@@ -1,16 +1,15 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+
 import b3d
 import b3d.bayes3d as bayes3d
-from tqdm import tqdm
-import trimesh
 import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
+import trimesh
+from b3d import Pose
 from genjax import Pytree
+from tqdm import tqdm
 
 
 def test_renderer_full(renderer):
@@ -21,7 +20,10 @@ def test_renderer_full(renderer):
     for INPUT in ["real-occluded", "real-visible", "synthetic"]:
         print(f"Running with input {INPUT}")
         if INPUT == "synthetic":
-            video_input = b3d.io.VideoInput.load(b3d.get_root_path() / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz")
+            video_input = b3d.io.VideoInput.load(
+                b3d.get_root_path()
+                / "assets/shared_data_bucket/datasets/posterior_uncertainty_mug_handle_w_0.02_video_input.npz"
+            )
             scaling_factor = 3
             T = 50
         elif INPUT == "real-occluded":
@@ -73,7 +75,6 @@ def test_renderer_full(renderer):
         )
         object_library.add_trimesh(trimesh.load(mesh_path))
 
-
         color_error, depth_error = (60.0, 0.02)
         inlier_score, outlier_prob = (5.0, 0.00001)
         color_multiplier, depth_multiplier = (10000.0, 500.0)
@@ -88,30 +89,32 @@ def test_renderer_full(renderer):
 
         key = jax.random.PRNGKey(1000)
         if renderer is None:
-            renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, 0.01, 10.0)
+            renderer = b3d.Renderer(
+                image_width, image_height, fx, fy, cx, cy, 0.01, 10.0
+            )
         else:
-            renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, 0.01, 10.0)
-        model = bayes3d.model_multiobject_gl_factory(renderer, bayes3d.rgbd_sensor_model)
+            renderer.set_intrinsics(
+                image_width, image_height, fx, fy, cx, cy, 0.01, 10.0
+            )
+        model = bayes3d.model_multiobject_gl_factory(
+            renderer, bayes3d.rgbd_sensor_model
+        )
 
-
-
-        importance_jit = jax.jit(model.importance)
         key = jax.random.PRNGKey(110)
-
 
         point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
 
         vertex_colors = object_library.attributes
         rgb_object_samples = vertex_colors[
-            jax.random.choice(jax.random.PRNGKey(0), jnp.arange(len(vertex_colors)), (10,))
+            jax.random.choice(
+                jax.random.PRNGKey(0), jnp.arange(len(vertex_colors)), (10,)
+            )
         ]
         distances = jnp.abs(rgb[..., None] - rgb_object_samples.T).sum([-1, -2])
         # rr.log("image/distances", rr.DepthImage(distances))
         # rr.log("img", rr.Image(rgb))
 
         object_center_hypothesis = point_cloud[distances.argmin()]
-
-
 
         key = jax.random.split(key, 2)[-1]
         trace, _ = model.importance(
@@ -120,7 +123,10 @@ def test_renderer_full(renderer):
                 {
                     "camera_pose": Pose.identity(),
                     "object_pose_0": Pose.sample_gaussian_vmf_pose(
-                        key, Pose.from_translation(object_center_hypothesis), 0.001, 0.01
+                        key,
+                        Pose.from_translation(object_center_hypothesis),
+                        0.001,
+                        0.01,
                     ),
                     "object_0": 0,
                     "observed_rgb_depth": (rgb, depth),
@@ -129,7 +135,6 @@ def test_renderer_full(renderer):
             (jnp.arange(1), model_args, object_library),
         )
         bayes3d.rerun_visualize_trace_t(trace, 0)
-
 
         params = jnp.array([0.02, 1.0])
         skips = 0
@@ -148,16 +153,13 @@ def test_renderer_full(renderer):
             else:
                 params = jnp.array([params[0] * 0.5, params[1] * 2.0])
                 skips += 1
-                print(f"shrinking")
+                print("shrinking")
                 if skips > 5:
                     print(f"skip {t}")
                     break
 
-
-
         trace_after_gvmf = trace
         trace = trace_after_gvmf
-
 
         delta_cps = jnp.stack(
             jnp.meshgrid(
@@ -169,17 +171,15 @@ def test_renderer_full(renderer):
         ).reshape(-1, 3)
         cp_delta_poses = jax.vmap(bayes3d.contact_parameters_to_pose)(delta_cps)
 
-
         for _ in range(2):
             key = jax.random.split(key, 2)[-1]
-
 
             test_poses = trace.get_choices()["object_pose_0"] @ cp_delta_poses
             test_poses_batches = test_poses.split(20)
 
             scores = jnp.concatenate(
                 [
-                    b3d.enumerate_choices_get_scores_jit(
+                    b3d.enumerate_choices_get_scores(
                         trace, key, Pytree.const(("object_pose_0",)), poses
                     )
                     for poses in test_poses_batches
@@ -195,7 +195,7 @@ def test_renderer_full(renderer):
                 )[2]
             )
 
-            trace = b3d.update_choices_jit(
+            trace = b3d.update_choices(
                 trace,
                 key,
                 Pytree.const(("object_pose_0",)),
@@ -207,10 +207,9 @@ def test_renderer_full(renderer):
             counter += 1
             print("Sampled Angle Range:", samples_deg_range)
 
-
-
         alternate_camera_pose = Pose.from_position_and_target(
-            jnp.array([0.00, -0.3, -0.1]) + test_poses[samples[0]].pos, test_poses[samples[0]].pos
+            jnp.array([0.00, -0.3, -0.1]) + test_poses[samples[0]].pos,
+            test_poses[samples[0]].pos,
         )
 
         alternate_view_images, _ = renderer.render_attribute_many(
@@ -221,9 +220,8 @@ def test_renderer_full(renderer):
             object_library.attributes,
         )
 
-
         for t in range(len(samples)):
-            trace = b3d.update_choices_jit(
+            trace = b3d.update_choices(
                 trace,
                 key,
                 Pytree.const(("object_pose_0",)),
@@ -231,4 +229,4 @@ def test_renderer_full(renderer):
             )
             bayes3d.rerun_visualize_trace_t(trace, counter)
             counter += 1
-            rr.log("/alternate_view_image",rr.Image(alternate_view_images[t]))
+            rr.log("/alternate_view_image", rr.Image(alternate_view_images[t]))

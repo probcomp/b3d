@@ -4,19 +4,20 @@
 # should NOT become peakier when the scene/observed images gain resolution.
 
 
-import jax.numpy as jnp
-import jax
-import genjax
-import matplotlib.pyplot as plt
 import os
-import trimesh
+import unittest
+
 import b3d
 import b3d.bayes3d as bayes3d
-from b3d import Pose
+import genjax
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import rerun as rr
-from tqdm import tqdm
-import unittest
+import trimesh
+from b3d import Pose
 from genjax import Pytree
+from tqdm import tqdm
 
 
 class UpsamplingRenderer(b3d.Renderer):
@@ -62,7 +63,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         faces = jnp.array(mesh.faces)
         vertex_colors = vertices * 0.0 + jnp.array([1.0, 0.0, 0.0])
         vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
-        ranges = jnp.array([[0, len(faces)]])
+
         self.object_library = bayes3d.MeshLibrary.make_empty_library()
         self.object_library.add_object(vertices, faces, vertex_colors)
         print(f"{self.object_library.get_num_objects()} object(s) in library")
@@ -252,10 +253,11 @@ class TestImgResolutionInvariance(unittest.TestCase):
         key = jax.random.PRNGKey(0)
 
         ## sampling grid
-        cp_to_pose = lambda cp: Pose(
-            jnp.array([cp[0], cp[1], 0.0]),
-            b3d.Rot.from_rotvec(jnp.array([cp[2], 0.0, cp[3]])).as_quat(),
-        )
+        def cp_to_pose(cp):
+            return Pose(
+                jnp.array([cp[0], cp[1], 0.0]),
+                b3d.Rot.from_rotvec(jnp.array([cp[2], 0.0, cp[3]])).as_quat(),
+            )
 
         delta_cps = jnp.stack(
             jnp.meshgrid(
@@ -299,7 +301,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         test_poses_batches = test_poses.split(10)
         scores = jnp.concatenate(
             [
-                b3d.enumerate_choices_get_scores_jit(
+                b3d.enumerate_choices_get_scores(
                     gt_trace, key, Pytree.const(("object_pose_0",)), poses
                 )
                 for poses in test_poses_batches
@@ -364,10 +366,10 @@ class TestImgResolutionInvariance(unittest.TestCase):
         circles = []
         circle_radius = 0.4
 
-        angle_to_coord = lambda rad: (
-            0.5 + circle_radius * jnp.cos(rad),
-            0.5 + circle_radius * jnp.sin(rad),
-        )
+        def angle_to_coord(rad):
+            return 0.5 + circle_radius * jnp.cos(rad), 0.5 + circle_radius * jnp.sin(
+                rad
+            )
 
         for ax in axes:
             ax.set_box_aspect(1)
@@ -404,7 +406,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         sc = axes[0].scatter(
             score_viz_unique[:, 0], score_viz_unique[:, 1], c=normalized_scores
         )
-        cbar = plt.colorbar(sc, ax=axes[0], fraction=0.046, pad=0.04)
+        plt.colorbar(sc, ax=axes[0], fraction=0.046, pad=0.04)
 
         ## plot the sampled z angles
         _freqs = dict()
@@ -422,7 +424,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
                 for unique_sample in _freqs.keys()
             ]
         )
-        sc1 = axes[1].scatter(
+        axes[1].scatter(
             unique_sample_coords[:, 0], unique_sample_coords[:, 1], c=freqs, alpha=0.5
         )
 
@@ -431,7 +433,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
 
 if __name__ == "__main__":
     ## Setup rerun
-    rr.init(f"resolution_invariance")
+    rr.init("resolution_invariance")
     rr.connect("127.0.0.1:8812")
 
     testobj = TestImgResolutionInvariance()

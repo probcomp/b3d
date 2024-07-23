@@ -5,9 +5,30 @@ import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
 from b3d.modeling_utils import uniform_pose
+from genjax import Pytree
+import rerun as rr
 
 
-def make_dense_multiobject_model(renderer, image_likelihood):
+def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
+    if sample_func is None:
+
+        def f(key, rendered_rgbd, likelihood_args):
+            return rendered_rgbd
+
+        sample_func = f
+
+    @Pytree.dataclass
+    class ImageLikelihood(genjax.ExactDensity):
+        def sample(self, key, rendered_rgbd, likelihood_args):
+            return sample_func(key, rendered_rgbd, likelihood_args)
+
+        def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
+            return likelihood_func(observed_rgbd, rendered_rgbd, likelihood_args)[
+                "score"
+            ]
+
+    image_likelihood = ImageLikelihood()
+
     @genjax.gen
     def dense_multiobject_model(args_dict):
         meshes = args_dict["meshes"]
@@ -50,4 +71,21 @@ def make_dense_multiobject_model(renderer, image_likelihood):
             "rgbd": image,
         }
 
-    return dense_multiobject_model
+    def viz_trace(trace, t=0):
+        rr.set_time_sequence("time", t)
+        intermediate_info = likelihood_func(
+            trace.get_choices()["rgbd"],
+            trace.get_retval()["latent_rgbd"],
+            trace.get_retval()["likelihood_args"],
+        )
+
+        rr.log("rgb", rr.Image(trace.get_choices()["rgbd"][..., :3]))
+        rr.log("rgb/depth/observed", rr.DepthImage(trace.get_choices()["rgbd"][..., 3]))
+        rr.log(
+            "rgb/depth/latent", rr.DepthImage(trace.get_retval()["latent_rgbd"][..., 3])
+        )
+        rr.log("rgb/latent", rr.Image(trace.get_retval()["latent_rgbd"][..., :3]))
+        # rr.log("rgb/is_match", rr.DepthImage(intermediate_info["is_match"] * 1.0))
+        # rr.log("rgb/color_match", rr.DepthImage(intermediate_info["color_match"] * 1.0))
+
+    return dense_multiobject_model, viz_trace

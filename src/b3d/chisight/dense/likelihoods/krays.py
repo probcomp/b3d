@@ -1,10 +1,10 @@
-import genjax
-import jax.numpy as jnp
-import b3d
 from collections import namedtuple
 
+import genjax
+import jax.numpy as jnp
 from genjax import Pytree
 
+import b3d
 
 KRaysImageLikelihoodArgs = namedtuple(
     "KRaysImageLikelihoodArgs",
@@ -48,11 +48,11 @@ def make_krays_image_observation_model(renderer):
         def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
             (
                 inliers,
-                color_inliers,
-                depth_inliers,
+                _color_inliers,
+                _depth_inliers,
                 outliers,
                 undecided,
-                valid_data_mask,
+                _valid_data_mask,
             ) = get_rgb_depth_inliers_from_observed_rendered_args(
                 observed_rgbd[..., :3],
                 rendered_rgbd[..., :3],

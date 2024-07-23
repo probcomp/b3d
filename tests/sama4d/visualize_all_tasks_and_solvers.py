@@ -1,15 +1,17 @@
 # This script can be run to visualize all tasks and solvers in the sama4d dataset.
 
-import b3d
 import sys
+
+import b3d
 
 sys.path.append(b3d.get_root_path())
 
 import rerun as rr
-from tests.sama4d.video_to_tracks.registration import all_task_solver_pairs as pairs_1
+
 from tests.sama4d.tracks_to_segmentation.registration import (
     all_task_solver_pairs as pairs_2,
 )
+from tests.sama4d.video_to_tracks.registration import all_task_solver_pairs as pairs_1
 from tests.sama4d.video_to_tracks_and_segmentation.registration import (
     all_task_solver_pairs as pairs_3,
 )

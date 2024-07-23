@@ -1,20 +1,22 @@
 ### Preliminaries ###
 
-import jax.numpy as jnp
-import jax
-from b3d import Pose
-import b3d
-import rerun as rr
-import genjax
-from tqdm import tqdm
-import demos.differentiable_renderer.patch_tracking.demo_utils as du
-import demos.differentiable_renderer.patch_tracking.model as m
-import b3d.chisight.dense.likelihoods as l
-import b3d.chisight.dense.differentiable_renderer as r
 import os
-import trimesh
+
+import b3d
+import b3d.chisight.dense.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as l
+import genjax
+import jax
+import jax.numpy as jnp
 import numpy as np
 import optax
+import rerun as rr
+import trimesh
+from b3d import Pose
+from tqdm import tqdm
+
+import demos.differentiable_renderer.patch_tracking.demo_utils as du
+import demos.differentiable_renderer.patch_tracking.model as m
 
 rr.init("multiple_patch_tracking")
 rr.connect("127.0.0.1:8812")
@@ -86,7 +88,7 @@ def get_patches(center):
         (center_x - del_pix, center_y - del_pix, 0),
         (2 * del_pix - 1, 2 * del_pix - 1, 3),
     ).reshape(-1, 3)
-    patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = (
+    patch_vertices_C, patch_faces, patch_vertex_colors, _patch_face_colors = (
         b3d.make_mesh_from_point_cloud_and_resolution(
             patch_points_C, patch_rgbs, patch_points_C[:, 2] / fx * 2.0
         )

@@ -1,14 +1,14 @@
-import jax.numpy as jnp
-import jax
-import b3d
-import rerun as rr
-import genjax
-
-import b3d.chisight.dense.differentiable_renderer as rendering
-import b3d.chisight.dense.likelihoods as likelihoods
-import demos.differentiable_renderer.utils as utils
 import time
 
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+import b3d.chisight.dense.likelihoods as likelihoods
+import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
+
+import demos.differentiable_renderer.utils as utils
 
 # Set up OpenGL renderer
 image_width = 120

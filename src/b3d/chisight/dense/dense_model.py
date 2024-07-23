@@ -1,9 +1,10 @@
-from b3d.modeling_utils import uniform_pose
 import genjax
-import b3d
-from b3d import Pose, Mesh
 import jax.numpy as jnp
+
+import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
+from b3d import Mesh, Pose
+from b3d.modeling_utils import uniform_pose
 
 
 def make_dense_multiobject_model(renderer, image_likelihood_func):

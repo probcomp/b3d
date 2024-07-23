@@ -1,17 +1,17 @@
+import os
+from pathlib import Path
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+import optax
+import rerun as rr
+from b3d.chisight.sparse.gps_utils import cov_from_dq_composition
+from b3d.io import MeshData
 from b3d.pose import Pose
 from b3d.utils import keysplit
-from b3d.chisight.sparse.gps_utils import cov_from_dq_composition
-from pathlib import Path
-import os
 from jax.scipy.spatial.transform import Rotation as Rot
-import optax
-
-from b3d.io import MeshData
 from sklearn.utils import Bunch
-import rerun as rr
 
 
 # **************************

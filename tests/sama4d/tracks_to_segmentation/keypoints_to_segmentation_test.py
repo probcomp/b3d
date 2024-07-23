@@ -1,4 +1,5 @@
 import pytest
+
 from .registration import all_task_solver_pairs
 
 

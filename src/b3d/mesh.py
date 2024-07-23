@@ -1,10 +1,11 @@
-import b3d
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
 import trimesh
 from jax.tree_util import register_pytree_node_class
-import rerun as rr
-import numpy as np
+
+import b3d
 
 
 @jax.jit
@@ -210,9 +211,6 @@ class Mesh:
     def shape(self):
         return self.vertices.shape[:-1]
 
-    def __len__(self):
-        return self.vertices.shape[0]
-
     def __iter__(self):
         self.current = 0
         return self
@@ -222,8 +220,3 @@ class Mesh:
         if self.current <= len(self):
             return self[self.current - 1]
         raise StopIteration
-
-    def __getitem__(self, index):
-        return Mesh(
-            self.vertices[index], self.faces[index], self.vertex_attributes[index]
-        )

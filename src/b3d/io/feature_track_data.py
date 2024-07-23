@@ -1,14 +1,15 @@
 from dataclasses import dataclass
-from b3d.types import Array, Float
-import jax.numpy as jnp
 from typing import Optional
+
 import jax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+
 from b3d.camera import Intrinsics
 from b3d.pose import Pose
+from b3d.types import Array, Float
 from b3d.utils import downsize_images
-
 
 DESCR = """
 FeatureTrackData:
@@ -403,13 +404,13 @@ class FeatureTrackData:
             figsize = (figsize[0] * self.num_frames, figsize[1])
 
         if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            _fig, ax = plt.subplots(1, 1, figsize=figsize)
             ax.set_aspect(1)
             ax.axis("off")
 
         rgb = downsize_images(self.rgb, downsize)
         if t is None:
-            h, w = self.rgb.shape[1:3]
+            _h, w = self.rgb.shape[1:3]
             ax.imshow(np.concatenate(rgb / 255, axis=1))
             ax.scatter(
                 *np.concatenate(

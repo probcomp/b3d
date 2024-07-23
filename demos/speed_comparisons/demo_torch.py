@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 import os
-import trimesh
-import b3d
-import rerun as rr
-from tqdm import tqdm
-import torch
-import b3d.torch
-import b3d.torch.renderutils
-import b3d.nvdiffrast_original.torch as dr
-
-
-import pytorch3d.transforms
 import time
 
+import b3d
+import b3d.nvdiffrast_original.torch as dr
+import b3d.torch
+import b3d.torch.renderutils
+import pytorch3d.transforms
+import rerun as rr
+import torch
+import trimesh
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device("cuda")

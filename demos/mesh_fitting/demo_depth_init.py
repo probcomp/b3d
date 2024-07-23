@@ -1,7 +1,8 @@
-import jax
-import genjax
-import b3d
 import os
+
+import b3d
+import genjax
+import jax
 import rerun as rr
 
 import demos.mesh_fitting.model as m
@@ -82,7 +83,7 @@ def importance_from_vertices_colors(vertices, colors):
 
 
 def vertices_colors_to_score(vertices, colors):
-    trace, weight = importance_from_vertices_colors(vertices, colors)
+    _trace, weight = importance_from_vertices_colors(vertices, colors)
     return weight
 
 

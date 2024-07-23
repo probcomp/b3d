@@ -1,7 +1,8 @@
+import genjax
 import jax
 import jax.numpy as jnp
+
 from .core import Pose
-import genjax
 
 
 def uniform_samples_from_disc(key, N, d=3):

@@ -1,7 +1,8 @@
-import jax.numpy as jnp
+import argparse
+
 import b3d
 import jax
-import argparse
+import jax.numpy as jnp
 from b3d import Pose
 from tqdm import tqdm
 

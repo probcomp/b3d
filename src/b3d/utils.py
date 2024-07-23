@@ -1,24 +1,26 @@
-import jax.numpy as jnp
-from functools import partial
-import numpy as np
-import genjax
-from PIL import Image
-import subprocess
-import jax
-import sklearn.cluster
-import b3d
-import cv2
-
 import inspect
-from pathlib import Path
 import os
-import trimesh
-import rerun as rr
-import distinctipy
-from typing import TypeAlias
-from PIL import ImageDraw, ImageFont
+import subprocess
 import tempfile
-from b3d.pose import Pose, Rot
+from functools import partial
+from pathlib import Path
+from typing import TypeAlias
+
+import cv2
+import distinctipy
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+import sklearn.cluster
+import trimesh
+from jax.scipy.spatial.transform import Rotation as Rot
+from PIL import Image, ImageDraw, ImageFont
+
+import b3d
+from b3d.pose import Pose
+
 # TODO: Refactor utils into core and others, to avoid circular imports
 
 # # # # # # # # # # # #
@@ -103,7 +105,7 @@ def downsize_images(ims, k):
 
 
 @jax.jit
-def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
+def xyz_from_depth(z: rr.DepthImage, fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
     x = (u - cx) / fx
     y = (v - cy) / fy

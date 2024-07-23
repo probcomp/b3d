@@ -3,16 +3,15 @@ import os
 import time
 from collections import namedtuple
 
+import bayes3d as b
+
+# import nvdiffrast.torch as dr
+import bayes3d.rendering.nvdiffrast_full.nvdiffrast.torch as dr  # modified nvdiffrast to expose backward fn call api
 import jax
 import jax.numpy as jnp
 import numpy as np
 import torch
 from jax_renderer import Renderer as JaxRenderer
-
-import bayes3d as b
-
-# import nvdiffrast.torch as dr
-import bayes3d.rendering.nvdiffrast_full.nvdiffrast.torch as dr  # modified nvdiffrast to expose backward fn call api
 
 # --------------
 # Which renderer to test

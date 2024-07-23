@@ -1,20 +1,21 @@
+import glob
 import json
 import os
-import b3d
-import jax.numpy as jnp
+import subprocess
+from pathlib import Path
+
 import cv2
 import imageio
 import jax
-
+import jax.numpy as jnp
+import liblzfse  # https://pypi.org/project/pyliblzfse/
 import numpy as np
+from natsort import natsorted
 from PIL import Image
 from tqdm import tqdm
-from b3d import Pose
-import glob
-from pathlib import Path
-import subprocess
-from natsort import natsorted
-import liblzfse  # https://pypi.org/project/pyliblzfse/
+
+from b3d.mesh import Mesh
+from b3d.pose import Pose
 
 YCB_MODEL_NAMES = [
     "002_master_chef_can",
@@ -98,7 +99,7 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
         )
         cam_pose = jnp.linalg.inv(cam_pose_w2c)
-        cam_pose = b3d.Pose.from_matrix(
+        cam_pose = Pose.from_matrix(
             cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0)
         )
         data["camera_pose"] = cam_pose
@@ -144,8 +145,8 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             gt_ids.append(obj_id)
 
         data["object_types"] = jnp.array(gt_ids)
-        data["object_poses"] = cam_pose @ b3d.Pose.stack_poses(
-            [b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)]
+        data["object_poses"] = cam_pose @ Pose.stack_poses(
+            [Pose.from_matrix(p) for p in jnp.array(gt_poses)]
         )
 
         all_data.append(data)
@@ -153,12 +154,14 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
 
 def get_ycb_mesh(ycb_dir, id):
-    return b3d.Mesh.from_obj_file(
+    return Mesh.from_obj_file(
         os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
     ).scale(0.001)
 
 
 def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
+    import b3d.io
+
     video_dir = os.path.join(ycbineaot_dir, f"{video_name}")
 
     color_files = sorted(glob.glob(f"{video_dir}/rgb/*.png"))
@@ -276,12 +279,12 @@ def load_r3d(r3d_path):
 
     color_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.jpg")))
     depth_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.depth")))
-    conf_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
+    natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
 
     rgb = jnp.array([load_color(color_paths[i]) for i in range(len(color_paths))])
     depths = jnp.array([load_depth(depth_paths[i]) for i in range(len(color_paths))])
     depths = depths.at[jnp.isnan(depths)].set(0.0)
-    depths_resized = jax.vmap(jax.image.resize, in_axes=(0, None, None))(
+    jax.vmap(jax.image.resize, in_axes=(0, None, None))(
         depths,
         (rgb.shape[1], rgb.shape[2]),
         "linear",
@@ -292,7 +295,7 @@ def load_r3d(r3d_path):
     # https://fzheng.me/2017/11/12/quaternion_conventions_en/
     positions = pose_data[..., 4:] * jnp.array([1, -1, -1])  # (N, 3)
     quaternions = pose_data[..., :4] * jnp.array([-1, 1, 1, -1])  # (N, 4)
-    _, _, fx, fy, cx, cy, _, _ = intrinsics_depth
+    _, _, _fx, _fy, _cx, _cy, _, _ = intrinsics_depth
 
     return {
         "rgb": rgb,

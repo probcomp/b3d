@@ -3,20 +3,20 @@ import fire
 
 
 def run_tracking(scene=None, object=None, debug=False):
-    import b3d
-    import jax.numpy as jnp
-    import jax
-    from b3d import Pose, Mesh
-    import rerun as rr
-    import genjax
+    import importlib
     import os
+
+    import b3d
+    import genjax
+    import jax
+    import jax.numpy as jnp
+    import rerun as rr
+    from b3d import Mesh, Pose
+    from b3d.bayes3d.enumerative_proposals import gvmf_and_select_best_move
     from b3d.modeling_utils import uniform_pose
     from genjax import Pytree
-    from b3d.bayes3d.enumerative_proposals import gvmf_and_select_best_move
-    from tqdm import tqdm
     from IPython import embed
-
-    import importlib
+    from tqdm import tqdm
 
     importlib.reload(b3d.mesh)
     importlib.reload(b3d.io.data_loader)

@@ -1,10 +1,10 @@
-import jax.numpy as jnp
-import b3d
-from b3d import Pose
-import jax
 import genjax
+import jax
+import jax.numpy as jnp
 from genjax import gen
-from b3d import Mesh
+
+import b3d
+from b3d import Mesh, Pose
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.pose import uniform_pose_in_ball
 
@@ -232,15 +232,15 @@ def visualize_particle_system(
 ):
     import rerun as rr
 
-    (dynamic_state, static_state) = final_state
+    (_dynamic_state, static_state) = final_state
 
     (
         num_timesteps,  # const object
-        num_particles,  # const object
+        _num_particles,  # const object
         num_clusters,  # const object
-        relative_particle_poses_prior_params,
-        initial_object_poses_prior_params,
-        camera_pose_prior_params,
+        _relative_particle_poses_prior_params,
+        _initial_object_poses_prior_params,
+        _camera_pose_prior_params,
     ) = latent_particle_model_args
 
     absolute_particle_poses = particle_dynamics_summary["absolute_particle_poses"]
@@ -317,11 +317,11 @@ def visualize_dense_gps(
 ):
     (
         num_timesteps,  # const object
-        num_particles,  # const object
-        num_clusters,  # const object
-        relative_particle_poses_prior_params,
-        initial_object_poses_prior_params,
-        camera_pose_prior_params,
+        _num_particles,  # const object
+        _num_clusters,  # const object
+        _relative_particle_poses_prior_params,
+        _initial_object_poses_prior_params,
+        _camera_pose_prior_params,
     ) = latent_particle_model_args
     (meshes, _) = dense_model_args
 

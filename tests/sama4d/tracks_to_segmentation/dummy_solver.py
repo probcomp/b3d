@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+
 from tests.common.solver import Solver
 
 

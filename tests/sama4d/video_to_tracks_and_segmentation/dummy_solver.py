@@ -1,5 +1,6 @@
-from tests.common.solver import Solver
 import jax.numpy as jnp
+
+from tests.common.solver import Solver
 
 
 class KeypointTrackingAndSegmentationDummySolver(Solver):

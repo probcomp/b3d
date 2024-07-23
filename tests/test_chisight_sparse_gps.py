@@ -1,13 +1,12 @@
+import importlib
+
 import b3d
+import b3d.chisight.particle_system as ps
 import jax
 import jax.numpy as jnp
 from b3d import Pose
-
-import b3d.chisight.particle_system as ps
-from genjax import Pytree
 from genjax import ChoiceMapBuilder as C
-
-import importlib
+from genjax import Pytree
 
 importlib.reload(ps)
 
@@ -52,7 +51,7 @@ def test_sparse_gps_simulate():
         C["particle_dynamics", "state0", "initial_camera_pose"].set(Pose.identity())
     )
 
-    trace, w = ps.sparse_gps_model.importance(
+    trace, _w = ps.sparse_gps_model.importance(
         key,
         chm,
         args,

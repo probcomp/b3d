@@ -1,9 +1,10 @@
-from jax.tree_util import register_pytree_node_class
-import jax.numpy as jnp
-import jax
-from jax.scipy.spatial.transform import Rotation as Rot
-from tensorflow_probability.substrates import jax as tfp
 from typing import TypeAlias
+
+import jax
+import jax.numpy as jnp
+from jax.scipy.spatial.transform import Rotation as Rot
+from jax.tree_util import register_pytree_node_class
+from tensorflow_probability.substrates import jax as tfp
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -140,7 +141,7 @@ class Pose:
         raise Warning(
             "Use `identity_quaternion` instead, a unit quaternion is any quat with norm 1!"
         )
-        return identity_quaternion
+        return self.identity_quaternion
 
     @property
     def pos(self):

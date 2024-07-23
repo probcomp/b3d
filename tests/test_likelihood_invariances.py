@@ -1,9 +1,10 @@
+import os
+
 import b3d
 import b3d.bayes3d as bayes3d
-import os
+import jax
 import jax.numpy as jnp
 import rerun as rr
-import jax
 import trimesh
 
 PORT = 8812

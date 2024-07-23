@@ -1,11 +1,12 @@
-import jax.numpy as jnp
-import jax
+from functools import partial
+
 import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+import jax
+import jax.numpy as jnp
+import optax
 import rerun as rr
 from tqdm import tqdm
-import optax
-import b3d.chisight.dense.differentiable_renderer as rendering
-from functools import partial
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")

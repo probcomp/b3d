@@ -1,5 +1,5 @@
-from warnings import warn
 from functools import wraps
+from warnings import warn
 
 
 def depreciated(msg):

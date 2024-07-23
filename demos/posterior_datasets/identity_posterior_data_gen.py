@@ -1,11 +1,11 @@
-import b3d
-import numpy as np
-import trimesh
-import jax.numpy as jnp
-import jax
 import os
-import rerun as rr
 
+import b3d
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+import trimesh
 
 width = 200
 height = 200

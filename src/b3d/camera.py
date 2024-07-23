@@ -1,6 +1,8 @@
-import jax.numpy as jnp
-from b3d.types import Array, Float, Int
 from typing import NamedTuple, TypeAlias
+
+import jax.numpy as jnp
+
+from b3d.types import Array, Float, Int
 
 ImageShape: TypeAlias = tuple[int, ...]
 ScreenCoordinates: TypeAlias = Array

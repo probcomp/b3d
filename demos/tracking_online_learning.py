@@ -1,14 +1,14 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
-import b3d
-from tqdm import tqdm
 from functools import partial
 
+import b3d
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+from b3d import Pose
+from tqdm import tqdm
 
 # Rerun setup
 PORT = 8812

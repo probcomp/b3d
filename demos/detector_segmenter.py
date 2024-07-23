@@ -1,22 +1,23 @@
-from PIL import Image
-import torch
-import b3d
-import os
-import numpy as np
-
 import io
-import numpy
-import jax.numpy as jnp
+import os
+
+import b3d
 import jax
+import jax.numpy as jnp
+import numpy
+import numpy as np
 import rerun as rr
-
-
-from transformers import DetrFeatureExtractor, DetrForSegmentation
+import torch
+from PIL import Image
+from transformers import (
+    AutoModelForZeroShotObjectDetection,
+    AutoProcessor,
+    DetrFeatureExtractor,
+    DetrForSegmentation,
+    OwlViTForObjectDetection,
+    OwlViTProcessor,
+)
 from transformers.models.detr.feature_extraction_detr import rgb_to_id
-
-from transformers import OwlViTProcessor, OwlViTForObjectDetection
-from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
-
 
 processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")

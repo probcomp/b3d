@@ -1,9 +1,11 @@
-from tests.common.task import Task
-import b3d
-import numpy as np
-import jax.numpy as jnp
-import rerun as rr
 from typing import Callable
+
+import b3d
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+
+from tests.common.task import Task
 
 
 class KeypointTrackingTask(Task):

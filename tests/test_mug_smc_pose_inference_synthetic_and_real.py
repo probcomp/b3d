@@ -1,14 +1,15 @@
-import rerun as rr
-import genjax
 import os
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+
 import b3d
 import b3d.bayes3d as bayes3d
-from tqdm import tqdm
+import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
 import trimesh
+from b3d import Pose
 from genjax import Pytree
+from tqdm import tqdm
 
 
 def test_renderer_full(renderer):

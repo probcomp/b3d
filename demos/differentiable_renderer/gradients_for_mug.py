@@ -1,14 +1,15 @@
-import jax.numpy as jnp
-import jax
 import os
-import trimesh
-import b3d
-from b3d import Pose
-import rerun as rr
-from tqdm import tqdm
-import optax
-import b3d.chisight.dense.differentiable_renderer as rendering
 from functools import partial
+
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+import jax
+import jax.numpy as jnp
+import optax
+import rerun as rr
+import trimesh
+from b3d import Pose
+from tqdm import tqdm
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
@@ -149,7 +150,6 @@ params = {
 }
 
 rr.log("image", rr.Image(gt_image[..., :3]), timeless=True)
-rr.log("cloud", rr.Points3D(gt_pose.apply(object_library.vertices)), timeless=True)
 rr.log("loss2", rr.SeriesLine(name="loss2"), timeless=True)
 
 

@@ -1,12 +1,14 @@
 import jax
-from b3d.utils import keysplit
+
 from b3d.camera import Intrinsics
+from b3d.chisight.sparse.gps_utils import add_dummy_var
+from b3d.chisight.sparse.sparse_gps_model import (
+    make_sparse_gps_model,
+    minimal_observation_model,
+)
 from b3d.pose import Pose
 from b3d.pose.pose_utils import uniform_pose_in_ball
-from b3d.chisight.sparse.gps_utils import add_dummy_var
-from b3d.chisight.sparse.sparse_gps_model import minimal_observation_model
-from b3d.chisight.sparse.sparse_gps_model import make_sparse_gps_model
-
+from b3d.utils import keysplit
 
 key = jax.random.PRNGKey(0)
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(

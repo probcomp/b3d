@@ -1,13 +1,14 @@
 # Note: this uses a custom differentiable renderer defined inline in this script.
 
-import jax.numpy as jnp
-import jax
-import numpy as np
-import os
-import b3d
-from b3d import Pose
-import rerun as rr
 import functools
+import os
+
+import b3d
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+from b3d import Pose
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
@@ -152,7 +153,7 @@ def render(particle_centers, particle_widths, particle_colors):
     vertex_colors = vertex_colors.reshape(-1, 3)
     triangle_index_to_particle_index = triangle_index_to_particle_index.reshape(-1)
 
-    uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+    _uvs, _, triangle_id_image, depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
 
@@ -217,7 +218,7 @@ rr.log("image/triangles", rr.DepthImage(triangle_id_image))
 
 
 def loss_func(a, b, c, gt_rgb, gt_depth):
-    rgb, depth, _ = render(a, b, c)
+    _rgb, depth, _ = render(a, b, c)
     return jnp.mean(jnp.abs(depth - gt_depth))
 
 

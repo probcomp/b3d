@@ -1,8 +1,9 @@
 import os
-import jax.numpy as jnp
-import trimesh
+
 import b3d
 import b3d.bayes3d as bayes3d
+import jax.numpy as jnp
+import trimesh
 
 
 def test_renderer_full(renderer):
@@ -19,7 +20,7 @@ def test_renderer_full(renderer):
         jnp.array([0.2, 0.2, 0.0]), jnp.array([0.0, 0.0, 0.0])
     ).inv()
 
-    rgb, depth = renderer.render_attribute(
+    rgb, _depth = renderer.render_attribute(
         pose[None, ...],
         object_library.vertices,
         object_library.faces,

@@ -1,4 +1,5 @@
 import functools
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -7,6 +8,7 @@ from jax.core import ShapedArray
 from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
+
 import b3d.renderer.nvdiffrast.jax as dr
 from b3d.camera import Intrinsics
 
@@ -136,6 +138,7 @@ class Renderer(object):
         )
         dy, ddb = diffs
 
+        # Don't delete! This call has the side-effect of preventing JAX from complaining when we call `grad` on a `Renderer`.
         _rasterize_bwd_custom_call(
             self,
             pose,
@@ -684,9 +687,9 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
         triangle_ids,
         faces,
     ):
-        num_vertices, num_attributes = attributes.shape
+        _num_vertices, num_attributes = attributes.shape
         num_images, height, width, _ = uvs.shape
-        num_tri, _ = faces.shape
+        _num_tri, _ = faces.shape
 
         dtype = dtypes.canonicalize_dtype(attributes.dtype)
 

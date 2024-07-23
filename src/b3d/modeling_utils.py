@@ -1,13 +1,14 @@
 import genjax
-from b3d.pose import (
-    sample_uniform_pose,
-    logpdf_uniform_pose,
-    sample_gaussian_vmf_pose,
-    logpdf_gaussian_vmf_pose,
-)
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
+
+from b3d.pose import (
+    logpdf_gaussian_vmf_pose,
+    logpdf_uniform_pose,
+    sample_gaussian_vmf_pose,
+    sample_uniform_pose,
+)
 
 uniform_discrete = genjax.exact_density(
     lambda key, vals: jax.random.choice(key, vals),

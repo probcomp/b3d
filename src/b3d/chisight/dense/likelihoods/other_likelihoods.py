@@ -2,22 +2,22 @@
 This file defines several likelihoods over RGBD images.
 """
 
-import jax.numpy as jnp
-import jax
-import jax.tree_util as jtu
 import genjax
-import b3d
+import jax
+import jax.numpy as jnp
+import jax.tree_util as jtu
 from genjax import Pytree
 from tensorflow_probability.substrates import jax as tfp
 
+import b3d
 import b3d.modeling_utils
 
 
-def normalize(l):
+def normalize(probs):
     return jnp.where(
-        jnp.sum(l, axis=-1) < 1e-6,
-        jnp.ones_like(l) / l.shape[-1],
-        l / (jnp.sum(l, axis=-1)[..., None] + 1e-8),
+        jnp.sum(probs, axis=-1) < 1e-6,
+        jnp.ones_like(probs) / probs.shape[-1],
+        probs / (jnp.sum(probs, axis=-1)[..., None] + 1e-8),
     )
 
 

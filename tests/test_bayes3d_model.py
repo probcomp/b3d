@@ -1,11 +1,11 @@
 import b3d
 import b3d.bayes3d as bayes3d
-from b3d.bayes3d.model import model_multiobject_gl_factory
-from b3d import Pose
-import jax
 import genjax
-from genjax import ChoiceMapBuilder as C
+import jax
 import jax.numpy as jnp
+from b3d import Pose
+from b3d.bayes3d.model import model_multiobject_gl_factory
+from genjax import ChoiceMapBuilder as C
 
 
 class TestGroup:

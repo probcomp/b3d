@@ -1,10 +1,14 @@
-from tests.common.solver import Solver
 import b3d
-from b3d import Pose
-from b3d.chisight.dense.dense_only_patch_tracking.model import rr_log_uniformpose_meshes_to_image_model_trace
 import b3d.chisight.dense.dense_only_patch_tracking.patch_tracking as tracking
 import jax.numpy as jnp
 import rerun as rr
+from b3d import Pose
+from b3d.chisight.dense.dense_only_patch_tracking.model import (
+    rr_log_uniformpose_meshes_to_image_model_trace,
+)
+
+from tests.common.solver import Solver
+
 
 class AdamPatchTracker_UsingDenseOnlyTraces(Solver):
     # Coordinate frames:
@@ -34,15 +38,19 @@ class AdamPatchTracker_UsingDenseOnlyTraces(Solver):
         r = task_spec["renderer"]
         fx, fy, cx, cy = r.fx, r.fy, r.cx, r.cy
 
-        (patch_vertices_P, patch_faces, patch_vertex_colors, poses_CP_at_time0, _) = tracking.get_patches(
-            initial_patch_centers_2D, video, Pose.identity(), fx, fy, cx, cy
+        (patch_vertices_P, patch_faces, patch_vertex_colors, poses_CP_at_time0, _) = (
+            tracking.get_patches(
+                initial_patch_centers_2D, video, Pose.identity(), fx, fy, cx, cy
+            )
         )
         self.mesh = (patch_vertices_P, patch_faces, patch_vertex_colors)
         self.poses_CP_at_time0 = poses_CP_at_time0
 
         model = tracking.get_default_multiobject_model_for_patchtracking(r)
-        (get_initial_tracker_state, update_tracker_state, get_trace) = tracking.get_adam_optimization_patch_tracker(
-            model, patch_vertices_P, patch_faces, patch_vertex_colors
+        (get_initial_tracker_state, update_tracker_state, get_trace) = (
+            tracking.get_adam_optimization_patch_tracker(
+                model, patch_vertices_P, patch_faces, patch_vertex_colors
+            )
         )
         self.get_trace = get_trace
         tracker_state = get_initial_tracker_state(poses_CP_at_time0)
@@ -54,7 +62,9 @@ class AdamPatchTracker_UsingDenseOnlyTraces(Solver):
 
         N_FRAMES = observed_rgbds.shape[0]
         for timestep in range(N_FRAMES):
-            (pos_C, quats_C), tracker_state = update_tracker_state(tracker_state, observed_rgbds[timestep])
+            (pos_C, quats_C), tracker_state = update_tracker_state(
+                tracker_state, observed_rgbds[timestep]
+            )
             pose_W = poses_WC[timestep] @ Pose(pos_C, quats_C)
             self.all_positions_W.append(pose_W.pos)
             self.all_quaternions_W.append(pose_W.xyzw)
@@ -66,26 +76,34 @@ class AdamPatchTracker_UsingDenseOnlyTraces(Solver):
             keypoints_3D_C, r.get_intrinsics_object()
         )[:, :, ::-1]
         return inferred_keypoints_2D
-    
+
     def visualize_solver_state(self, task_spec):
         pos0_C = self.poses_CP_at_time0.pos
         quat0_C = self.poses_CP_at_time0.xyzw
         trace = self.get_trace(pos0_C, quat0_C, task_spec["video"][0])
         rr_log_uniformpose_meshes_to_image_model_trace(
-            trace, task_spec["renderer"], prefix="patch_tracking_initialization",
+            trace,
+            task_spec["renderer"],
+            prefix="patch_tracking_initialization",
             timeless=True,
             # Viz uses World coordinate frame; trace uses Camera coordinate frame.
             # Hence, we need this transformation.
-            transform_Viz_Trace=task_spec["poses_WC"][0]
+            transform_Viz_Trace=task_spec["poses_WC"][0],
         )
 
         for t in range(len(self.all_positions_W)):
             rr.set_time_sequence("frame", t)
-            trace = self.get_trace(self.all_positions_C[t], self.all_quaternions_C[t], task_spec["video"][t])
+            trace = self.get_trace(
+                self.all_positions_C[t],
+                self.all_quaternions_C[t],
+                task_spec["video"][t],
+            )
             rr_log_uniformpose_meshes_to_image_model_trace(
-                trace, task_spec["renderer"], prefix="PatchTrackingTrace",
+                trace,
+                task_spec["renderer"],
+                prefix="PatchTrackingTrace",
                 # Viz uses World coordinate frame; trace uses Camera coordinate frame.
                 # Hence, we need this transformation.
-                transform_Viz_Trace=task_spec["poses_WC"][t]
+                transform_Viz_Trace=task_spec["poses_WC"][t],
             )
             del trace

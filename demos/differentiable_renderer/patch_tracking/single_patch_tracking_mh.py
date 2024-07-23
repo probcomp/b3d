@@ -1,19 +1,19 @@
 ### Preliminaries ###
 
-import jax.numpy as jnp
-import jax
-from b3d import Pose
-import rerun as rr
+import time
+
+import b3d
+import b3d.chisight.dense.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as l
 import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
+
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
-import b3d.chisight.dense.likelihoods as l
-import b3d.chisight.dense.differentiable_renderer as r
-import matplotlib.pyplot as plt
-import numpy as np
-import b3d
-import optax
 
 rr.init("single_patch_tracking-mh")
 rr.connect("127.0.0.1:8812")
@@ -22,12 +22,10 @@ rr.connect("127.0.0.1:8812")
     renderer,
     (observed_rgbds, gt_rots),
     ((patch_vertices_P, patch_faces, patch_vertex_colors), X_WP),
-    X_WC
+    X_WC,
 ) = du.get_renderer_boxdata_and_patch()
 
-hyperparams = r.DifferentiableRendererHyperparams(
-    3, 1e-5, 1e-2, -1
-)
+hyperparams = r.DifferentiableRendererHyperparams(3, 1e-5, 1e-2, -1)
 
 depth_scale = 0.0001
 color_scale = 0.002
@@ -35,55 +33,67 @@ mindepth = -1.0
 maxdepth = 2.0
 likelihood = l.ArgMap(
     l.ImageDistFromPixelDist(
-        l.uniform_multilaplace_mixture,
-        [True, True, False, False, False, False]
+        l.uniform_multilaplace_mixture, [True, True, False, False, False, False]
     ),
-    lambda weights, rgbds: ( renderer.height, renderer.width,
-                            weights, rgbds, (depth_scale,), (color_scale,), mindepth, maxdepth )
+    lambda weights, rgbds: (
+        renderer.height,
+        renderer.width,
+        weights,
+        rgbds,
+        (depth_scale,),
+        (color_scale,),
+        mindepth,
+        maxdepth,
+    ),
 )
 
-model = m.single_object_model_factory(
-    renderer,
-    likelihood,
-    hyperparams
-)
+model = m.single_object_model_factory(renderer, likelihood, hyperparams)
 
 key = jax.random.PRNGKey(0)
 
 ### Generate image samples from the observation model ###
 
+
 def generate_image(key):
-    trace, weight = model.importance(
+    trace, _weight = model.importance(
         key,
-        genjax.choice_map({ "pose": X_WP, "camera_pose": X_WC }),
-        (patch_vertices_P, patch_faces, patch_vertex_colors, ())
+        genjax.choice_map({"pose": X_WP, "camera_pose": X_WC}),
+        (patch_vertices_P, patch_faces, patch_vertex_colors, ()),
     )
     return trace.get_retval()[0]
+
+
 images = jax.vmap(generate_image)(jax.random.split(key, 100))
 for i, image in enumerate(images):
     rr.set_time_sequence("image_sample", i)
-    rr.log(f"/image_sample/rgb", rr.Image(image[:, :, :3]))
-    rr.log(f"/image_sample/depth", rr.DepthImage(image[:, :, 3]))
+    rr.log("/image_sample/rgb", rr.Image(image[:, :, :3]))
+    rr.log("/image_sample/depth", rr.DepthImage(image[:, :, 3]))
 
 ### Patch tracking ###
+
 
 def importance_from_pos_quat_v3(pos, quat, timestep):
     pose = Pose.from_vec(jnp.concatenate([pos, quat]))
     trace, weight = model.importance(
         key,
-        genjax.choice_map({
-            "pose": pose,
-            "camera_pose": X_WC,
-            "observed_rgbd": observed_rgbds[timestep]
-        }),
-        (patch_vertices_P, patch_faces, patch_vertex_colors, ())
+        genjax.choice_map(
+            {
+                "pose": pose,
+                "camera_pose": X_WC,
+                "observed_rgbd": observed_rgbds[timestep],
+            }
+        ),
+        (patch_vertices_P, patch_faces, patch_vertex_colors, ()),
     )
     return trace, weight
 
+
 trace, wt = importance_from_pos_quat_v3(X_WP._position, X_WP._quaternion, 0)
+
 
 def weight_from_pos_quat_v3(pos, quat, timestep):
     return importance_from_pos_quat_v3(pos, quat, timestep)[1]
+
 
 # ### Gaussian VMF MH patch tracking ###
 def mh_drift_update(key, tr, pos_std, rot_concentration):
@@ -102,7 +112,7 @@ def mh_drift_update(key, tr, pos_std, rot_concentration):
     proposed_trace, p_ratio, _, _ = tr.update(
         subkey,
         genjax.choice_map({"pose": newpose}),
-        genjax.Diff.tree_diff_no_change(tr.get_args())
+        genjax.Diff.tree_diff_no_change(tr.get_args()),
     )
 
     log_full_ratio = p_ratio + q_bwd - q_fwd
@@ -110,12 +120,7 @@ def mh_drift_update(key, tr, pos_std, rot_concentration):
     key, subkey = jax.random.split(key)
     accept = jax.random.bernoulli(subkey, alpha)
 
-    new_trace = jax.lax.cond(
-        accept,
-        lambda _: proposed_trace,
-        lambda _: tr,
-        None
-    )
+    new_trace = jax.lax.cond(accept, lambda _: proposed_trace, lambda _: tr, None)
 
     metadata = {
         "accept": accept,
@@ -123,10 +128,11 @@ def mh_drift_update(key, tr, pos_std, rot_concentration):
         "log_q_fwd": q_fwd,
         "log_q_bwd": q_bwd,
         "log_full_ratio": log_full_ratio,
-        "alpha": alpha
+        "alpha": alpha,
     }
 
     return (new_trace, metadata)
+
 
 @jax.jit
 def mh_kernel(st, i):
@@ -135,22 +141,27 @@ def mh_kernel(st, i):
     new_tr, metadata = mh_drift_update(subkey, tr, pos_std, rot_conc)
     return (key, new_tr, pos_std, rot_conc), metadata
 
+
 (_, new_tr, _, _), metadata = mh_kernel((key, trace, 0.01, 0.1), 0)
+
 
 @jax.jit
 def unfold_mh_100_steps(st):
     ret_st, metadata = jax.lax.scan(mh_kernel, st, jnp.arange(100))
     return ret_st, metadata
 
+
 @jax.jit
 def unfold_mh_400_steps(st):
     ret_st, metadata = jax.lax.scan(mh_kernel, st, jnp.arange(400))
     return ret_st, metadata
 
+
 @jax.jit
 def unfold_mh_1000_steps(st):
     ret_st, metadata = jax.lax.scan(mh_kernel, st, jnp.arange(1000))
     return ret_st, metadata
+
 
 tr = trace
 for timestep in tqdm(range(10)):
@@ -158,7 +169,7 @@ for timestep in tqdm(range(10)):
     tr, wt, _, _ = tr.update(
         subkey,
         genjax.choice_map({"observed_rgbd": observed_rgbds[timestep]}),
-        genjax.Diff.tree_diff_no_change(trace.get_args())
+        genjax.Diff.tree_diff_no_change(trace.get_args()),
     )
 
     key, subkey = jax.random.split(key)
@@ -170,18 +181,24 @@ for timestep in tqdm(range(10)):
 
 ### MH patch tracking, separately on position and rotation ###
 
+
 def position_drift_mh_update(key, tr, pos_std, get_proposed_trace=False):
     key, subkey = jax.random.split(key)
-    new_pos = genjax.normal.sample(
-        subkey, tr["pose"]._position, pos_std
-    )
+    new_pos = genjax.normal.sample(subkey, tr["pose"]._position, pos_std)
     q_fwd = genjax.normal.logpdf(new_pos, tr["pose"].pos, pos_std)
     q_bwd = genjax.normal.logpdf(tr["pose"].pos, new_pos, pos_std)
 
     key, subkey = jax.random.split(key)
-    proposed_trace, p_ratio, _, _ = tr.update(subkey,
-        genjax.choice_map({"pose": b3d.Pose.from_vec(jnp.concatenate([new_pos, tr["pose"]._quaternion]))}),
-        genjax.Diff.tree_diff_no_change(tr.get_args())
+    proposed_trace, p_ratio, _, _ = tr.update(
+        subkey,
+        genjax.choice_map(
+            {
+                "pose": b3d.Pose.from_vec(
+                    jnp.concatenate([new_pos, tr["pose"]._quaternion])
+                )
+            }
+        ),
+        genjax.Diff.tree_diff_no_change(tr.get_args()),
     )
 
     log_full_ratio = p_ratio + q_bwd - q_fwd
@@ -191,13 +208,18 @@ def position_drift_mh_update(key, tr, pos_std, get_proposed_trace=False):
 
     tr = jax.lax.cond(accept, lambda _: proposed_trace, lambda _: tr, None)
     metadata = {
-        "accept": accept, "log_p_ratio": p_ratio, "log_q_fwd": q_fwd,
-        "log_q_bwd": q_bwd, "log_full_ratio": log_full_ratio, "alpha": alpha
+        "accept": accept,
+        "log_p_ratio": p_ratio,
+        "log_q_fwd": q_fwd,
+        "log_q_bwd": q_bwd,
+        "log_full_ratio": log_full_ratio,
+        "alpha": alpha,
     }
     if get_proposed_trace:
         metadata["proposed_trace"] = proposed_trace
 
     return (tr, metadata)
+
 
 def rotation_drift_mh_update(key, tr, rot_conc, get_proposed_trace=False):
     key, subkey = jax.random.split(key)
@@ -206,9 +228,12 @@ def rotation_drift_mh_update(key, tr, rot_conc, get_proposed_trace=False):
     q_bwd = b3d.model.vmf.logpdf(tr["pose"]._quaternion, new_quat, rot_conc)
 
     key, subkey = jax.random.split(key)
-    proposed_trace, p_ratio, _, _ = tr.update(subkey,
-        genjax.choice_map({"pose": b3d.Pose.from_vec(jnp.concatenate([tr["pose"].pos, new_quat]))}),
-        genjax.Diff.tree_diff_no_change(tr.get_args())
+    proposed_trace, p_ratio, _, _ = tr.update(
+        subkey,
+        genjax.choice_map(
+            {"pose": b3d.Pose.from_vec(jnp.concatenate([tr["pose"].pos, new_quat]))}
+        ),
+        genjax.Diff.tree_diff_no_change(tr.get_args()),
     )
 
     log_full_ratio = p_ratio + q_bwd - q_fwd
@@ -218,13 +243,18 @@ def rotation_drift_mh_update(key, tr, rot_conc, get_proposed_trace=False):
 
     tr = jax.lax.cond(accept, lambda _: proposed_trace, lambda _: tr, None)
     metadata = {
-        "accept": accept, "log_p_ratio": p_ratio, "log_q_fwd": q_fwd,
-        "log_q_bwd": q_bwd, "log_full_ratio": log_full_ratio, "alpha": alpha
+        "accept": accept,
+        "log_p_ratio": p_ratio,
+        "log_q_fwd": q_fwd,
+        "log_q_bwd": q_bwd,
+        "log_full_ratio": log_full_ratio,
+        "alpha": alpha,
     }
     if get_proposed_trace:
         metadata["proposed_trace"] = proposed_trace
 
     return (tr, metadata)
+
 
 def pos_then_rot_mh_drift_update(key, tr, pos_std, rot_concentration):
     key, subkey = jax.random.split(key)
@@ -234,7 +264,9 @@ def pos_then_rot_mh_drift_update(key, tr, pos_std, rot_concentration):
     metadata = {"position": metadata_pos, "rotation": metadata_rot}
     return (tr, metadata)
 
+
 trace_test, metadata = pos_then_rot_mh_drift_update(key, trace, 0.01, 0.1)
+
 
 @jax.jit
 def pose_then_rot_mh_kernel(st, i):
@@ -243,15 +275,18 @@ def pose_then_rot_mh_kernel(st, i):
     new_tr, metadata = pos_then_rot_mh_drift_update(subkey, tr, pos_std, rot_conc)
     return (key, new_tr, pos_std, rot_conc), metadata
 
+
 @jax.jit
 def unfold_pos_then_rot_mh_100_steps(st):
     ret_st, metadata = jax.lax.scan(pose_then_rot_mh_kernel, st, jnp.arange(200))
     return ret_st, metadata
 
+
 @jax.jit
 def unfold_pos_then_rot_mh_1000_steps(st):
     ret_st, metadata = jax.lax.scan(pose_then_rot_mh_kernel, st, jnp.arange(1000))
     return ret_st, metadata
+
 
 @jax.jit
 def multiple_mh_for_100_steps(key, tr, pos_stds, rot_concs):
@@ -261,10 +296,10 @@ def multiple_mh_for_100_steps(key, tr, pos_stds, rot_concs):
         ret_st, metadatum = jax.lax.scan(pose_then_rot_mh_kernel, st, jnp.arange(100))
         metadata.append(metadatum)
         (key, tr, _, _) = ret_st
-    
+
     return ret_st, metadata
 
-import time
+
 t = time.time()
 ((_, tr, _, _), metadata) = multiple_mh_for_100_steps(
     subkey, tr, [1e-3, 5e-4, 2e-4], [1e4, 4e5, 8e4]
@@ -277,7 +312,7 @@ for timestep in tqdm(range(30)):
     tr, wt, _, _ = tr.update(
         subkey,
         genjax.choice_map({"observed_rgbd": observed_rgbds[timestep]}),
-        genjax.Diff.tree_diff_no_change(trace.get_args())
+        genjax.Diff.tree_diff_no_change(trace.get_args()),
     )
 
     key, subkey = jax.random.split(key)
@@ -329,7 +364,6 @@ for timestep in tqdm(range(30)):
 
 #     rr.log("accept_pos", rr.Scalar(metadata_pos["accept"]))
 #     rr.log("accept_rot", rr.Scalar(metadata_rot["accept"]))
-
 
 
 ### Turn on the below to visualize orientation proposals:

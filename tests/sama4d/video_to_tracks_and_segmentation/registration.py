@@ -3,11 +3,13 @@ This file registers a default set of tasks and solvers for the video to keypoint
 """
 
 from ..data_curation import get_loaders_for_all_curated_scenes
-from .keypoint_tracking_and_segmentation_task import KeypointTrackingAndSegmentationTask
 from .dummy_solver import KeypointTrackingAndSegmentationDummySolver
+from .keypoint_tracking_and_segmentation_task import KeypointTrackingAndSegmentationTask
 
 all_tasks = [
-    KeypointTrackingAndSegmentationTask(spec["feature_track_data_loader"], scene_name=spec["scene_name"], n_frames=3)
+    KeypointTrackingAndSegmentationTask(
+        spec["feature_track_data_loader"], scene_name=spec["scene_name"], n_frames=3
+    )
     for spec in get_loaders_for_all_curated_scenes()
 ]
 all_solvers = [KeypointTrackingAndSegmentationDummySolver()]

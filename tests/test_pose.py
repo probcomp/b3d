@@ -1,11 +1,10 @@
 import unittest
 
-import jax.numpy as jnp
 import jax
-
+import jax.numpy as jnp
+import numpy as np
 from b3d.pose import Pose, camera_from_position_and_target
 from jax.scipy.spatial.transform import Rotation as Rot
-import numpy as np
 
 
 def keysplit(key, *ns):
@@ -28,7 +27,6 @@ class PoseTests(unittest.TestCase):
     key = jax.random.PRNGKey(np.random.randint(0, 10_000))
 
     def test_pose_properties(self):
-        N = 20
         keys = keysplit(self.key, 2)
         x = jax.random.normal(keys[0], (3,))
         q = jax.random.normal(keys[1], (4,))
@@ -56,7 +54,7 @@ class PoseTests(unittest.TestCase):
             which represents the same rotation.
 
             Recall that SO(3) is isomorphic to  S^3/x~-x and
-            also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+            also to D^3/~ where x~-x for x in S^2 = \\partial D^3.
             """
             # TODO: choose good representative if q[3]==0 there is still ambiguity.
             return jnp.where(q[..., [3]] == 0, q, jnp.sign(q[..., [3]]) * q)
@@ -151,16 +149,15 @@ class PoseTests(unittest.TestCase):
         keys = keysplit(self.key, 2)
         pos = jax.random.uniform(keys[0], (3,))
         target = jax.random.uniform(keys[1], (3,))
-        pose   = camera_from_position_and_target(pos, target)
-        self.assertTrue( jnp.allclose(pose.pos, pose.position) )
-        self.assertTrue( jnp.allclose(pose.quat, pose.xyzw) )
-        self.assertTrue( jnp.allclose(pose.quaternion, pose.xyzw) )
+        pose = camera_from_position_and_target(pos, target)
+        self.assertTrue(jnp.allclose(pose.pos, pose.position))
+        self.assertTrue(jnp.allclose(pose.quat, pose.xyzw))
+        self.assertTrue(jnp.allclose(pose.quaternion, pose.xyzw))
 
     def test_loop_termination(self):
         keys = keysplit(self.key, 2)
         poses = Pose(
-            jax.random.uniform(keys[0], (10,3)),
-            jax.random.uniform(keys[1], (10,4))
+            jax.random.uniform(keys[0], (10, 3)), jax.random.uniform(keys[1], (10, 4))
         )
 
         def sum(poses):
@@ -168,11 +165,15 @@ class PoseTests(unittest.TestCase):
             for pose in poses:
                 sum = sum.at[0:3].add(pose.pos[0:3])
             return sum
+
         sum_jit = jax.jit(sum)
 
-        self.assertTrue( jnp.allclose(jnp.sum(poses.pos, axis=0), sum_jit(poses)))
+        self.assertTrue(jnp.allclose(jnp.sum(poses.pos, axis=0), sum_jit(poses)))
 
     def test_multiindexing(self):
         identity_pose = Pose.identity()
-        identity_pose_multiple_dimensions = identity_pose[None,None,...]
-        assert identity_pose_multiple_dimensions.shape == (1,1,), identity_pose_multiple_dimensions.shape
+        identity_pose_multiple_dimensions = identity_pose[None, None, ...]
+        assert identity_pose_multiple_dimensions.shape == (
+            1,
+            1,
+        ), identity_pose_multiple_dimensions.shape

@@ -1,16 +1,13 @@
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
+
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
-import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
 import rerun as rr
+from b3d import Pose
+from diff_gaussian_rasterization import rasterize_with_depth
 from tqdm import tqdm
-import fire
 
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
@@ -49,8 +46,6 @@ rgbs_resized = jnp.clip(
     1.0,
 )
 
-import diff_gaussian_rasterization as dgr
-from diff_gaussian_rasterization import rasterize_with_depth
 
 point_cloud = jax.image.resize(
     xyzs[0], (xyzs[0].shape[0] // 2, xyzs[0].shape[1] // 2, 3), "linear"
@@ -66,7 +61,7 @@ def render_rgb(point_cloud, colors, scale, camera_pose):
         camera_pose.inv().apply(point_cloud),
         colors,
         jnp.ones((len(point_cloud), 1)),
-        jnp.ones((len(point_cloud), 3)) *scale,
+        jnp.ones((len(point_cloud), 3)) * scale,
         jnp.tile(wxyz, (len(point_cloud), 1)),
         image_width,
         image_height,
@@ -79,16 +74,30 @@ def render_rgb(point_cloud, colors, scale, camera_pose):
     )
     return jnp.permute_dims(rendered_image, (1, 2, 0)), rendered_depth
 
+
 render_rgb_jit = jax.jit(render_rgb)
 
+
 def loss_fun(point_cloud, colors, scale, camera_pose, observed_image, observed_depth):
-    rendered_image, rendered_depth = render_rgb(point_cloud, colors, scale, camera_pose)
+    rendered_image, _rendered_depth = render_rgb(
+        point_cloud, colors, scale, camera_pose
+    )
     return jnp.mean(jnp.abs((rendered_image - observed_image)))
     # #  + jnp.mean(
     #     jnp.abs((rendered_depth - observed_depth))
     # )
 
-loss_grad = jax.jit(jax.value_and_grad(loss_fun, argnums=(0,1,2,)))
+
+loss_grad = jax.jit(
+    jax.value_and_grad(
+        loss_fun,
+        argnums=(
+            0,
+            1,
+            2,
+        ),
+    )
+)
 loss_grad_camera_pose = jax.jit(jax.value_and_grad(loss_fun, argnums=(3,)))
 
 scale = jnp.float32(0.005)
@@ -102,14 +111,22 @@ rr.log("/image", rr.Image(gt_image), timeless=True)
 
 pbar = tqdm(range(100))
 for t in pbar:
-    loss, (grad_point_cloud, grad_colors, grad_scale) = loss_grad(point_cloud, colors, scale, camera_pose, gt_image, gt_depth)
+    loss, (grad_point_cloud, grad_colors, grad_scale) = loss_grad(
+        point_cloud, colors, scale, camera_pose, gt_image, gt_depth
+    )
     scale = scale - grad_scale * 0.001
     # point_cloud = point_cloud - grad_point_cloud * 0.001
     grad_colors = grad_colors - grad_colors * 0.001
     pbar.set_description(f"Loss: {loss}")
     rr.set_time_sequence("/frame", t)
-    rr.log("/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
-    rr.log("/image/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
+    rr.log(
+        "/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
+    rr.log(
+        "/image/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
 
 
 t = 200
@@ -119,14 +136,20 @@ rr.log("/image", rr.Image(gt_image), timeless=True)
 
 pbar = tqdm(range(100))
 for t in pbar:
-    loss, (grad_camera_pose,) = loss_grad_camera_pose(point_cloud, colors, scale, camera_pose, gt_image, gt_depth)
+    loss, (grad_camera_pose,) = loss_grad_camera_pose(
+        point_cloud, colors, scale, camera_pose, gt_image, gt_depth
+    )
     camera_pose = camera_pose - grad_camera_pose * 0.0001
     pbar.set_description(f"Loss: {loss}")
     rr.set_time_sequence("/frame", t)
-    rr.log("/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
-    rr.log("/image/reconstruction", rr.Image(render_rgb_jit(point_cloud, colors, scale,camera_pose)[0]))
-
-
+    rr.log(
+        "/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
+    rr.log(
+        "/image/reconstruction",
+        rr.Image(render_rgb_jit(point_cloud, colors, scale, camera_pose)[0]),
+    )
 
 
 camera_pose = Pose.identity()
@@ -140,12 +163,7 @@ for t in tqdm(range(150)):
         camera_pose = camera_pose - grad * 0.005
     rr.log("/image", rr.Image(render_rgb_jit(camera_pose)[0]))
 
-
-rasterize(*x, 200, 200, 200.0, 200.0, 100.0, 100.0, 0.01, 10.0)
-
-
 # Take point cloud at frame 0
-
 
 num_layers = 2048
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)

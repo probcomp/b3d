@@ -1,21 +1,16 @@
-import jax.numpy as jnp
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-import jax
-import b3d
 import argparse
-from natsort import natsorted
-import subprocess
 import glob
-import os
 import json
-import liblzfse  # https://pypi.org/project/pyliblzfse/
+import os
+import subprocess
 from pathlib import Path
 
-parser = argparse.ArgumentParser("r3d_to_video_input")
-parser.add_argument("input", help=".r3d File", type=str)
-args = parser.parse_args()
+import b3d
+import cv2
+import jax
+import jax.numpy as jnp
+import liblzfse  # https://pypi.org/project/pyliblzfse/
+from natsort import natsorted
 
 
 def load_depth(filepath):
@@ -93,7 +88,6 @@ def load_r3d_video_input(r3d_path):
 
     color_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.jpg")))
     depth_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.depth")))
-    conf_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
 
     colors = jnp.array([load_color(color_paths[i]) for i in range(len(color_paths))])
     depths = jnp.array([load_depth(depth_paths[i]) for i in range(len(color_paths))])
@@ -119,8 +113,13 @@ def load_r3d_video_input(r3d_path):
     )
 
 
-filename = args.input
-video_input = load_r3d_video_input(filename)
-result_filename = filename + ".video_input.npz"
-print("Writing to ", result_filename)
-video_input.save(result_filename)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("r3d_to_video_input")
+    parser.add_argument("input", help=".r3d File", type=str)
+    args = parser.parse_args()
+
+    filename = args.input
+    video_input = load_r3d_video_input(filename)
+    result_filename = filename + ".video_input.npz"
+    print("Writing to ", result_filename)
+    video_input.save(result_filename)

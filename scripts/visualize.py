@@ -1,8 +1,7 @@
 import b3d
-import os
-import jax.numpy as jnp
-import jax
 import fire
+import jax
+import jax.numpy as jnp
 from b3d import Pose
 
 
@@ -44,7 +43,7 @@ def visualize_video_input(path):
     point_cloud_for_mesh = video_input.xyz[TIME_FOR_MESH].reshape(-1, 3)
     colors_for_mesh = rgbs_resized[TIME_FOR_MESH].reshape(-1, 3)
 
-    _vertices, faces, vertex_colors, face_colors = (
+    _vertices, faces, vertex_colors, _face_colors = (
         b3d.make_mesh_from_point_cloud_and_resolution(
             point_cloud_for_mesh, colors_for_mesh, point_cloud_for_mesh[:, 2] / fx
         )
@@ -67,13 +66,13 @@ def visualize_video_input(path):
     for t in range(len(video_input.xyz)):
         rr.set_time_sequence("frame", t)
         rr.log(
-            f"/img",
+            "/img",
             rr.Points3D(
                 video_input.xyz[t].reshape(-1, 3),
                 colors=(rgbs_resized[t].reshape(-1, 3) * 255).astype(jnp.uint8),
             ),
         )
-        rr.log(f"/rgb", rr.Image(rgbs_resized[t]))
+        rr.log("/rgb", rr.Image(rgbs_resized[t]))
 
 
 if __name__ == "__main__":

@@ -1,10 +1,23 @@
-import requests
-from PIL import Image
-import torch
-import b3d
+import io
 import os
 
-from transformers import OwlViTProcessor, OwlViTForObjectDetection
+import b3d
+import jax
+import jax.numpy as jnp
+import numpy
+import numpy as np
+import rerun as rr
+import torch
+from PIL import Image
+from transformers import (
+    AutoModelForZeroShotObjectDetection,
+    AutoProcessor,
+    DetrFeatureExtractor,
+    DetrForSegmentation,
+    OwlViTForObjectDetection,
+    OwlViTProcessor,
+)
+from transformers.models.detr.feature_extraction_detr import rgb_to_id
 
 processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
@@ -17,12 +30,10 @@ video_input = b3d.io.VideoInput.load(
     )
 )
 
-import numpy as np
 
 image = Image.fromarray(np.array(video_input.rgb[0]))
 image.save("test.png")
 
-from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 
 model_id = "IDEA-Research/grounding-dino-base"
 
@@ -45,33 +56,15 @@ results = processor.post_process_grounded_object_detection(
 )
 
 
-import rerun as rr
-
 PORT = 8812
 rr.init("real")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
 rr.log("image", rr.Image(np.array(image)))
 
-import io
-import requests
-from PIL import Image
-import torch
-import numpy
-import jax.numpy as jnp
-import numpy as np
-import jax
-import rerun as rr
-
-from transformers import DetrFeatureExtractor, DetrForSegmentation
-from transformers.models.detr.feature_extraction_detr import rgb_to_id
-
 
 rr.init("segmentation")
 rr.connect("127.0.0.1:8812")
-
-import os
-import b3d
 
 # Load date
 # path = os.path.join(b3d.get_root_path(),

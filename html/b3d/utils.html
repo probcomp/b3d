@@ -74,7 +74,7 @@ def get_shared() -&gt; Path:
 def get_gcloud_bucket_ref()-&gt; str: return &#34;gs://hgps_data_bucket&#34;
 
 def xyz_from_depth(
-    z: &#34;Depth Image&#34;, 
+    z: &#34;Depth Image&#34;,
     fx, fy, cx, cy
 ):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
@@ -145,7 +145,7 @@ def make_mesh_from_point_cloud_and_resolution(
         colors,
         base_vertices,
         base_faces,
-        resolutions          
+        resolutions
     ):
         transform = Pose.from_translation(positions[i])
         new_vertices = base_vertices * resolutions[i]
@@ -291,7 +291,7 @@ class VideoInput:
     Video data input. Note: Spatial units are measured in meters.
 
     World Coordinates. The floor is x,y and up is z.
-    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera, 
+    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera,
         x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
     Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
     Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
@@ -325,14 +325,14 @@ class VideoInput:
         Type: Float
 
     **Note:**
-    For compactness, rgb values are saved as uint8 values, however 
-    the output of the renderer is a float between 0 and 1. VideoInput 
-    stores uint8 colors, so please use the rgb_float property for 
+    For compactness, rgb values are saved as uint8 values, however
+    the output of the renderer is a float between 0 and 1. VideoInput
+    stores uint8 colors, so please use the rgb_float property for
     compatibility.
 
-    **Note:** 
-    The width and height of the `rgb` and `xyz` arrays may differ. 
-    Their shapes match the entries in `camera_intrinsics_rgb` and 
+    **Note:**
+    The width and height of the `rgb` and `xyz` arrays may differ.
+    Their shapes match the entries in `camera_intrinsics_rgb` and
     `camera_intrinsics_depth`, respectively. The latter was used
     to project the `depth` arrays to `xyz`.
     &#34;&#34;&#34;
@@ -364,7 +364,7 @@ class VideoInput:
                 camera_intrinsics_depth=self.camera_intrinsics_depth)
 
     def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
-        &#34;&#34;&#34;Saves new VideoInput containing data 
+        &#34;&#34;&#34;Saves new VideoInput containing data
         between a timeframe into file&#34;&#34;&#34;
         jnp.savez(filepath,
                 rgb=self.rgb[start_t:end_t],
@@ -387,9 +387,9 @@ class VideoInput:
                 camera_intrinsics_rgb=jnp.array(data[&#39;camera_intrinsics_rgb&#39;]),
                 camera_intrinsics_depth=jnp.array(data[&#39;camera_intrinsics_depth&#39;])
             )
-    
+
     @property
-    def rgb_float(self): 
+    def rgb_float(self):
         if self.rgb.dtype == jnp.uint8:
             return self.rgb / 255.0
         else:
@@ -638,7 +638,7 @@ def enumerate_and_select_best_move(trace, addressses, key, all_deltas):
         colors,
         base_vertices,
         base_faces,
-        resolutions          
+        resolutions
     ):
         transform = Pose.from_translation(positions[i])
         new_vertices = base_vertices * resolutions[i]
@@ -871,7 +871,7 @@ def rgb_to_lab(rgb):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def xyz_from_depth(
-    z: &#34;Depth Image&#34;, 
+    z: &#34;Depth Image&#34;,
     fx, fy, cx, cy
 ):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
@@ -944,7 +944,7 @@ class VideoInput:
     Video data input. Note: Spatial units are measured in meters.
 
     World Coordinates. The floor is x,y and up is z.
-    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera, 
+    Camera Pose. The camera pose should be interpretted as the z-axis pointing out of the camera,
         x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
     Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
     Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
@@ -978,14 +978,14 @@ class VideoInput:
         Type: Float
 
     **Note:**
-    For compactness, rgb values are saved as uint8 values, however 
-    the output of the renderer is a float between 0 and 1. VideoInput 
-    stores uint8 colors, so please use the rgb_float property for 
+    For compactness, rgb values are saved as uint8 values, however
+    the output of the renderer is a float between 0 and 1. VideoInput
+    stores uint8 colors, so please use the rgb_float property for
     compatibility.
 
-    **Note:** 
-    The width and height of the `rgb` and `xyz` arrays may differ. 
-    Their shapes match the entries in `camera_intrinsics_rgb` and 
+    **Note:**
+    The width and height of the `rgb` and `xyz` arrays may differ.
+    Their shapes match the entries in `camera_intrinsics_rgb` and
     `camera_intrinsics_depth`, respectively. The latter was used
     to project the `depth` arrays to `xyz`.
     &#34;&#34;&#34;
@@ -1017,7 +1017,7 @@ class VideoInput:
                 camera_intrinsics_depth=self.camera_intrinsics_depth)
 
     def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
-        &#34;&#34;&#34;Saves new VideoInput containing data 
+        &#34;&#34;&#34;Saves new VideoInput containing data
         between a timeframe into file&#34;&#34;&#34;
         jnp.savez(filepath,
                 rgb=self.rgb[start_t:end_t],
@@ -1040,9 +1040,9 @@ class VideoInput:
                 camera_intrinsics_rgb=jnp.array(data[&#39;camera_intrinsics_rgb&#39;]),
                 camera_intrinsics_depth=jnp.array(data[&#39;camera_intrinsics_depth&#39;])
             )
-    
+
     @property
-    def rgb_float(self): 
+    def rgb_float(self):
         if self.rgb.dtype == jnp.uint8:
             return self.rgb / 255.0
         else:
@@ -1112,7 +1112,7 @@ def load(cls, filepath: str):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@property
-def rgb_float(self): 
+def rgb_float(self):
     if self.rgb.dtype == jnp.uint8:
         return self.rgb / 255.0
     else:
@@ -1153,7 +1153,7 @@ between a timeframe into file</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def save_in_timeframe(self, filepath: str, start_t: int, end_t: int):
-    &#34;&#34;&#34;Saves new VideoInput containing data 
+    &#34;&#34;&#34;Saves new VideoInput containing data
     between a timeframe into file&#34;&#34;&#34;
     jnp.savez(filepath,
             rgb=self.rgb[start_t:end_t],

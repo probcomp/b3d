@@ -1,11 +1,13 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+from functools import partial
+
 import b3d
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
 
 # Rerun setup
@@ -147,7 +149,6 @@ rotation_deltas = Pose.concatenate_poses(
 all_deltas = Pose.stack_poses([translation_deltas, rotation_deltas])
 
 # Enumerative proposal function
-from functools import partial
 
 
 @partial(jax.jit, static_argnames=["addressses"])
@@ -183,13 +184,11 @@ trace, _ = importance_jit(
                 ("object_1", -1),  # For all the unused objects, set their ID to -1
                 ("object_2", -1),
                 ("object_3", -1),
-                ("observed_rgb_depth", (rgbs_resized[START_T],  xyzs[START_T, ..., 2])),
+                ("observed_rgb_depth", (rgbs_resized[START_T], xyzs[START_T, ..., 2])),
             ]
         )
     ),
-    (
-        jnp.arange(4), model_args, object_library
-    ),
+    (jnp.arange(4), model_args, object_library),
 )
 # Visualize trace
 b3d.rerun_visualize_trace_t(trace, 0)
@@ -207,7 +206,7 @@ for reaquisition_phase in range(len(REAQUISITION_TS) - 1):
             trace,
             key,
             genjax.Pytree.const(["observed_rgb_depth"]),
-            (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2])
+            (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         )
         # Enumerate, score, and update  camera pose
         trace, key = enumerative_proposal(
@@ -293,16 +292,14 @@ for reaquisition_phase in range(len(REAQUISITION_TS) - 1):
                 f"object_pose_{next_object_id}": trace["camera_pose"]
                 @ object_pose,  # Add pose of new object to trace.
                 "observed_rgb_depth": (
-                    rgbs_resized[
-                        REAQUISITION_T
-                    ],  xyzs[REAQUISITION_T, ..., 2])
+                    rgbs_resized[REAQUISITION_T],
+                    xyzs[REAQUISITION_T, ..., 2],
+                ),
             }
         ),
         # genjax.Diff.tree_diff_unknown_change((jnp.arange(2), *trace.get_args()[1:]))
         genjax.Diff.tree_diff_unknown_change(
-            (
-                jnp.arange(4), model_args, object_library
-            )
+            (jnp.arange(4), model_args, object_library)
         ),
     )[0]
     b3d.rerun_visualize_trace_t(trace, REAQUISITION_T)
@@ -327,14 +324,12 @@ for i in tqdm(range(len(inference_data_over_time))):
                     *[(f"object_pose_{i}", poses[i]) for i in range(len(poses))],
                     *[(f"object_{i}", object_ids[i]) for i in range(len(object_ids))],
                     ("camera_pose", camera_pose),
-                    ("observed_rgb_depth", (rgbs_resized[t], xyzs[t, ..., 2]))
+                    ("observed_rgb_depth", (rgbs_resized[t], xyzs[t, ..., 2])),
                 ]
             )
         ),
         genjax.Diff.tree_diff_unknown_change(
-            (
-                jnp.arange(4), model_args, object_library
-            )
+            (jnp.arange(4), model_args, object_library)
         ),
     )[0]
     b3d.rerun_visualize_trace_t(trace, t)

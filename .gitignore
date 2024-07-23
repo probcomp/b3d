@@ -4,4 +4,15 @@
 assets/shared_data_bucket/*
 assets/test_results/*
 assets/bop/*
+assets/nuscenes/*
+assets/ycbineoat/*
 **/.ipynb_checkpoints
+**/**.mp4
+**/**.npz
+**/**.log
+**/**.json
+**/**.npy
+**/**.txt
+!src/b3d/renderer/**/**.txt
+assets/kitti/*
+**/**.pth

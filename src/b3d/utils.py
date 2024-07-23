@@ -29,7 +29,7 @@ from b3d.pose import Pose, Rot
 
 
 def get_root_path() -> Path:
-    return Path(Path(b3d.__file__).parents[1])
+    return Path(Path(b3d.__file__).parents[2])
 
 
 def get_assets() -> Path:

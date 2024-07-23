@@ -12,7 +12,8 @@ import setuptools
 setuptools.setup(
     name="b3d",
     version="0.0.1",
-    packages=setuptools.find_packages(),
+    package_dir={"": "src"},
+    packages=setuptools.find_namespace_packages(),
     package_data={
         "b3d": [
             "nvdiffrast/common/*.h",

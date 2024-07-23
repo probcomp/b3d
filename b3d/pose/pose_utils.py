@@ -1,11 +1,12 @@
 import jax
 import jax.numpy as jnp
-from b3d.utils import keysplit
 from .core import Pose
 import genjax
 
 
 def uniform_samples_from_disc(key, N, d=3):
+    from b3d.utils import keysplit
+
     _, keys = keysplit(key, 1, 2)
     r = jax.random.uniform(keys[0], (N, 1), minval=0, maxval=1)
     phi = jax.random.normal(keys[1], (N, d))
@@ -72,6 +73,8 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
             axes_radius=0.01)
     ```
     """
+    from b3d.utils import keysplit
+
     # TODO: assert rq <= 1.0, "rq should be <= 1"
     _, keys = keysplit(key, 1, 2)
 

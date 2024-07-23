@@ -15,5 +15,4 @@ repos:
         args: [ --fix ]
 
       - id: ruff-format
-        args: [ --exclude, kitti.ipynb ]
-        types_or: [ python, pyi, jupyter ]
+        types_or: [ python, pyi ]

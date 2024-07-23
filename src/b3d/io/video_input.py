@@ -13,7 +13,7 @@ class VideoInput:
         x-axis pointing to the right, and y-axis pointing down. This is the OpenCV convention.
     Quaternions. We follow scipy.spatial.transform.Rotation.from_quat which uses scalar-last (x, y, z, w)
     Camera Intrinsics. We store it as an array of shape (8,) containing width, height, fx, fy, cx, cy, near, far.
-        The camera matrix is given by: $$ K = \begin{bmatrix} f_x & 0 & c_x \ 0 & f_y & c_y \ 0 & 0 & 1 \end{bmatrix} $$
+        The camera matrix is given by: $$ K = \\begin{bmatrix} f_x & 0 & c_x \\ 0 & f_y & c_y \\ 0 & 0 & 1 \\end{bmatrix} $$
     Spatial units. Spatial units are measured in meters (if not indicated otherwise).
 
     **Attributes:**

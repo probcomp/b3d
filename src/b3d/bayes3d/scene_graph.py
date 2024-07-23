@@ -1,6 +1,7 @@
 import jax.numpy as jnp
+from jax.scipy.spatial.transform import Rotation as Rot
 
-from b3d.pose import Pose, Rot
+from b3d.pose import Pose
 
 
 def contact_parameters_to_pose(cp):

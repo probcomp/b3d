@@ -15,10 +15,11 @@ import numpy as np
 import rerun as rr
 import sklearn.cluster
 import trimesh
+from jax.scipy.spatial.transform import Rotation as Rot
 from PIL import Image, ImageDraw, ImageFont
 
 import b3d
-from b3d.pose import Pose, Rot
+from b3d.pose import Pose
 
 # TODO: Refactor utils into core and others, to avoid circular imports
 

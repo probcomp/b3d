@@ -163,12 +163,7 @@ for t in tqdm(range(150)):
         camera_pose = camera_pose - grad * 0.005
     rr.log("/image", rr.Image(render_rgb_jit(camera_pose)[0]))
 
-
-rasterize(*x, 200, 200, 200.0, 200.0, 100.0, 100.0, 0.01, 10.0)
-
-
 # Take point cloud at frame 0
-
 
 num_layers = 2048
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)

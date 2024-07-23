@@ -211,9 +211,6 @@ class Mesh:
     def shape(self):
         return self.vertices.shape[:-1]
 
-    def __len__(self):
-        return self.vertices.shape[0]
-
     def __iter__(self):
         self.current = 0
         return self
@@ -223,8 +220,3 @@ class Mesh:
         if self.current <= len(self):
             return self[self.current - 1]
         raise StopIteration
-
-    def __getitem__(self, index):
-        return Mesh(
-            self.vertices[index], self.faces[index], self.vertex_attributes[index]
-        )

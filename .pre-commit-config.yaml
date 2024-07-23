@@ -11,5 +11,4 @@ repos:
     rev: v0.5.2
     hooks:
       - id: ruff-format
-        args: [ --exclude, kitti.ipynb ]
-        types_or: [ python, pyi, jupyter ]
+        types_or: [ python, pyi ]

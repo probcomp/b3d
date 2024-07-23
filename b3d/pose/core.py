@@ -4,7 +4,6 @@ import jax
 from jax.scipy.spatial.transform import Rotation as Rot
 from tensorflow_probability.substrates import jax as tfp
 from typing import TypeAlias
-from b3d.utils import keysplit
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -73,6 +72,8 @@ def sample_gaussian_vmf_pose(key, mean_pose, std, concentration):
     See:
     > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
     """
+    from b3d.utils import keysplit
+
     _, keys = keysplit(key, 1, 2)
     var = std**2
     x = jax.random.multivariate_normal(keys[0], mean_pose.pos, var * jnp.eye(3))

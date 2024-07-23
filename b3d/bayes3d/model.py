@@ -1,5 +1,4 @@
 import genjax
-from genjax.generative_functions.distributions import ExactDensity
 import jax.numpy as jnp
 import b3d
 from b3d.pose import Pose

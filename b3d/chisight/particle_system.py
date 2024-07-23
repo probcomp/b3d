@@ -2,10 +2,9 @@ import jax.numpy as jnp
 import b3d
 from b3d import Pose
 import jax
-import jax.numpy as jnp
 import genjax
 from genjax import gen
-from b3d import Pose, Mesh
+from b3d import Mesh
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.pose import uniform_pose_in_ball
 
@@ -244,7 +243,6 @@ def visualize_particle_system(
         camera_pose_prior_params,
     ) = latent_particle_model_args
 
-    colors = b3d.distinct_colors(num_clusters.const)
     absolute_particle_poses = particle_dynamics_summary["absolute_particle_poses"]
     object_poses = particle_dynamics_summary["object_poses"]
     camera_pose = particle_dynamics_summary["camera_pose"]

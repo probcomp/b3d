@@ -8,11 +8,8 @@ from jax.core import ShapedArray
 from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
-import functools
-import os
 import b3d
 import b3d.renderer.nvdiffrast_jax.nvdiffrast.jax as dr
-import rerun as rr
 
 
 def projection_matrix_from_intrinsics(w, h, fx, fy, cx, cy, near, far):
@@ -192,12 +189,12 @@ def _register_custom_calls():
 
 
 # @functools.partial(jax.jit, static_argnums=(0,))
-def _rasterize_fwd_custom_call(r: "Renderer", pos, tri, resolution):
+def _rasterize_fwd_custom_call(r: "RendererOriginal", pos, tri, resolution):
     return _build_rasterize_fwd_primitive(r).bind(pos, tri, resolution)
 
 
 @functools.lru_cache(maxsize=None)
-def _build_rasterize_fwd_primitive(r: "Renderer"):
+def _build_rasterize_fwd_primitive(r: "RendererOriginal"):
     _register_custom_calls()
     # For JIT compilation we need a function to evaluate the shape and dtype of the
     # outputs of our op for some given inputs
@@ -277,7 +274,6 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
     def _render_batch(args, axes):
         pos, tri, resolution = args
 
-        original_shape = pos.shape
         pos_reshaped = pos.reshape(-1, *pos.shape[-2:])
 
         (rendered,) = _rasterize_fwd_custom_call(r, pos_reshaped, tri, resolution)
@@ -304,7 +300,7 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
 
 # @functools.partial(jax.jit, static_argnums=(0,))
 def _interpolate_fwd_custom_call(
-    r: "Renderer",
+    r: "RendererOriginal",
     attributes,
     rast,
     faces,
@@ -317,7 +313,7 @@ def _interpolate_fwd_custom_call(
 
 
 # @functools.lru_cache(maxsize=None)
-def _build_interpolate_fwd_primitive(r: "Renderer"):
+def _build_interpolate_fwd_primitive(r: "RendererOriginal"):
     _register_custom_calls()
     # For JIT compilation we need a function to evaluate the shape and dtype of the
     # outputs of our op for some given inputs
@@ -390,7 +386,6 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
     def _interpolate_batch(args, axes):
         attributes, rast, faces = args
 
-        original_shape = attributes.shape
         attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
         rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
 

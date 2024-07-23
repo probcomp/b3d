@@ -136,7 +136,7 @@ class Renderer(object):
         )
         dy, ddb = diffs
 
-        grads = _rasterize_bwd_custom_call(
+        _rasterize_bwd_custom_call(
             self,
             pose,
             pos,
@@ -458,7 +458,6 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
         if pose.ndim != 5:
             raise NotImplementedError("Underlying primitive must operate on 4D poses.")
 
-        original_shape = pose.shape
         poses = jnp.moveaxis(pose, axes[0], 0)
         size_1 = poses.shape[0]
         size_2 = poses.shape[1]
@@ -748,9 +747,6 @@ def _build_interpolate_fwd_primitive(r: "Renderer"):
 
     def _render_batch_interp(args, axes):
         attributes, uvs, triangle_ids, faces = args
-
-        original_shape_uvs = uvs.shape
-        original_shape_triangle_ids = triangle_ids.shape
 
         uvs = jnp.moveaxis(uvs, axes[1], 0)
         size_1 = uvs.shape[0]

@@ -2,9 +2,13 @@ import pykitti
 import b3d
 import os
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import jax
+import numpy as np
+
+
+from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+
 
 b3d.rr_init("kitti")
 
@@ -50,7 +54,6 @@ for t in range(len(rgbs)):
     b3d.rr.log("rgb", b3d.rr.Image(rgbs[t]))
     b3d.rr.log("depth", b3d.rr.DepthImage(depths[t]))
 
-from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 
 sam_checkpoint = "sam_vit_h_4b8939.pth"
 model_type = "vit_h"
@@ -60,7 +63,6 @@ device = "cuda"
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 mask_generator = SamAutomaticMaskGenerator(sam)
-import numpy as np
 
 masks = mask_generator.generate(np.array(rgbs[0]))
 
@@ -123,9 +125,6 @@ kitti_mesh_path = (
     / "shared_data_bucket/foundation_pose_tracking_datasets/kitti_initial_data.obj"
 )
 full_mesh.save(kitti_mesh_path)
-
-import numpy as np
-import b3d
 
 d = np.load(kitti_data_path)
 

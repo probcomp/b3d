@@ -1,6 +1,5 @@
 import torch
 import b3d
-import os
 import numpy as np
 import time
 import argparse

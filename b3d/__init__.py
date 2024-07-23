@@ -7,7 +7,7 @@ from .renderer import Renderer
 from .pose import Pose, Rot
 from . import camera, colors, pose, types, utils
 from . import renderer, io, bayes3d, chisight
-from .renderer import Renderer, RendererOriginal
+from .renderer import RendererOriginal
 
 __version__ = metadata.version("genjax")
 __all__ = [

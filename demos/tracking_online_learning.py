@@ -7,6 +7,8 @@ import jax
 from b3d import Pose
 import b3d
 from tqdm import tqdm
+from functools import partial
+
 
 # Rerun setup
 PORT = 8812
@@ -147,7 +149,6 @@ rotation_deltas = Pose.concatenate_poses(
 all_deltas = Pose.stack_poses([translation_deltas, rotation_deltas])
 
 # Enumerative proposal function
-from functools import partial
 
 
 @partial(jax.jit, static_argnames=["addressses"])

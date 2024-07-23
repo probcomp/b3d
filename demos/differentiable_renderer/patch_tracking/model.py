@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import genjax
 import b3d.chisight.dense.differentiable_renderer as rendering
 import b3d
-from b3d import Pose
 from b3d.modeling_utils import uniform_pose
 import rerun as rr
 import demos.differentiable_renderer.patch_tracking.demo_utils as utils
@@ -29,7 +28,7 @@ def single_object_model_factory(renderer, likelihood, renderer_hyperparams):
     @genjax.static_gen_fn
     def model(vertices_O, faces, vertex_colors, likelihood_args):
         X_WO = uniform_pose(jnp.ones(3) * -10.0, jnp.ones(3) * 10.0) @ "pose"
-        X_WC = uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ f"camera_pose"
+        X_WC = uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
 
         vertices_W = X_WO.apply(vertices_O)
         vertices_C = X_WC.inv().apply(vertices_W)
@@ -109,7 +108,7 @@ def multiple_object_model_factory(renderer, likelihood, renderer_hyperparams):
         # where N = num objects
         N = vertices_O.shape[0]
 
-        X_WC = uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ f"camera_pose"
+        X_WC = uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
 
         Xs_WO = (
             genjax.map_combinator(in_axes=(0, 0))(uniform_pose)(

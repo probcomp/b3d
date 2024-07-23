@@ -1,10 +1,7 @@
-import matplotlib.pyplot as plt
-import genjax
 import jax
-import jax.numpy as jnp
 from b3d.utils import keysplit
-from b3d.camera import Intrinsics, screen_from_camera
-from b3d.pose import Pose, camera_from_position_and_target
+from b3d.camera import Intrinsics
+from b3d.pose import Pose
 from b3d.pose.pose_utils import uniform_pose_in_ball
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.chisight.sparse.sparse_gps_model import minimal_observation_model

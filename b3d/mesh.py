@@ -1,6 +1,5 @@
 import b3d
 import jax.numpy as jnp
-from b3d import Pose
 import jax
 import trimesh
 from jax.tree_util import register_pytree_node_class

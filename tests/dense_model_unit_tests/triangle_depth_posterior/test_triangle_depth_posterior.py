@@ -1,4 +1,3 @@
-import jax
 import jax.numpy as jnp
 from .task import TrianglePosteriorGridApproximationTask
 from .solver.importance import ImportanceSolver

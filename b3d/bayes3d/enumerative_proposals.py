@@ -2,7 +2,6 @@ import jax
 import jax.numpy as jnp
 import b3d
 from b3d.pose import Pose
-import genjax
 from genjax import Pytree
 
 

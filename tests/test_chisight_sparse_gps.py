@@ -1,16 +1,10 @@
 import b3d
-from b3d.renderer.renderer_original import RendererOriginal
 import jax
 import jax.numpy as jnp
-import os
-from b3d import Pose, Mesh
+from b3d import Pose
 
 import b3d.chisight.particle_system as ps
-import genjax
 from genjax import Pytree
-import jax
-from b3d import Pose
-import b3d
 from genjax import ChoiceMapBuilder as C
 
 import importlib
@@ -21,7 +15,6 @@ importlib.reload(ps)
 def test_sparse_gps_simulate():
     b3d.rr_init()
 
-    renderer = RendererOriginal()
     key = jax.random.PRNGKey(1000)
 
     num_timesteps = Pytree.const(10)

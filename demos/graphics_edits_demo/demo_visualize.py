@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
-import genjax
 import rerun as rr
 from tqdm import tqdm
-import fire
+import pickle
 
 
 rr.init("demo_visualize3")
@@ -27,8 +24,6 @@ path = os.path.join(
 )
 video_input = b3d.VideoInput.load(path)
 
-
-import pickle
 
 data, object_library = pickle.load(open("demo_data.dat", "rb"))
 

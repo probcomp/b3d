@@ -4,22 +4,17 @@ import fire
 
 def run_tracking(scene=None, object=None, debug=False):
     import b3d
-    import matplotlib.pyplot as plt
     import jax.numpy as jnp
     import jax
     from b3d import Pose, Mesh
     import rerun as rr
     import genjax
     import os
-    import genjax
-    from b3d.modeling_utils import uniform_discrete, uniform_pose, gaussian_vmf
-    from collections import namedtuple
+    from b3d.modeling_utils import uniform_pose
     from genjax import Pytree
-    import b3d
     from b3d.bayes3d.enumerative_proposals import gvmf_and_select_best_move
     from tqdm import tqdm
     from IPython import embed
-    import fire
 
     import importlib
 

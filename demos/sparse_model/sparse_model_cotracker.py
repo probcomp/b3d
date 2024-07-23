@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 import jax
-import trimesh
 import rerun as rr
 import b3d
 import optax
@@ -8,6 +7,7 @@ import os
 from functools import partial
 from tqdm import tqdm
 import numpy as np
+from matplotlib import colormaps
 
 
 def map_nested_fn(fn):
@@ -199,14 +199,14 @@ def viz_params(params, start_t, end_t):
             params["camera_positions"][t], params["camera_quaternions"][t]
         )
         rr.log(
-            f"/camera",
+            "/camera",
             rr.Transform3D(
                 translation=camera_pose.position,
                 rotation=rr.Quaternion(xyzw=camera_pose.xyzw),
             ),
         )
         rr.log(
-            f"/camera",
+            "/camera",
             rr.Pinhole(
                 resolution=[0.1, 0.1],
                 focal_length=0.1,
@@ -226,10 +226,6 @@ def viz_params(params, start_t, end_t):
             "xyz/error", rr.Points3D(xyz_in_world_frame_over_time[t], colors=redness)
         )
         # rr.log("rgb", rr.Image(rgbs[t] / 255.0))
-
-
-import matplotlib.pyplot as plt
-from matplotlib import colormaps
 
 
 colors = colormaps["rainbow"](jnp.linspace(0, 1, len(gt_pixel_coordinates[0])))

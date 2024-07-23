@@ -13,11 +13,11 @@ import b3d
 import b3d.modeling_utils
 
 
-def normalize(l):
+def normalize(probs):
     return jnp.where(
-        jnp.sum(l, axis=-1) < 1e-6,
-        jnp.ones_like(l) / l.shape[-1],
-        l / (jnp.sum(l, axis=-1)[..., None] + 1e-8),
+        jnp.sum(probs, axis=-1) < 1e-6,
+        jnp.ones_like(probs) / probs.shape[-1],
+        probs / (jnp.sum(probs, axis=-1)[..., None] + 1e-8),
     )
 
 

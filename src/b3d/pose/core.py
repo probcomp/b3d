@@ -141,7 +141,7 @@ class Pose:
         raise Warning(
             "Use `identity_quaternion` instead, a unit quaternion is any quat with norm 1!"
         )
-        return identity_quaternion
+        return self.identity_quaternion
 
     @property
     def pos(self):

@@ -287,6 +287,8 @@ state = tx.init(params)
 
 END_T = len(gt_pixel_coordinates)
 pbar = tqdm(range(3000))
+params_over_time = []
+
 for t in pbar:
     params, state, loss = update_params(
         tx,
@@ -317,7 +319,7 @@ for t in pbar:
 viz_params(params, 0, END_T)
 
 
-INITIAL_T = END
+INITIAL_T = END_T
 pbar = tqdm(range(3000))
 for t in pbar:
     params, state, loss = update_params(
@@ -351,6 +353,7 @@ for running_t in range(INITIAL_T, FIRST_T + 1):
 
 
 END_T = len(gt_pixel_coordinates)
+SECOND_T = END_T
 
 params_over_time = [params]
 pbar = tqdm(range(2000))

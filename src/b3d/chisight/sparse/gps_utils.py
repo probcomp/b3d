@@ -51,13 +51,13 @@ def gaussian_restriction_to_ray(
     the mean `mu` and standard deviation `sig`, such that,
     parameterizing they ray by $r(t) = o +t*v$, we have
     $$
-        N( r(t) | \tilde\mu, cov) = w * N(t | \mu, \sigma)
+        N( r(t) | \\tilde\\mu, cov) = w * N(t | \\mu, \\sigma)
     $$
     where
     $$
-        w = N( r(\mu) | \tilde\mu, cov) /  N(\mu, \mu, \sigma).
+        w = N( r(\\mu) | \\tilde\\mu, cov) /  N(\\mu, \\mu, \\sigma).
     $$
-    Note that $\mu$ is the maximum of both the nominator and denominator.
+    Note that $\\mu$ is the maximum of both the nominator and denominator.
     Also note that the first equation implies that the integral of
     the Gaussian along the ray is given by $w$.
     """

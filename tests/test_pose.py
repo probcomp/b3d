@@ -54,7 +54,7 @@ class PoseTests(unittest.TestCase):
             which represents the same rotation.
 
             Recall that SO(3) is isomorphic to  S^3/x~-x and
-            also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+            also to D^3/~ where x~-x for x in S^2 = \\partial D^3.
             """
             # TODO: choose good representative if q[3]==0 there is still ambiguity.
             return jnp.where(q[..., [3]] == 0, q, jnp.sign(q[..., [3]]) * q)

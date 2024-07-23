@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12"
 ]
 dependencies = [
-    "genjax==0.4.0",
+    "genjax==0.5.0",
     "rerun-sdk==0.16.1",
     "tqdm==4.66.2",
     "numpy==1.26.4",
@@ -53,9 +53,6 @@ dependencies = [
 b3d_pull = "b3d.bucket_utils.b3d_pull:download_from_bucket"
 b3d_push = "b3d.bucket_utils.b3d_push:upload_to_bucket"
 
-# [tool.setuptools]
-# package-dir = {"" = "src"}
-
 [tool.setuptools.package-data]
 "b3d" = [
     "nvdiffrast/common/*.h",
@@ -77,8 +74,8 @@ b3d_push = "b3d.bucket_utils.b3d_push:upload_to_bucket"
     "nvdiffrast/jax/*.cpp",
 ]
 
-[tool.setuptools_scm]
-write_to = "b3d/_version.py"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyright]
+typeCheckingMode = "standard"

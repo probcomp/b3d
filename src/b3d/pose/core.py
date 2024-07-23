@@ -26,7 +26,7 @@ def choose_good_quat(q):
     so we'll iteratively resolve that as well.
 
     Recall that SO(3) is isomorphic to  S^3/x~-x and
-    also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+    also to D^3/~ where x~-x for x in S^2 = \\partial D^3.
     """
     return jnp.where(
         q[..., [3]] != 0,
@@ -180,7 +180,7 @@ class Pose:
         chooses from {q, -q} s.t. q[3] >= 0. Note that if q[3]==0 there is still ambiguity.
 
         Recall that SO(3) is isomorphic to  S^3/x~-x and
-        also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+        also to D^3/~ where x~-x for x in S^2 = \\partial D^3.
         """
         quat = self.quat / jnp.linalg.norm(self.quat, axis=-1, keepdims=True)
         return Pose(self.pos, choose_good_quat(quat))

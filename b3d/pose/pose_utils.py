@@ -37,7 +37,7 @@ def volume_of_3_ball(r):
 # TODO: Is this correct??
 def volume_of_cap_around_north_pole(r):
     """
-    Returns the volume of $S^3 \cap ( \{ \sqrt{x^2 + y^2 + z^2}=1 \} \times \R )$
+    Returns the volume of $S^3 \\cap (\\{ \\sqrt{x^2 + y^2 + z^2}=1 \\} \times \\R )$
     """
     return jnp.pi * (jnp.pi - (jnp.sin(2 * jnp.arccos(r)) + 2 * jnp.arccos(r)))
 

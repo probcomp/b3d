@@ -13,7 +13,7 @@ b3d.rr_init("kitti")
 basedir = os.path.join(b3d.get_assets_path(), "kitti")
 date = "2011_09_26"
 drive = "0005"
-frames = range(0, 50, 5)
+frames = range(0, 153, 5)
 dataset = pykitti.raw(basedir, date, drive, frames=frames)
 
 
@@ -78,6 +78,10 @@ xyzs = b3d.xyz_from_depth(depths[0], fx, fy, cx, cy)[mask]
 colors = rgbs[0][mask]
 colors = colors[xyzs.sum(-1) > 0]
 xyzs = xyzs[xyzs.sum(-1) > 0]
+m = b3d.segment_point_cloud(xyzs, threshold=0.2) == 0
+
+xyzs = xyzs[m]
+colors = colors[m]
 
 resolution = 0.05
 meshes = b3d.mesh.transform_mesh(

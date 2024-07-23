@@ -6,6 +6,7 @@ import b3d
 import optax
 from functools import partial
 from tqdm import tqdm
+import os
 
 
 def map_nested_fn(fn):
@@ -29,7 +30,6 @@ object_vertices = jnp.array(box_mesh.vertices)
 box_mesh = trimesh.creation.box(jnp.ones(3))
 object_vertices = jnp.array(box_mesh.vertices)
 
-import os
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"

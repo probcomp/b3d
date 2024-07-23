@@ -1,11 +1,12 @@
 import jax
 import jax.numpy as jnp
-from b3d.utils import keysplit
 from .core import Pose
 import genjax
 
 
 def uniform_samples_from_disc(key, N, d=3):
+    from b3d.utils import keysplit
+
     _, keys = keysplit(key, 1, 2)
     r = jax.random.uniform(keys[0], (N, 1), minval=0, maxval=1)
     phi = jax.random.normal(keys[1], (N, d))
@@ -36,7 +37,7 @@ def volume_of_3_ball(r):
 # TODO: Is this correct??
 def volume_of_cap_around_north_pole(r):
     """
-    Returns the volume of $S^3 \cap ( \{ \sqrt{x^2 + y^2 + z^2}=1 \} \times \R )$
+    Returns the volume of $S^3 \\cap (\\{ \\sqrt{x^2 + y^2 + z^2}=1 \\} \times \\R )$
     """
     return jnp.pi * (jnp.pi - (jnp.sin(2 * jnp.arccos(r)) + 2 * jnp.arccos(r)))
 
@@ -72,6 +73,8 @@ def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
             axes_radius=0.01)
     ```
     """
+    from b3d.utils import keysplit
+
     # TODO: assert rq <= 1.0, "rq should be <= 1"
     _, keys = keysplit(key, 1, 2)
 

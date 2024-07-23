@@ -10,9 +10,6 @@ import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
 import b3d.chisight.dense.likelihoods as l
 import b3d.chisight.dense.differentiable_renderer as r
-import matplotlib.pyplot as plt
-import numpy as np
-import b3d
 import optax
 
 rr.init("single_patch_tracking")
@@ -54,8 +51,8 @@ def generate_image(key):
 images = jax.vmap(generate_image)(jax.random.split(key, 100))
 for i, image in enumerate(images):
     rr.set_time_sequence("image_sample", i)
-    rr.log(f"/image_sample/rgb", rr.Image(image[:, :, :3]))
-    rr.log(f"/image_sample/depth", rr.DepthImage(image[:, :, 3]))
+    rr.log("/image_sample/rgb", rr.Image(image[:, :, :3]))
+    rr.log("/image_sample/depth", rr.DepthImage(image[:, :, 3]))
 
 ### Patch tracking ###
 

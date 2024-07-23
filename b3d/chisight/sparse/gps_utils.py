@@ -13,7 +13,6 @@ from jax.scipy.spatial.transform import Rotation as Rot
 from b3d.pose.pose_utils import (
     uniform_samples_from_disc,
 )
-from .dynamic_gps import DynamicGPS
 from typing import TypeAlias
 
 

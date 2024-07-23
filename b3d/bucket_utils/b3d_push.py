@@ -1,9 +1,6 @@
 import argparse
-import json
-import os
 import subprocess
 import b3d
-from pathlib import Path
 
 
 ## Paths.

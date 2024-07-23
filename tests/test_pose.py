@@ -28,7 +28,6 @@ class PoseTests(unittest.TestCase):
     key = jax.random.PRNGKey(np.random.randint(0, 10_000))
 
     def test_pose_properties(self):
-        N = 20
         keys = keysplit(self.key, 2)
         x = jax.random.normal(keys[0], (3,))
         q = jax.random.normal(keys[1], (4,))

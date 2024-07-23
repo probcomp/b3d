@@ -1,21 +1,10 @@
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
 import rerun as rr
-import functools
-import genjax
 from tqdm import tqdm
-import jax
-import jax.numpy as jnp
 import optax
 import b3d.chisight.dense.differentiable_renderer as rendering
-import demos.differentiable_renderer.utils as utils
 from functools import partial
 
 rr.init("gradients")
@@ -46,10 +35,6 @@ def test_diff_renderer(renderer):
     far = 16.0
     # renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
     renderer.set_intrinsics(image_width, image_height, fx, fy, cx, cy, near, far)
-
-    WINDOW = 5
-
-    hyperparams = rendering.DEFAULT_HYPERPARAMS
 
     def render(particle_centers, particle_widths, particle_colors):
         particle_widths = jnp.abs(particle_widths)

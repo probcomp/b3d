@@ -1,13 +1,14 @@
 import rerun as rr
-from functools import partial
 from tqdm import tqdm
 import torch
 import b3d
 import trimesh
+import pytorch3d.transforms
+import os
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import os
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
@@ -22,8 +23,6 @@ cx, cy = 50, 50
 image_height, image_width = 100, 100
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
-
-import pytorch3d.transforms
 
 
 positions = torch.zeros((100, 3), requires_grad=True)

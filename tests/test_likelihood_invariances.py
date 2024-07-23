@@ -158,9 +158,6 @@ def test_distance_to_camera_invarance(renderer):
         depth_multiplier,
     )
 
-    from genjax.generative_functions.distributions import ExactDensity
-    import genjax
-
     rr.log("img_near", rr.Image(rgb_near))
     rr.log("img_far", rr.Image(rgb_far))
 

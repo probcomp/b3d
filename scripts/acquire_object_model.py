@@ -1,12 +1,9 @@
 import jax.numpy as jnp
-import os
 import b3d
-import rerun as rr
 import jax
 import argparse
-from b3d import Mesh, Pose
+from b3d import Pose
 from tqdm import tqdm
-import numpy as np
 
 b3d.rr_init("acquire_object_model")
 

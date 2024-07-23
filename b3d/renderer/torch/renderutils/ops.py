@@ -8,9 +8,7 @@
 # its affiliates is strictly prohibited.
 
 import os
-import sys
 
-import numpy as np
 import torch
 import torch.utils.cpp_extension
 
@@ -75,7 +73,7 @@ def _get_plugin():
         )
         if os.path.exists(lock_fn):
             print("Warning: Lock file exists in build directory: '%s'" % lock_fn)
-    except:
+    except Exception:
         pass
 
     # Compile and load.

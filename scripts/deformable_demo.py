@@ -1,12 +1,9 @@
-import matplotlib.pyplot as plt
-import matplotlib
 import jax
 import jax.numpy as jnp
 import numpy as np
 from b3d.pose import Pose
 from b3d.utils import keysplit
 from b3d.chisight.sparse.gps_utils import cov_from_dq_composition
-from typing import Any, TypeAlias
 from pathlib import Path
 import os
 from jax.scipy.spatial.transform import Rotation as Rot
@@ -162,7 +159,6 @@ def gps_mesh_with_A(xs, As, r=1.0, cs=None, segs=10):
     n = xs.shape[0]
     v0, f0, _ = create_sphere_mesh(segs, r=r)
     nv = v0.shape[0]
-    nf = f0.shape[0]
 
     vs = np.stack([v0 @ A.T for A in As], axis=0)
     fs = np.tile(f0, (n, 1, 1))
@@ -187,7 +183,6 @@ def gps_mesh(xs, r=1.0, cs=None, segs=10):
     n = xs.shape[0]
     v0, f0, _ = create_sphere_mesh(segs, r=r)
     nv = v0.shape[0]
-    nf = f0.shape[0]
 
     vs = np.tile(v0, (n, 1, 1))
     fs = np.tile(f0, (n, 1, 1))
@@ -217,7 +212,7 @@ path = Path(
     input(f"Type Data directory \n(`{DEFAULT_PATH}` Default): ").strip() or DEFAULT_PATH
 )
 files = os.listdir(path)
-print(f"Listing files from diretory...")
+print("Listing files from directory...")
 for i, f in enumerate(files):
     print(f"{i}:", f)
 
@@ -305,9 +300,13 @@ params = dict(
     cluster_poses=cluster_poses,
 )
 
+
 # Setting up the optimization
 # NOTE: xs are baked-in here.
-loss_func = lambda params: loss(xs, **params)
+def loss_func(params):
+    return loss(xs, **params)
+
+
 grad_loss = jax.value_and_grad(loss_func)
 optimizer = optax.adam(1e-4)
 opt_state = optimizer.init(params)
@@ -328,7 +327,7 @@ def step(carry, _):
 # **************************
 #   Run the Loop
 # **************************
-print(f"Fitting data...")
+print("Fitting data...")
 num_runs = 20
 num_runs = int(
     input(f"Number of training iteration loops \n({num_runs} default): ").strip()
@@ -339,7 +338,7 @@ for i in range(num_runs):
         step, (params, opt_state), xs=None, length=500
     )
     print(f"Iteration {i+1}/{num_runs}, Average Loss: {losses.mean():,.5}")
-print(f"...done!")
+print("...done!")
 
 # **************************
 #   Visualize the result

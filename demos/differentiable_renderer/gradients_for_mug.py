@@ -1,21 +1,13 @@
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 import rerun as rr
-import functools
-import genjax
 from tqdm import tqdm
-import jax
-import jax.numpy as jnp
 import optax
 import b3d.chisight.dense.differentiable_renderer as rendering
-import demos.differentiable_renderer.utils as utils
 from functools import partial
 
 rr.init("gradients")

@@ -1,19 +1,12 @@
-import os
 from .video_input import VideoInput
-from b3d.utils import get_shared
 from b3d.types import Array
-from b3d.io import VideoInput, FeatureTrackData
 import numpy as np
-import jax.numpy as jnp
 import matplotlib.pyplot as plt
-import jax
 import cv2
-import numpy as np
 from sklearn.utils import Bunch
 from pathlib import Path
 import argparse
 import inspect
-import sys
 
 
 def add_argparse(f):
@@ -129,7 +122,6 @@ def load_video_to_numpy(
     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
 
     if times is None:
         times = np.arange(T, step=step)
@@ -221,9 +213,6 @@ def plot_video_summary(
         downsize=downsize,
         reverse_color_channel=reverse_color_channel,
     )
-
-    w = vid.shape[2]
-    h = vid.shape[1]
 
     # Create a plot with the summary
     # TODO: Should we hand in an axis?

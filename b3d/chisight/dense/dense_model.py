@@ -1,8 +1,7 @@
-from b3d.modeling_utils import uniform_discrete, uniform_pose, gaussian_vmf
+from b3d.modeling_utils import uniform_pose
 import genjax
 import b3d
 from b3d import Pose, Mesh
-import jax
 import jax.numpy as jnp
 import b3d.chisight.dense.likelihoods.image_likelihood
 

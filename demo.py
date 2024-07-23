@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
 import numpy as np
 import os
-import trimesh
 import b3d
 import b3d.bayes3d as bayes3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
 import genjax
 import rerun as rr
@@ -53,11 +50,9 @@ def test_demo():
         1.0,
     )
 
-    num_layers = 2048
     renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
     model = bayes3d.model_multiobject_gl_factory(renderer)
     importance_jit = jax.jit(model.importance)
-    update_jit = jax.jit(model.update)
 
     # Arguments of the generative model.
     # These control the inlier / outlier decision boundary for color error and depth error.

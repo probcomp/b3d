@@ -1,16 +1,12 @@
 import jax.numpy as jnp
 import jax
-import matplotlib.pyplot as plt
 import numpy as np
 import os
-import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d import Pose
-import genjax
 import rerun as rr
 from tqdm import tqdm
-import fire
+from diff_gaussian_rasterization import rasterize_with_depth
 
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
@@ -49,8 +45,6 @@ rgbs_resized = jnp.clip(
     1.0,
 )
 
-import diff_gaussian_rasterization as dgr
-from diff_gaussian_rasterization import rasterize_with_depth
 
 point_cloud = jax.image.resize(
     xyzs[0], (xyzs[0].shape[0] // 2, xyzs[0].shape[1] // 2, 3), "linear"

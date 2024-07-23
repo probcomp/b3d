@@ -5,6 +5,7 @@ from b3d.pose import Pose
 from .dynamic_gps import DynamicGPS
 from typing import Any, TypeAlias
 from b3d.camera import screen_from_world
+from genjax import ChoiceMapBuilder as C
 
 
 @genjax.gen
@@ -108,7 +109,6 @@ def make_sparse_gps_model(
         )
 
         new_state = (t + 1, new_object_poses, new_camera_pose, static_carries)
-        vector_output = None
         return (new_state, new_state)
 
     # TODO: What arguments should be passed to the model?
@@ -279,8 +279,6 @@ def get_dynamic_gps(tr: SparseGPSModelTrace):
 # -----------
 #   Setters
 # -----------
-from genjax import ChoiceMapBuilder as C
-from genjax._src.core.generative.choice_map import EmptyChm
 
 
 def set_camera_choice(t, cam: Pose, ch=None):

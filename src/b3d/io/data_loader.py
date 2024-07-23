@@ -276,12 +276,12 @@ def load_r3d(r3d_path):
 
     color_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.jpg")))
     depth_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.depth")))
-    conf_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
+    natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
 
     rgb = jnp.array([load_color(color_paths[i]) for i in range(len(color_paths))])
     depths = jnp.array([load_depth(depth_paths[i]) for i in range(len(color_paths))])
     depths = depths.at[jnp.isnan(depths)].set(0.0)
-    depths_resized = jax.vmap(jax.image.resize, in_axes=(0, None, None))(
+    jax.vmap(jax.image.resize, in_axes=(0, None, None))(
         depths,
         (rgb.shape[1], rgb.shape[2]),
         "linear",

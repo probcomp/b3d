@@ -14,8 +14,7 @@ from natsort import natsorted
 from PIL import Image
 from tqdm import tqdm
 
-import b3d
-from b3d import Pose
+from b3d.pose import Pose
 
 YCB_MODEL_NAMES = [
     "002_master_chef_can",

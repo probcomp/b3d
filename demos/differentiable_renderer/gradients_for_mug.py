@@ -150,7 +150,6 @@ params = {
 }
 
 rr.log("image", rr.Image(gt_image[..., :3]), timeless=True)
-rr.log("cloud", rr.Points3D(gt_pose.apply(object_library.vertices)), timeless=True)
 rr.log("loss2", rr.SeriesLine(name="loss2"), timeless=True)
 
 

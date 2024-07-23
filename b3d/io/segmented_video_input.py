@@ -63,18 +63,18 @@ class SegmentedVideoInput(VideoInput):
 
     @classmethod
     def from_dict(cls, data):
-        # TODO: Remove the `video::` prefix from the keys
-        video_dict = {}
-        for (k, v) in data.items():
-            if k.startswith('video::'):
-                video_dict[k[len('video::'):]] = v
-                
         return cls(
-            **video_dict,
-            segmentation=data['segmentation'],
-            object_positions=data['object_positions'],
-            object_quaternions=data['object_quaternions'],
-            object_catalog_ids=data['object_catalog_ids']
+            rgb=jnp.array(data['rgb']),
+            xyz=jnp.array(data['xyz']),
+            camera_positions=jnp.array(data['camera_positions']),
+            camera_quaternions=jnp.array(data['camera_quaternions']),
+            camera_intrinsics_rgb=jnp.array(data['camera_intrinsics_rgb']),
+            camera_intrinsics_depth=jnp.array(data['camera_intrinsics_depth']),
+            fps=jnp.array(data['fps']),
+            segmentation=jnp.array(data['segmentation']),
+            object_positions=jnp.array(data['object_positions']),
+            object_quaternions=jnp.array(data['object_quaternions']),
+            object_catalog_ids=jnp.array(data['object_catalog_ids'])
         )
     
     def to_dict(self):

@@ -3,13 +3,13 @@ import fire
 
 
 def make_visual(scene=None, object=None, debug=False):
-    import b3d
-    import jax.numpy as jnp
-    from tqdm import tqdm
-    from b3d import Pose, Mesh
+    import importlib
     import os
 
-    import importlib
+    import b3d
+    import jax.numpy as jnp
+    from b3d import Mesh, Pose
+    from tqdm import tqdm
 
     importlib.reload(b3d.mesh)
     importlib.reload(b3d.io.data_loader)

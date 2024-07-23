@@ -1,10 +1,11 @@
+import b3d
 import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
-from ...common.task import Task
 import jax
 import jax.numpy as jnp
-import b3d
-import rerun as rr
 import matplotlib.pyplot as plt
+import rerun as rr
+
+from ...common.task import Task
 
 
 class TrianglePosteriorGridApproximationTask(Task):
@@ -61,7 +62,7 @@ class TrianglePosteriorGridApproximationTask(Task):
         triangle = triangle - triangle[0]
         triangle = triangle / jnp.linalg.norm(triangle[1])
 
-        partition, background_z = self._get_grid_partition()
+        partition, _background_z = self._get_grid_partition()
 
         task_spec = {
             "video": video,

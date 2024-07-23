@@ -1,5 +1,5 @@
-from b3d.renderer.torch.pose import Pose
 import torch
+from b3d.renderer.torch.pose import Pose
 
 
 def test_as_matrix():

@@ -1,6 +1,8 @@
-from b3d.types import Array
-import jax.numpy as jnp
 from dataclasses import dataclass
+
+import jax.numpy as jnp
+
+from b3d.types import Array
 
 
 @dataclass

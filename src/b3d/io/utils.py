@@ -1,12 +1,15 @@
-from .video_input import VideoInput
-from b3d.types import Array
-import numpy as np
-import matplotlib.pyplot as plt
-import cv2
-from sklearn.utils import Bunch
-from pathlib import Path
 import argparse
 import inspect
+from pathlib import Path
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.utils import Bunch
+
+from b3d.types import Array
+
+from .video_input import VideoInput
 
 
 def add_argparse(f):
@@ -216,7 +219,7 @@ def plot_video_summary(
 
     # Create a plot with the summary
     # TODO: Should we hand in an axis?
-    fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+    _fig, ax = plt.subplots(1, 1, figsize=(15, 4))
     ax.set_title(f'"{video_fname.name}"\n(start = {T0}, end = {T1}, fps = {info.fps})')
     _plot_frame_summary(vid, ticks=times, ax=ax)
 
@@ -227,7 +230,7 @@ def _plot_frame_summary(frames: Array, ticks: Array = None, ax=None):
 
     # Create a plot with the summary
     if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+        _fig, ax = plt.subplots(1, 1, figsize=(15, 4))
     ax.axis("off")
     ax.imshow(np.concatenate(frames, axis=1))
     if ticks is not None:

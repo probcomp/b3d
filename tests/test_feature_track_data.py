@@ -1,5 +1,6 @@
-import b3d
 import os
+
+import b3d
 
 
 def assert_valid_ftd(ftd):

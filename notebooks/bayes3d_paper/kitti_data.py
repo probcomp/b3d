@@ -1,14 +1,12 @@
-import pykitti
-import b3d
 import os
-import jax.numpy as jnp
-from tqdm import tqdm
+
+import b3d
 import jax
+import jax.numpy as jnp
 import numpy as np
-
-
+import pykitti
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-
+from tqdm import tqdm
 
 b3d.rr_init("kitti")
 

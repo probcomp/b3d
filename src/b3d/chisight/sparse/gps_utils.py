@@ -1,20 +1,21 @@
-import jax
-import jax.numpy as jnp
+from typing import TypeAlias
+
 import genjax
 import genjax.typing
+import jax
+import jax.numpy as jnp
 from genjax import ExactDensity
-from b3d.utils import keysplit
+from jax.scipy.spatial.transform import Rotation as Rot
+
 from b3d.camera import (
     camera_from_screen_and_depth,
     screen_from_camera,
 )
-from b3d.types import Array, Matrix, Float
-from jax.scipy.spatial.transform import Rotation as Rot
 from b3d.pose.pose_utils import (
     uniform_samples_from_disc,
 )
-from typing import TypeAlias
-
+from b3d.types import Array, Float, Matrix
+from b3d.utils import keysplit
 
 inv = jnp.linalg.inv
 logsumexp = jax.scipy.special.logsumexp

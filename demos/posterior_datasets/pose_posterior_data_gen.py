@@ -1,9 +1,10 @@
-import b3d
-import trimesh
-import jax.numpy as jnp
-import jax
-import rerun as rr
 import os
+
+import b3d
+import jax
+import jax.numpy as jnp
+import rerun as rr
+import trimesh
 from b3d import Pose
 
 rr.init("demo")

@@ -2,8 +2,8 @@
 import argparse
 import os
 import subprocess
-import b3d
 
+import b3d
 
 ## Paths.
 GCLOUD_BUCKET_NAME = b3d.get_gcloud_bucket_ref()

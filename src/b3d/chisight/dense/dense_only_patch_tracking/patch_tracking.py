@@ -1,15 +1,14 @@
-import jax.numpy as jnp
-import jax
-from b3d import Pose
 import b3d
-import genjax
-from genjax import ChoiceMapBuilder as C
-import b3d.chisight.dense.differentiable_renderer as r
 import b3d.chisight.dense.dense_only_patch_tracking.model as m
-import b3d.chisight.dense.likelihoods as likelihoods
-import optax
-
 import b3d.chisight.dense.differentiable_renderer
+import b3d.chisight.dense.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as likelihoods
+import genjax
+import jax
+import jax.numpy as jnp
+import optax
+from b3d import Pose
+from genjax import ChoiceMapBuilder as C
 
 
 def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):
@@ -52,7 +51,7 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
             (center_x - del_pix, center_y - del_pix, 0),
             (2 * del_pix - 1, 2 * del_pix - 1, 3),
         ).reshape(-1, 3)
-        patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = (
+        patch_vertices_C, patch_faces, patch_vertex_colors, _patch_face_colors = (
             b3d.make_mesh_from_point_cloud_and_resolution(
                 patch_points_C, patch_rgbs, patch_points_C[:, 2] / fx * 2.0
             )

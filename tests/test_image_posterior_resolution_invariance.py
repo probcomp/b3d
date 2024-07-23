@@ -4,19 +4,20 @@
 # should NOT become peakier when the scene/observed images gain resolution.
 
 
-import jax.numpy as jnp
-import jax
-import genjax
-import matplotlib.pyplot as plt
 import os
-import trimesh
+import unittest
+
 import b3d
 import b3d.bayes3d as bayes3d
-from b3d import Pose
+import genjax
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 import rerun as rr
-from tqdm import tqdm
-import unittest
+import trimesh
+from b3d import Pose
 from genjax import Pytree
+from tqdm import tqdm
 
 
 class UpsamplingRenderer(b3d.Renderer):

@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+
 import b3d
 
 
@@ -45,10 +46,15 @@ class PixelOutlier:
         far,
         model_args,
     ):
-        inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = (
-            PixelOutlier.get_rgb_depth_inliers_from_observed_rendered_args(
-                observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args
-            )
+        (
+            inliers,
+            _color_inliers,
+            _depth_inliers,
+            outliers,
+            undecided,
+            _valid_data_mask,
+        ) = PixelOutlier.get_rgb_depth_inliers_from_observed_rendered_args(
+            observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args
         )
 
         inlier_weight = model_args.inlier_score

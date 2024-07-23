@@ -1,10 +1,10 @@
 ###
-from typing import Any, TypeAlias
-import jax
-import genjax
 from builtins import tuple as _tuple
-from jax.tree_util import register_pytree_node_class
+from typing import Any, TypeAlias
 
+import genjax
+import jax
+from jax.tree_util import register_pytree_node_class
 
 Shape = int | tuple[int, ...]
 Array: TypeAlias = jax.Array

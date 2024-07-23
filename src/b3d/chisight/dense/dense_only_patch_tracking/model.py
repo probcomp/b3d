@@ -1,12 +1,12 @@
+import b3d.chisight.dense.differentiable_renderer as rendering
+import b3d.utils as utils
 import genjax
 import jax
 import jax.numpy as jnp
+import numpy as np
+import rerun as rr
 from b3d import Pose
 from b3d.modeling_utils import uniform_pose
-import b3d.utils as utils
-import b3d.chisight.dense.differentiable_renderer as rendering
-import rerun as rr
-import numpy as np
 
 
 def uniformpose_meshes_to_image_model__factory(likelihood):

@@ -1,8 +1,9 @@
 import jax
 import jax.numpy as jnp
+from genjax import Pytree
+
 import b3d
 from b3d.pose import Pose
-from genjax import Pytree
 
 
 def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):

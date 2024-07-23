@@ -1,19 +1,20 @@
+import os
+
+import b3d
+import genjax
 import jax
 import jax.numpy as jnp
-import genjax
-import b3d
-import demos.mesh_fitting.tessellation as t
-import os
-import rerun as rr
 import optax
+import rerun as rr
 from tqdm import tqdm
 
 import demos.mesh_fitting.model as m
+import demos.mesh_fitting.tessellation as t
 
 
 ### Get initial mesh ###
 def get_initial_tesselation(video_input):
-    image_width, image_height, fx, fy, cx, cy, near, far = jnp.array(
+    _image_width, _image_height, fx, fy, cx, cy, near, far = jnp.array(
         video_input.camera_intrinsics_rgb
     )
     fx, fy, cx, cy, near, far = (
@@ -184,7 +185,7 @@ def importance_from_vertices_colors(vertices, colors):
 
 
 def vertices_colors_to_score(vertices, colors):
-    trace, weight = importance_from_vertices_colors(vertices, colors)
+    _trace, weight = importance_from_vertices_colors(vertices, colors)
     return weight
 
 

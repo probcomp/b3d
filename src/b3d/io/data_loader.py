@@ -1,20 +1,21 @@
+import glob
 import json
 import os
-import b3d
-import jax.numpy as jnp
+import subprocess
+from pathlib import Path
+
 import cv2
 import imageio
 import jax
-
+import jax.numpy as jnp
+import liblzfse  # https://pypi.org/project/pyliblzfse/
 import numpy as np
+from natsort import natsorted
 from PIL import Image
 from tqdm import tqdm
+
+import b3d
 from b3d import Pose
-import glob
-from pathlib import Path
-import subprocess
-from natsort import natsorted
-import liblzfse  # https://pypi.org/project/pyliblzfse/
 
 YCB_MODEL_NAMES = [
     "002_master_chef_can",
@@ -292,7 +293,7 @@ def load_r3d(r3d_path):
     # https://fzheng.me/2017/11/12/quaternion_conventions_en/
     positions = pose_data[..., 4:] * jnp.array([1, -1, -1])  # (N, 3)
     quaternions = pose_data[..., :4] * jnp.array([-1, 1, 1, -1])  # (N, 4)
-    _, _, fx, fy, cx, cy, _, _ = intrinsics_depth
+    _, _, _fx, _fy, _cx, _cy, _, _ = intrinsics_depth
 
     return {
         "rgb": rgb,

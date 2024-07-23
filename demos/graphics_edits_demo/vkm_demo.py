@@ -1,11 +1,12 @@
-import jax.numpy as jnp
 import os
+
 import b3d
-import rerun as rr
 import jax
+import jax.numpy as jnp
 import numpy as np
-from b3d import Pose
+import rerun as rr
 import trimesh
+from b3d import Pose
 
 rr.init("vkm_demo2")
 rr.connect("127.0.0.1:8812")

@@ -1,5 +1,6 @@
-from b3d.pose import Pose, Rot
 import jax.numpy as jnp
+
+from b3d.pose import Pose, Rot
 
 
 def contact_parameters_to_pose(cp):

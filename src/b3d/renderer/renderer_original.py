@@ -8,6 +8,7 @@ from jax.core import ShapedArray
 from jax.interpreters import batching, mlir, xla
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
+
 import b3d
 import b3d.renderer.nvdiffrast_jax.nvdiffrast.jax as dr
 
@@ -75,7 +76,7 @@ def interpolate_fwd(self, attr, rast, faces):
 
 
 def interpolate_bwd(self, saved_tensors, diffs):
-    attr, rast, faces = saved_tensors
+    _attr, _rast, _faces = saved_tensors
     return jnp.zeros_like(pos), jnp.zeros_like(tri)
 
 
@@ -323,9 +324,9 @@ def _build_interpolate_fwd_primitive(r: "RendererOriginal"):
         rast,
         faces,
     ):
-        _, num_vertices, num_attributes = attributes.shape
+        _, _num_vertices, num_attributes = attributes.shape
         num_images, height, width, _ = rast.shape
-        num_tri, _ = faces.shape
+        _num_tri, _ = faces.shape
 
         dtype = dtypes.canonicalize_dtype(attributes.dtype)
 

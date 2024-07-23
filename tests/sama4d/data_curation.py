@@ -1,7 +1,8 @@
+import os
+
+import b3d
 import jax
 import jax.numpy as jnp
-import os
-import b3d
 import trimesh
 
 

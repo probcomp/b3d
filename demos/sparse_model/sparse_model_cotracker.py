@@ -1,13 +1,14 @@
-import jax.numpy as jnp
-import jax
-import rerun as rr
-import b3d
-import optax
 import os
 from functools import partial
-from tqdm import tqdm
+
+import b3d
+import jax
+import jax.numpy as jnp
 import numpy as np
+import optax
+import rerun as rr
 from matplotlib import colormaps
+from tqdm import tqdm
 
 
 def map_nested_fn(fn):
@@ -111,7 +112,7 @@ def _model(params, cluster_assignments, fx, fy, cx, cy):
     object_positions = params["object_positions"]
     object_quaternions = params["object_quaternions"]
 
-    num_timesteps, num_clusters, _ = object_positions.shape
+    num_timesteps, _num_clusters, _ = object_positions.shape
 
     object_positions_expanded = jnp.concatenate(
         [jnp.zeros((num_timesteps, 1, 3)), object_positions], axis=1
@@ -173,7 +174,7 @@ def update_params(tx, t, params, cluster_assignments, gt_image, state):
 
 
 def viz_params(params, start_t, end_t):
-    num_timesteps, num_clusters = params["object_positions"].shape[:2]
+    _num_timesteps, num_clusters = params["object_positions"].shape[:2]
     num_keypoints = params["xyz"].shape[0]
     _, xyz_in_world_frame_over_time = _model(
         params, cluster_assignments, fx, fy, cx, cy

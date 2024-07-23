@@ -1,10 +1,11 @@
-import jax.numpy as jnp
-import jax
 import os
-import trimesh
+
 import b3d
-from b3d import Pose
 import b3d.utils as utils
+import jax
+import jax.numpy as jnp
+import trimesh
+from b3d import Pose
 
 ### Utils ###
 
@@ -120,7 +121,7 @@ def get_renderer_boxdata_and_patch():
         (center_x - del_pix, center_y - del_pix, 0),
         (2 * del_pix, 2 * del_pix, 3),
     ).reshape(-1, 3)
-    patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = (
+    patch_vertices_C, patch_faces, patch_vertex_colors, _patch_face_colors = (
         b3d.make_mesh_from_point_cloud_and_resolution(
             patch_points_C, patch_rgbs, patch_points_C[:, 2] / fx
         )

@@ -82,3 +82,12 @@ write_to = "b3d/_version.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+preview = true
+extend-select = ["I"]
+select = ["E4", "E7", "E9", "F"]
+# F403 disables errors from `*` imports, which we currently use heavily.
+ignore = ["F403"]
+fixable = ["ALL"]
+unfixable = []

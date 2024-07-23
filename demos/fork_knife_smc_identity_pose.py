@@ -1,13 +1,14 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+
 import b3d
-from tqdm import tqdm
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
 import trimesh
+from b3d import Pose
+from tqdm import tqdm
 
 ### Choose experiment
 

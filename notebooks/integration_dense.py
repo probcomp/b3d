@@ -1,19 +1,17 @@
+import importlib
+import os
+
 import b3d
-from b3d.renderer.renderer_original import RendererOriginal
+import b3d.chisight.particle_system as ps
+import jax
+import jax.numpy as jnp
+from b3d import Mesh, Pose
 from b3d.chisight.dense.likelihoods import (
     KRaysImageLikelihoodArgs,
     make_krays_image_observation_model,
 )
-import jax
-import jax.numpy as jnp
-import os
-from b3d import Pose, Mesh
-
-import b3d.chisight.particle_system as ps
+from b3d.renderer.renderer_original import RendererOriginal
 from genjax import Pytree
-
-
-import importlib
 
 importlib.reload(ps)
 

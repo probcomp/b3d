@@ -1,14 +1,15 @@
-import jax.numpy as jnp
-import jax
-import numpy as np
 import os
-import trimesh
+
 import b3d
-from b3d import Pose
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
 
 # from b3d.utils import unproject_depth
 import rerun as rr
-import genjax
+import trimesh
+from b3d import Pose
 from tqdm import tqdm
 
 rr.init("demo.py")
@@ -259,7 +260,7 @@ def get_trajs(key, center_1, center_2, del_pix=5):
     point_cloud_colors = local_rgbs
 
     # Create new mesh.
-    vertices, faces, vertex_colors, face_colors = (
+    vertices, faces, vertex_colors, _face_colors = (
         b3d.make_mesh_from_point_cloud_and_resolution(
             point_cloud, point_cloud_colors, point_cloud[:, 2] / fx * 2.0
         )

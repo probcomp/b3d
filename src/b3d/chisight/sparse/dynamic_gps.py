@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from jax.tree_util import register_pytree_node_class
-import jax.numpy as jnp
-from b3d.types import Array, Int
-from b3d.pose import Pose
+
 import jax
+import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
+
+from b3d.pose import Pose
+from b3d.types import Array, Int
 
 
 @register_pytree_node_class

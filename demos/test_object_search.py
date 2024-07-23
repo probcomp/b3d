@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-import jax.numpy as jnp
-import jax
-import numpy as np
 import os
+
 import b3d
-from b3d import Pose
 import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
 import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
 
 PORT = 8812

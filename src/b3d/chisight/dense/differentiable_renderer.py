@@ -1,5 +1,6 @@
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+
 import b3d
 from b3d import Pose
 
@@ -104,7 +105,7 @@ def render_to_dist_params(
     """
     __t = jax.lax.stop_gradient(transform)
     __v, __f = jax.lax.stop_gradient(vertices), jax.lax.stop_gradient(faces)
-    uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+    _uvs, _, triangle_id_image, _depth_image = renderer.rasterize(
         __t[None, ...], __v, __f, jnp.array([[0, len(__f)]])
     )
     vertices = transform.apply(vertices)

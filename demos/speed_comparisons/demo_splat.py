@@ -1,12 +1,13 @@
-import jax.numpy as jnp
-import jax
-import numpy as np
 import os
+
 import b3d
-from b3d import Pose
+import jax
+import jax.numpy as jnp
+import numpy as np
 import rerun as rr
-from tqdm import tqdm
+from b3d import Pose
 from diff_gaussian_rasterization import rasterize_with_depth
+from tqdm import tqdm
 
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
@@ -78,7 +79,9 @@ render_rgb_jit = jax.jit(render_rgb)
 
 
 def loss_fun(point_cloud, colors, scale, camera_pose, observed_image, observed_depth):
-    rendered_image, rendered_depth = render_rgb(point_cloud, colors, scale, camera_pose)
+    rendered_image, _rendered_depth = render_rgb(
+        point_cloud, colors, scale, camera_pose
+    )
     return jnp.mean(jnp.abs((rendered_image - observed_image)))
     # #  + jnp.mean(
     #     jnp.abs((rendered_depth - observed_depth))

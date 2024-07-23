@@ -1,7 +1,9 @@
 import dataclasses
-from b3d.types import Array
-import jax.numpy as jnp
 from typing import Optional
+
+import jax.numpy as jnp
+
+from b3d.types import Array
 
 
 @dataclasses.dataclass(kw_only=True)

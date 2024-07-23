@@ -1,11 +1,14 @@
+from typing import Any, TypeAlias
+
+import genjax
 import jax
 import jax.numpy as jnp
-import genjax
-from b3d.pose import Pose
-from .dynamic_gps import DynamicGPS
-from typing import Any, TypeAlias
-from b3d.camera import screen_from_world
 from genjax import ChoiceMapBuilder as C
+
+from b3d.camera import screen_from_world
+from b3d.pose import Pose
+
+from .dynamic_gps import DynamicGPS
 
 
 @genjax.gen
@@ -167,7 +170,7 @@ def make_sparse_gps_model(
 
         static_carried_values = (object_assignments, relative_particle_poses, intr)
         state0 = (0, initial_object_poses, initial_camera_pose, static_carried_values)
-        last_state, ret = kernel.scan(n=T - 1)(state0, None) @ "chain"
+        _last_state, ret = kernel.scan(n=T - 1)(state0, None) @ "chain"
 
         # Combine the initial state with the chain of states
         object_poses = Pose(

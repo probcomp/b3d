@@ -1,10 +1,11 @@
-import b3d
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
 import trimesh
 from jax.tree_util import register_pytree_node_class
-import rerun as rr
-import numpy as np
+
+import b3d
 
 
 @jax.jit

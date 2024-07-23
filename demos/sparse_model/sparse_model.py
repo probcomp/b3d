@@ -1,12 +1,13 @@
-import jax.numpy as jnp
-import jax
-import trimesh
-import rerun as rr
-import b3d
-import optax
-from functools import partial
-from tqdm import tqdm
 import os
+from functools import partial
+
+import b3d
+import jax
+import jax.numpy as jnp
+import optax
+import rerun as rr
+import trimesh
+from tqdm import tqdm
 
 
 def map_nested_fn(fn):

@@ -1,9 +1,10 @@
 import b3d
-import rerun as rr
-import numpy as np
-from tqdm import tqdm
 import b3d.chisight.dense.patch_tracking as tracking
+import numpy as np
+import rerun as rr
 from b3d.chisight.dense.model import rr_log_uniformpose_meshes_to_image_model_trace
+from tqdm import tqdm
+
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 
 rr.init("multiple_patch_tracking_2")

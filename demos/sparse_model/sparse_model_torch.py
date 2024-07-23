@@ -1,11 +1,11 @@
-import rerun as rr
-from tqdm import tqdm
-import torch
-import b3d
-import trimesh
-import pytorch3d.transforms
 import os
 
+import b3d
+import pytorch3d.transforms
+import rerun as rr
+import torch
+import trimesh
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

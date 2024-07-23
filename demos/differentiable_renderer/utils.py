@@ -1,6 +1,6 @@
-import jax.numpy as jnp
-import jax
 import b3d
+import jax
+import jax.numpy as jnp
 from b3d import Pose
 
 
@@ -20,7 +20,7 @@ def get_mesh_and_gt_render(
     faces = faces.reshape(-1, 3)
     colors = colors.reshape(-1, 3)
     triangle_to_particle_index = triangle_to_particle_index.reshape(-1)
-    _, _, triangle_id_image, depth_image = renderer.rasterize(
+    _, _, triangle_id_image, _depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
     particle_intersected = triangle_to_particle_index[triangle_id_image - 1] * (

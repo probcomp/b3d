@@ -149,25 +149,41 @@ def render(params, mesh_params):
     return image
 
 
-# Set up OpenGL renderer
-image_width = 200
-image_height = 200
-fx = 150.0
-fy = 150.0
-cx = 100.0
-cy = 100.0
-near = 0.001
-far = 16.0
-renderer = b3d.RendererOriginal(image_width, image_height, fx, fy, cx, cy, near, far)
-
 WINDOW = 5
 
-mesh_path = os.path.join(
-    b3d.get_root_path(),
-    "assets/shared_data_bucket/ycb_video_models/models/006_mustard_bottle/textured_simple.obj",
-)
-mesh = Mesh.from_obj(mesh_path)
 
+ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
+
+# image_ids = [image] if image is not None else range(1, num_scenes, FRAME_RATE)
+scene_id = 48
+print(f"Scene {scene_id}")
+num_scenes = b3d.io.data_loader.get_ycbv_num_test_images(ycb_dir, scene_id)
+image_ids = range(1, num_scenes + 1, 50)
+all_data = b3d.io.get_ycbv_test_images(ycb_dir, scene_id, image_ids)
+
+meshes = [
+    Mesh.from_obj_file(
+        os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+    ).scale(0.001)
+    for id in all_data[0]["object_types"]
+]
+
+height, width = all_data[0]["rgbd"].shape[:2]
+fx, fy, cx, cy = all_data[0]["camera_intrinsics"]
+scaling_factor = 0.3
+renderer = b3d.renderer.renderer_original.RendererOriginal(
+    width * scaling_factor,
+    height * scaling_factor,
+    fx * scaling_factor,
+    fy * scaling_factor,
+    cx * scaling_factor,
+    cy * scaling_factor,
+    0.01,
+    2.0,
+)
+
+IDX = 1
+mesh = meshes[IDX]
 
 render_jit = jax.jit(render)
 
@@ -180,14 +196,14 @@ gt_pose = Pose.from_position_and_target(
     jnp.array([0.3, 0.3, 0.0]),
     jnp.array([0.0, 0.0, 0.0]),
 ).inv()
-gt_image = render_jit(
-    {"position": gt_pose.position, "quaternion": gt_pose.quaternion}, mesh_params
-)
+gt_image = b3d.resize_image(all_data[0]["rgbd"], renderer.height, renderer.width)
 
 
 def loss_func_rgbd(params, mesh_params, gt):
     image = render(params, mesh_params)
-    return jnp.mean(jnp.abs(image[..., :3] - gt[..., :3]))
+    rendered_depth = image[..., 3]
+    rendered_areas = (rendered_depth / fx) * (rendered_depth / fy)
+    return jnp.mean(jnp.abs(image[..., :3] - gt[..., :3]) * rendered_areas[..., None])
     #  + jnp.mean(jnp.abs(image[...,3] - gt[...,3]))
 
 
@@ -213,10 +229,7 @@ tx = optax.multi_transform(
     label_fn,
 )
 
-pose = Pose.from_position_and_target(
-    jnp.array([0.6, 0.3, 0.6]),
-    jnp.array([0.0, 0.0, 0.0]),
-).inv()
+pose = all_data[0]["camera_pose"].inv() @ all_data[0]["object_poses"][IDX]
 
 params = {
     "position": pose.position,
@@ -233,6 +246,7 @@ for t in pbar:
     (params, gt_image, state), _ = step((params, gt_image, state), tx)
     rr.set_time_sequence("frame", t)
     image = render_jit(params, mesh_params)
+    pbar.set_description(f"Loss: {loss_func_rgbd(params, mesh_params, gt_image)}")
     rr.log("image/reconstruction", rr.Image(image[..., :3]))
     rr.log(
         "cloud/reconstruction",

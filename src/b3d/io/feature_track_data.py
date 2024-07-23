@@ -334,6 +334,36 @@ class FeatureTrackData:
             .as_array(),
         )
 
+    def slice_keypoints(self, keypoint_indices):
+        """Returns a FeatureTrackData with only the selected keypoints."""
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[
+                :, keypoint_indices, :
+            ],
+            keypoint_visibility=self.keypoint_visibility[:, keypoint_indices],
+            camera_intrinsics=self.camera_intrinsics,
+            rgbd_images=self.rgbd_images,
+            fps=self.fps if self.fps is not None else None,
+            observed_features=self.observed_features[:, keypoint_indices, :]
+            if self.observed_features is not None
+            else None,
+            latent_keypoint_positions=self.latent_keypoint_positions[
+                :, keypoint_indices, :
+            ]
+            if self.latent_keypoint_positions is not None
+            else None,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions[
+                :, keypoint_indices, :
+            ]
+            if self.latent_keypoint_quaternions is not None
+            else None,
+            object_assignments=self.object_assignments[keypoint_indices]
+            if self.object_assignments is not None
+            else None,
+            camera_position=self.camera_position,
+            camera_quaternion=self.camera_quaternion,
+        )
+
     def has_depth_channel(self):
         return jnp.any(self.rgbd_images[..., 3] > 0.0)
 

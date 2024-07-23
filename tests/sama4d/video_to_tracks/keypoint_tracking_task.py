@@ -4,6 +4,7 @@ import b3d
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
+import rerun.blueprint as rrb
 
 from tests.common.task import Task
 
@@ -214,3 +215,20 @@ class KeypointTrackingTask(Task):
                     radii=1.0,
                 ),
             )
+
+    @staticmethod
+    def get_rr_blueprint():
+        return rrb.Blueprint(
+            rrb.Horizontal(
+                rrb.Spatial3DView(),
+                rrb.Vertical(
+                    rrb.Spatial2DView(
+                        contents=[
+                            "groundtruth_solution/keypoints_2d",
+                            "solution/keypoints_2D",
+                        ]
+                    ),
+                    rrb.Spatial2DView(),
+                ),
+            )
+        )

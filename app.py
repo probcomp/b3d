@@ -31,10 +31,7 @@ def index():
 
 def convert_to_mp4(input_path, output_path, task_id):
     try:
-        # acquire.acquire(input_path, output_path)
-        import shutil
-
-        shutil.copy("converted/3768fed7-b4dc-43df-b6b1-ab823a89d7a9.mp4", output_path)
+        acquire.acquire(input_path, output_path)
 
         # After conversion is done, you might want to update a status in a database
         print(f"Conversion completed for task {task_id}")
@@ -92,4 +89,4 @@ def get_video(task_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()

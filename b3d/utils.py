@@ -1,22 +1,27 @@
-import jax.numpy as jnp
-from functools import partial
-import numpy as np
-import genjax
-from PIL import Image
-import subprocess
-import jax
-import sklearn.cluster
-import b3d
-import cv2
-
 import inspect
-from pathlib import Path
 import os
-import trimesh
-import rerun as rr
-import distinctipy
+import subprocess
+import tempfile
+from functools import partial
+from pathlib import Path
+from typing import TypeAlias
 
-from sklearn.utils import Bunch
+import cv2
+import distinctipy
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+import sklearn.cluster
+import trimesh
+from jax.scipy.spatial.transform import Rotation as Rot
+from PIL import Image, ImageDraw, ImageFont
+
+import b3d
+from b3d.pose import Pose
+
+# TODO: Refactor utils into core and others, to avoid circular imports
 
 # # # # # # # # # # # #
 #
@@ -26,7 +31,7 @@ from sklearn.utils import Bunch
 
 
 def get_root_path() -> Path:
-    return Path(Path(b3d.__file__).parents[1])
+    return Path(Path(b3d.__file__).parents[2])
 
 
 def get_assets() -> Path:
@@ -59,21 +64,10 @@ def get_shared() -> Path:
 
     return data_dir_path
 
-def get_shared_large() -> Path:
-    """The absolute path of the extended assets directory on current machine"""
-    data_dir_path = get_assets() / "large_data_bucket"
-
-    if not os.path.exists(data_dir_path):
-        os.makedirs(data_dir_path)
-        print(f"Initialized empty directory for shared bucket data at {data_dir_path}.")
-
-    return data_dir_path
 
 def get_gcloud_bucket_ref() -> str:
     return "gs://b3d_bucket"
 
-def get_gcloud_large_bucket_ref() -> str:
-    return "gs://b3d_bucket_large"
 
 def keysplit(key, *ns):
     if len(ns) == 0:
@@ -96,9 +90,6 @@ def keysplit(key, *ns):
 #  Other
 #
 # # # # # # # # # # # #
-from b3d.pose import Pose, Rot
-from functools import partial
-# TODO: Refactor utils into core and others, to avoid circular imports
 
 
 @partial(jax.jit, static_argnums=(1, 2))
@@ -113,7 +104,8 @@ def downsize_images(ims, k):
     return jax.vmap(jax.image.resize, (0, None, None))(ims, shape, "linear")
 
 
-def xyz_from_depth(z: "Depth Image", fx, fy, cx, cy):
+@jax.jit
+def xyz_from_depth(z: rr.DepthImage, fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
     x = (u - cx) / fx
     y = (v - cy) / fy
@@ -273,11 +265,6 @@ def make_gif_from_pil_images(images, filename):
     )
 
 
-import tempfile
-import subprocess
-import os
-
-
 def make_video_from_pil_images(images, output_filename, fps=5.0):
     # Generate a random tmp directory name
     tmp_dir = tempfile.mkdtemp()
@@ -300,9 +287,6 @@ def make_video_from_pil_images(images, output_filename, fps=5.0):
             output_filename,
         ]
     )
-
-
-from PIL import Image, ImageDraw, ImageFont
 
 
 def vstack_images(images, border=10):
@@ -498,33 +482,30 @@ def multivmap(f, args=None):
     return multivmapped
 
 
+@jax.jit
 def update_choices(trace, key, addresses, *values):
     return trace.update(
         key, genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
     )[0]
 
 
-update_choices_jit = jax.jit(update_choices, static_argnums=(2,))
-
-
+@jax.jit
 def update_choices_get_score(trace, key, addr_const, *values):
     return update_choices(trace, key, addr_const, *values).get_score()
 
 
-update_choices_get_score_jit = jax.jit(update_choices_get_score, static_argnums=(2,))
-
-enumerate_choices = jax.vmap(
-    update_choices,
-    in_axes=(None, None, None, 0),
+enumerate_choices = jax.jit(
+    jax.vmap(
+        update_choices,
+        in_axes=(None, None, None, 0),
+    )
 )
-enumerate_choices_jit = jax.jit(enumerate_choices, static_argnums=(2,))
 
-enumerate_choices_get_scores = jax.vmap(
-    update_choices_get_score,
-    in_axes=(None, None, None, 0),
-)
-enumerate_choices_get_scores_jit = jax.jit(
-    enumerate_choices_get_scores, static_argnums=(2,)
+enumerate_choices_get_scores = jax.jit(
+    jax.vmap(
+        update_choices_get_score,
+        in_axes=(None, None, None, 0),
+    )
 )
 
 
@@ -555,7 +536,6 @@ def nn_background_segmentation(images):
 
 def rr_log_pose(channel, pose, scale=0.1):
     origins = jnp.tile(pose.pos[None, ...], (3, 1))
-    vectors = jnp.eye(3)
     colors = jnp.eye(3)
     rr.log(
         channel,
@@ -583,6 +563,20 @@ def rr_log_rgbd(channel, rgbd):
     rr_log_depth(channel + "/depth", rgbd[..., 3])
 
 
+def rr_log_cloud(channel, cloud):
+    rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
+
+
+def rr_set_time(t=0):
+    rr.set_time_sequence("time", t)
+
+
+def reload(x):
+    import importlib
+
+    importlib.reload(x)
+
+
 def normalize_log_scores(log_p):
     """
     Normalizes log scores.
@@ -593,9 +587,6 @@ def normalize_log_scores(log_p):
     """
     return jnp.exp(log_p - jax.scipy.special.logsumexp(log_p))
 
-
-from typing import Any, NamedTuple, TypeAlias
-import jax
 
 Array: TypeAlias = jax.Array
 

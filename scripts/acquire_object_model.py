@@ -11,9 +11,11 @@ b3d.rr_init("acquire_object_model")
 # python scripts/acquire_object_model.py assets/shared_data_bucket/input_data/lysol_static.r3d
 
 
-def cake(args):
-    filename = args.input
-    data = b3d.io.load_r3d(filename)
+def acquire(input_path, output_path=None):
+    if output_path is None:
+        output_path = input_path + ".graphics_edits.mp4"
+
+    data = b3d.io.load_r3d(input_path)
 
     _, _, fx, fy, cx, cy, near, far = data["camera_intrinsics_depth"]
     image_height, image_width = data["depth"].shape[1:3]
@@ -98,7 +100,7 @@ def cake(args):
     object_mesh = _object_mesh.transform(object_pose.inv())
     object_mesh.rr_visualize("mesh")
 
-    mesh_filename = filename + ".mesh.obj"
+    mesh_filename = input_path + ".mesh.obj"
     # Save the mesh
     print(f"Saving obj file to {mesh_filename}")
     object_mesh.save(mesh_filename)
@@ -154,14 +156,19 @@ def cake(args):
         )
         viz_images.append(b3d.viz_rgb(rgbd))
 
-    b3d.make_video_from_pil_images(
-        viz_images, filename + ".graphics_edits.mp4", fps=30.0
-    )
-    print(f"Saved video to {filename + '.graphics_edits.mp4'}")
+    output_path = input_path + ".graphics_edits.mp4"
+    b3d.make_video_from_pil_images(viz_images, output_path, fps=30.0)
+    print(f"Saved video to {output_path}")
+    return output_path
 
 
 def main():
     parser = argparse.ArgumentParser("acquire_object_mode")
     parser.add_argument("input", help="r3d file", type=str)
     args = parser.parse_args()
-    return cake(args)
+    filename = args.input
+    return acquire(filename)
+
+
+if __name__ == "__main__":
+    main()

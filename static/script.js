@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.onload = function() {
             if (xhr.status === 200) {
                 status.textContent = 'File uploaded successfully. Processing...';
-                checkVideoStatus(xhr.responseText, file.name);
+                const response = JSON.parse(xhr.responseText);
+                checkVideoStatus(response.task_id, file.name);
             } else {
                 status.textContent = 'Upload failed. Please try again.';
                 progressContainer.style.display = 'none';

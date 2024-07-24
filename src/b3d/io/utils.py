@@ -173,6 +173,14 @@ def video_input_from_mp4(
     reverse_color_channel=False,
 ):
     info = load_video_info(video_fname)
+
+    if info is None:
+        return None
+
+    if times is None:
+        T = info.timesteps
+        times = np.arange(T, step=step)
+
     intr = np.load(intrinsics_fname, allow_pickle=True)
     vid = load_video_to_numpy(
         video_fname,
@@ -181,7 +189,9 @@ def video_input_from_mp4(
         reverse_color_channel=reverse_color_channel,
     )
 
-    return VideoInput(rgb=vid, camera_intrinsics_rgb=intr, fps=info.fps)
+    fps = info.fps / (times[1] - times[0])
+
+    return VideoInput(rgb=vid, camera_intrinsics_rgb=intr, fps=fps)
 
 
 def plot_video_summary(

@@ -85,11 +85,28 @@ document.addEventListener('DOMContentLoaded', () => {
         videoTitle.textContent = fileName;
 
         const videoElement = document.createElement('video');
-        videoElement.src = videoUrl;
         videoElement.controls = true;
+        videoElement.style.maxWidth = '100%';
+
+        const sourceElement = document.createElement('source');
+        sourceElement.src = videoUrl;
+        sourceElement.type = 'video/mp4';
+
+        videoElement.appendChild(sourceElement);
+
+        const reloadButton = document.createElement('button');
+        reloadButton.textContent = 'Reload Video';
+        reloadButton.onclick = () => {
+            sourceElement.src = videoUrl + '?t=' + new Date().getTime();
+            videoElement.load();
+        };
 
         videoWrapper.appendChild(videoTitle);
         videoWrapper.appendChild(videoElement);
+        videoWrapper.appendChild(reloadButton);
         videoContainer.prepend(videoWrapper);
+
+        // Force the browser to load the video
+        videoElement.load();
     }
 });

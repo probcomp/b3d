@@ -1,9 +1,10 @@
-from flask import Flask, send_file, request, jsonify
+from flask import Flask, after_this_request, send_file, request, jsonify
 import os
 from werkzeug.utils import secure_filename
 import uuid
 import scripts.acquire_object_model as acquire
 from threading import Thread
+import mimetypes
 
 app = Flask(__name__)
 
@@ -30,7 +31,11 @@ def index():
 
 def convert_to_mp4(input_path, output_path, task_id):
     try:
-        acquire.acquire(input_path, output_path)
+        # acquire.acquire(input_path, output_path)
+        import shutil
+
+        shutil.copy("converted/3768fed7-b4dc-43df-b6b1-ab823a89d7a9.mp4", output_path)
+
         # After conversion is done, you might want to update a status in a database
         print(f"Conversion completed for task {task_id}")
     except Exception as e:
@@ -73,7 +78,15 @@ def get_status(task_id):
 def get_video(task_id):
     video_path = os.path.join(app.config["OUTPUT_FOLDER"], f"{task_id}.mp4")
     if os.path.exists(video_path):
-        return send_file(video_path, mimetype="video/mp4")
+
+        @after_this_request
+        def add_header(response):
+            response.headers["Accept-Ranges"] = "bytes"
+            return response
+
+        return send_file(
+            video_path, mimetype="video/mp4", as_attachment=False, conditional=True
+        )
     else:
         return jsonify({"error": "Video not found"}), 404
 

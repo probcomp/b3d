@@ -382,8 +382,6 @@ rr.log(
     ),
 )
 
-print(loss_function(SECOND_T, params, cluster_assignments, gt_info))
-
 cluster_assignments = cluster_assignments.at[top_indices].set(
     cluster_assignments.max() + 1
 )

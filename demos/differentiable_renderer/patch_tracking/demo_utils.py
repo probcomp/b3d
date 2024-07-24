@@ -67,6 +67,27 @@ r_mat = transform_from_axis_angle(jnp.array([0, 0, 1]), jnp.pi / 2)
 vec_transform_axis_angle = jax.vmap(transform_from_axis_angle, (None, 0))
 
 
+def unproject_depth(depth, intrinsics):
+    """Unprojects a depth image into a point cloud.
+
+    Args:
+        depth (jnp.ndarray): The depth image. Shape (H, W)
+        intrinsics (b.camera.Intrinsics): The camera intrinsics.
+    Returns:
+        jnp.ndarray: The point cloud. Shape (H, W, 3)
+    """
+    mask = (depth < intrinsics.far) * (depth > intrinsics.near)
+    depth = depth * mask + intrinsics.far * (1.0 - mask)
+    y, x = jnp.mgrid[: depth.shape[0], : depth.shape[1]]
+    x = (x - intrinsics.cx) / intrinsics.fx
+    y = (y - intrinsics.cy) / intrinsics.fy
+    point_cloud_image = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * depth[:, :, None]
+    return point_cloud_image
+
+
+unproject_depth_vec = jax.vmap(unproject_depth, (0, None))
+
+
 ### Convenience wrapper for common code used in demos ###
 def get_renderer_boxdata_and_patch():
     width = 100

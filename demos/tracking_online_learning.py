@@ -244,14 +244,14 @@ for reaquisition_phase in range(len(REAQUISITION_TS) - 1):
     # )
 
     # Outliers are AND of the RGB and Depth outlier masks
-    outler_mask = outliers
-    rr.log("outliers", rr.Image(jnp.tile((outler_mask * 1.0)[..., None], (1, 1, 3))))
+    outlier_mask = outliers
+    rr.log("outliers", rr.Image(jnp.tile((outlier_mask * 1.0)[..., None], (1, 1, 3))))
 
     # Get the point cloud corresponding to the outliers
     point_cloud = b3d.xyz_from_depth(trace["observed_rgb_depth"][1], fx, fy, cx, cy)[
-        outler_mask
+        outlier_mask
     ]
-    point_cloud_colors = trace["observed_rgb_depth"][0][outler_mask]
+    point_cloud_colors = trace["observed_rgb_depth"][0][outlier_mask]
 
     # Segment the outlier cloud.
     assignment = b3d.segment_point_cloud(point_cloud)
@@ -334,9 +334,10 @@ for i in tqdm(range(len(inference_data_over_time))):
     )[0]
     b3d.rerun_visualize_trace_t(trace, t)
     rr.set_time_sequence("frame", t)
-    outler_mask = jnp.logical_and(rgb_outliers, depth_outliers)
 
     rgb_inliers, rgb_outliers = b3d.get_rgb_inlier_outlier_from_trace(trace)
     depth_inliers, depth_outliers = b3d.get_depth_inlier_outlier_from_trace(trace)
 
-    rr.log("outliers", rr.Image(jnp.tile((outler_mask * 1.0)[..., None], (1, 1, 3))))
+    outlier_mask = jnp.logical_and(rgb_outliers, depth_outliers)
+
+    rr.log("outliers", rr.Image(jnp.tile((outlier_mask * 1.0)[..., None], (1, 1, 3))))

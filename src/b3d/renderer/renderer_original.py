@@ -75,9 +75,14 @@ def interpolate_fwd(self, attr, rast, faces):
     return output, (attr, rast, faces)
 
 
+# def rasterize_bwd(self, saved_tensors, diffs):
+#     pos, tri = saved_tensors
+#     return jnp.zeros_like(pos), jnp.zeros_like(tri)
+
+
 def interpolate_bwd(self, saved_tensors, diffs):
-    _attr, _rast, _faces = saved_tensors
-    return jnp.zeros_like(pos), jnp.zeros_like(tri)
+    attr, rast, faces = saved_tensors
+    return jnp.zeros_like(attr), jnp.zeros_like(rast), jnp.zeros_like(faces)
 
 
 interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)

@@ -1,5 +1,5 @@
 import dataclasses
-from b3d.types import Array
+from b3d.types import Array, Float
 import jax.numpy as jnp
 from typing import Optional
 import numpy as np
@@ -47,7 +47,7 @@ class UnityData:
     num_frames: int
     num_objects: int
     num_keypoints: Optional[Array] = None
-    fps: Optional[float] = None
+    fps: Optional[Float] = None
     file_info: Optional[Dict[str, str]] = None
 
     def save(self, filepath: str):

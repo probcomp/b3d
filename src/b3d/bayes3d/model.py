@@ -20,21 +20,6 @@ ModelArgs = namedtuple(
     ],
 )
 
-<<<<<<< HEAD:b3d/bayes3d/model.py
-ModelArgs = namedtuple(
-    "ModelArgs",
-    [
-        "color_tolerance",
-        "depth_tolerance",
-        "inlier_score",
-        "outlier_prob",
-        "color_multiplier",
-        "depth_multiplier",
-    ],
-)
-
-=======
->>>>>>> main:src/b3d/bayes3d/model.py
 
 def get_rgb_depth_inliers_from_trace(trace):
     (observed_rgb, rendered_rgb), (observed_depth, rendered_depth) = trace.get_retval()
@@ -73,12 +58,6 @@ class RGBDSensorModel(genjax.ExactDensity):
     def logpdf(self, observed, rendered_rgb, rendered_depth, model_args, fx, fy, far):
         observed_rgb, observed_depth = observed
 
-<<<<<<< HEAD:b3d/bayes3d/model.py
-        inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = (
-            get_rgb_depth_inliers_from_observed_rendered_args(
-                observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args
-            )
-=======
         (
             inliers,
             _color_inliers,
@@ -88,7 +67,6 @@ class RGBDSensorModel(genjax.ExactDensity):
             _valid_data_mask,
         ) = get_rgb_depth_inliers_from_observed_rendered_args(
             observed_rgb, rendered_rgb, observed_depth, rendered_depth, model_args
->>>>>>> main:src/b3d/bayes3d/model.py
         )
 
         inlier_score = model_args.inlier_score
@@ -193,19 +171,11 @@ def rerun_visualize_trace_t(trace, t, modes=["rgb", "depth", "inliers"]):
     if "inliers" in modes:
         (
             inliers,
-<<<<<<< HEAD:b3d/bayes3d/model.py
-            color_inliers,
-            depth_inliers,
-            outliers,
-            undecided,
-            valid_data_mask,
-=======
             _color_inliers,
             _depth_inliers,
             outliers,
             undecided,
             _valid_data_mask,
->>>>>>> main:src/b3d/bayes3d/model.py
         ) = get_rgb_depth_inliers_from_trace(trace)
         rr.log("/image/overlay/inliers", rr.DepthImage(inliers * 1.0))
         rr.log("/image/overlay/outliers", rr.DepthImage(outliers * 1.0))

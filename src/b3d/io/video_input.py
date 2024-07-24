@@ -1,14 +1,8 @@
-<<<<<<< HEAD:b3d/io/video_input.py
-from b3d.types import Array, Float
-import jax.numpy as jnp
-=======
->>>>>>> main:src/b3d/io/video_input.py
 from dataclasses import dataclass
-from typing import Optional
 
 import jax.numpy as jnp
 
-from b3d.types import Array
+from b3d.types import Array, Float
 
 
 @dataclass
@@ -76,7 +70,7 @@ class VideoInput:
     camera_intrinsics_depth: (
         Array  # [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
     )
-    fps: Optional[Float]
+    fps: Float
 
     @property
     def z(self):

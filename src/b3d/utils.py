@@ -17,17 +17,10 @@ import sklearn.cluster
 import trimesh
 from jax.scipy.spatial.transform import Rotation as Rot
 from PIL import Image, ImageDraw, ImageFont
-<<<<<<< HEAD:b3d/utils.py
 
 import b3d
 from b3d.pose import Pose
 
-=======
-
-import b3d
-from b3d.pose import Pose
-
->>>>>>> main:src/b3d/utils.py
 # TODO: Refactor utils into core and others, to avoid circular imports
 
 # # # # # # # # # # # #
@@ -109,13 +102,8 @@ def downsize_images(ims, k):
     """Downsize an array of images by a given factor."""
     shape = (ims.shape[1] // k, ims.shape[2] // k, ims.shape[3])
     return jax.vmap(jax.image.resize, (0, None, None))(ims, shape, "linear")
-<<<<<<< HEAD:b3d/utils.py
 
 
-=======
-
-
->>>>>>> main:src/b3d/utils.py
 @jax.jit
 def xyz_from_depth(z: rr.DepthImage, fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
@@ -813,8 +801,4 @@ voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
         voxel_occupied_occluded_free,
         in_axes=(0, 0, 0, None, None, None, None, None, None, None),
     )
-<<<<<<< HEAD:b3d/utils.py
 )
-=======
-)
->>>>>>> main:src/b3d/utils.py

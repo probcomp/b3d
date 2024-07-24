@@ -1,13 +1,4 @@
 import genjax
-<<<<<<< HEAD:b3d/modeling_utils.py
-from b3d.pose import (
-    sample_uniform_pose,
-    logpdf_uniform_pose,
-    sample_gaussian_vmf_pose,
-    logpdf_gaussian_vmf_pose,
-)
-=======
->>>>>>> main:src/b3d/modeling_utils.py
 import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp

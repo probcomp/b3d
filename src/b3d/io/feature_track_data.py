@@ -424,11 +424,7 @@ class FeatureTrackData:
 
         rgb = downsize_images(self.rgb, downsize)
         if t is None:
-<<<<<<< HEAD:b3d/io/feature_track_data.py
-            h, w = self.rgb.shape[1:3]
-=======
             _h, w = self.rgb.shape[1:3]
->>>>>>> main:src/b3d/io/feature_track_data.py
             ax.imshow(np.concatenate(rgb / 255, axis=1))
             ax.scatter(
                 *np.concatenate(

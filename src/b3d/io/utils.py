@@ -209,16 +209,6 @@ def plot_video_summary(
     T0 = start or 0
     T1 = end or info.timesteps
     times = np.linspace(T0, T1 - 1, num_summary_frames).astype(int)
-<<<<<<< HEAD:b3d/io/utils.py
-
-    vid = load_video_to_numpy(
-        video_fname,
-        times=times,
-        downsize=downsize,
-        reverse_color_channel=reverse_color_channel,
-    )
-=======
->>>>>>> main:src/b3d/io/utils.py
 
     vid = load_video_to_numpy(
         video_fname,
@@ -229,11 +219,7 @@ def plot_video_summary(
 
     # Create a plot with the summary
     # TODO: Should we hand in an axis?
-<<<<<<< HEAD:b3d/io/utils.py
-    fig, ax = plt.subplots(1, 1, figsize=(15, 4))
-=======
     _fig, ax = plt.subplots(1, 1, figsize=(15, 4))
->>>>>>> main:src/b3d/io/utils.py
     ax.set_title(f'"{video_fname.name}"\n(start = {T0}, end = {T1}, fps = {info.fps})')
     _plot_frame_summary(vid, ticks=times, ax=ax)
 
@@ -244,11 +230,7 @@ def _plot_frame_summary(frames: Array, ticks: Array = None, ax=None):
 
     # Create a plot with the summary
     if ax is None:
-<<<<<<< HEAD:b3d/io/utils.py
-        fig, ax = plt.subplots(1, 1, figsize=(15, 4))
-=======
         _fig, ax = plt.subplots(1, 1, figsize=(15, 4))
->>>>>>> main:src/b3d/io/utils.py
     ax.axis("off")
     ax.imshow(np.concatenate(frames, axis=1))
     if ticks is not None:

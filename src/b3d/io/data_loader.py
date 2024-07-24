@@ -99,11 +99,7 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
         )
         cam_pose = jnp.linalg.inv(cam_pose_w2c)
-<<<<<<< HEAD:b3d/io/data_loader.py
-        cam_pose = b3d.Pose.from_matrix(
-=======
         cam_pose = Pose.from_matrix(
->>>>>>> main:src/b3d/io/data_loader.py
             cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0)
         )
         data["camera_pose"] = cam_pose
@@ -149,13 +145,8 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             gt_ids.append(obj_id)
 
         data["object_types"] = jnp.array(gt_ids)
-<<<<<<< HEAD:b3d/io/data_loader.py
-        data["object_poses"] = cam_pose @ b3d.Pose.stack_poses(
-            [b3d.Pose.from_matrix(p) for p in jnp.array(gt_poses)]
-=======
         data["object_poses"] = cam_pose @ Pose.stack_poses(
             [Pose.from_matrix(p) for p in jnp.array(gt_poses)]
->>>>>>> main:src/b3d/io/data_loader.py
         )
 
         all_data.append(data)
@@ -163,21 +154,13 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
 
 def get_ycb_mesh(ycb_dir, id):
-<<<<<<< HEAD:b3d/io/data_loader.py
-    return b3d.Mesh.from_obj_file(
-=======
     return Mesh.from_obj_file(
->>>>>>> main:src/b3d/io/data_loader.py
         os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
     ).scale(0.001)
 
 
 def get_ycbineoat_images(ycbineaot_dir, video_name, images_indices):
-<<<<<<< HEAD:b3d/io/data_loader.py
-    id_strs = []
-=======
     import b3d.io
->>>>>>> main:src/b3d/io/data_loader.py
 
     video_dir = os.path.join(ycbineaot_dir, f"{video_name}")
 

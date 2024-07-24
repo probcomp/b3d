@@ -221,11 +221,3 @@ class Mesh:
         if self.current <= len(self):
             return self[self.current - 1]
         raise StopIteration
-<<<<<<< HEAD:b3d/mesh.py
-
-    def __getitem__(self, index):
-        return Mesh(
-            self.vertices[index], self.faces[index], self.vertex_attributes[index]
-        )
-=======
->>>>>>> main:src/b3d/mesh.py

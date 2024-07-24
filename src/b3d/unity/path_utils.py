@@ -1,11 +1,11 @@
 from pathlib import Path
 import os
-import b3d
+import datasync
 
 
 def get_unity() -> Path:
     """Return the absolute path of the Unity directory on the current machine."""
-    unity_dir_path = b3d.get_shared_large() / "unity"
+    unity_dir_path = datasync.get_shared() / "unity"
 
     if not os.path.exists(unity_dir_path):
         os.makedirs(unity_dir_path)

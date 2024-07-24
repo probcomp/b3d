@@ -12,7 +12,7 @@ from generate_visualization import (
     create_video,
     create_rgb_image,
 )
-from datasync import get_assets_path, get_data_path
+from path_utils import get_assets_path, get_data_path
 from unity_to_python import (
     convert_unity_to_cv2_camera_pos_and_quat,
     convert_unity_to_cv2_world_pos_and_quat,

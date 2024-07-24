@@ -5,6 +5,7 @@ import uuid
 import scripts.acquire_object_model as acquire
 from threading import Thread
 import mimetypes
+import time
 
 app = Flask(__name__)
 
@@ -32,7 +33,7 @@ def index():
 def convert_to_mp4(input_path, output_path, task_id):
     try:
         acquire.acquire(input_path, output_path)
-
+        time.sleep(1)
         # After conversion is done, you might want to update a status in a database
         print(f"Conversion completed for task {task_id}")
     except Exception as e:

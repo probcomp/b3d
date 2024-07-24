@@ -11,6 +11,9 @@ b3d.rr_init("acquire_object_model")
 # python scripts/acquire_object_model.py assets/shared_data_bucket/input_data/lysol_static.r3d
 
 
+# ssh sam-b3d-l4.us-west1-a.probcomp-caliban -L 5000:localhost:5000
+
+
 def acquire(input_path, output_path=None):
     if output_path is None:
         output_path = input_path + ".graphics_edits.mp4"
@@ -156,7 +159,6 @@ def acquire(input_path, output_path=None):
         )
         viz_images.append(b3d.viz_rgb(rgbd))
 
-    output_path = input_path + ".graphics_edits.mp4"
     b3d.make_video_from_pil_images(viz_images, output_path, fps=30.0)
     print(f"Saved video to {output_path}")
     return output_path

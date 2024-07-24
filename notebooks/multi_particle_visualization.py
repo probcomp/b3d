@@ -1,16 +1,22 @@
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
+
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+# from b3d.utils import unproject_depth
+import rerun as rr
+import trimesh
 from b3d import Pose
+<<<<<<< HEAD
 
 # from b3d.utils import unproject_depth
 import rerun as rr
 import genjax
+=======
+>>>>>>> main
 from tqdm import tqdm
 
 rr.init("demo.py")
@@ -261,7 +267,11 @@ def get_trajs(key, center_1, center_2, del_pix=5):
     point_cloud_colors = local_rgbs
 
     # Create new mesh.
+<<<<<<< HEAD
     vertices, faces, vertex_colors, face_colors = (
+=======
+    vertices, faces, vertex_colors, _face_colors = (
+>>>>>>> main
         b3d.make_mesh_from_point_cloud_and_resolution(
             point_cloud, point_cloud_colors, point_cloud[:, 2] / fx * 2.0
         )
@@ -309,6 +319,7 @@ def get_trajs(key, center_1, center_2, del_pix=5):
             trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
         )
         trace, key = b3d.enumerate_and_select_best_move(
+<<<<<<< HEAD
             trace, genjax.Pytree.const([f"object_pose_0"]), key, all_deltas
         )
 
@@ -316,6 +327,15 @@ def get_trajs(key, center_1, center_2, del_pix=5):
             jnp.mean(object_library.vertices, axis=0)
         )
         patch = (trace["camera_pose"].inv() @ trace[f"object_pose_0"]).apply(
+=======
+            trace, genjax.Pytree.const(["object_pose_0"]), key, all_deltas
+        )
+
+        patch_center = (trace["camera_pose"].inv() @ trace["object_pose_0"]).apply(
+            jnp.mean(object_library.vertices, axis=0)
+        )
+        patch = (trace["camera_pose"].inv() @ trace["object_pose_0"]).apply(
+>>>>>>> main
             object_library.vertices
         )
         patches.append(patch)

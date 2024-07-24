@@ -1,12 +1,11 @@
 import b3d
 import b3d.bayes3d as bayes3d
-from b3d.bayes3d.model import model_multiobject_gl_factory
-from b3d import Pose
-import jax
 import genjax
-from genjax import ChoiceMapBuilder as C
+import jax
 import jax.numpy as jnp
-import pytest
+from b3d import Pose
+from b3d.bayes3d.model import model_multiobject_gl_factory
+from genjax import ChoiceMapBuilder as C
 
 
 class TestGroup:
@@ -25,13 +24,21 @@ class TestGroup:
 
     @genjax.gen
     def object_gf(object_library):
+<<<<<<< HEAD
         object_identity = (
+=======
+        (
+>>>>>>> main
             b3d.modeling_utils.uniform_discrete(
                 jnp.arange(-1, object_library.get_num_objects())
             )
             @ "id"
         )
+<<<<<<< HEAD
         object_pose = (
+=======
+        (
+>>>>>>> main
             b3d.modeling_utils.uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
             @ "pose"
         )

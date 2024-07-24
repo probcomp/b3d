@@ -4,9 +4,12 @@ This file registers a default set of tasks and solvers for the video to keypoint
 
 from ..data_curation import get_loaders_for_all_curated_scenes
 from .keypoint_tracking_task import KeypointTrackingTask
+<<<<<<< HEAD
 from .solvers.dense_only_patch_tracking_solver import (
     AdamPatchTracker_UsingDenseOnlyTraces,
 )
+=======
+>>>>>>> main
 from .solvers.particle_system_patch_tracking_solver import (
     AdamPatchTracker_UsingSingleframeParticleSystemTraces,
 )

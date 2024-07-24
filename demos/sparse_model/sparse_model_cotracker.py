@@ -1,13 +1,15 @@
-import jax.numpy as jnp
-import jax
-import trimesh
-import rerun as rr
-import b3d
-import optax
 import os
 from functools import partial
-from tqdm import tqdm
+
+import b3d
+import jax
+import jax.numpy as jnp
 import numpy as np
+import optax
+import rerun as rr
+from matplotlib import colormaps
+from tqdm import tqdm
+
 
 
 def map_nested_fn(fn):
@@ -111,8 +113,38 @@ def _model(params, cluster_assignments, fx, fy, cx, cy):
     object_positions = params["object_positions"]
     object_quaternions = params["object_quaternions"]
 
-    num_timesteps, num_clusters, _ = object_positions.shape
+    num_timesteps, _num_clusters, _ = object_positions.shape
 
+    object_positions_expanded = jnp.concatenate(
+        [jnp.zeros((num_timesteps, 1, 3)), object_positions], axis=1
+    )
+    object_quaternions_expanded = jnp.concatenate(
+        [
+            jnp.tile(jnp.array([0.0, 0.0, 0.0, 1.0]), (num_timesteps, 1, 1)),
+            object_quaternions,
+        ],
+        axis=1,
+    )
+
+    object_poses_over_time = b3d.Pose(
+        object_positions_expanded, object_quaternions_expanded
+    )
+    xyz_in_world_frame_over_time = object_poses_over_time[:, cluster_assignments].apply(
+        xyz_relative_positions
+    )
+
+    camera_poses_over_time = b3d.Pose(
+        params["camera_positions"], params["camera_quaternions"]
+    ).reshape((-1, 1))
+    xyz_in_camera_frame_over_time = camera_poses_over_time.inv().apply(
+        xyz_in_world_frame_over_time
+    )
+    pixel_coords = b3d.xyz_to_pixel_coordinates(
+        xyz_in_camera_frame_over_time, fx, fy, cx, cy
+    )
+    return pixel_coords, xyz_in_world_frame_over_time
+
+<<<<<<< HEAD
     object_positions_expanded = jnp.concatenate(
         [jnp.zeros((num_timesteps, 1, 3)), object_positions], axis=1
     )
@@ -146,6 +178,12 @@ def _model(params, cluster_assignments, fx, fy, cx, cy):
 _model_jit = jax.jit(_model)
 
 
+=======
+
+_model_jit = jax.jit(_model)
+
+
+>>>>>>> main
 def model(params, cluster_assignments, fx, fy, cx, cy):
     return _model(params, cluster_assignments, fx, fy, cx, cy)[0]
 
@@ -173,7 +211,7 @@ def update_params(tx, t, params, cluster_assignments, gt_image, state):
 
 
 def viz_params(params, start_t, end_t):
-    num_timesteps, num_clusters = params["object_positions"].shape[:2]
+    _num_timesteps, num_clusters = params["object_positions"].shape[:2]
     num_keypoints = params["xyz"].shape[0]
     _, xyz_in_world_frame_over_time = _model(
         params, cluster_assignments, fx, fy, cx, cy
@@ -199,14 +237,18 @@ def viz_params(params, start_t, end_t):
             params["camera_positions"][t], params["camera_quaternions"][t]
         )
         rr.log(
+<<<<<<< HEAD
             f"/camera",
+=======
+            "/camera",
+>>>>>>> main
             rr.Transform3D(
                 translation=camera_pose.position,
                 rotation=rr.Quaternion(xyzw=camera_pose.xyzw),
             ),
         )
         rr.log(
-            f"/camera",
+            "/camera",
             rr.Pinhole(
                 resolution=[0.1, 0.1],
                 focal_length=0.1,
@@ -227,10 +269,13 @@ def viz_params(params, start_t, end_t):
         )
         # rr.log("rgb", rr.Image(rgbs[t] / 255.0))
 
+<<<<<<< HEAD
 
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
 
+=======
+>>>>>>> main
 
 colors = colormaps["rainbow"](jnp.linspace(0, 1, len(gt_pixel_coordinates[0])))
 # for t in range(len(pred_tracks)):
@@ -290,6 +335,8 @@ state = tx.init(params)
 
 END_T = len(gt_pixel_coordinates)
 pbar = tqdm(range(3000))
+params_over_time = []
+
 for t in pbar:
     params, state, loss = update_params(
         tx,
@@ -320,7 +367,11 @@ for t in pbar:
 viz_params(params, 0, END_T)
 
 
+<<<<<<< HEAD
 INITIAL_T = END
+=======
+INITIAL_T = END_T
+>>>>>>> main
 pbar = tqdm(range(3000))
 for t in pbar:
     params, state, loss = update_params(
@@ -354,6 +405,7 @@ for running_t in range(INITIAL_T, FIRST_T + 1):
 
 
 END_T = len(gt_pixel_coordinates)
+SECOND_T = END_T
 
 params_over_time = [params]
 pbar = tqdm(range(2000))

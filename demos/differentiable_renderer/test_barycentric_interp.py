@@ -1,19 +1,10 @@
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
-import rerun as rr
-import functools
-import genjax
-
 import b3d.chisight.dense.differentiable_renderer as rendering
 import b3d.chisight.dense.likelihoods as likelihoods
-import demos.differentiable_renderer.utils as utils
+import jax
+import jax.numpy as jnp
+import rerun as rr
+from b3d import Pose
 
 # Set up OpenGL renderer
 image_width = 120

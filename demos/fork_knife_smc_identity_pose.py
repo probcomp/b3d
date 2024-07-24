@@ -1,15 +1,14 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+
 import b3d
-from tqdm import tqdm
-import trimesh
 import genjax
-import matplotlib.pyplot as plt
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+import trimesh
+from b3d import Pose
+from tqdm import tqdm
 
 ### Choose experiment
 
@@ -245,7 +244,7 @@ def gvmf_c2f(trace, key, params):
         else:
             params = jnp.array([params[0] * 0.5, params[1] * 2.0])
             skips += 1
-            print(f"shrinking")
+            print("shrinking")
             if skips > 5:
                 print(f"skip {t}")
                 break
@@ -268,10 +267,14 @@ delta_cps = jnp.stack(
     axis=-1,
 ).reshape(-1, 3)
 
-contact_parameters_to_pose_camspace = lambda cp: b3d.Pose(
-    jnp.array([cp[0], 0.0, cp[1]]),  # fixed height (y) at 0 for table
-    b3d.Rot.from_rotvec(jnp.array([0.0, cp[2], 0.0])).as_quat(),
-)
+
+def contact_parameters_to_pose_camspace(cp):
+    return b3d.Pose(
+        jnp.array([cp[0], 0.0, cp[1]]),
+        b3d.Rot.from_rotvec(jnp.array([0.0, cp[2], 0.0])).as_quat(),
+    )
+
+
 cp_delta_poses = jax.vmap(contact_parameters_to_pose_camspace)(delta_cps)
 
 

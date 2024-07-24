@@ -1,17 +1,14 @@
 #!/usr/bin/env python
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
+
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
 import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
 import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
-import fire
 
 PORT = 8812
 rr.init("mug sm2c inference")

@@ -1,13 +1,11 @@
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+import genjax
 import jax
 import jax.numpy as jnp
-import genjax
-import b3d.chisight.dense.likelihoods as likelihoods
-import b3d.chisight.dense.differentiable_renderer as rendering
-import b3d
-from b3d import Pose
-from b3d.modeling_utils import uniform_pose
 import rerun as rr
-import demos.differentiable_renderer.patch_tracking.demo_utils as utils
+from b3d.modeling_utils import uniform_pose
+
 
 
 class UniformDiscrete(genjax.ExactDensity, genjax.JAXGenerativeFunction):

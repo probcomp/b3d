@@ -1,16 +1,16 @@
 #!/usr/bin/env python
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
+import time
+
 import b3d
-import rerun as rr
-from tqdm import tqdm
-import torch
-import torchvision
+import b3d.nvdiffrast_original.torch as dr
 import b3d.torch
-import torch.jit as jit
 import b3d.torch.renderutils
+import pytorch3d.transforms
+import rerun as rr
+import torch
+import trimesh
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device("cuda")
@@ -31,9 +31,14 @@ far = 6.0
 Proj = b3d.torch.projection_matrix_from_intrinsics(
     width, height, fx, fy, cx, cy, near, far
 )
+<<<<<<< HEAD
 
 import os
 
+=======
+
+
+>>>>>>> main
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
 )
@@ -43,7 +48,10 @@ faces = torch.tensor(mesh.faces, dtype=torch.int32)
 object_vertices = vertices - torch.mean(vertices, axis=0)
 vertex_colors = torch.tensor(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
 
+<<<<<<< HEAD
 import b3d.nvdiffrast_original.torch as dr
+=======
+>>>>>>> main
 
 glctx = dr.RasterizeGLContext()  # if use_opengl else dr.RasterizeCudaContext()
 
@@ -54,9 +62,12 @@ def from_translation(translations):
     return M
 
 
+<<<<<<< HEAD
 import pytorch3d.transforms
 
 
+=======
+>>>>>>> main
 def from_quaternion(quaternions):
     M = torch.eye(4).tile(*(*quaternions.shape[:-1], 1, 1))
     M[..., :3, :3] = pytorch3d.transforms.quaternion_to_matrix(quaternions)
@@ -137,7 +148,8 @@ for t in range(100):
 
     images.append(color[0])
     rr.set_time_sequence("frame", t)
-    rr.log(f"img", rr.Image(color.cpu().numpy()[0, ...]))
+    rr.log("img", rr.Image(color.cpu().numpy()[0, ...]))
+
 
 
 def update(pose_estimate, gt_image):
@@ -155,7 +167,10 @@ def update(pose_estimate, gt_image):
 
 pose_estimate = torch.tensor(poses[0], requires_grad=True)
 
+<<<<<<< HEAD
 import time
+=======
+>>>>>>> main
 
 sum_total = 0.0
 pose_estimates = []
@@ -174,4 +189,8 @@ for t in range(len(images)):
     )
     rast_out, _ = dr.rasterize(glctx, clip_space, faces, resolution=[height, width])
     color, _ = dr.interpolate(vertex_colors, rast_out, faces)
+<<<<<<< HEAD
     rr.log(f"img/reconstruct", rr.Image(color.detach().cpu().numpy()[0, ...]))
+=======
+    rr.log("img/reconstruct", rr.Image(color.detach().cpu().numpy()[0, ...]))
+>>>>>>> main

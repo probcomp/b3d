@@ -1,16 +1,15 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+
 import b3d
 import b3d.bayes3d as bayes3d
-from tqdm import tqdm
-import trimesh
 import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
+import trimesh
+from b3d import Pose
 from genjax import Pytree
+from tqdm import tqdm
 
 
 def test_renderer_full(renderer):
@@ -101,7 +100,6 @@ def test_renderer_full(renderer):
             renderer, bayes3d.rgbd_sensor_model
         )
 
-        importance_jit = jax.jit(model.importance)
         key = jax.random.PRNGKey(110)
 
         point_cloud = b3d.xyz_from_depth(depth, fx, fy, cx, cy).reshape(-1, 3)
@@ -155,7 +153,7 @@ def test_renderer_full(renderer):
             else:
                 params = jnp.array([params[0] * 0.5, params[1] * 2.0])
                 skips += 1
-                print(f"shrinking")
+                print("shrinking")
                 if skips > 5:
                     print(f"skip {t}")
                     break
@@ -181,7 +179,7 @@ def test_renderer_full(renderer):
 
             scores = jnp.concatenate(
                 [
-                    b3d.enumerate_choices_get_scores_jit(
+                    b3d.enumerate_choices_get_scores(
                         trace, key, Pytree.const(("object_pose_0",)), poses
                     )
                     for poses in test_poses_batches
@@ -197,7 +195,7 @@ def test_renderer_full(renderer):
                 )[2]
             )
 
-            trace = b3d.update_choices_jit(
+            trace = b3d.update_choices(
                 trace,
                 key,
                 Pytree.const(("object_pose_0",)),
@@ -223,7 +221,7 @@ def test_renderer_full(renderer):
         )
 
         for t in range(len(samples)):
-            trace = b3d.update_choices_jit(
+            trace = b3d.update_choices(
                 trace,
                 key,
                 Pytree.const(("object_pose_0",)),

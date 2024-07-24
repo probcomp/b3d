@@ -1,10 +1,11 @@
-import jax.numpy as jnp
-import jax
 import os
-import trimesh
+
 import b3d
-from b3d import Pose
 import b3d.utils as utils
+import jax
+import jax.numpy as jnp
+import trimesh
+from b3d import Pose
 
 ### Utils ###
 
@@ -105,7 +106,6 @@ def get_renderer_boxdata_and_patch():
     )
     observed_rgbds = jnp.concatenate([rgbs, depths[..., None]], axis=-1)
     xyzs_C = unproject_depth_vec(depths, renderer)
-    xyzs_W = X_WC.apply(xyzs_C)
     box_data = (observed_rgbds, rots)
 
     # Get patch
@@ -121,14 +121,17 @@ def get_renderer_boxdata_and_patch():
         (center_x - del_pix, center_y - del_pix, 0),
         (2 * del_pix, 2 * del_pix, 3),
     ).reshape(-1, 3)
+<<<<<<< HEAD
     patch_vertices_C, patch_faces, patch_vertex_colors, patch_face_colors = (
+=======
+    patch_vertices_C, patch_faces, patch_vertex_colors, _patch_face_colors = (
+>>>>>>> main
         b3d.make_mesh_from_point_cloud_and_resolution(
             patch_points_C, patch_rgbs, patch_points_C[:, 2] / fx
         )
     )
     X_CP = Pose.from_translation(patch_vertices_C.mean(0))
     patch_vertices_P = X_CP.inv().apply(patch_vertices_C)
-    patch_vertices_W = X_WC.apply(patch_vertices_C)
     X_WP = X_WC @ X_CP
     patch_data = ((patch_vertices_P, patch_faces, patch_vertex_colors), X_WP)
 

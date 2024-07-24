@@ -1,15 +1,17 @@
 import os
 import time
 
+import b3d
 import jax
 import jax.numpy as jnp
-from IPython import embed
+import trimesh
+from b3d import Pose
 from scipy.spatial.transform import Rotation as R
 
-import b3d
-import trimesh
+<<<<<<< HEAD
 
-
+=======
+>>>>>>> main
 height = 100
 width = 100
 fx = 200.0
@@ -33,8 +35,11 @@ poses = b3d.Pose.stack_poses(poses)
 print("Number of frames: ", poses.shape[0])
 
 
+<<<<<<< HEAD
 import os
 
+=======
+>>>>>>> main
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
 )
@@ -50,7 +55,10 @@ observed_images, _ = renderer.render_attribute_many(
 )
 print("observed_images.shape", observed_images.shape)
 
+<<<<<<< HEAD
 from b3d import Pose
+=======
+>>>>>>> main
 
 # Defines the enumeration schedule.
 key = jax.random.PRNGKey(0)

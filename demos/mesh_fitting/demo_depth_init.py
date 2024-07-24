@@ -1,13 +1,9 @@
-import jax
-import jax.numpy as jnp
-import genjax
-import b3d
-import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
-import demos.mesh_fitting.tessellation as t
 import os
+
+import b3d
+import genjax
+import jax
 import rerun as rr
-import optax
-from tqdm import tqdm
 
 import demos.mesh_fitting.model as m
 import demos.mesh_fitting.utils as u
@@ -87,7 +83,7 @@ def importance_from_vertices_colors(vertices, colors):
 
 
 def vertices_colors_to_score(vertices, colors):
-    trace, weight = importance_from_vertices_colors(vertices, colors)
+    _trace, weight = importance_from_vertices_colors(vertices, colors)
     return weight
 
 

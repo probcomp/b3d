@@ -1,9 +1,15 @@
-from tests.common.task import Task
-import b3d
-import numpy as np
-import jax.numpy as jnp
-import rerun as rr
 from typing import Callable
+
+import b3d
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+<<<<<<< HEAD
+from typing import Callable
+=======
+
+from tests.common.task import Task
+>>>>>>> main
 
 
 class KeypointTrackingTask(Task):
@@ -209,6 +215,10 @@ class KeypointTrackingTask(Task):
                 rr.Points2D(
                     np.array(solution[i, :, ::-1]),
                     colors=np.array([0.0, 0.0, 1.0]),
+<<<<<<< HEAD
                     radii=0.3,
+=======
+                    radii=1.0,
+>>>>>>> main
                 ),
             )

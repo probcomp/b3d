@@ -1,5 +1,6 @@
-from b3d.renderer.torch.pose import Pose
 import torch
+from b3d.renderer.torch.pose import Pose
+
 
 
 def test_as_matrix():
@@ -16,5 +17,9 @@ def test_as_matrix_multi():
     torch.set_default_device("cuda")
     position = torch.tensor([[0.0, 6.3, 0.5], [0.0, 6.3, 0.5]])
     quaternion = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
+<<<<<<< HEAD
     pose = Pose(position, quaternion)
     matrix = pose.as_matrix()
+=======
+    Pose(position, quaternion)
+>>>>>>> main

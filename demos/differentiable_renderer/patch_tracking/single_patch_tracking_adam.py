@@ -1,19 +1,17 @@
 ### Preliminaries ###
 
-import jax.numpy as jnp
-import jax
-from b3d import Pose
-import rerun as rr
+import b3d.chisight.dense.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as l
 import genjax
+import jax
+import jax.numpy as jnp
+import optax
+import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
+
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
-import b3d.chisight.dense.likelihoods as l
-import b3d.chisight.dense.differentiable_renderer as r
-import matplotlib.pyplot as plt
-import numpy as np
-import b3d
-import optax
 
 rr.init("single_patch_tracking")
 rr.connect("127.0.0.1:8812")
@@ -43,7 +41,7 @@ key = jax.random.PRNGKey(0)
 
 
 def generate_image(key):
-    trace, weight = model.importance(
+    trace, _weight = model.importance(
         key,
         genjax.choice_map({"pose": X_WP, "camera_pose": X_WC}),
         (patch_vertices_P, patch_faces, patch_vertex_colors, ()),
@@ -54,8 +52,8 @@ def generate_image(key):
 images = jax.vmap(generate_image)(jax.random.split(key, 100))
 for i, image in enumerate(images):
     rr.set_time_sequence("image_sample", i)
-    rr.log(f"/image_sample/rgb", rr.Image(image[:, :, :3]))
-    rr.log(f"/image_sample/depth", rr.DepthImage(image[:, :, 3]))
+    rr.log("/image_sample/rgb", rr.Image(image[:, :, :3]))
+    rr.log("/image_sample/depth", rr.DepthImage(image[:, :, 3]))
 
 ### Patch tracking ###
 

@@ -1,14 +1,7 @@
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import trimesh
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
+import jax
+import jax.numpy as jnp
 from b3d import Pose
-import rerun as rr
-import functools
 
 
 def get_mesh_and_gt_render(
@@ -27,7 +20,7 @@ def get_mesh_and_gt_render(
     faces = faces.reshape(-1, 3)
     colors = colors.reshape(-1, 3)
     triangle_to_particle_index = triangle_to_particle_index.reshape(-1)
-    _, _, triangle_id_image, depth_image = renderer.rasterize(
+    _, _, triangle_id_image, _depth_image = renderer.rasterize(
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
     particle_intersected = triangle_to_particle_index[triangle_id_image - 1] * (
@@ -48,8 +41,13 @@ def get_mesh_and_gt_render(
         triangle_to_particle_index,
         color_image,
     )
+<<<<<<< HEAD
 
 
+=======
+
+
+>>>>>>> main
 def ray_from_ij(i, j, fx, fy, cx, cy):
     x = (j - cx) / fx
     y = (i - cy) / fy

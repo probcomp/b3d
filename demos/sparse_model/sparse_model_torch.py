@@ -1,13 +1,18 @@
-import rerun as rr
-from functools import partial
-from tqdm import tqdm
-import torch
+import os
+
 import b3d
+import pytorch3d.transforms
+import rerun as rr
+import torch
 import trimesh
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> main
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
@@ -23,12 +28,16 @@ image_height, image_width = 100, 100
 rr.init("demo")
 rr.connect("127.0.0.1:8812")
 
-import pytorch3d.transforms
-
 
 positions = torch.zeros((100, 3), requires_grad=True)
 quaternions = torch.ones((100, 4), requires_grad=True)
 
+<<<<<<< HEAD
+positions = torch.zeros((100, 3), requires_grad=True)
+quaternions = torch.ones((100, 4), requires_grad=True)
+
+=======
+>>>>>>> main
 
 class Pose:
     def __init__(self, positions, quaternions):

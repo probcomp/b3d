@@ -3,8 +3,8 @@ This file registers a default set of keypoint to segmentation tasks and solvers.
 """
 
 from ..data_curation import get_loaders_for_all_curated_scenes
-from .keypoints_to_segmentation_task import KeypointsToSegmentationTask
 from .dummy_solver import DummyTracksToSegmentationSolver
+from .keypoints_to_segmentation_task import KeypointsToSegmentationTask
 
 all_tasks = [
     KeypointsToSegmentationTask(

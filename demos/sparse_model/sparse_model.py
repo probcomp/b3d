@@ -1,10 +1,12 @@
-import jax.numpy as jnp
-import jax
-import trimesh
-import rerun as rr
-import b3d
-import optax
+import os
 from functools import partial
+
+import b3d
+import jax
+import jax.numpy as jnp
+import optax
+import rerun as rr
+import trimesh
 from tqdm import tqdm
 
 
@@ -29,7 +31,10 @@ object_vertices = jnp.array(box_mesh.vertices)
 box_mesh = trimesh.creation.box(jnp.ones(3))
 object_vertices = jnp.array(box_mesh.vertices)
 
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> main
 
 mesh_path = os.path.join(
     b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"

@@ -1,11 +1,9 @@
-import b3d
-from b3d import Pose
-from b3d import Mesh
-import jax.numpy as jnp
-import jax
-import os
 import unittest
-from b3d.renderer.renderer_original import RendererOriginal
+
+import b3d
+import jax
+import jax.numpy as jnp
+from b3d import Mesh, Pose
 
 
 class MeshTests(unittest.TestCase):

@@ -1,11 +1,10 @@
 import unittest
 
-import jax.numpy as jnp
 import jax
-
+import jax.numpy as jnp
+import numpy as np
 from b3d.pose import Pose, camera_from_position_and_target
 from jax.scipy.spatial.transform import Rotation as Rot
-import numpy as np
 
 
 def keysplit(key, *ns):
@@ -28,7 +27,6 @@ class PoseTests(unittest.TestCase):
     key = jax.random.PRNGKey(np.random.randint(0, 10_000))
 
     def test_pose_properties(self):
-        N = 20
         keys = keysplit(self.key, 2)
         x = jax.random.normal(keys[0], (3,))
         q = jax.random.normal(keys[1], (4,))
@@ -56,7 +54,7 @@ class PoseTests(unittest.TestCase):
             which represents the same rotation.
 
             Recall that SO(3) is isomorphic to  S^3/x~-x and
-            also to D^3/~ where x~-x for x in S^2 = \partial D^3.
+            also to D^3/~ where x~-x for x in S^2 = \\partial D^3.
             """
             # TODO: choose good representative if q[3]==0 there is still ambiguity.
             return jnp.where(q[..., [3]] == 0, q, jnp.sign(q[..., [3]]) * q)

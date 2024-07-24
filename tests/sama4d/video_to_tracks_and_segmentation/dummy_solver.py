@@ -1,6 +1,10 @@
-from tests.common.solver import Solver
 import jax.numpy as jnp
 
+<<<<<<< HEAD
+=======
+from tests.common.solver import Solver
+
+>>>>>>> main
 
 class KeypointTrackingAndSegmentationDummySolver(Solver):
     def solve(self, task_spec):

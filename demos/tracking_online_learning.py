@@ -1,11 +1,13 @@
-import rerun as rr
-import genjax
 import os
-import numpy as np
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+from functools import partial
+
 import b3d
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
 
 # Rerun setup
@@ -147,7 +149,6 @@ rotation_deltas = Pose.concatenate_poses(
 all_deltas = Pose.stack_poses([translation_deltas, rotation_deltas])
 
 # Enumerative proposal function
-from functools import partial
 
 
 @partial(jax.jit, static_argnames=["addressses"])

@@ -1,10 +1,12 @@
-import b3d
-import rerun as rr
 import os
-import jax.numpy as jnp
-import jax
-import trimesh
+import pickle
+
+import b3d
 import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
+import trimesh
 from b3d import Pose
 from tqdm import tqdm
 
@@ -12,7 +14,6 @@ PORT = 8812
 rr.init("mug sm2c inference")
 rr.connect(addr=f"127.0.0.1:{PORT}")
 
-import pickle
 
 # Load a pickle file
 path = os.path.join(
@@ -154,7 +155,7 @@ for t in tqdm(range(30)):
     else:
         params = jnp.array([params[0] * 0.5, params[1] * 2.0])
         skips += 1
-        print(f"shrinking")
+        print("shrinking")
         if skips > 5:
             print(f"skip {t}")
             break

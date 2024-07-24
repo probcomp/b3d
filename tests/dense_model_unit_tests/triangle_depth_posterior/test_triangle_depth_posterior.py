@@ -1,8 +1,8 @@
-import jax
 import jax.numpy as jnp
-from .task import TrianglePosteriorGridApproximationTask
-from .solver.importance import ImportanceSolver
 import pytest
+
+from .solver.importance import ImportanceSolver
+from .task import TrianglePosteriorGridApproximationTask
 
 task_specs = [
     (background_color, triangle_color)

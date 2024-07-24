@@ -1,6 +1,10 @@
-import b3d
 import os
 
+<<<<<<< HEAD
+=======
+import b3d
+
+>>>>>>> main
 
 def assert_valid_ftd(ftd):
     assert ftd.latent_keypoint_positions is not None

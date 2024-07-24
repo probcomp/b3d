@@ -1,11 +1,13 @@
-from tests.common.solver import Solver
 import b3d
-from b3d import Pose
+import b3d.chisight.dense.differentiable_renderer as diffrend
 import b3d.chisight.patch_tracking as tracking
+import jax
 import jax.numpy as jnp
 import rerun as rr
-import b3d.chisight.dense.differentiable_renderer as diffrend
-import jax
+from b3d import Pose
+
+from tests.common.solver import Solver
+
 
 
 class AdamPatchTracker_UsingSingleframeParticleSystemTraces(Solver):

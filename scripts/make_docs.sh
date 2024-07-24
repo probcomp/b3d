@@ -1,1 +1,1 @@
-pdoc --html b3d --force
+pdoc --html src/b3d --force

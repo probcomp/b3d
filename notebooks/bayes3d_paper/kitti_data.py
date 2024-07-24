@@ -1,10 +1,16 @@
-import pykitti
-import b3d
 import os
-import jax.numpy as jnp
-import matplotlib.pyplot as plt
-from tqdm import tqdm
+
+import b3d
 import jax
+import jax.numpy as jnp
+import numpy as np
+import pykitti
+from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+from tqdm import tqdm
+<<<<<<< HEAD
+import jax
+=======
+>>>>>>> main
 
 b3d.rr_init("kitti")
 
@@ -50,7 +56,10 @@ for t in range(len(rgbs)):
     b3d.rr.log("rgb", b3d.rr.Image(rgbs[t]))
     b3d.rr.log("depth", b3d.rr.DepthImage(depths[t]))
 
+<<<<<<< HEAD
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+=======
+>>>>>>> main
 
 sam_checkpoint = "sam_vit_h_4b8939.pth"
 model_type = "vit_h"
@@ -60,7 +69,6 @@ device = "cuda"
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 mask_generator = SamAutomaticMaskGenerator(sam)
-import numpy as np
 
 masks = mask_generator.generate(np.array(rgbs[0]))
 
@@ -124,9 +132,12 @@ kitti_mesh_path = (
 )
 full_mesh.save(kitti_mesh_path)
 
+<<<<<<< HEAD
 import numpy as np
 import b3d
 
+=======
+>>>>>>> main
 d = np.load(kitti_data_path)
 
 for i, v in d.items():

@@ -1,12 +1,11 @@
-import torch
-import b3d
-import os
-import numpy as np
 import time
-import argparse
 from pathlib import Path
-from b3d.io.utils import add_argparse, path_stem
+
+import b3d
+import numpy as np
+import torch
 from b3d.io import FeatureTrackData
+from b3d.io.utils import add_argparse, path_stem
 
 _cotracker_info = """
 Source path:

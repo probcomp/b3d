@@ -1,7 +1,10 @@
-from tests.common.task import Task
+from typing import Callable
+
 import b3d
 import jax.numpy as jnp
-from typing import Callable
+
+from tests.common.task import Task
+
 
 
 class KeypointsToSegmentationTask(Task):

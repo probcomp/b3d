@@ -1,12 +1,13 @@
-import rerun as rr
-import genjax
 import os
-import jax.numpy as jnp
-import jax
-from b3d import Pose
+
 import b3d
 import b3d.bayes3d as bayes3d
+import genjax
+import jax
+import jax.numpy as jnp
+import rerun as rr
 import trimesh
+from b3d import Pose
 from genjax import Pytree
 
 PORT = 8812
@@ -45,10 +46,12 @@ class TestMugHandlePosterior:
             jnp.array([0.6, 0.0, 0.0]), jnp.array([0.0, 0.0, 0.0])
         )
 
-        cp_to_pose = lambda cp: Pose(
-            jnp.array([cp[0], cp[1], 0.0]),
-            b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat(),
-        )
+        def cp_to_pose(cp):
+            return Pose(
+                jnp.array([cp[0], cp[1], 0.0]),
+                b3d.Rot.from_rotvec(jnp.array([0.0, 0.0, cp[2]])).as_quat(),
+            )
+
         object_library = bayes3d.MeshLibrary.make_empty_library()
         object_library.add_object(vertices, faces, vertex_colors)
 
@@ -79,7 +82,6 @@ class TestMugHandlePosterior:
         ]
 
         model = bayes3d.model_multiobject_gl_factory(renderer)
-        importance_jit = jax.jit(model.importance)
 
         for text_index in range(len(cps_to_test)):
             gt_cp = cps_to_test[text_index]
@@ -115,7 +117,7 @@ class TestMugHandlePosterior:
             test_poses_batches = test_poses.split(10)
             scores = jnp.concatenate(
                 [
-                    b3d.enumerate_choices_get_scores_jit(
+                    b3d.enumerate_choices_get_scores(
                         gt_trace, key, Pytree.const(("object_pose_0",)), poses
                     )
                     for poses in test_poses_batches
@@ -146,7 +148,7 @@ class TestMugHandlePosterior:
             )
 
             for t in range(len(samples)):
-                trace_ = b3d.update_choices_jit(
+                trace_ = b3d.update_choices(
                     gt_trace,
                     key,
                     Pytree.const(("object_pose_0",)),

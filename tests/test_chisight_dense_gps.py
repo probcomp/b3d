@@ -1,25 +1,31 @@
+import importlib
+
 import b3d
+<<<<<<< HEAD
 from b3d.renderer.renderer_original import RendererOriginal
 from b3d.chisight.dense.likelihoods import (
     KRaysImageLikelihoodArgs,
     make_krays_image_observation_model,
     get_rgb_depth_inliers_from_observed_rendered_args,
 )
+=======
+import b3d.chisight.particle_system as ps
+>>>>>>> main
 import jax
 import jax.numpy as jnp
-import os
-from b3d import Pose, Mesh
-
-import b3d.chisight.particle_system as ps
-import genjax
+from b3d import Mesh, Pose
+from b3d.chisight.dense.likelihoods import (
+    KRaysImageLikelihoodArgs,
+    make_krays_image_observation_model,
+)
+from b3d.renderer.renderer_original import RendererOriginal
 from genjax import Pytree
-import jax
-from b3d import Pose
-import b3d
-from genjax import ChoiceMapBuilder as C
 
+<<<<<<< HEAD
 import importlib
 
+=======
+>>>>>>> main
 importlib.reload(ps)
 
 

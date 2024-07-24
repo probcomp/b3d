@@ -1,11 +1,15 @@
-from ....common.solver import Solver
-import jax
-import jax.numpy as jnp
 import b3d
 import genjax
+import jax
+import jax.numpy as jnp
 from genjax import ChoiceMapBuilder as C
-from .model import model_factory, get_likelihood, rr_log_trace
 
+<<<<<<< HEAD
+=======
+from ....common.solver import Solver
+from .model import get_likelihood, model_factory, rr_log_trace
+
+>>>>>>> main
 RENDERER_HYPERPARAMS = (
     b3d.chisight.dense.differentiable_renderer.DifferentiableRendererHyperparams(
         3, 1e-5, 1e-2, -1
@@ -24,7 +28,7 @@ def gt_informed_triangle_proposal(gt_triangle, mindepth, maxdepth, fx, fy, cx, c
     A, B, C = gt_triangle
 
     # Origin of the camera frame
-    O = jnp.zeros(3)
+    origin = jnp.zeros(3)
 
     # Step 1: sample a random depth along the ray from
     # the camera origin to each vertex of the triangle.
@@ -32,9 +36,9 @@ def gt_informed_triangle_proposal(gt_triangle, mindepth, maxdepth, fx, fy, cx, c
     # depth2 = genjax.uniform(mindepth, maxdepth) @ "depth2"
     # depth3 = genjax.uniform(mindepth, maxdepth) @ "depth3"
 
-    D = O + depth1 / jnp.linalg.norm(A - O) * (A - O)
-    E = O + depth1 / jnp.linalg.norm(B - O) * (B - O)
-    F = O + depth1 / jnp.linalg.norm(C - O) * (C - O)
+    D = origin + depth1 / jnp.linalg.norm(A - origin) * (A - origin)
+    E = origin + depth1 / jnp.linalg.norm(B - origin) * (B - origin)
+    F = origin + depth1 / jnp.linalg.norm(C - origin) * (C - origin)
 
     new_triangle = jnp.stack([D, E, F], axis=0)
     return new_triangle

@@ -1,9 +1,9 @@
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+import b3d.chisight.dense.likelihoods as likelihoods
+import genjax
 import jax
 import jax.numpy as jnp
-import genjax
-import b3d
-import b3d.chisight.dense.likelihoods as likelihoods
-import b3d.chisight.dense.differentiable_renderer as rendering
 import rerun as rr
 
 

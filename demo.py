@@ -1,18 +1,16 @@
 #!/usr/bin/env python
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
+
 import b3d
 import b3d.bayes3d as bayes3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
-import genjax
-import rerun as rr
-from tqdm import tqdm
 import fire
+import genjax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+from b3d import Pose
+from tqdm import tqdm
 
 
 def test_demo():
@@ -53,11 +51,9 @@ def test_demo():
         1.0,
     )
 
-    num_layers = 2048
     renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
     model = bayes3d.model_multiobject_gl_factory(renderer)
     importance_jit = jax.jit(model.importance)
-    update_jit = jax.jit(model.update)
 
     # Arguments of the generative model.
     # These control the inlier / outlier decision boundary for color error and depth error.
@@ -118,7 +114,7 @@ def test_demo():
 
     # `make_mesh_from_point_cloud_and_resolution` takes a 3D positions, colors, and sizes of the boxes that we want
     # to place at each position and create a mesh
-    vertices, faces, vertex_colors, face_colors = (
+    vertices, faces, vertex_colors, _face_colors = (
         b3d.make_mesh_from_point_cloud_and_resolution(
             point_cloud,
             colors,
@@ -167,7 +163,7 @@ def test_demo():
         bayes3d.rerun_visualize_trace_t(trace, T_observed_image)
 
     # Outliers are AND of the RGB and Depth outlier masks
-    inliers, color_inliers, depth_inliers, outliers, undecided, valid_data_mask = (
+    _inliers, _color_inliers, _depth_inliers, outliers, _undecided, _valid_data_mask = (
         bayes3d.get_rgb_depth_inliers_from_trace(trace)
     )
     outlier_mask = outliers
@@ -186,7 +182,7 @@ def test_demo():
     point_cloud_colors = point_cloud_colors.reshape(-1, 3)[assignment == 0]
 
     # Create new mesh.
-    vertices, faces, vertex_colors, face_colors = (
+    vertices, faces, vertex_colors, _face_colors = (
         b3d.make_mesh_from_point_cloud_and_resolution(
             point_cloud, point_cloud_colors, point_cloud[:, 2] / fx * 2.0
         )

@@ -1,9 +1,10 @@
+import os
+
 import b3d
 import b3d.bayes3d as bayes3d
-import os
+import jax
 import jax.numpy as jnp
 import rerun as rr
-import jax
 import trimesh
 
 PORT = 8812
@@ -158,9 +159,12 @@ def test_distance_to_camera_invarance(renderer):
         depth_multiplier,
     )
 
+<<<<<<< HEAD
     from genjax.generative_functions.distributions import ExactDensity
     import genjax
 
+=======
+>>>>>>> main
     rr.log("img_near", rr.Image(rgb_near))
     rr.log("img_far", rr.Image(rgb_far))
 

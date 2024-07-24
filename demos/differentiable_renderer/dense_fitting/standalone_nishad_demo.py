@@ -1,17 +1,14 @@
 # Note: this uses a custom differentiable renderer defined inline in this script.
 
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
-import os
-import trimesh
-import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
-import rerun as rr
 import functools
-import genjax
+import os
+
+import b3d
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+from b3d import Pose
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
@@ -156,7 +153,11 @@ def render(particle_centers, particle_widths, particle_colors):
     vertex_colors = vertex_colors.reshape(-1, 3)
     triangle_index_to_particle_index = triangle_index_to_particle_index.reshape(-1)
 
+<<<<<<< HEAD
     uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+=======
+    _uvs, _, triangle_id_image, depth_image = renderer.rasterize(
+>>>>>>> main
         Pose.identity()[None, ...], vertices, faces, jnp.array([[0, len(faces)]])
     )
 
@@ -218,10 +219,17 @@ rr.log("depth", rr.DepthImage(gt_depth), timeless=True)
 rr.log("image/reconstruction", rr.Image(rgb_image[..., :3]))
 rr.log("depth/reconstruction", rr.DepthImage(depth_image))
 rr.log("image/triangles", rr.DepthImage(triangle_id_image))
+<<<<<<< HEAD
 
 
 def loss_func(a, b, c, gt_rgb, gt_depth):
     rgb, depth, _ = render(a, b, c)
+=======
+
+
+def loss_func(a, b, c, gt_rgb, gt_depth):
+    _rgb, depth, _ = render(a, b, c)
+>>>>>>> main
     return jnp.mean(jnp.abs(depth - gt_depth))
 
 

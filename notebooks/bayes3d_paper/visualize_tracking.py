@@ -3,27 +3,19 @@ import fire
 
 
 def make_visual(scene=None, object=None, debug=False):
-    import b3d
-    import matplotlib.pyplot as plt
-    import jax.numpy as jnp
-    import jax
-    from tqdm import tqdm
-    from b3d import Pose, Mesh
-    import rerun as rr
-    import genjax
+    import importlib
     import os
-    import genjax
-    from b3d.modeling_utils import uniform_discrete, uniform_pose, gaussian_vmf
-    from collections import namedtuple
-    from genjax import Pytree
-    import b3d
-    from b3d.bayes3d.enumerative_proposals import gvmf_and_select_best_move
-    from tqdm import tqdm
-    from IPython import embed
-    import fire
 
+    import b3d
+    import jax.numpy as jnp
+    from b3d import Mesh, Pose
+    from tqdm import tqdm
+
+<<<<<<< HEAD
     import importlib
 
+=======
+>>>>>>> main
     importlib.reload(b3d.mesh)
     importlib.reload(b3d.io.data_loader)
     importlib.reload(b3d.utils)
@@ -80,8 +72,11 @@ def make_visual(scene=None, object=None, debug=False):
                 mesh.transform(inferred_poses[t])
             )
 
+<<<<<<< HEAD
             import glob
 
+=======
+>>>>>>> main
             image_id = image_ids[t]
             foundation_pose_results_dir = "FoundationPose_every_50_frames_gt_init"
             filename = os.path.join(

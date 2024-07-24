@@ -5,15 +5,12 @@ import os
 import subprocess
 from pathlib import Path
 
+import b3d
 import cv2
 import jax
 import jax.numpy as jnp
 import liblzfse  # https://pypi.org/project/pyliblzfse/
-import matplotlib.pyplot as plt
-import numpy as np
 from natsort import natsorted
-
-import b3d
 
 
 def load_depth(filepath):
@@ -91,7 +88,6 @@ def load_r3d_video_input(r3d_path):
 
     color_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.jpg")))
     depth_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.depth")))
-    conf_paths = natsorted(glob.glob(os.path.join(datapath, "rgbd", "*.conf")))
 
     colors = jnp.array([load_color(color_paths[i]) for i in range(len(color_paths))])
     depths = jnp.array([load_depth(depth_paths[i]) for i in range(len(color_paths))])

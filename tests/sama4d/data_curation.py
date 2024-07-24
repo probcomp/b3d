@@ -1,7 +1,8 @@
+import os
+
+import b3d
 import jax
 import jax.numpy as jnp
-import os
-import b3d
 import trimesh
 
 
@@ -40,6 +41,10 @@ def feature_track_data_from_scene_spec(spec):
         b3d.io.FeatureTrackData.load(spec["path"])
         .slice_time(start_frame=spec["start_frame"])
         .downscale(spec["downscale_factor"])
+<<<<<<< HEAD
+=======
+        .flip_xy()
+>>>>>>> main
     )
 
 

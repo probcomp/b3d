@@ -1,9 +1,9 @@
-import torch
-import b3d
-import os
-import numpy as np
-import time
 import argparse
+import time
+
+import b3d
+import numpy as np
+import torch
 
 parser = argparse.ArgumentParser("r3d_to_video_input")
 parser.add_argument("input", help=".r3d File", type=str)

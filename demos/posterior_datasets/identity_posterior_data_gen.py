@@ -1,10 +1,11 @@
-import b3d
-import numpy as np
-import trimesh
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
 import os
+
+import b3d
+import jax
+import jax.numpy as jnp
+import numpy as np
+import rerun as rr
+import trimesh
 
 width = 200
 height = 200
@@ -18,7 +19,10 @@ far = 16.0
 renderer = b3d.Renderer(int(width), int(height), fx, fy, cx, cy, near, far)
 
 ## rerun for mesh viz
+<<<<<<< HEAD
 import rerun as rr
+=======
+>>>>>>> main
 
 PORT = 8812
 rr.init("fork-knife")
@@ -65,14 +69,23 @@ occluder_pose = b3d.Pose.from_pos(jnp.array([0.0, 0.05, 0.3]))
 ####
 NUM_IMAGES = 10
 
-contact_parameters_to_pose = lambda cp: b3d.Pose(
-    jnp.array([cp[0], 0.0, cp[1]]),  # fixed height (y) at 0 for table
-    b3d.Rot.from_rotvec(jnp.array([0.0, cp[2], 0.0])).as_quat(),
-)
 
+<<<<<<< HEAD
 get_scene_poses = lambda obj_cp: b3d.Pose.stack_poses(
     [occluder_pose, contact_parameters_to_pose(obj_cp)]
 )
+=======
+def contact_parameters_to_pose(cp):
+    return b3d.Pose(
+        jnp.array([cp[0], 0.0, cp[1]]),
+        b3d.Rot.from_rotvec(jnp.array([0.0, cp[2], 0.0])).as_quat(),
+    )
+
+
+def get_scene_poses(obj_cp):
+    return b3d.Pose.stack_poses([occluder_pose, contact_parameters_to_pose(obj_cp)])
+
+>>>>>>> main
 
 w = 0.2
 cps = jax.random.uniform(
@@ -90,7 +103,7 @@ scene_poses_in_camera = camera_pose.inv() @ scene_poses
 
 
 rr.log(
-    f"/3d/mesh/occ",
+    "/3d/mesh/occ",
     rr.Mesh3D(
         vertex_positions=scene_poses_in_camera[0][0].apply(object_library.vertices),
         triangle_indices=object_library.faces[
@@ -100,7 +113,7 @@ rr.log(
     ),
 )
 rr.log(
-    f"/3d/mesh/obj",
+    "/3d/mesh/obj",
     rr.Mesh3D(
         vertex_positions=scene_poses_in_camera[0][2].apply(object_library.vertices),
         triangle_indices=object_library.faces[

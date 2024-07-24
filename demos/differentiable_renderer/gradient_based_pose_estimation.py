@@ -1,24 +1,16 @@
-import jax.numpy as jnp
-import jax
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import trimesh
+from functools import partial
+
 import b3d
-from jax.scipy.spatial.transform import Rotation as Rot
-from b3d import Pose
-import rerun as rr
-import functools
-import genjax
-from tqdm import tqdm
+import b3d.chisight.dense.differentiable_renderer as rendering
 import jax
 import jax.numpy as jnp
 import optax
-import b3d.chisight.dense.differentiable_renderer as rendering
-import b3d.likelihoods as likelihoods
+import rerun as rr
+import trimesh
+from b3d import Pose
 from b3d.renderer_original import RendererOriginal
-import demos.differentiable_renderer.utils as utils
-from functools import partial
+from tqdm import tqdm
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
@@ -198,7 +190,7 @@ loss_func_rgbd_grad = jax.value_and_grad(loss_func_rgbd, argnums=(0,))
 @partial(jax.jit, static_argnums=(1,))
 def step(carry, tx):
     (params, gt_image, state) = carry
-    loss, (gradients,) = loss_func_rgbd_grad(params, gt_image)
+    _loss, (gradients,) = loss_func_rgbd_grad(params, gt_image)
     updates, state = tx.update(gradients, state, params)
     params = optax.apply_updates(params, updates)
     return ((params, gt_image, state), None)

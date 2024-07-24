@@ -1,7 +1,13 @@
-from tests.sama4d.video_to_tracks.keypoint_tracking_task import KeypointTrackingTask
 from tests.sama4d.tracks_to_segmentation.keypoints_to_segmentation_task import (
     KeypointsToSegmentationTask,
 )
+from tests.sama4d.video_to_tracks.keypoint_tracking_task import KeypointTrackingTask
+<<<<<<< HEAD
+from tests.sama4d.tracks_to_segmentation.keypoints_to_segmentation_task import (
+    KeypointsToSegmentationTask,
+)
+=======
+>>>>>>> main
 
 
 # Extend the KeypointTrackingTask class to expect an object segmentation,

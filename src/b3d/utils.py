@@ -85,6 +85,11 @@ def keysplit(key, *ns):
         return keys
 
 
+@jax.jit
+def split_key(key):
+    return jax.random.split(key, 2)[-1]
+
+
 # # # # # # # # # # # #
 #
 #  Other

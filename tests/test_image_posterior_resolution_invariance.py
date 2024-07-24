@@ -301,7 +301,7 @@ class TestImgResolutionInvariance(unittest.TestCase):
         test_poses_batches = test_poses.split(10)
         scores = jnp.concatenate(
             [
-                b3d.enumerate_choices_get_scores_jit(
+                b3d.enumerate_choices_get_scores(
                     gt_trace, key, Pytree.const(("object_pose_0",)), poses
                 )
                 for poses in test_poses_batches

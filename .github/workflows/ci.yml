@@ -89,7 +89,8 @@ jobs:
           pixi tree
           #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
           env
-          pixi run -vv test
+          pixi run test
+          grep "GL.*\.so" strace_output.txt
 
 
 

@@ -60,9 +60,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 @ f"object_pose_{i}"
             )
 
-            outlier_probability = (
-                genjax.uniform(0.0001, 1.0) @ f"outlier_probability_{i}"
-            )
+            outlier_probability = genjax.uniform(0.0, 1.0) @ f"outlier_probability_{i}"
             lightness_variance = genjax.uniform(0.0001, 1.0) @ f"lightness_variance_{i}"
             color_variance = genjax.uniform(0.0001, 1.0) @ f"color_variance_{i}"
             depth_variance = genjax.uniform(0.0001, 1.0) @ f"depth_variance_{i}"

@@ -75,6 +75,27 @@ def voxel_mesh_from_xyz_colors_dimensions(xyz, resolutions, colors):
     return b3d.mesh.Mesh.squeeze_mesh(meshes)
 
 
+@jax.jit
+def plane_mesh_from_plane_and_dimensions(pose, w, h, color):
+    vertices = jnp.array(
+        [
+            [-w / 2, -h / 2, 0],
+            [-w / 2, h / 2, 0],
+            [w / 2, h / 2, 0],
+            [w / 2, -h / 2, 0],
+        ]
+    )
+    vertices = pose.apply(vertices)
+    faces = jnp.array(
+        [
+            [0, 1, 3],
+            [3, 1, 2],
+        ]
+    )
+    vertex_attributes = jnp.ones((len(vertices), 3)) * color
+    return Mesh(vertices, faces, vertex_attributes)
+
+
 @register_pytree_node_class
 class Mesh:
     def __init__(self, vertices, faces, vertex_attributes):

@@ -20,6 +20,7 @@ from unity_to_python import (
     clamp_and_replace_with_nan,
     is_point_in_front,
     downsize_2d_coordinates,
+    downsize_intrinsics,
 )
 
 
@@ -144,9 +145,7 @@ def create_feature_track_video_mp4(data: FeatureTrackData, file_info: dict) -> N
 
 def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
     # camera_intrinsics = data.camera_intrinsics.at[0].mul(1/k).at[1].mul(1/k)
-    camera_intrinsics = np.array(data.camera_intrinsics).copy()
-    camera_intrinsics[0] /= k
-    camera_intrinsics[1] /= k
+    camera_intrinsics = downsize_intrinsics(data.camera_intrinsics, k)
 
     rgbd = downsize_images(data.rgbd, k)
     observed_keypoints_positions = downsize_2d_coordinates(

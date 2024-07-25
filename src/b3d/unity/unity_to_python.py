@@ -138,3 +138,15 @@ def downsize_single_channel_image(ims, k):
     """Downsize an array of images by a given factor."""
     shape = (ims.shape[1] // k, ims.shape[2] // k)
     return jax.vmap(jax.image.resize, (0, None, None))(ims, shape, "linear")
+
+
+def downsize_intrinsics(intrinsics, k):
+    """Adjust camera intrinsics for the downscaled images."""
+    adjusted_intrinsics = jnp.array(intrinsics.copy())
+    adjusted_intrinsics = adjusted_intrinsics.at[0].div(k)  # width
+    adjusted_intrinsics = adjusted_intrinsics.at[1].div(k)  # height
+    adjusted_intrinsics = adjusted_intrinsics.at[2].div(k)  # fx
+    adjusted_intrinsics = adjusted_intrinsics.at[3].div(k)  # fy
+    adjusted_intrinsics = adjusted_intrinsics.at[4].div(k)  # cx
+    adjusted_intrinsics = adjusted_intrinsics.at[5].div(k)  # cy
+    return adjusted_intrinsics

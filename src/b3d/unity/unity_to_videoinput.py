@@ -18,6 +18,7 @@ from unity_to_python import (
     convert_unity_to_cv2_world_pos_and_quat,
     convert_rgb_float_to_uint,
     downsize_single_channel_image,
+    downsize_intrinsics,
 )
 from b3d.camera import unproject_depth
 
@@ -118,12 +119,9 @@ def create_segmented_video_input_mp4(
     video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
     create_segmented_video_input_video(data, str(folder_path / video_path))
 
-
 def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoInput:
     # camera_intrinsics = data.camera_intrinsics_rgb.at[0].mul(1/k).at[1].mul(1/k)
-    camera_intrinsics = np.array(data.camera_intrinsics_rgb).copy()
-    camera_intrinsics[0] /= k
-    camera_intrinsics[1] /= k
+    camera_intrinsics = downsize_intrinsics(data.camera_intrinsics_rgb, k)
 
     depth_from_xyz = data.xyz[..., 2]
 
@@ -131,7 +129,7 @@ def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoI
     depth = downsize_single_channel_image(depth_from_xyz, k)
     segmentation = downsize_single_channel_image(data.segmentation, k)
 
-    xyz = get_xyz(depth, data.camera_intrinsics_rgb)
+    xyz = get_xyz(depth, camera_intrinsics)
 
     return SegmentedVideoInput(
         rgb=rgb,

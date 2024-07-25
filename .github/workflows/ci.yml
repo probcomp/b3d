@@ -54,13 +54,14 @@ jobs:
           ls -la /usr/share/glvnd/egl_vendor.d/
           cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
 
-          sh -c 'echo "{" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sh -c 'echo "    \"file_format_version\" : \"1.0.0\"," >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sh -c 'echo "    \"ICD\" : {" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sh -c 'echo "        \"library_path\" : \"libEGL_nvidia.so.0\"" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sh -c 'echo "    }" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sh -c 'echo "}" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          sudo sh -c 'echo "{" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          sudo sh -c 'echo "    \"file_format_version\" : \"1.0.0\"," >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          sudo sh -c 'echo "    \"ICD\" : {" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          sudo sh -c 'echo "        \"library_path\" : \"libEGL_nvidia.so.0\"" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          sudo sh -c 'echo "    }" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          sudo sh -c 'echo "}" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
 
+          sudo chmod 755 /usr/share/glvnd/egl_vendor.d/10_nvidia
           cat /usr/share/glvnd/egl_vendor.d/10_nvidia.json
           sudo find / -name "*nvidia.so*"
           sudo find / -name "*nvidia*"

@@ -807,3 +807,22 @@ voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
         in_axes=(0, 0, 0, None, None, None, None, None, None, None),
     )
 )
+
+
+def make_grid_points(min_vec, max_vec, num_vec):
+    """
+    Generate uniformly spaced translation proposals in a 3D box
+    Args:
+        min_x, min_y, min_z: minimum x, y, z values
+    """
+    deltas = jnp.stack(
+        jnp.meshgrid(
+            *[
+                jnp.linspace(min_vec[i], max_vec[i], num_vec[i])
+                for i in range(len(min_vec))
+            ],
+        ),
+        axis=-1,
+    )
+    deltas = deltas.reshape((-1, len(min_vec)), order="F")
+    return deltas

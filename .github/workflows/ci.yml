@@ -26,7 +26,7 @@ jobs:
       - name: Install nvdiffrast dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libglvnd0 libgl1 libglx0 libegl1 libgles2 libglvnd-dev libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev libnvidia-gl-535 mesa-common-dev libegl1-mesa-dev libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev ffmpeg
+          packages: mesa-utils
           version: 1.0
 
       # - name: Setup asset caching
@@ -45,39 +45,42 @@ jobs:
       #     key: ${{ runner.os }}-${{ matrix.runner }}-pixi
       #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
-      # - name: System debugging
-      #   run: |
-      #     nvidia-smi
-      #     ldconfig -p | grep EGL
-      #     ldconfig -p | grep GL
-      #     ls -la /usr/share/glvnd/
-      #     ls -la /usr/share/glvnd/egl_vendor.d/
-      #     cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
-      #     sudo find / -name "*nvidia.so*"
-      #     sudo find / -name "*nvidia*"
-
-      - name: Authenticate gcloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
-
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Install system environment and project dependencies
-        env:
-          GITHUB_CI: "true"
-          #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+      - name: System debugging
         run: |
-          ./install.sh
-          source ~/.bashrc
-          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-          pixi tree
-          #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
-          env
-          pixi run -vv test
+          nvidia-smi
+          ldconfig -p | grep EGL
+          ldconfig -p | grep GL
+          ls -la /usr/share/glvnd/
+          ls -la /usr/share/glvnd/egl_vendor.d/
+          cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
+          cat /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+          sudo find / -name "*nvidia.so*"
+          sudo find / -name "*nvidia*"
+          glxinfo -B
+
+      # - name: Authenticate gcloud
+      #   id: auth
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      # - name: Setup gcloud
+      #   uses: google-github-actions/setup-gcloud@v2
+
+      # - name: Install system environment and project dependencies
+      #   env:
+      #     GITHUB_CI: "true"
+      #     __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
+      #     #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+      #   run: |
+      #     ./install.sh
+      #     source ~/.bashrc
+      #     export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+      #     export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
+      #     pixi tree
+      #     #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
+      #     env
+      #     pixi run -vv test
 
 
 

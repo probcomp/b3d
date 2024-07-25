@@ -335,7 +335,7 @@ GLContext createGLContext(int cudaDeviceIdx)
     EGLint major;
     EGLint minor;
     if (!eglInitialize(display, &major, &minor))
-        LOG(FATAL) << "eglInitialize() failed";
+        LOG(FATAL) << "eglInitialize() failed---";
 
     // Choose configuration.
 

@@ -36,22 +36,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         likelihood_args = args_dict["likelihood_args"]
         num_objects = args_dict["num_objects"]
 
-        blur = genjax.uniform(0.0001, 1.0) @ f"blur"
+        blur = genjax.uniform(0.0001, 100.0) @ "blur"
         likelihood_args["blur"] = blur
-
-        outlier_probability = (
-            genjax.uniform(0.0001, 1.0) @ f"outlier_probability_background"
-        )
-        lightness_variance = (
-            genjax.uniform(0.0001, 1.0) @ f"lightness_variance_background"
-        )
-        color_variance = genjax.uniform(0.0001, 1.0) @ f"color_variance_background"
-        depth_variance = genjax.uniform(0.0001, 1.0) @ f"depth_variance_background"
-
-        likelihood_args[f"outlier_probability_background"] = outlier_probability
-        likelihood_args[f"lightness_variance_background"] = lightness_variance
-        likelihood_args[f"color_variance_background"] = color_variance
-        likelihood_args[f"depth_variance_background"] = depth_variance
 
         all_poses = []
         for i in range(num_objects.const):

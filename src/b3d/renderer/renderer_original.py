@@ -91,14 +91,14 @@ interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)
 class RendererOriginal(object):
     def __init__(
         self,
-        width=200,
-        height=200,
-        fx=150.0,
-        fy=150.0,
-        cx=100.0,
-        cy=100.0,
+        width=100,
+        height=100,
+        fx=75.0,
+        fy=75.0,
+        cx=50.0,
+        cy=50.0,
         near=0.001,
-        far=10.0,
+        far=5.0,
     ):
         """
         Triangle mesh renderer.

@@ -23,11 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install nvdiffrast dependencies
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: mesa-utils
-          version: 1.0
+      # - name: Install nvdiffrast dependencies
+      #   uses: awalsh128/cache-apt-pkgs-action@latest
+      #   with:
+      #     packages: mesa-utils
+      #     version: 1.0
 
       # - name: Setup asset caching
       #   id: cache-assets
@@ -65,31 +65,31 @@ jobs:
           cat /usr/share/glvnd/egl_vendor.d/10_nvidia.json
           sudo find / -name "*nvidia.so*"
           sudo find / -name "*nvidia*"
-          glxinfo -B
+          #glxinfo -B
 
-      # - name: Authenticate gcloud
-      #   id: auth
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+      - name: Authenticate gcloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
 
-      # - name: Setup gcloud
-      #   uses: google-github-actions/setup-gcloud@v2
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
-      # - name: Install system environment and project dependencies
-      #   env:
-      #     GITHUB_CI: "true"
-      #     __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
-      #     #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
-      #   run: |
-      #     ./install.sh
-      #     source ~/.bashrc
-      #     export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-      #     export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-      #     pixi tree
-      #     #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
-      #     env
-      #     pixi run -vv test
+      - name: Install system environment and project dependencies
+        env:
+          GITHUB_CI: "true"
+          __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
+          #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+        run: |
+          ./install.sh
+          source ~/.bashrc
+          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
+          pixi tree
+          #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
+          env
+          pixi run -vv test
 
 
 

@@ -17,9 +17,6 @@ platforms = ["linux-64"]
 [tool.pixi.system-requirements]
 cuda = "12"
 
-#[tool.pixi.activation]
-#scripts = ["scripts/env-activation.sh"]
-
 [tool.pixi.pypi-options]
 index-url = "https://pypi.org/simple"
 extra-index-urls = ["https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple"]
@@ -73,7 +70,7 @@ rerun = "rerun --port 8812"
 #tests/test_diff_renderer.py
 #tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py
 
-test = { cmd = "pytest -s --log-cli-level=INFO tests/test_diff_renderer.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include" } } #, TORCH_CUDA_ARCH_LIST = "8.9" } }
+test = { cmd = "strace -e trace=open pytest -s --log-cli-level=INFO tests/test_diff_renderer.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include" } } #, TORCH_CUDA_ARCH_LIST = "8.9" } }
 
 #:/usr/include:/usr/include:/usr/include/x86_64-linux-gnu:
 

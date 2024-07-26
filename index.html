@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R3D to MP4 Converter</title>
+    <script src="/static/script.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        #drop-zone {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #ecf0f1;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        #drop-zone:hover {
+            background-color: #e0e6e8;
+        }
+
+        #progress-container {
+            margin-top: 20px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 10px;
+            background-color: #2ecc71;
+            transition: width 0.5s ease;
+        }
+
+        #status {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        #video-container {
+            margin-top: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .video-wrapper {
+            width: 100%;
+            max-width: 640px;
+            margin-bottom: 30px;
+            background-color: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        video {
+            width: 100%;
+            display: block;
+        }
+
+        .video-title {
+            padding: 10px;
+            background-color: #3498db;
+            color: #fff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Object Model Acquisition Demo</h1>
+    <div id="drop-zone">
+        <p>Drag and drop your .r3d file here</p>
+    </div>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <div id="status"></div>
+    <div id="video-container"></div>
+
+    <script>
+        // JavaScript code remains the same as before, but we'll modify the displayVideo function
+
+        function displayVideo(videoUrl) {
+            const videoWrapper = document.createElement('div');
+            videoWrapper.className = 'video-wrapper';
+
+            const videoTitle = document.createElement('div');
+            videoTitle.className = 'video-title';
+            videoTitle.textContent = 'Converted Video';
+
+            const videoElement = document.createElement('video');
+            videoElement.src = videoUrl;
+            videoElement.controls = true;
+
+            videoWrapper.appendChild(videoTitle);
+            videoWrapper.appendChild(videoElement);
+            videoContainer.prepend(videoWrapper);
+        }
+    </script>
+</body>
+</html>

@@ -1,11 +1,12 @@
-from flask import Flask, after_this_request, send_file, request, jsonify
 import os
-from werkzeug.utils import secure_filename
-import uuid
-import scripts.acquire_object_model as acquire
-from threading import Thread
-import mimetypes
 import time
+import uuid
+from threading import Thread
+
+from flask import Flask, after_this_request, jsonify, request, send_file
+from werkzeug.utils import secure_filename
+
+import scripts.acquire_object_model as acquire
 
 app = Flask(__name__)
 
@@ -90,4 +91,4 @@ def get_video(task_id):
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=8000)

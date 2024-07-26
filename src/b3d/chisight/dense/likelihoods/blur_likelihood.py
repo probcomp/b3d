@@ -22,7 +22,7 @@ upper_bound = jnp.array([1.0, 1.0, 1.0, 10.0])
 def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
     color_variance = likelihood_args["color_variance_0"]
     depth_variance = likelihood_args["depth_variance_0"]
-    # outlier_probability = likelihood_args["outlier_probability_0"]
+    outlier_probability = likelihood_args["outlier_probability_0"]
 
     ###########
     @functools.partial(
@@ -48,13 +48,12 @@ def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
         )
         index = jax.random.categorical(key, log_kernel.flatten())
 
-        # outlier_value = jax.random.uniform(
-        #     key, (4,), minval=jnp.zeros(4), maxval=jnp.ones(4)
-        # )
-
-        # is_outlier = genjax.bernoulli.sample(
-        #     key, jax.scipy.special.logit(outlier_probability)
-        # )
+        is_outlier = genjax.bernoulli.sample(
+            key, jax.scipy.special.logit(outlier_probability)
+        )
+        outlier_value = jax.random.uniform(
+            key, (4,), minval=jnp.zeros(4), maxval=jnp.ones(4)
+        )
 
         sampled_rgbd_value = latent_rgb_padded_window.reshape(-1, 4)[index]
         noisy_rgbd_value = genjax.truncated_normal.sample(
@@ -64,8 +63,8 @@ def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
             0.0,
             1.0,
         )
-        # return noisy_rgbd_value
-        return noisy_rgbd_value
+
+        return is_outlier * outlier_value + (1 - is_outlier) * noisy_rgbd_value
 
     filter_size = 10
 
@@ -109,7 +108,7 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
     # k = likelihood_args["k"].const
     color_variance = likelihood_args["color_variance_0"]
     depth_variance = likelihood_args["depth_variance_0"]
-    # outlier_probability = likelihood_args["outlier_probability_0"]
+    outlier_probability = likelihood_args["outlier_probability_0"]
 
     ###########
     @functools.partial(
@@ -142,7 +141,12 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
             0.0,
             1.0,
         ).sum(-1)
-        return jax.nn.logsumexp(scores_inlier + log_kernel)
+
+        scores = jnp.logaddexp(
+            scores_inlier + jnp.log(1.0 - outlier_probability),
+            jnp.log(outlier_probability),
+        )
+        return jax.nn.logsumexp(scores + log_kernel)
 
     filter_size = 10
 

@@ -504,7 +504,7 @@ def multivmap(f, args=None):
             multivmapped = jax.vmap(
                 multivmapped, in_axes=make_onehot(len(args), i, hot=0, cold=None)
             )
-    return multivmapped
+    return jax.jit(multivmapped)
 
 
 @jax.jit
@@ -532,6 +532,36 @@ enumerate_choices_get_scores = jax.jit(
         in_axes=(None, None, None, 0),
     )
 )
+
+grid1 = multivmap(
+    update_choices_get_score,
+    (
+        False,
+        False,
+        False,
+        True,
+    ),
+)
+grid2 = multivmap(update_choices_get_score, (False, False, False, True, True))
+grid3 = multivmap(update_choices_get_score, (False, False, False, True, True, True))
+grid4 = multivmap(
+    update_choices_get_score, (False, False, False, True, True, True, True)
+)
+
+
+@jax.jit
+def grid_trace(trace, addresses_const, values):
+    key = jax.random.PRNGKey(0)
+    if len(addresses_const.const) == 1:
+        return grid1(trace, key, addresses_const, *values)
+    elif len(addresses_const.const) == 2:
+        return grid2(trace, key, addresses_const, *values)
+    elif len(addresses_const.const) == 3:
+        return grid3(trace, key, addresses_const, *values)
+    elif len(addresses_const.const) == 4:
+        return grid4(trace, key, addresses_const, *values)
+    else:
+        raise ValueError("Too many addresses")
 
 
 def nn_background_segmentation(images):

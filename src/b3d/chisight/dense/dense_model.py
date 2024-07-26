@@ -36,7 +36,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         likelihood_args = args_dict["likelihood_args"]
         num_objects = args_dict["num_objects"]
 
-        blur = genjax.uniform(0.0001, 100.0) @ "blur"
+        blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
 
         all_poses = []

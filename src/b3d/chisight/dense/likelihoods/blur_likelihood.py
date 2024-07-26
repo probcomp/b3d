@@ -17,6 +17,8 @@ def log_gaussian_kernel(size: int, sigma: float) -> jnp.ndarray:
 lower_bound = jnp.array([0.0, 0.0, 0.0, 0.0])
 upper_bound = jnp.array([1.0, 1.0, 1.0, 10.0])
 
+filter_size = 20
+
 
 @jax.jit
 def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
@@ -46,15 +48,17 @@ def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
             (ij[0], ij[1], 0),
             (2 * filter_size + 1, 2 * filter_size + 1, 4),
         )
+        # outliers_padded = jax.random.uniform(
+        #     key, (2 * filter_size + 1, 2 * filter_size + 1, 4), minval=0.0, maxval=1.0
+        # )
+
+        # no_mesh = latent_rgb_padded_window[..., 3] == 0.0
+        # latent_rgb_padded_window = (
+        #     (1 - no_mesh)[...,None] * latent_rgb_padded_window
+        #     + no_mesh[...,None] * outliers_padded
+        # )
+
         index = jax.random.categorical(key, log_kernel.flatten())
-
-        is_outlier = genjax.bernoulli.sample(
-            key, jax.scipy.special.logit(outlier_probability)
-        )
-        outlier_value = jax.random.uniform(
-            key, (4,), minval=jnp.zeros(4), maxval=jnp.ones(4)
-        )
-
         sampled_rgbd_value = latent_rgb_padded_window.reshape(-1, 4)[index]
         noisy_rgbd_value = genjax.truncated_normal.sample(
             key,
@@ -64,9 +68,14 @@ def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
             1.0,
         )
 
-        return is_outlier * outlier_value + (1 - is_outlier) * noisy_rgbd_value
+        is_outlier = genjax.bernoulli.sample(
+            key, jax.scipy.special.logit(outlier_probability)
+        )
+        outlier_value = jax.random.uniform(
+            key, (4,), minval=jnp.zeros(4), maxval=jnp.ones(4)
+        )
 
-    filter_size = 10
+        return is_outlier * outlier_value + (1 - is_outlier) * noisy_rgbd_value
 
     @jax.jit
     def likelihood_per_pixel(latent_rgbd: jnp.ndarray, blur):
@@ -142,13 +151,14 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
             1.0,
         ).sum(-1)
 
+        # no_mesh = latent_rgb_padded_window[..., 3] == 0.
+        # outlier_probability_adjusted = (no_mesh) * 1.0 + (1 - no_mesh) * outlier_probability
+
         scores = jnp.logaddexp(
             scores_inlier + jnp.log(1.0 - outlier_probability),
             jnp.log(outlier_probability),
         )
         return jax.nn.logsumexp(scores + log_kernel)
-
-    filter_size = 10
 
     @jax.jit
     def likelihood_per_pixel(
@@ -189,6 +199,7 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
     # score = genjax.truncated_normal.logpdf(observed_rgbd, latent_rgbd, color_variance, lower_bound, upper_bound)[...,:3].sum()
     # score = (jax.nn.logsumexp(pixelwise_score) - jnp.log(pixelwise_score.size)) * k
     score = pixelwise_score.sum()
+
     return {
         "score": score * k,
         "observed_color_space_d": observed_rgbd,

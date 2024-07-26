@@ -173,10 +173,6 @@ def acquire(input_path, output_path=None):
 
     b3d.make_video_from_pil_images(viz_images, output_path, fps=30.0)
     print(f"Saved video to {output_path}")
-
-    from IPython import embed
-
-    embed()
     return output_path
 
 

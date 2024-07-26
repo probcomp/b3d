@@ -122,10 +122,16 @@ def acquire(input_path, output_path=None):
     # colors = colors[subset]
     # distances_from_camera = distances_from_camera[subset]
 
+    clustering = b3d.segment_point_cloud(background_xyzs, threshold=0.03, min_points_in_cluster=10)
+    m = (clustering != -1)
+    background_xyzs_ = background_xyzs[m]
+    distances_from_camera_ = distances_from_camera[m]
+    colors_ = colors[m]
+
     background_mesh = Mesh.voxel_mesh_from_xyz_colors_dimensions(
-        background_xyzs,
-        jnp.ones((background_xyzs.shape[0], 3)) * distances_from_camera,
-        colors,
+        background_xyzs_,
+        jnp.ones((background_xyzs_.shape[0], 3)) * distances_from_camera_,
+        colors_,
     )
     background_mesh.rr_visualize("background_mesh")
 
@@ -167,6 +173,7 @@ def acquire(input_path, output_path=None):
     b3d.make_video_from_pil_images(viz_images, output_path, fps=30.0)
     print(f"Saved video to {output_path}")
 
+    from IPython import embed; embed()
     return output_path
 
 

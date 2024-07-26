@@ -1,4 +1,4 @@
-from b3d.types import Array
+from b3d.types import Array, Float
 import jax.numpy as jnp
 from dataclasses import dataclass
 from typing import Optional
@@ -34,6 +34,7 @@ class SegmentedVideoInput(VideoInput):
     object_positions: Array
     object_quaternions: Array
     object_catalog_ids: Optional[list] = None
+    fps: Optional[Float] = None
 
     @property
     def oid(self):
@@ -45,6 +46,11 @@ class SegmentedVideoInput(VideoInput):
     @classmethod
     def load(cls, filepath: str):
         """Loads SegmentedVideoInput from file"""
+        def get_or_none(data, key):
+            if key in data:
+                return jnp.array(data[key])
+            else:
+                return None
         with open(filepath, 'rb') as f:
             data = jnp.load(f, allow_pickle=True)
             return cls(
@@ -58,7 +64,7 @@ class SegmentedVideoInput(VideoInput):
                 object_positions=jnp.array(data['object_positions']),
                 object_quaternions=jnp.array(data['object_quaternions']),
                 object_catalog_ids=data['object_catalog_ids'],
-                fps=data['fps']
+                fps=get_or_none(data,'fps')
             )
 
     @classmethod

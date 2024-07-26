@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 
-from b3d.types import Array, Float
+from b3d.types import Array
 
 
 @dataclass
@@ -70,7 +70,6 @@ class VideoInput:
     camera_intrinsics_depth: (
         Array  # [8,] (width_depth, height_depth, fx, fy, cx, cy, near, far)
     )
-    fps: Float
 
     @property
     def z(self):

@@ -105,7 +105,7 @@ def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
 
 @jax.jit
 def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_args):
-    # k = likelihood_args["k"].const
+    k = likelihood_args["k"].const
     color_variance = likelihood_args["color_variance_0"]
     depth_variance = likelihood_args["depth_variance_0"]
     outlier_probability = likelihood_args["outlier_probability_0"]
@@ -187,9 +187,10 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
     )
 
     # score = genjax.truncated_normal.logpdf(observed_rgbd, latent_rgbd, color_variance, lower_bound, upper_bound)[...,:3].sum()
+    # score = (jax.nn.logsumexp(pixelwise_score) - jnp.log(pixelwise_score.size)) * k
     score = pixelwise_score.sum()
     return {
-        "score": score,
+        "score": score * k,
         "observed_color_space_d": observed_rgbd,
         "latent_color_space_d": latent_rgbd,
         "pixelwise_score": pixelwise_score,

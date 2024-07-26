@@ -140,7 +140,9 @@ def create_feature_track_video_mp4(data: FeatureTrackData, file_info: dict) -> N
     )
 
     video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
-    create_feature_track_video(data, str(folder_path / video_path))
+    
+    if file_info["resolution"] == "800p" or not os.path.exists(video_path):
+        create_feature_track_video(data, str(folder_path / video_path))
 
 
 def downsize_feature_track(data: FeatureTrackData, k: float) -> FeatureTrackData:
@@ -220,8 +222,8 @@ def process(zip_path: str, moveFile: bool = True, tags_str=None) -> None:
     # Save feature_track_data
     save_feature_track_data(feature_track_data, unity_data.file_info)
 
-    # Save a 200p version
-    save_downscaled_feature_track(feature_track_data, 200, unity_data.file_info)
+    # # Save a 200p version from higher res
+    # save_downscaled_feature_track(feature_track_data, 200, unity_data.file_info)
 
     # move zip_path file into FBData/processed folder
     if moveFile:

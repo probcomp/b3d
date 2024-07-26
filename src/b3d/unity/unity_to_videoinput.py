@@ -117,7 +117,10 @@ def create_segmented_video_input_mp4(
         file_info["data_name"], "s", file_info["scene_folder"]
     )
     video_path = f"{file_info['light_setting']}_{file_info['background_setting']}.mp4"
-    create_segmented_video_input_video(data, str(folder_path / video_path))
+    
+    if file_info["resolution"] == "800p" or not os.path.exists(video_path):
+        create_segmented_video_input_video(data, str(folder_path / video_path))
+
 
 def downsize_video_input(data: SegmentedVideoInput, k: float) -> SegmentedVideoInput:
     # camera_intrinsics = data.camera_intrinsics_rgb.at[0].mul(1/k).at[1].mul(1/k)
@@ -201,8 +204,8 @@ def process(zip_path: str, moveFile: bool = True, tags_str=None) -> None:
     # Save segmented_video_data
     save_segmented_video_input_data(segmented_video_data, unity_data.file_info)
 
-    # Save a 200p version
-    save_downscaled_video_input(segmented_video_data, 200, unity_data.file_info)
+    # # Save a downscaled 200p version from higher res
+    # save_downscaled_video_input(segmented_video_data, 200, unity_data.file_info)
 
     # move zip_path file into FBData/processed folder
     if moveFile:

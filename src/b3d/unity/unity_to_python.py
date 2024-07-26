@@ -143,10 +143,10 @@ def downsize_single_channel_image(ims, k):
 def downsize_intrinsics(intrinsics, k):
     """Adjust camera intrinsics for the downscaled images."""
     adjusted_intrinsics = jnp.array(intrinsics.copy())
-    adjusted_intrinsics = adjusted_intrinsics.at[0].div(k)  # width
-    adjusted_intrinsics = adjusted_intrinsics.at[1].div(k)  # height
-    adjusted_intrinsics = adjusted_intrinsics.at[2].div(k)  # fx
-    adjusted_intrinsics = adjusted_intrinsics.at[3].div(k)  # fy
-    adjusted_intrinsics = adjusted_intrinsics.at[4].div(k)  # cx
-    adjusted_intrinsics = adjusted_intrinsics.at[5].div(k)  # cy
+    adjusted_intrinsics = adjusted_intrinsics.at[0].mul(1/k)  # width
+    adjusted_intrinsics = adjusted_intrinsics.at[1].mul(1/k)  # height
+    adjusted_intrinsics = adjusted_intrinsics.at[2].mul(1/k)  # fx
+    adjusted_intrinsics = adjusted_intrinsics.at[3].mul(1/k)  # fy
+    adjusted_intrinsics = adjusted_intrinsics.at[4].mul(1/k)  # cx
+    adjusted_intrinsics = adjusted_intrinsics.at[5].mul(1/k)  # cy
     return adjusted_intrinsics

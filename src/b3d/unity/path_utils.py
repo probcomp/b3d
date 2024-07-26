@@ -153,3 +153,24 @@ def extract_file_info(file_path: str) -> dict:
         "resolution": resolution,
         "data_class": data_class,
     }
+
+
+def extract_file_info_str(file_path: str) -> dict:
+    """Extract and return file information from the given file path."""
+    folder_parts = file_path.split("/")
+    scene_folder = folder_parts[-4]
+    base_name = folder_parts[-3]
+    data_class = folder_parts[-2]
+    settings = folder_parts[-1].split("_")
+    light_setting = settings[0]
+    background_setting = settings[1]
+    resolution = settings[2].split(".")[0]
+    return {
+        "scene_folder": scene_folder,
+        "data_name": base_name,
+        "light_setting": light_setting,
+        "background_setting": background_setting,
+        "resolution": resolution,
+        "data_class": data_class,
+    }
+

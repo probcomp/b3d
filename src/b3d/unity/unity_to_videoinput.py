@@ -180,7 +180,7 @@ def save_metadata(file_info: dict, tags_str):
     folder_path = get_data_path(file_info["data_name"], file_info["scene_folder"])
     file_name = "metadata.json"
     file_path = folder_path / file_name
-    if not os.path.exists(file_path):
+    if (not os.path.exists(file_path)) and (tags_str is not None):
         tags.init_metadata(file_path, tags_str)
 
 

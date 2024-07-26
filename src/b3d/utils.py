@@ -98,8 +98,28 @@ def split_key(key):
 
 
 @partial(jax.jit, static_argnums=(1, 2))
-def resize_image(rgbd, height, width):
+def resize_image_nearest(rgbd, height, width):
     return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="nearest")
+
+
+resize_image_nearest_vmap = jax.jit(
+    jax.vmap(resize_image_nearest, in_axes=(0, None, None)), static_argnums=(1, 2)
+)
+
+
+@partial(jax.jit, static_argnums=(1, 2))
+def resize_image_linear(rgbd, height, width):
+    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="linear")
+
+
+resize_image_linear_vmap = jax.jit(
+    jax.vmap(resize_image_linear, in_axes=(0, None, None)), static_argnums=(1, 2)
+)
+
+
+@jax.jit
+def clip_rgb(rgb):
+    return jnp.clip(rgb, 0.0, 1.0)
 
 
 @partial(jax.jit, static_argnums=1)

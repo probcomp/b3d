@@ -1,11 +1,10 @@
 import argparse
 
+import b3d
 import jax
 import jax.numpy as jnp
-from tqdm import tqdm
-
-import b3d
 from b3d import Mesh, Pose
+from tqdm import tqdm
 
 b3d.rr_init("acquire_object_model")
 
@@ -122,8 +121,10 @@ def acquire(input_path, output_path=None):
     # colors = colors[subset]
     # distances_from_camera = distances_from_camera[subset]
 
-    clustering = b3d.segment_point_cloud(background_xyzs, threshold=0.03, min_points_in_cluster=10)
-    m = (clustering != -1)
+    clustering = b3d.segment_point_cloud(
+        background_xyzs, threshold=0.03, min_points_in_cluster=10
+    )
+    m = clustering != -1
     background_xyzs_ = background_xyzs[m]
     distances_from_camera_ = distances_from_camera[m]
     colors_ = colors[m]
@@ -173,7 +174,9 @@ def acquire(input_path, output_path=None):
     b3d.make_video_from_pil_images(viz_images, output_path, fps=30.0)
     print(f"Saved video to {output_path}")
 
-    from IPython import embed; embed()
+    from IPython import embed
+
+    embed()
     return output_path
 
 

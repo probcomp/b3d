@@ -3,7 +3,7 @@ import argparse
 import b3d
 import jax
 import jax.numpy as jnp
-from b3d import Pose
+from b3d import Mesh, Pose
 from tqdm import tqdm
 
 b3d.rr_init("acquire_object_model")
@@ -23,18 +23,12 @@ def acquire(input_path, output_path=None):
     _, _, fx, fy, cx, cy, near, far = data["camera_intrinsics_depth"]
     image_height, image_width = data["depth"].shape[1:3]
     num_scenes = data["depth"].shape[0]
-
     indices = jnp.arange(0, num_scenes, 10)
-
     camera_poses_full = data["camera_pose"]
     camera_poses = camera_poses_full[indices]
 
     xyz = b3d.xyz_from_depth_vectorized(data["depth"][indices], fx, fy, cx, cy)
     xyz_world_frame = camera_poses[:, None, None].apply(xyz)
-
-    # for i in range(len(xyz_world_frame)):
-    #     b3d.rr_set_time(i)
-    #     b3d.utils.rr_log_cloud("xyz", xyz_world_frame[i])
 
     # Resize rgbs to be same size as depth.
     rgbs = data["rgb"]
@@ -91,14 +85,11 @@ def acquire(input_path, output_path=None):
     grid_points = grid[model_mask]
     colors = grid_colors[model_mask]
 
-    meshes = b3d.mesh.transform_mesh(
-        jax.vmap(b3d.mesh.Mesh.cube_mesh)(
-            jnp.ones((grid_points.shape[0], 3)) * resolution * 2.0, colors
-        ),
-        b3d.Pose.from_translation(grid_points)[:, None],
+    _object_mesh = Mesh.voxel_mesh_from_xyz_colors_dimensions(
+        grid_points,
+        jnp.ones((grid_points.shape[0], 3)) * resolution * 2.0,
+        colors,
     )
-    _object_mesh = b3d.mesh.Mesh.squeeze_mesh(meshes)
-
     object_pose = Pose.from_translation(jnp.median(_object_mesh.vertices, axis=0))
     object_mesh = _object_mesh.transform(object_pose.inv())
     object_mesh.rr_visualize("mesh")
@@ -130,13 +121,19 @@ def acquire(input_path, output_path=None):
     # colors = colors[subset]
     # distances_from_camera = distances_from_camera[subset]
 
-    meshes = b3d.mesh.transform_mesh(
-        jax.vmap(b3d.mesh.Mesh.cube_mesh)(
-            jnp.ones((background_xyzs.shape[0], 3)) * distances_from_camera, colors
-        ),
-        b3d.Pose.from_translation(background_xyzs)[:, None],
+    clustering = b3d.segment_point_cloud(
+        background_xyzs, threshold=0.03, min_points_in_cluster=10
     )
-    background_mesh = b3d.mesh.Mesh.squeeze_mesh(meshes)
+    m = clustering != -1
+    background_xyzs_ = background_xyzs[m]
+    distances_from_camera_ = distances_from_camera[m]
+    colors_ = colors[m]
+
+    background_mesh = Mesh.voxel_mesh_from_xyz_colors_dimensions(
+        background_xyzs_,
+        jnp.ones((background_xyzs_.shape[0], 3)) * distances_from_camera_,
+        colors_,
+    )
     background_mesh.rr_visualize("background_mesh")
 
     object_poses = [
@@ -151,13 +148,28 @@ def acquire(input_path, output_path=None):
         object_poses,
     )
 
-    viz_images = []
-    for t in tqdm(range(len(camera_poses_full))):
-        b3d.utils.rr_set_time(t)
-        rgbd = renderer.render_rgbd_from_mesh(
+    renderer = b3d.RendererOriginal(
+        image_width, image_height, fx, fy, cx, cy, near, far
+    )
+
+    def render_image(t):
+        return renderer.render_rgbd_from_mesh(
             scene_mesh.transform(camera_poses_full[t].inv())
         )
-        viz_images.append(b3d.viz_rgb(rgbd))
+
+    ss = jnp.concatenate(
+        [
+            jnp.arange(0, len(camera_poses_full), 30),
+            jnp.array([len(camera_poses_full) - 1]),
+        ]
+    )
+    ss = jnp.vstack([ss[:-1], ss[1:]]).T
+    render_images = jax.jit(jax.vmap(render_image))
+    images = jnp.concatenate([render_images(jnp.arange(s[0], s[1])) for s in ss])
+
+    viz_images = []
+    for t in tqdm(range(len(images))):
+        viz_images.append(b3d.viz_rgb(images[t]))
 
     b3d.make_video_from_pil_images(viz_images, output_path, fps=30.0)
     print(f"Saved video to {output_path}")

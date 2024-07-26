@@ -66,6 +66,36 @@ def rr_visualize_mesh(channel, mesh):
     )
 
 
+@jax.jit
+def voxel_mesh_from_xyz_colors_dimensions(xyz, resolutions, colors):
+    meshes = b3d.mesh.transform_mesh(
+        jax.vmap(b3d.mesh.Mesh.cube_mesh)(resolutions, colors),
+        b3d.Pose.from_translation(xyz)[:, None],
+    )
+    return b3d.mesh.Mesh.squeeze_mesh(meshes)
+
+
+@jax.jit
+def plane_mesh_from_plane_and_dimensions(pose, w, h, color):
+    vertices = jnp.array(
+        [
+            [-w / 2, -h / 2, 0],
+            [-w / 2, h / 2, 0],
+            [w / 2, h / 2, 0],
+            [w / 2, -h / 2, 0],
+        ]
+    )
+    vertices = pose.apply(vertices)
+    faces = jnp.array(
+        [
+            [0, 1, 3],
+            [3, 1, 2],
+        ]
+    )
+    vertex_attributes = jnp.ones((len(vertices), 3)) * color
+    return Mesh(vertices, faces, vertex_attributes)
+
+
 @register_pytree_node_class
 class Mesh:
     def __init__(self, vertices, faces, vertex_attributes):
@@ -148,6 +178,9 @@ class Mesh:
     transform_and_merge_meshes = staticmethod(transform_and_merge_meshes)
     transform_mesh = staticmethod(transform_mesh)
     squeeze_mesh = staticmethod(squeeze_mesh)
+    voxel_mesh_from_xyz_colors_dimensions = staticmethod(
+        voxel_mesh_from_xyz_colors_dimensions
+    )
 
     def rr_visualize(self, channel):
         rr_visualize_mesh(channel, self)

@@ -33,6 +33,18 @@ jobs:
         run: |
           echo "ssh..."
 
+      - name: System debug
+        run: |
+          echo ">nvidia-smi"
+          nvidia-smi
+
+          echo ">nvcc --version"
+          if ! nvcc --version; then
+            echo "nvcc not found"
+            echo ">find nvcc"
+            sudo find / -name "nvcc" | grep bin
+          fi
+
       - name: ssh
         uses: ryanchapman/gha-ssh@v1
         # after the container starts tmate in the background, it will
@@ -51,6 +63,8 @@ jobs:
           # defaults to `false` if not set here
           # if debug is set, then tmate is started with `-vvv -F`
           debug: true
+
+      
 
       # - name: Setup asset caching
       #   id: cache-assets

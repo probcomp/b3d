@@ -33,7 +33,7 @@ jobs:
         # after the container starts tmate in the background, it will
         # sleep for 24 hours, so it's important that you set a timeout here
         # so you don't run up your GitHub Actions bill
-        timeout-minutes: 10
+        timeout-minutes: 60
         with:
           # authorized_github_users: required
           # List of GitHub users who are allowed to ssh into container.

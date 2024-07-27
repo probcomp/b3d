@@ -93,7 +93,7 @@ jobs:
           #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
           env
           cp -v assets/system/libEGL_nvidia.so.0 assets/system/libnvidia-glsi.so.555.58.02 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/
-          pixi run test
+          pixi run test-ci
           #grep "GL.*\.so" strace_output.txt
 
 

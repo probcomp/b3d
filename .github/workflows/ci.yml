@@ -63,28 +63,28 @@ jobs:
       #     key: ${{ runner.os }}-${{ matrix.runner }}-pixi
       #     restore-keys: ${{ runner.os }}-${{ matrix.runner }}-pixi
 
-      - name: System debugging
-        run: |
-          echo ">nvidia-smi"
-          nvidia-smi
+      # - name: System debug
+      #   run: |
+      #     echo ">nvidia-smi"
+      #     nvidia-smi
 
-          echo ">nvcc --version"
-          if ! nvcc --version; then
-            echo "nvcc not found"
-            echo ">find nvcc"
-            sudo find / -name "nvcc" | grep bin
-          fi
+      #     echo ">nvcc --version"
+      #     if ! nvcc --version; then
+      #       echo "nvcc not found"
+      #       echo ">find nvcc"
+      #       sudo find / -name "nvcc" | grep bin
+      #     fi
 
-          echo ">glxinfo -B"
-          if ! glxinfo -B; then
-            echo "glxinfo failed"
-          fi
+      #     echo ">glxinfo -B"
+      #     if ! glxinfo -B; then
+      #       echo "glxinfo failed"
+      #     fi
 
-          echo ">find libGLdispatch.so"
-          sudo find / -name "*libGLdispatch.so*"
+      #     echo ">find libGLdispatch.so"
+      #     sudo find / -name "*libGLdispatch.so*"
 
-          echo ">find nvidia.json"
-          sudo find / -name "*nvidia*.json"
+      #     echo ">find nvidia.json"
+      #     sudo find / -name "*nvidia*.json"
 
 
           #ldd /lib/x86_64-linux-gnu/libEGL.so.1

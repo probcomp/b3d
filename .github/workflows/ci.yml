@@ -23,18 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - name: apt install
-      #   uses: awalsh128/cache-apt-pkgs-action@latest
-      #   with:
-      #     packages: mesa-utils
-      #     version: 1.0
+      - name: apt install
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl
+          version: 1.0
+
+      - name: echo
+        run: |
+          echo "ssh..."
 
       - name: ssh
         uses: ryanchapman/gha-ssh@v1
         # after the container starts tmate in the background, it will
         # sleep for 24 hours, so it's important that you set a timeout here
         # so you don't run up your GitHub Actions bill
-        timeout-minutes: 60
+        timeout-minutes: 10
         with:
           # authorized_github_users: required
           # List of GitHub users who are allowed to ssh into container.

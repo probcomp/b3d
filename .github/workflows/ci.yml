@@ -28,6 +28,24 @@ jobs:
         with:
           packages: mesa-utils
           version: 1.0
+      - name: ssh
+        uses: ryanchapman/gha-ssh@v1
+        # after the container starts tmate in the background, it will
+        # sleep for 24 hours, so it's important that you set a timeout here
+        # so you don't run up your GitHub Actions bill
+        timeout-minutes: 10
+        with:
+          # authorized_github_users: required
+          # List of GitHub users who are allowed to ssh into container.
+          # On gha-ssh container start, it downloads the ssh public key(s) for each
+          # user from GitHub and places it in ~/authorized_keys
+          # tmate is started with `-a ~/authorized_keys` to only allow access
+          # to users with possession of the corresponding private ssh keys.
+          authorized_github_users: 'eightysteele'
+          # debug: optional
+          # defaults to `false` if not set here
+          # if debug is set, then tmate is started with `-vvv -F`
+          debug: true
 
       # - name: Setup asset caching
       #   id: cache-assets
@@ -51,7 +69,7 @@ jobs:
           nvidia-smi
 
           echo ">nvcc --version"
-          if ! nvcc --version;
+          if ! nvcc --version; then
             echo "nvcc not found"
             echo ">find nvcc"
             sudo find / -name "nvcc" | grep bin

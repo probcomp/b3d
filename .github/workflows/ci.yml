@@ -51,7 +51,11 @@ jobs:
           nvidia-smi
 
           echo ">nvcc --version"
-          nvcc --version
+          if ! nvcc --version;
+            echo "nvcc not found"
+            echo ">find nvcc"
+            sudo find / -name "nvcc" | grep bin
+          fi
 
           echo ">glxinfo -B"
           if ! glxinfo -B; then

@@ -23,11 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: apt install
-        uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: mesa-utils
-          version: 1.0
+      # - name: apt install
+      #   uses: awalsh128/cache-apt-pkgs-action@latest
+      #   with:
+      #     packages: mesa-utils
+      #     version: 1.0
+
       - name: ssh
         uses: ryanchapman/gha-ssh@v1
         # after the container starts tmate in the background, it will

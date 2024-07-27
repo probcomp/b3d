@@ -23,11 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - name: Install nvdiffrast dependencies
-      #   uses: awalsh128/cache-apt-pkgs-action@latest
-      #   with:
-      #     packages: mesa-utils
-      #     version: 1.0
+      - name: apt install
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: mesa-utils
+          version: 1.0
 
       # - name: Setup asset caching
       #   id: cache-assets
@@ -47,58 +47,83 @@ jobs:
 
       - name: System debugging
         run: |
+          echo ">nvidia-smi"
           nvidia-smi
-          ldconfig -p | grep EGL
-          ldconfig -p | grep GL
-          ls -la /usr/share/glvnd/
-          ls -la /usr/share/glvnd/egl_vendor.d/
-          cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
 
-          sudo sh -c 'echo "{" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sudo sh -c 'echo "    \"file_format_version\" : \"1.0.0\"," >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sudo sh -c 'echo "    \"ICD\" : {" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sudo sh -c 'echo "        \"library_path\" : \"libEGL_nvidia.so.0\"" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sudo sh -c 'echo "    }" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
-          sudo sh -c 'echo "}" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          echo ">nvcc --version"
+          nvcc --version
 
-          sudo chmod 755 /usr/share/glvnd/egl_vendor.d/10_nvidia.json
-          cat /usr/share/glvnd/egl_vendor.d/10_nvidia.json
-          sudo find / -name "*nvidia.so*"
-          sudo find / -name "*nvidia*"
-          ldd /lib/x86_64-linux-gnu/libEGL.so.1
-          strings /lib/x86_64-linux-gnu/libEGL.so.1 | grep -i 'nvidia\|mesa'
+          echo ">glxinfo -B"
+          if ! glxinfo -B; then
+            echo "glxinfo failed"
+          fi
+
+          echo ">find libGLdispatch.so"
+          sudo find / -name "*libGLdispatch.so*"
+
+          echo ">find nvidia.json"
+          sudo find / -name "*nvidia*.json"
+
+
+          #ldd /lib/x86_64-linux-gnu/libEGL.so.1
+          #strings /lib/x86_64-linux-gnu/libEGL.so.1 | grep -i 'nvidia\|mesa'
+
+
+          # ldconfig -p | grep EGL
+          # ldconfig -p | grep GL
+          # ls -la /usr/share/glvnd/
+          # ls -la /usr/share/glvnd/egl_vendor.d/
+          # cat /usr/share/glvnd/egl_vendor.d/50_mesa.json
+
+          # /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+
+          # in pixi environment
+          # x86_64-conda-linux-gnu/sysroot/usr/lib64/libGLdispatch.so
+
+          # sudo sh -c 'echo "{" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          # sudo sh -c 'echo "    \"file_format_version\" : \"1.0.0\"," >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          # sudo sh -c 'echo "    \"ICD\" : {" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          # sudo sh -c 'echo "        \"library_path\" : \"libEGL_nvidia.so.0\"" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          # sudo sh -c 'echo "    }" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+          # sudo sh -c 'echo "}" >> /usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+
+          # sudo chmod 755 /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+          # cat /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+          # sudo find / -name "*nvidia.so*"
+          # sudo find / -name "*nvidia*"
+
           #glxinfo -B
 
-      - name: Authenticate gcloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+      # - name: Authenticate gcloud
+      #   id: auth
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+      # - name: Setup gcloud
+      #   uses: google-github-actions/setup-gcloud@v2
 
-      - name: Install system environment and project dependencies
-        env:
-          GITHUB_CI: "true"
-          __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
-          #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
-        run: |
-          ./install.sh
-          source ~/.bashrc
-          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/x86_64-conda-linux-gnu/sysroot/usr/lib64:$GITHUB_WORKSPACE/lib"
-          #pixi tree
-          #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
-          env
-          
-          cp "$GITHUB_WORKSPACE/assets/system/libEGL_nvidia.so.0" "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
+      # - name: Install system environment and project dependencies
+      #   env:
+      #     GITHUB_CI: "true"
+      #     __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
+      #     #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+      #   run: |
+      #     ./install.sh
+      #     source ~/.bashrc
+      #     export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+      #     export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
+      #     export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/x86_64-conda-linux-gnu/sysroot/usr/lib64:$GITHUB_WORKSPACE/lib"
+      #     #pixi tree
+      #     #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
+      #     env
 
-          cp "$GITHUB_WORKSPACE/assets/system/libnvidia-glsi.so.555.58.02" "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
-          pixi run test-ci
-          #grep "GL.*\.so" strace_output.txt
-          #/usr/share/glvnd/egl_vendor.d/50_mesa.json
+      #     cp "$GITHUB_WORKSPACE/assets/system/libEGL_nvidia.so.0" "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
+
+      #     cp "$GITHUB_WORKSPACE/assets/system/libnvidia-glsi.so.555.58.02" "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
+      #     pixi run test-ci
+      #     #grep "GL.*\.so" strace_output.txt
+      #     #/usr/share/glvnd/egl_vendor.d/50_mesa.json
 
 
 

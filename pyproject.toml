@@ -62,6 +62,17 @@ tqdm = "==4.66.2"
 libglvnd-devel-cos7-x86_64 = ">=1.0.1,<1.1"
 libglvnd-cos7-x86_64 = ">=1.0.1,<1.1"
 
+[tool.pixi.tasks.test]
+cmd = 'strace -e trace=open,openat pytest -s --log-cli-level=INFO tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py'
+env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include", LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64:$CONDA_PREFIX/lib" }
+
+[tool.pixi.tasks.test-ci]
+cmd = 'strace -e trace=open,openat pytest -s --log-cli-level=INFO tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py'
+env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$GITHUB_WORKSPACE/targets/x86_64-linux/include", LD_LIBRARY_PATH = "$GITHUB_WORKSPACE/x86_64-conda-linux-gnu/sysroot/usr/lib64:$GITHUB_WORKSPACE/lib" }
+
+
+# tests/test_diff_renderer.py
+
 [tool.pixi.tasks]
 b3d-pull = {cmd = "python b3d_pull.py -ow", cwd = "src/b3d/bucket_utils" }
 
@@ -70,11 +81,12 @@ rerun = "rerun --port 8812"
 #tests/test_diff_renderer.py
 #tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py
 
-test = { cmd = 'strace -e trace=open,openat pytest -s --log-cli-level=INFO tests/test_diff_renderer.py', env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include" } } #, TORCH_CUDA_ARCH_LIST = "8.9" } }
+
+#} #, TORCH_CUDA_ARCH_LIST = "8.9" } }
 
 #:/usr/include:/usr/include:/usr/include/x86_64-linux-gnu:
 
-test-ci = { cmd = "pytest -s --log-cli-level=INFO tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" } }
+# test-ci = { cmd = "pytest -s --log-cli-level=INFO tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" } }
 
 all-tests-local = { cmd = "pytest -s --log-cli-level=INFO  --ignore=tests/sama4d/video_to_tracks_and_segmentation/keypoint_tracking_and_segmentation_test.py --ignore=tests/test_feature_track_data.py --ignore=tests/test_image_posterior_resolution_invariance.py --ignore=tests/test_likelihood_invariances.py --ignore=tests/test_mug_handle_posterior.py --ignore=tests/test_mug_smc_pose_inference_synthetic_and_real.py tests", env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include" } }
 

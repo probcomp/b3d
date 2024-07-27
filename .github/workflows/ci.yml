@@ -69,30 +69,32 @@ jobs:
           strings /lib/x86_64-linux-gnu/libEGL.so.1 | grep -i 'nvidia\|mesa'
           #glxinfo -B
 
-      # - name: Authenticate gcloud
-      #   id: auth
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+      - name: Authenticate gcloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
 
-      # - name: Setup gcloud
-      #   uses: google-github-actions/setup-gcloud@v2
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
-      # - name: Install system environment and project dependencies
-      #   env:
-      #     GITHUB_CI: "true"
-      #     __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
-      #     #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
-      #   run: |
-      #     ./install.sh
-      #     source ~/.bashrc
-      #     export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
-      #     export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
-      #     #pixi tree
-      #     #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
-      #     env
-      #     pixi run test
-      #     #grep "GL.*\.so" strace_output.txt
+      - name: Install system environment and project dependencies
+        env:
+          GITHUB_CI: "true"
+          __EGL_VENDOR_LIBRARY_DIRS: "/usr/share/glvnd" 
+          #LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+        run: |
+          ./install.sh
+          source ~/.bashrc
+          export PATH="/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH"
+          export CPLUS_INCLUDE_PATH="$GITHUB_WORKSPACE/.pixi/envs/default/targets/x86_64-linux/include"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/x86_64-conda-linux-gnu/sysroot/usr/lib64:$GITHUB_WORKSPACE/lib"
+          #pixi tree
+          #export LD_LIBRARY_PATH=/lib/x86_64-linux-gnu
+          env
+          cp -v assets/system/libEGL_nvidia.so.0 assets/system/libnvidia-glsi.so.555.58.02 "$GITHUB_WORKSPACE/.pixi/envs/default/x86_64-conda-linux-gnu/sysroot/usr/lib64/
+          pixi run test
+          #grep "GL.*\.so" strace_output.txt
 
 
 

@@ -37,9 +37,9 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-sdk-cpp-1.11.329-h46c3b66_9.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-core-cpp-1.13.0-h935415a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-identity-cpp-1.8.0-hd126650_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-blobs-cpp-12.11.0-hd2e3451_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-blobs-cpp-12.12.0-hd2e3451_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-common-cpp-12.7.0-h10ac4d7_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-files-datalake-cpp-12.10.0-haa04155_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-files-datalake-cpp-12.11.0-h325d260_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/babel-2.14.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/beautifulsoup4-4.12.3-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/binutils-2.40-h4852527_7.conda
@@ -210,10 +210,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/lerc-4.0.0-h27087fc_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libabseil-20240116.2-cxx17_he02047a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libarchive-3.7.4-hfca40fe_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-17.0.0-h0a637a3_1_cpu.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-acero-17.0.0-he02047a_1_cpu.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-dataset-17.0.0-he02047a_1_cpu.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-substrait-17.0.0-hc9a23c6_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-17.0.0-h4b47046_2_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-acero-17.0.0-he02047a_2_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-dataset-17.0.0-he02047a_2_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libarrow-substrait-17.0.0-hc9a23c6_2_cpu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libasprintf-0.22.5-h661eb56_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libasprintf-devel-0.22.5-h661eb56_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libass-0.17.1-h39113c1_2.conda
@@ -306,7 +306,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopenvino-tensorflow-frontend-2024.2.0-h39126c6_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopenvino-tensorflow-lite-frontend-2024.2.0-he02047a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libopus-1.3.1-h7f98852_1.tar.bz2
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libparquet-17.0.0-h9e5060d_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libparquet-17.0.0-h9e5060d_2_cpu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpciaccess-0.18-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.43-h2797004_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libpq-16.3-ha72fbe1_0.conda
@@ -1102,13 +1102,12 @@ packages:
   timestamp: 1721777604325
 - kind: conda
   name: azure-storage-blobs-cpp
-  version: 12.11.0
-  build: hd2e3451_2
-  build_number: 2
+  version: 12.12.0
+  build: hd2e3451_0
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-blobs-cpp-12.11.0-hd2e3451_2.conda
-  sha256: da906be8b96594af4d40bb91878ef5e6be9261deaf6c0605c737d89b985705e6
-  md5: 2d42ee3b9ebb08bc0ebeb03511f6e621
+  url: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-blobs-cpp-12.12.0-hd2e3451_0.conda
+  sha256: 69a0f5c2a08a1a40524b343060debb8d92295e2cc5805c3db56dad7a41246a93
+  md5: 61f1c193452f0daa582f39634627ea33
   depends:
   - __glibc >=2.17,<3.0.a0
   - azure-core-cpp >=1.13.0,<1.13.1.0a0
@@ -1118,8 +1117,8 @@ packages:
   license: MIT
   license_family: MIT
   purls: []
-  size: 522379
-  timestamp: 1721844642141
+  size: 523120
+  timestamp: 1721865032339
 - kind: conda
   name: azure-storage-common-cpp
   version: 12.7.0
@@ -1143,30 +1142,30 @@ packages:
   timestamp: 1721832724803
 - kind: conda
   name: azure-storage-files-datalake-cpp
-  version: 12.10.0
-  build: haa04155_2
-  build_number: 2
+  version: 12.11.0
+  build: h325d260_1
+  build_number: 1
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-files-datalake-cpp-12.10.0-haa04155_2.conda
-  sha256: e2c16faa0f484d7ca9c5d3fd01146e6ced6ab37ebf36e69fe1ad9107527e4261
-  md5: 08a987033cc472609fbdd095ad3b5c26
+  url: https://conda.anaconda.org/conda-forge/linux-64/azure-storage-files-datalake-cpp-12.11.0-h325d260_1.conda
+  sha256: 1726fa324bb402e52d63227d6cb3f849957cd6841f8cb8aed58bb0c81203befb
+  md5: 11d926d1f4a75a1b03d1c053ca20424b
   depends:
   - __glibc >=2.17,<3.0.a0
   - azure-core-cpp >=1.13.0,<1.13.1.0a0
-  - azure-storage-blobs-cpp >=12.11.0,<12.11.1.0a0
+  - azure-storage-blobs-cpp >=12.12.0,<12.12.1.0a0
   - azure-storage-common-cpp >=12.7.0,<12.7.1.0a0
   - libgcc-ng >=12
   - libstdcxx-ng >=12
   license: MIT
   license_family: MIT
   purls: []
-  size: 274450
-  timestamp: 1721865098116
+  size: 274492
+  timestamp: 1721925100762
 - kind: pypi
   name: b3d
   version: 0.1.0
   path: .
-  sha256: 8801157a334b3e4fc06629666325a7376a6181225932955943562c7d63362de5
+  sha256: 5e892b1d86256b7b82f58ba294e8ca6a1a442ad81cbc0be93f5eb0c81bc3d861
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1
@@ -4510,20 +4509,20 @@ packages:
 - kind: conda
   name: libarrow
   version: 17.0.0
-  build: h0a637a3_1_cpu
-  build_number: 1
+  build: h4b47046_2_cpu
+  build_number: 2
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-17.0.0-h0a637a3_1_cpu.conda
-  sha256: cf97224973828c4e362691c245bc1226cbcd0e0faac8b1c8c9fa4b253fa13aed
-  md5: 5094d3bdf28a52559cd28d01e5529dde
+  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-17.0.0-h4b47046_2_cpu.conda
+  sha256: b40f6d34408b191ca68699d45ac3bbfae7775f0f535166092b69734b30dc0043
+  md5: 715b8afa678fd8ef0c2a1a2f5d575d9b
   depends:
   - __glibc >=2.17,<3.0.a0
   - aws-crt-cpp >=0.27.3,<0.27.4.0a0
   - aws-sdk-cpp >=1.11.329,<1.11.330.0a0
   - azure-core-cpp >=1.13.0,<1.13.1.0a0
   - azure-identity-cpp >=1.8.0,<1.8.1.0a0
-  - azure-storage-blobs-cpp >=12.11.0,<12.11.1.0a0
-  - azure-storage-files-datalake-cpp >=12.10.0,<12.10.1.0a0
+  - azure-storage-blobs-cpp >=12.12.0,<12.12.1.0a0
+  - azure-storage-files-datalake-cpp >=12.11.0,<12.11.1.0a0
   - bzip2 >=1.0.8,<2.0a0
   - gflags >=2.2.2,<2.3.0a0
   - glog >=0.7.1,<0.8.0a0
@@ -4545,73 +4544,73 @@ packages:
   - zstd >=1.5.6,<1.6.0a0
   constrains:
   - apache-arrow-proc =*=cpu
-  - arrow-cpp <0.0a0
   - parquet-cpp <0.0a0
+  - arrow-cpp <0.0a0
   license: Apache-2.0
   purls: []
-  size: 8402522
-  timestamp: 1721887894852
+  size: 8392931
+  timestamp: 1721955073249
 - kind: conda
   name: libarrow-acero
   version: 17.0.0
-  build: he02047a_1_cpu
-  build_number: 1
+  build: he02047a_2_cpu
+  build_number: 2
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-acero-17.0.0-he02047a_1_cpu.conda
-  sha256: 0797234e72ec59f47c0d25d731b42ca49864681975e5708d214140544e4fff51
-  md5: a1863f5a0041e14fe5aaebfd241a62b2
+  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-acero-17.0.0-he02047a_2_cpu.conda
+  sha256: c710601c8fad60f422c4597e73f176753b69c4d4ef1bd3f0de5615a2ab6a28a2
+  md5: 43cee94a84bbe6e2d7c123af27140578
   depends:
   - __glibc >=2.17,<3.0.a0
-  - libarrow 17.0.0 h0a637a3_1_cpu
+  - libarrow 17.0.0 h4b47046_2_cpu
   - libgcc-ng >=12
   - libstdcxx-ng >=12
   license: Apache-2.0
   purls: []
-  size: 598385
-  timestamp: 1721887934160
+  size: 598162
+  timestamp: 1721955111941
 - kind: conda
   name: libarrow-dataset
   version: 17.0.0
-  build: he02047a_1_cpu
-  build_number: 1
+  build: he02047a_2_cpu
+  build_number: 2
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-dataset-17.0.0-he02047a_1_cpu.conda
-  sha256: 7377df7feca5d032e25b1b2db7ca7e7518738f3bc7f5f7479d4d5d0ef0f2f106
-  md5: 8d9b3438c4a2e9bbd7df9d1cde78f8e8
+  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-dataset-17.0.0-he02047a_2_cpu.conda
+  sha256: 6fe4d93d43f53d173c2d2b77bba7aaffd134b1de9ecd3382dc8f0d89d3eb4f2b
+  md5: 241bbbd938197304409716fa9510b5f2
   depends:
   - __glibc >=2.17,<3.0.a0
-  - libarrow 17.0.0 h0a637a3_1_cpu
-  - libarrow-acero 17.0.0 he02047a_1_cpu
+  - libarrow 17.0.0 h4b47046_2_cpu
+  - libarrow-acero 17.0.0 he02047a_2_cpu
   - libgcc-ng >=12
-  - libparquet 17.0.0 h9e5060d_1_cpu
+  - libparquet 17.0.0 h9e5060d_2_cpu
   - libstdcxx-ng >=12
   license: Apache-2.0
   purls: []
-  size: 578938
-  timestamp: 1721888006244
+  size: 579424
+  timestamp: 1721955184653
 - kind: conda
   name: libarrow-substrait
   version: 17.0.0
-  build: hc9a23c6_1_cpu
-  build_number: 1
+  build: hc9a23c6_2_cpu
+  build_number: 2
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-substrait-17.0.0-hc9a23c6_1_cpu.conda
-  sha256: b93a75a7ebe98da3ca6f21ea64351820beccb7a7d28625c86e7096ab6d80917a
-  md5: 4fec1488c8c84adb4c0aeef8065ba848
+  url: https://conda.anaconda.org/conda-forge/linux-64/libarrow-substrait-17.0.0-hc9a23c6_2_cpu.conda
+  sha256: 29c0670577e2a6a298b9119a28dfb6e1b11649587c5abd9e31d89d6b52da8f24
+  md5: 7c6bbc213f37b593c6a90a36b371e48d
   depends:
   - __glibc >=2.17,<3.0.a0
   - libabseil * cxx17*
   - libabseil >=20240116.2,<20240117.0a0
-  - libarrow 17.0.0 h0a637a3_1_cpu
-  - libarrow-acero 17.0.0 he02047a_1_cpu
-  - libarrow-dataset 17.0.0 he02047a_1_cpu
+  - libarrow 17.0.0 h4b47046_2_cpu
+  - libarrow-acero 17.0.0 he02047a_2_cpu
+  - libarrow-dataset 17.0.0 he02047a_2_cpu
   - libgcc-ng >=12
   - libprotobuf >=4.25.3,<4.25.4.0a0
   - libstdcxx-ng >=12
   license: Apache-2.0
   purls: []
-  size: 548848
-  timestamp: 1721888040125
+  size: 548676
+  timestamp: 1721955219102
 - kind: conda
   name: libasprintf
   version: 0.22.5
@@ -6310,23 +6309,23 @@ packages:
 - kind: conda
   name: libparquet
   version: 17.0.0
-  build: h9e5060d_1_cpu
-  build_number: 1
+  build: h9e5060d_2_cpu
+  build_number: 2
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/libparquet-17.0.0-h9e5060d_1_cpu.conda
-  sha256: a6ebb5b4096d52a0209b444cb9149f2de535ceb7552b7dd93bd53057796e51a7
-  md5: eac857eab26b32c4c19b38a3b6a210b8
+  url: https://conda.anaconda.org/conda-forge/linux-64/libparquet-17.0.0-h9e5060d_2_cpu.conda
+  sha256: d7283a8bf46b6203b600fa87dc94505fc54ac893071a5e8a44024b75e1c2f82f
+  md5: e4a82f087e5b915a7ee4cd199a7678df
   depends:
   - __glibc >=2.17,<3.0.a0
-  - libarrow 17.0.0 h0a637a3_1_cpu
+  - libarrow 17.0.0 h4b47046_2_cpu
   - libgcc-ng >=12
   - libstdcxx-ng >=12
   - libthrift >=0.19.0,<0.19.1.0a0
   - openssl >=3.3.1,<4.0a0
   license: Apache-2.0
   purls: []
-  size: 1170998
-  timestamp: 1721887988309
+  size: 1173349
+  timestamp: 1721955166629
 - kind: conda
   name: libpciaccess
   version: '0.18'

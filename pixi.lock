@@ -1165,7 +1165,7 @@ packages:
   name: b3d
   version: 0.1.0
   path: .
-  sha256: 5e892b1d86256b7b82f58ba294e8ca6a1a442ad81cbc0be93f5eb0c81bc3d861
+  sha256: 9b3f385aed05989449166b51c8af1b37c20ca5ae882523ff967f573878f78b66
   requires_dist:
   - genjax==0.5.0.post13.dev0+973fb60d
   - opencv-python>=4.10.0.84,<4.10.1

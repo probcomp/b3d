@@ -68,7 +68,7 @@ env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "
 
 [tool.pixi.tasks.test-ci]
 cmd = 'strace -e trace=open,openat pytest -s --log-cli-level=INFO tests/dense_model_unit_tests/triangle_depth_posterior/test_triangle_depth_posterior.py'
-env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$GITHUB_WORKSPACE/targets/x86_64-linux/include", LD_LIBRARY_PATH = "$GITHUB_WORKSPACE/x86_64-conda-linux-gnu/sysroot/usr/lib64:$GITHUB_WORKSPACE/lib" }
+env = { XLA_PYTHON_CLIENT_PREALLOCATE = "false", XLA_PYTHON_CLIENT_ALLOCATOR = "platform" , CPLUS_INCLUDE_PATH = "$GITHUB_WORKSPACE/targets/x86_64-linux/include",  LD_LIBRARY_PATH = "$GITHUB_WORKSPACE/x86_64-conda-linux-gnu/sysroot/usr/lib64:$GITHUB_WORKSPACE/lib" }
 
 
 # tests/test_diff_renderer.py

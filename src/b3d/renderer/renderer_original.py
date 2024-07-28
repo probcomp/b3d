@@ -99,6 +99,7 @@ class RendererOriginal(object):
         cy=50.0,
         near=0.001,
         far=5.0,
+        scaling=1.0,
     ):
         """
         Triangle mesh renderer.
@@ -124,7 +125,16 @@ class RendererOriginal(object):
                 Number of layers in the depth buffer.
         """
         self.renderer_env = dr.RasterizeGLContext(output_db=False)
-        self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
+        self.set_intrinsics(
+            width * scaling,
+            height * scaling,
+            fx * scaling,
+            fy * scaling,
+            cx * scaling,
+            cy * scaling,
+            near,
+            far,
+        )
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
         self.width, self.height = int(width), int(height)

@@ -101,7 +101,7 @@ gcloud-auth-adc() {
 		return 0
 	fi
 }
-
+ 
 main() {
 	local v=""
 	local p=""

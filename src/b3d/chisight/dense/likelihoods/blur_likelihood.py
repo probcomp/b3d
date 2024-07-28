@@ -17,7 +17,7 @@ def log_gaussian_kernel(size: int, sigma: float) -> jnp.ndarray:
 lower_bound = jnp.array([0.0, 0.0, 0.0, 0.0])
 upper_bound = jnp.array([1.0, 1.0, 1.0, 10.0])
 
-filter_size = 2
+filter_size = 9
 
 
 @jax.jit
@@ -118,6 +118,8 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
     color_variance = likelihood_args["color_variance_0"]
     depth_variance = likelihood_args["depth_variance_0"]
     outlier_probability = likelihood_args["outlier_probability_0"]
+    rows = likelihood_args["rows"]
+    cols = likelihood_args["cols"]
 
     ###########
     @functools.partial(
@@ -176,11 +178,10 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
             ),
             mode="edge",
         )
-        jj, ii = jnp.meshgrid(
-            jnp.arange(observed_rgbd.shape[1]), jnp.arange(observed_rgbd.shape[0])
-        )
-        indices = jnp.stack([ii, jj], axis=-1)
-
+        # jj, ii = jnp.meshgrid(
+        #     jnp.arange(observed_rgbd.shape[1]), jnp.arange(observed_rgbd.shape[0])
+        # )
+        indices = jnp.stack([rows, cols], axis=-1)
         log_kernel = log_gaussian_kernel(2 * filter_size + 1, blur)
 
         log_probabilities = per_pixel(
@@ -192,20 +193,19 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
         )
         return log_probabilities
 
-    pixelwise_score = likelihood_per_pixel(
-        observed_rgbd, latent_rgbd, likelihood_args["blur"]
-    )
+    scores = likelihood_per_pixel(observed_rgbd, latent_rgbd, likelihood_args["blur"])
 
-    mask = likelihood_args["mask"]
-    pixelwise_score = mask * pixelwise_score
     # score = genjax.truncated_normal.logpdf(observed_rgbd, latent_rgbd, color_variance, lower_bound, upper_bound)[...,:3].sum()
     # score = (jax.nn.logsumexp(pixelwise_score) - jnp.log(pixelwise_score.size)) * k
-    score = pixelwise_score.sum()
+    score = scores.sum()
+
+    pixelwise_score = jnp.zeros((observed_rgbd.shape[0], observed_rgbd.shape[1]))
+    pixelwise_score = pixelwise_score.at[rows, cols].set(scores)
 
     return {
         "score": score,
+        "scores": scores,
         "observed_color_space_d": observed_rgbd,
         "latent_color_space_d": latent_rgbd,
         "pixelwise_score": pixelwise_score,
-        "mask": mask,
     }

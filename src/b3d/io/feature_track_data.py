@@ -22,54 +22,49 @@ FeatureTrackData:
 @dataclass
 class FeatureTrackData:
     """
-        Feature track data class. Note: Spatial units are measured in meters.
+    Feature track data class. Note: Spatial units are measured in meters.
 
-        Args:
-    <<<<<<< HEAD
-                observed_keypoints_positions: (T, N, 2) Float Array
-                keypoint_visibility:          (T, N) Boolean Array; 2D points are stored as [x, y]
-    =======
-                observed_keypoints_positions: (T, N, 2) Float Array; 2D points stored as [x, y]
-                keypoint_visibility:          (T, N) Boolean Array
-    >>>>>>> main
-                camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
-                rgbd_images:                  (T, H, W, 4) Float Array
-                (optional) fps:                          Float
-                (optional) observed_features :           (T, N, F) Float Array OR None
-                (optional) latent_keypoint_positions :   (T, N, 3) Float Array OR None
-                (optional) latent_keypoint_quaternions : (T, N, 4) Float Array OR None
-                (optional) object_assignments:           (N,) Int Array OR None
-                (optional) camera_position:              (T, 3) Float Array OR None
-                (optional) camera_quaternion:            (T, 4) Float Array OR None
+    Args:
+            observed_keypoints_positions: (T, N, 2) Float Array; 2D points stored as [x, y]
+            keypoint_visibility:          (T, N) Boolean Array
+            camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
+            rgbd_images:                  (T, H, W, 4) Float Array
+            (optional) fps:                          Float
+            (optional) observed_features :           (T, N, F) Float Array OR None
+            (optional) latent_keypoint_positions :   (T, N, 3) Float Array OR None
+            (optional) latent_keypoint_quaternions : (T, N, 4) Float Array OR None
+            (optional) object_assignments:           (N,) Int Array OR None
+            (optional) camera_position:              (T, 3) Float Array OR None
+            (optional) camera_quaternion:            (T, 4) Float Array OR None
 
-        Example:
-        ```
-        # Initialize
-        data = FeatureTrackData(
-            observed_keypoints_positions = uv,
-            keypoint_visibility = vis,
-            camera_intrinsics = intr,
-            rgbd_images = rgb_or_rgbd)
+    Example:
+    ```
+    # Initialize
+    data = FeatureTrackData(
+        observed_keypoints_positions = uv,
+        keypoint_visibility = vis,
+        camera_intrinsics = intr,
+        rgbd_images = rgb_or_rgbd)
 
-        # Save and load
-        fname = "_temp.npz"
-        data.save(fname)
-        data = FeatureTrackData.load(fname)
+    # Save and load
+    fname = "_temp.npz"
+    data.save(fname)
+    data = FeatureTrackData.load(fname)
 
-        # Quick access
-        uv   = data.uv
-        vis  = data.vis
-        rgb  = data.rgb
-        rgbd = data.rgbd
-        intr = data.intrinsics
-        cams = data.camera_poses
-        ```
+    # Quick access
+    uv   = data.uv
+    vis  = data.vis
+    rgb  = data.rgb
+    rgbd = data.rgbd
+    intr = data.intrinsics
+    cams = data.camera_poses
+    ```
 
-        FeatureTrackData.load also supports
-        (1) Loading from npz files with a `rgb_imgs` field instead of `rgbd_images`.
-            In this case, the loader also looks for a `xyz` field to complete the `rgbd_images`;
-            if none is found, the depth channel is set to zeros.
-        (2) Loading from npz files with a `latent_keypoint_visibility` field instead of `keypoint_visibility`.
+    FeatureTrackData.load also supports
+    (1) Loading from npz files with a `rgb_imgs` field instead of `rgbd_images`.
+        In this case, the loader also looks for a `xyz` field to complete the `rgbd_images`;
+        if none is found, the depth channel is set to zeros.
+    (2) Loading from npz files with a `latent_keypoint_visibility` field instead of `keypoint_visibility`.
     """
 
     # Required fields: Observed Data

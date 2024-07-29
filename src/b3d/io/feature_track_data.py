@@ -281,6 +281,39 @@ class FeatureTrackData:
             fps=self.fps,
         )
 
+    def slice_keypoints(self, keypoint_indices):
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions[
+                :, keypoint_indices, :
+            ],
+            keypoint_visibility=self.keypoint_visibility[:, keypoint_indices],
+            camera_intrinsics=self.camera_intrinsics,
+            rgbd_images=self.rgbd_images,
+            fps=self.fps if self.fps is not None else None,
+            observed_features=self.observed_features[:, keypoint_indices]
+            if self.observed_features is not None
+            else None,
+            latent_keypoint_positions=self.latent_keypoint_positions[
+                :, keypoint_indices
+            ]
+            if self.latent_keypoint_positions is not None
+            else None,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions[
+                :, keypoint_indices
+            ]
+            if self.latent_keypoint_quaternions is not None
+            else None,
+            object_assignments=self.object_assignments[keypoint_indices]
+            if self.object_assignments is not None
+            else None,
+            camera_position=self.camera_position
+            if self.camera_position is not None
+            else None,
+            camera_quaternion=self.camera_quaternion
+            if self.camera_quaternion is not None
+            else None,
+        )
+
     def __len__(self):
         return self.observed_keypoints_positions.shape[0]
 
@@ -336,6 +369,25 @@ class FeatureTrackData:
 
     def has_depth_channel(self):
         return jnp.any(self.rgbd_images[..., 3] > 0.0)
+
+    def strip_depth_channel(self):
+        """Replace the depth channel with zeros."""
+        rgbd_images_with_zeros = jnp.concatenate(
+            [self.rgbd_images[..., :3], jnp.zeros(self.rgbd_images.shape[:-1] + (1,))],
+            axis=-1,
+        )
+        return FeatureTrackData(
+            observed_keypoints_positions=self.observed_keypoints_positions,
+            observed_features=self.observed_features,
+            keypoint_visibility=self.keypoint_visibility,
+            rgbd_images=rgbd_images_with_zeros,
+            latent_keypoint_positions=self.latent_keypoint_positions,
+            latent_keypoint_quaternions=self.latent_keypoint_quaternions,
+            object_assignments=self.object_assignments,
+            camera_position=self.camera_position,
+            camera_quaternion=self.camera_quaternion,
+            camera_intrinsics=self.camera_intrinsics,
+        )
 
     def remove_points_invisible_at_frame0(self):
         """
@@ -437,7 +489,7 @@ class FeatureTrackData:
                 s=1,
             )
         else:
-            ax.imshow(rgb[t] / 255)
+            ax.imshow(rgb[t])
             ax.scatter(*(self.uv[t, self.vis[t]] / downsize).T, s=1)
 
 

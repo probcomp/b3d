@@ -74,7 +74,7 @@ class AdamPatchTracker_UsingDenseOnlyTraces(Solver):
         keypoints_3D_C = jnp.stack(self.all_positions_C)
         inferred_keypoints_2D = b3d.camera.screen_from_camera(
             keypoints_3D_C, r.get_intrinsics_object()
-        )[:, :, ::-1]
+        )
         return inferred_keypoints_2D
 
     def visualize_solver_state(self, task_spec):

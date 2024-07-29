@@ -25,7 +25,7 @@ class FeatureTrackData:
     Feature track data class. Note: Spatial units are measured in meters.
 
     Args:
-            observed_keypoints_positions: (T, N, 2) Float Array
+            observed_keypoints_positions: (T, N, 2) Float Array; 2D points stored as [x, y]
             keypoint_visibility:          (T, N) Boolean Array
             camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
             rgbd_images:                  (T, H, W, 4) Float Array
@@ -111,20 +111,6 @@ class FeatureTrackData:
         self.object_assignments = object_assignments
         self.camera_position = camera_position
         self.camera_quaternion = camera_quaternion
-
-    def flip_xy(self):
-        return FeatureTrackData(
-            observed_keypoints_positions=self.observed_keypoints_positions[..., ::-1],
-            observed_features=self.observed_features,
-            keypoint_visibility=self.keypoint_visibility,
-            rgbd_images=self.rgbd_images,
-            latent_keypoint_positions=self.latent_keypoint_positions,
-            latent_keypoint_quaternions=self.latent_keypoint_quaternions,
-            object_assignments=self.object_assignments,
-            camera_position=self.camera_position,
-            camera_quaternion=self.camera_quaternion,
-            camera_intrinsics=self.camera_intrinsics,
-        )
 
     @property
     def num_frames(self):

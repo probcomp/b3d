@@ -41,7 +41,6 @@ def feature_track_data_from_scene_spec(spec):
         b3d.io.FeatureTrackData.load(spec["path"])
         .slice_time(start_frame=spec["start_frame"])
         .downscale(spec["downscale_factor"])
-        .flip_xy()
     )
 
 
@@ -88,7 +87,7 @@ def ftd_from_rotating_cheezit_box(n_frames=30):
         observed_keypoints_positions=jax.vmap(
             lambda positions_3D_W, X_WC: b3d.xyz_to_pixel_coordinates(
                 X_WC.inv().apply(positions_3D_W), r.fx, r.fy, r.cx, r.cy
-            ),
+            )[..., ::-1],
             in_axes=(0, 0),
         )(centers_3D_W_over_time, poses_WC),
         keypoint_visibility=jnp.ones(
@@ -142,9 +141,9 @@ def load_rotating_cheezit_box_data(n_frames=30):
     # height_gradations = jnp.arange(42, 88, 8) - 12
     width_gradations = jnp.arange(36, 70, 6)
     height_gradations = jnp.arange(30, 76, 6)
-    centers_2D_frame_0 = all_pairs_2(height_gradations, width_gradations)
+    centers_2D_frame_0 = all_pairs_2(width_gradations, height_gradations)
 
-    centers_3D_frame0_C = xyzs_C[0][centers_2D_frame_0[:, 0], centers_2D_frame_0[:, 1]]
+    centers_3D_frame0_C = xyzs_C[0][centers_2D_frame_0[:, 1], centers_2D_frame_0[:, 0]]
     centers_3D_frame0_W = X_WC.apply(centers_3D_frame0_C)
 
     # Let frame B0 be the first box pose
@@ -169,6 +168,9 @@ def load_rotating_cheezit_box_data(n_frames=30):
 
 
 def all_pairs_2(X, Y):
+    """
+    Gives a list of (x, y) pairs.
+    """
     return jnp.swapaxes(jnp.stack(jnp.meshgrid(X, Y), axis=-1), 0, 1).reshape(-1, 2)
 
 

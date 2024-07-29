@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>README.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<p><img alt="b3d" src="https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622" /></p>
+<p align="center">
+  <img src="https://github.com/probcomp/b3d/assets/66085644/53d4f644-530e-41b9-87f9-814064f12230" alt="animated" height="300" />
+</p>
+
+<h1>B3D: Bayesian 3D Inverse Graphics</h1>
+<h2>What is B3D?</h2>
+<p>B3D is a scene perception system<a href="https://arxiv.org/pdf/2312.08715">^1</a> that efficiently learns 3D object models in real-time, with robust uncertainty estimation, using GPU-accelerated sequential Monte Carlo inference.</p>
+<h2>Requirements</h2>
+<p>B3D requires a <code>linux-64</code> machine and a CUDA-enabled NVIDIA GPU[^2]. It also requires access to GenJAX, which you can get by sending this to any channel on the MIT Probcomp Slack: <code>\invite-genjax &lt;google-account-email&gt;</code></p>
+<blockquote>
+<p>[!TIP]
+B3D supports a <code>cpu</code> environment for <code>osx-arm64</code> machines. This environment provides tools for managing and connecting to B3D VMs on Google Cloud Platform.</p>
+</blockquote>
+<h2>Setup</h2>
+<p>The B3D environment includes developer tools, Python packages, and system-level dependencies that get pinned together in a single lockfile, with exact package versions, for each supported platform (<code>linux-64</code> and <code>osx-arm64</code>) across all virtual environments (<code>gpu</code> and <code>cpu</code>). This makes it possible to reproduce B3D on any machine.</p>
+<h3>Bootstrap</h3>
+<p>Before installing B3D, you bootstrap the environment. This will install <code>pixi</code><a href="https://github.com/prefix-dev/pixi/?tab=readme-ov-file#overview">^3</a> and <code>git</code> (if needed), update your shell configuration, and clone the <code>b3d</code> repo:</p>
+<p><code>sh
+curl -fsSL https://raw.githubusercontent.com/probcomp/b3d/aaron/pixi/install/bootstrap.sh | bash
+source ~/.bashrc</code></p>
+<blockquote>
+<p>[!TIP]
+The process can be customized using the following variables:</p>
+<p>| Variable            | Description                         | Default  |
+| :---                | :---                                |:---      |
+| B3D_CLONE           | clone the b3d repo                  | yes      |
+| B3D_HOME            | where to clone the b3d repo         | $PWD     |
+| B3D_BRANCH          | branch to checkout                  | main     |
+| B3D_CLONE_METHOD    | git clone method (https or ssh)     | https    |</p>
+</blockquote>
+<h3>Install</h3>
+<p>After bootstrapping, you install B3D. This will automatically detect your platform, install the correct environments and dependencies, and prompt you for Google Cloud authentication:</p>
+<p><code>sh
+cd b3d
+pixi run b3d-install</code></p>
+<blockquote>
+<p>[!TIP]
+If <code>pixi run b3d-install</code> fails because it can't find <code>pixi</code>, you may have forgotten to source your shell after bootstrapping. To fix it, run <code>source ~/.bashrc</code> and try installing again.</p>
+</blockquote>
+<h2>Developing</h2>
+<p>You can install B3D on a GPU-enabled VM and connect to it from <code>vscode</code> on your local machine using <code>gcp</code> tasks.</p>
+<h3>Setup</h3>
+<p>To setup <code>vscode</code>, you need to install a couple of extensions and make sure the <code>code</code> command is available on your local machine.</p>
+<ol>
+<li>Install the <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack">Remote Development Extension Pack</a> (for connecting to VMs over SHH)</li>
+<li>Install the latest <a href="https://marketplace.visualstudio.com/items?itemName=ms-python.python">Microsoft Python Extension</a> (this provides <code>pixi</code> environment support by selecting the <code>pre-release</code> version of the extension)</li>
+<li>On <code>osx-arm64</code>, run <code>Install code command in PATH</code> from the Command Palette so that <code>code</code> is available on your local machine</li>
+</ol>
+<h3>GCP</h3>
+<p><code>gcp</code> tasks manage VMs, reserve static IP addresses, and update ssh configuration files (e.g., host entries, remote forwarding for <code>rerun</code>, etc.). To create a new VM and connect to it through <code>vscode</code>:</p>
+<p><code>shell
+export GCP_VM=neyman-b3d-gpu
+pixi run gcp-code</code></p>
+<p>For more <code>gcp</code> tasks and options, see <code>pixi task list</code> and <code>pixi run gcp-help</code>.</p>
+<h3>Tests</h3>
+<p>Before running tests, this task will prompt you to synchronize test data, delete the <code>pytorch</code> extension cache, and launch <code>rerun</code>.</p>
+<p><code>shell
+pixi run dev-tests</code></p>
+<h2>Footnotes</h2>
+<p>[^2]: The NVIDIA GPU must have a compute capability of <code>5.2</code> or newer, and the NVIDIA driver must be version <code>525.60.13</code> or newer.</p>
+</body>
+</html>

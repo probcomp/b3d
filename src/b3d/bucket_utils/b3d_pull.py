@@ -54,25 +54,15 @@ def download_all(overwrite):
     )
     print("===============================================")
 
-    if overwrite:
-        download_cmd = [
-            "gcloud",
-            "storage",
-            "cp",
-            "--recursive",
-            GCLOUD_BUCKET_NAME + "/*",
+    flags = [] if overwrite else ["-u"]
+    download_cmd = (
+        ["gsutil", "-m", "rsync", "-r", "-x", ".*\\.gstmp$"]
+        + flags
+        + [
+            GCLOUD_BUCKET_NAME,
             LOCAL_BUCKET_PATH,
         ]
-    else:
-        download_cmd = [
-            "gcloud",
-            "storage",
-            "cp",
-            "-n",
-            "--recursive",
-            GCLOUD_BUCKET_NAME + "/*",
-            LOCAL_BUCKET_PATH,
-        ]
+    )
 
     popen = subprocess.Popen(
         download_cmd, stdout=subprocess.PIPE, universal_newlines=True

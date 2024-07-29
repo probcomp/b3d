@@ -1,5 +1,5 @@
 ci:
-    skip: [ruff]
+    skip: [ruff, pixi-update]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -19,3 +19,22 @@ repos:
 
       - id: ruff-format
         types_or: [ python, pyi ]
+
+  - repo: https://github.com/pecigonzalo/pre-commit-shfmt
+    rev: v2.2.0
+    hooks:
+      - id: shell-fmt-go
+        args:
+          - --write
+          - --simplify
+          - --indent
+          - "2"
+
+  - repo: local
+    hooks:
+      - id: pixi-update
+        name: pixi update
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update && git add pixi.lock'
+        language: system
+        files: ^pyproject\.toml$
+        types: [text]

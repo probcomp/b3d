@@ -56,13 +56,13 @@ class TestImgResolutionInvariance(unittest.TestCase):
         MESH_PATH = os.path.join(
             b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
         )
-        mesh = trimesh.load(MESH_PATH)
+        mesh = trimesh.load(MESH_PATH, force="mesh")
 
         vertices = jnp.array(mesh.vertices) * 5.0
         vertices = vertices - vertices.mean(0)
         faces = jnp.array(mesh.faces)
         vertex_colors = vertices * 0.0 + jnp.array([1.0, 0.0, 0.0])
-        vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
+        vertex_colors = jnp.array(mesh.visual.vertex_colors)[..., :3] / 255.0
 
         self.object_library = bayes3d.MeshLibrary.make_empty_library()
         self.object_library.add_object(vertices, faces, vertex_colors)

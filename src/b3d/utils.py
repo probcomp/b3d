@@ -508,28 +508,29 @@ def multivmap(f, args=None):
 
 
 @jax.jit
-def update_choices(trace, key, addresses, *values):
+def update_choices(trace, addresses, *values):
     return trace.update(
-        key, genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
+        jax.random.PRNGKey(0),
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)}),
     )[0]
 
 
 @jax.jit
-def update_choices_get_score(trace, key, addr_const, *values):
-    return update_choices(trace, key, addr_const, *values).get_score()
+def update_choices_get_score(trace, addr_const, *values):
+    return update_choices(trace, addr_const, *values).get_score()
 
 
 enumerate_choices = jax.jit(
     jax.vmap(
         update_choices,
-        in_axes=(None, None, None, 0),
+        in_axes=(None, None, 0),
     )
 )
 
 enumerate_choices_get_scores = jax.jit(
     jax.vmap(
         update_choices_get_score,
-        in_axes=(None, None, None, 0),
+        in_axes=(None, None, 0),
     )
 )
 
@@ -538,28 +539,24 @@ grid1 = multivmap(
     (
         False,
         False,
-        False,
         True,
     ),
 )
-grid2 = multivmap(update_choices_get_score, (False, False, False, True, True))
-grid3 = multivmap(update_choices_get_score, (False, False, False, True, True, True))
-grid4 = multivmap(
-    update_choices_get_score, (False, False, False, True, True, True, True)
-)
+grid2 = multivmap(update_choices_get_score, (False, False, True, True))
+grid3 = multivmap(update_choices_get_score, (False, False, True, True, True))
+grid4 = multivmap(update_choices_get_score, (False, False, True, True, True, True))
 
 
 @jax.jit
 def grid_trace(trace, addresses_const, values):
-    key = jax.random.PRNGKey(0)
     if len(addresses_const.const) == 1:
-        return grid1(trace, key, addresses_const, *values)
+        return grid1(trace, addresses_const, *values)
     elif len(addresses_const.const) == 2:
-        return grid2(trace, key, addresses_const, *values)
+        return grid2(trace, addresses_const, *values)
     elif len(addresses_const.const) == 3:
-        return grid3(trace, key, addresses_const, *values)
+        return grid3(trace, addresses_const, *values)
     elif len(addresses_const.const) == 4:
-        return grid4(trace, key, addresses_const, *values)
+        return grid4(trace, addresses_const, *values)
     else:
         raise ValueError("Too many addresses")
 

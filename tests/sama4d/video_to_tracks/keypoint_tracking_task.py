@@ -89,7 +89,7 @@ class KeypointTrackingTask(Task):
 
     @property
     def keypoint_positions_2D(self):
-        return self.ftd.observed_keypoints_positions
+        return self.ftd.observed_keypoints_positions[:, :, ::-1]
 
     @property
     def video(self):

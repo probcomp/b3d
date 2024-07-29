@@ -26,7 +26,7 @@ class FeatureTrackData:
 
     Args:
             observed_keypoints_positions: (T, N, 2) Float Array
-            keypoint_visibility:          (T, N) Boolean Array
+            keypoint_visibility:          (T, N) Boolean Array; 2D points are stored as [x, y]
             camera_intrinsics:            (8,) Float Array of camera intrinsics, see `camera.py`.
             rgbd_images:                  (T, H, W, 4) Float Array
             (optional) fps:                          Float

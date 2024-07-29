@@ -53,7 +53,7 @@ class Task:
         """
         return self.__class__.__name__
 
-    def assert_passing(self, scores, **kwargs) -> None:
+    def assert_passing(self, metrics, **kwargs) -> None:
         """
         Takes the output of `score` and makes assertions about the scores,
         asserting that the scores represent a solution

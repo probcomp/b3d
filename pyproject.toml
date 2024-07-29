@@ -1,90 +1,188 @@
-[build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "b3d"
 dynamic = ["version"]
 description = "A 3D computer vision library"
-readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "Apache 2.0"}
-authors = [
-    {name = "Nishad Gothoskar", email = "nishadg@mit.edu"},
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12"
-]
-dependencies = [
-    "genjax==0.5.0",
-    "rerun-sdk==0.16.1",
-    "tqdm==4.66.2",
-    "numpy==1.26.4",
-    "pillow==10.3.0",
-    "tensorflow-probability==0.23.0",
-    "trimesh==4.2.4",
-    "matplotlib==3.8.4",
-    "scipy==1.13.0",
-    "ninja==1.11.1.1",
-    "scikit-learn==1.4.1.post1",
-    "pytest==8.1.1",
-    "ipython==8.23.0",
-    "jupyter==1.0.0",
-    "pyransac3d==0.6.0",
-    "pdoc3==0.10.0",
-    "opencv-python==4.9.0.80",
-    "optax==0.2.2",
-    "fire==0.6.0",
-    "torch==2.2.2",
-    "torchvision==0.17.2",
-    "jax[cuda12]~=0.4.28",
-    "natsort",
-    "distinctipy",
-    "pyliblzfse",
-    "nvidia-cuda-nvcc-cu12==12.3.52",
-    "nvidia-nvjitlink-cu12==12.3.52",
-    "imageio",
+license = { text = "Apache 2.0" }
+authors = [{ name = "Nishad Gothoskar", email = "nishadg@mit.edu" }]
+requires-python = ">= 3.10"
+dependencies = [ # py-pi pacakges (currently unavailable on conda)
+    "genjax==0.5.1",
+    "opencv-python>=4.10.0.84,<4.10.1",
+    "pyliblzfse>=0.4.1,<0.5",
+    "pyransac3d>=0.6.0,<0.7",
 ]
 
-[project.scripts]
-b3d_pull = "b3d.bucket_utils.b3d_pull:download_from_bucket"
-b3d_push = "b3d.bucket_utils.b3d_push:upload_to_bucket"
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
-[tool.setuptools.package-data]
-"b3d" = [
-    "nvdiffrast/common/*.h",
-    "nvdiffrast/common/*.inl",
-    "nvdiffrast/common/*.cu",
-    "nvdiffrast/common/*.cpp",
-    "nvdiffrast/common/cudaraster/*.hpp",
-    "nvdiffrast/common/cudaraster/impl/*.cpp",
-    "nvdiffrast/common/cudaraster/impl/*.hpp",
-    "nvdiffrast/common/cudaraster/impl/*.inl",
-    "nvdiffrast/common/cudaraster/impl/*.cu",
-    "nvdiffrast/lib/*.h",
-    "nvdiffrast/torch/*.h",
-    "nvdiffrast/torch/*.inl",
-    "nvdiffrast/torch/*.cpp",
-    "nvdiffrast/tensorflow/*.cu",
-    "nvdiffrast/jax/*.h",
-    "nvdiffrast/jax/*.inl",
-    "nvdiffrast/jax/*.cpp",
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.pixi.pypi-options]
+index-url = "https://pypi.org/simple"
+extra-index-urls = [
+    "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
 ]
+
+[tool.pixi.pypi-dependencies]
+b3d = { path = ".", editable = true }
+
+[tool.pixi.target.osx-arm64]
+build-dependencies = { scipy = { version = "1.14.0.*" }, numpy = { version = "1.26.4.*" } }
+
+[tool.pixi.environments]
+cpu = { features = ["cpu", "dev"], solve-group = "default" }
+gpu = { features = ["cuda", "dev"], solve-group = "cuda" }
+
+[tool.pixi.tasks.rerun]
+description = "start rerun"
+cmd = "./task-rerun.sh"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-auth]
+description = "authenticate to gcloud"
+cmd = "gcloud auth login --update-adc"
+
+[tool.pixi.tasks.gcp-list]
+description = "list gcp instances"
+cmd = "./gcp.sh :gcp-list"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-active-host]
+description = "active gcp host"
+cmd = "./gcp.sh :gcp-active-host"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-create]
+description = "create, configure, bootstrap gcp instance"
+depends_on = [
+    "gcp-create-new",
+    "gcp-config-ssh",
+    "gcp-remote-forward",
+    "gcp-bootstrap",
+]
+
+[tool.pixi.tasks.gcp-create-new]
+description = "create gcp instance"
+cmd = "./gcp.sh :gcp-create"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-bootstrap]
+description = "bootstrap a gcp instance"
+cmd = "./gcp.sh :gcp-bootstrap"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-config-ssh]
+description = "ssh-config gcp instance"
+cmd = "./gcp.sh :gcp-config-ssh"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-remote-forward]
+description = "remote-forward gcp instance for rerun"
+cmd = "./gcp.sh :gcp-remote-forward"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-delete]
+description = "delete gcp instance"
+cmd = "./gcp.sh :gcp-delete"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-start]
+description = "start gcp instance"
+cmd = "./gcp.sh :gcp-start"
+cwd = "scripts"
+depends-on = ["gcp-bootstrap"]
+
+[tool.pixi.tasks.gcp-status]
+description = "status of gcp instance"
+cmd = "./gcp.sh :gcp-status"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-stop]
+description = "stop gcp instance"
+cmd = "./gcp.sh :gcp-stop"
+cwd = "scripts"
+
+[tool.pixi.tasks.gcp-ssh]
+description = "ssh into a gcp instance"
+cmd = "./gcp.sh :gcp-ssh"
+cwd = "scripts"
+depends_on = ["rerun"]
+
+[tool.pixi.feature.cpu.target.osx-arm64.dependencies]
+jax = "*"
+jaxlib = { version = "*", build = "cpu*" }
+
+[tool.pixi.feature.dev.dependencies]
+distinctipy = ">=1.3.4,<1.4"
+imageio = "*"
+jupyter = ">=1.0.0,<1.1"
+matplotlib = ">=3.9.1,<3.10"
+natsort = ">=8.4.0,<8.5"
+numpy = "<2.0.0"
+rerun-sdk = "==0.16.1"
+ruff = "*"
+trimesh = "==4.2.4"
+tqdm = "==4.66.2"
+pdoc3 = ">=0.11.1,<0.12"
+pillow = "==10.3.0"
+polars = ">=0.20,<0.21"
+pytest = "*"
+scikit-learn = ">=1.5.1,<1.6"
+scipy = ">=1.14.0,<1.15"
+
+[tool.pixi.feature.cuda]
+platforms = ["linux-64"]
+system-requirements = { cuda = "12" }
+
+[tool.pixi.feature.cuda.activation.env]
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
+CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
+
+[tool.pixi.feature.cuda.tasks.b3d-pull]
+description = "download test data"
+cmd = "python b3d_pull.py -ow"
+cwd = "src/b3d/bucket_utils"
+
+[tool.pixi.feature.cuda.tasks.test]
+description = "run tests"
+cmd = "./scripts/task-tests.sh"
+depends_on = ["b3d-pull"]
+
+[tool.pixi.feature.cuda.target.linux-64.dependencies]
+cuda-toolkit = "*"
+ffmpeg = "*"
+fire = ">=0.6.0,<0.7"
+glfw = "*"
+gcc = "*"
+ipython = ">=8.26.0,<8.27"
+jax = "*"
+jaxlib = { version = "0.4.28", build = "cuda12*" }
+libglib = "*"
+libglu = "*"
+libglvnd-devel-cos7-x86_64 = ">=1.0.1,<1.1"
+libglvnd-cos7-x86_64 = ">=1.0.1,<1.1"
+libnvjitlink = "*"
+mesalib = "*"
+mesa-libegl-devel-cos7-x86_64 = "*"
+mesa-libegl-cos7-x86_64 = "*"
+mesa-libglu-devel-cos7-x86_64 = "*"
+mesa-libglu-cos7-x86_64 = "*"
+ninja = "*"
+optax = ">=0.2.2,<0.3"
+pytorch = { version = "==2.3.0", build = "cuda12*" }
+torchvision = "*"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-
-[tool.pyright]
-typeCheckingMode = "standard"
+pythonpath = ["src"]
 
 [tool.ruff.lint]
 preview = true
 extend-select = ["I"]
 select = ["E4", "E7", "E9", "F"]
-# F403 disables errors from `*` imports, which we currently use heavily.
-ignore = ["F403"]
+ignore = ["F403"] # disables "*" import errors
 fixable = ["ALL"]
 unfixable = []

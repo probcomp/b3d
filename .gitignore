@@ -16,3 +16,7 @@ assets/ycbineoat/*
 !src/b3d/renderer/**/**.txt
 assets/kitti/*
 **/**.pth
+.pixi/envs/*
+.#*
+__pycache__/
+*.py[cod]

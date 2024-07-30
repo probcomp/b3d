@@ -166,7 +166,7 @@ class Mesh:
         return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
 
     def __len__(self):
-        assert len(self.vertices.shape) == 3, "This is not a batched mesh object."
+        # assert len(self.vertices.shape) == 3, "This is not a batched mesh object."
         return self.vertices.shape[0]
 
     def __getitem__(self, index):

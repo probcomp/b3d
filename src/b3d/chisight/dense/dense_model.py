@@ -48,8 +48,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
 
             outlier_probability = genjax.uniform(0.0, 1.0) @ f"outlier_probability_{i}"
             lightness_variance = genjax.uniform(0.0001, 1.0) @ f"lightness_variance_{i}"
-            color_variance = genjax.uniform(0.0001, 1.0) @ f"color_variance_{i}"
-            depth_variance = genjax.uniform(0.0001, 1.0) @ f"depth_variance_{i}"
+            color_variance = genjax.uniform(0.0001, 100.0) @ f"color_variance_{i}"
+            depth_variance = genjax.uniform(0.0001, 100.0) @ f"depth_variance_{i}"
 
             likelihood_args[f"outlier_probability_{i}"] = outlier_probability
             likelihood_args[f"lightness_variance_{i}"] = lightness_variance
@@ -95,7 +95,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         )
 
         info = info_from_trace(trace)
-        rr.log("rgb", rr.Image(trace.get_choices()["rgbd"][..., :3]))
+        rr.log("rgb/observed", rr.Image(trace.get_choices()["rgbd"][..., :3]))
         rr.log("rgb/depth/observed", rr.DepthImage(trace.get_choices()["rgbd"][..., 3]))
         rr.log(
             "rgb/depth/latent", rr.DepthImage(trace.get_retval()["latent_rgbd"][..., 3])

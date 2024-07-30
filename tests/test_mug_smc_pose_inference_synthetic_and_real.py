@@ -180,7 +180,7 @@ def test_renderer_full(renderer):
             scores = jnp.concatenate(
                 [
                     b3d.enumerate_choices_get_scores(
-                        trace, key, Pytree.const(("object_pose_0",)), poses
+                        trace, Pytree.const(("object_pose_0",)), poses
                     )
                     for poses in test_poses_batches
                 ]
@@ -197,7 +197,6 @@ def test_renderer_full(renderer):
 
             trace = b3d.update_choices(
                 trace,
-                key,
                 Pytree.const(("object_pose_0",)),
                 test_poses[samples[0]],
             )
@@ -223,7 +222,6 @@ def test_renderer_full(renderer):
         for t in range(len(samples)):
             trace = b3d.update_choices(
                 trace,
-                key,
                 Pytree.const(("object_pose_0",)),
                 test_poses[samples[t]],
             )

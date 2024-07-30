@@ -13,7 +13,7 @@ class KeypointTrackingAndSegmentationTask(KeypointTrackingTask):
         - poses_WC [camera pose in the world frame, per frame]
         - initial_keypoint_positions_2D [2D keypoint center positions at frame 0]
             (N, 2) array of 2D keypoint center positions at frame 0
-            stored as (y, x) pixel coordinates
+            stored as (x, y) pixel coordinates
         - renderer [Renderer object containing camera intrincis]
 
     The "ground truth" data consists of

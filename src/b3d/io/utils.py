@@ -172,10 +172,15 @@ def video_input_from_mp4(
     downsize=1,
     reverse_color_channel=False,
 ):
+    info = load_video_info(video_fname)
+
+    if info is None:
+        return None
+
     if times is None:
+        T = info.timesteps
         times = np.arange(T, step=step)
 
-    info = load_video_info(video_fname)
     intr = np.load(intrinsics_fname, allow_pickle=True)
     vid = load_video_to_numpy(
         video_fname,

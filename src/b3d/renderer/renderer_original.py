@@ -76,9 +76,14 @@ def interpolate_fwd(self, attr, rast, faces):
     return output, (attr, rast, faces)
 
 
+# def rasterize_bwd(self, saved_tensors, diffs):
+#     pos, tri = saved_tensors
+#     return jnp.zeros_like(pos), jnp.zeros_like(tri)
+
+
 def interpolate_bwd(self, saved_tensors, diffs):
-    _attr, _rast, _faces = saved_tensors
-    return jnp.zeros_like(pos), jnp.zeros_like(tri)
+    attr, rast, faces = saved_tensors
+    return jnp.zeros_like(attr), jnp.zeros_like(rast), jnp.zeros_like(faces)
 
 
 interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)
@@ -87,14 +92,15 @@ interpolate_prim.defvjp(interpolate_fwd, interpolate_bwd)
 class RendererOriginal(object):
     def __init__(
         self,
-        width=200,
-        height=200,
-        fx=150.0,
-        fy=150.0,
-        cx=100.0,
-        cy=100.0,
+        width=100,
+        height=100,
+        fx=75.0,
+        fy=75.0,
+        cx=50.0,
+        cy=50.0,
         near=0.001,
-        far=10.0,
+        far=5.0,
+        scaling=1.0,
     ):
         """
         Triangle mesh renderer.
@@ -120,7 +126,16 @@ class RendererOriginal(object):
                 Number of layers in the depth buffer.
         """
         self.renderer_env = dr.RasterizeGLContext(output_db=False)
-        self.set_intrinsics(width, height, fx, fy, cx, cy, near, far)
+        self.set_intrinsics(
+            width * scaling,
+            height * scaling,
+            fx * scaling,
+            fy * scaling,
+            cx * scaling,
+            cy * scaling,
+            near,
+            far,
+        )
 
     def set_intrinsics(self, width, height, fx, fy, cx, cy, near, far):
         self.width, self.height = int(width), int(height)

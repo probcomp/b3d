@@ -85,6 +85,11 @@ def keysplit(key, *ns):
         return keys
 
 
+@jax.jit
+def split_key(key):
+    return jax.random.split(key, 2)[-1]
+
+
 # # # # # # # # # # # #
 #
 #  Other
@@ -93,8 +98,28 @@ def keysplit(key, *ns):
 
 
 @partial(jax.jit, static_argnums=(1, 2))
-def resize_image(rgbd, height, width):
+def resize_image_nearest(rgbd, height, width):
     return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="nearest")
+
+
+resize_image_nearest_vmap = jax.jit(
+    jax.vmap(resize_image_nearest, in_axes=(0, None, None)), static_argnums=(1, 2)
+)
+
+
+@partial(jax.jit, static_argnums=(1, 2))
+def resize_image_linear(rgbd, height, width):
+    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="linear")
+
+
+resize_image_linear_vmap = jax.jit(
+    jax.vmap(resize_image_linear, in_axes=(0, None, None)), static_argnums=(1, 2)
+)
+
+
+@jax.jit
+def clip_rgb(rgb):
+    return jnp.clip(rgb, 0.0, 1.0)
 
 
 @partial(jax.jit, static_argnums=1)
@@ -479,34 +504,61 @@ def multivmap(f, args=None):
             multivmapped = jax.vmap(
                 multivmapped, in_axes=make_onehot(len(args), i, hot=0, cold=None)
             )
-    return multivmapped
+    return jax.jit(multivmapped)
 
 
 @jax.jit
-def update_choices(trace, key, addresses, *values):
+def update_choices(trace, addresses, *values):
     return trace.update(
-        key, genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)})
+        jax.random.PRNGKey(0),
+        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)}),
     )[0]
 
 
 @jax.jit
-def update_choices_get_score(trace, key, addr_const, *values):
-    return update_choices(trace, key, addr_const, *values).get_score()
+def update_choices_get_score(trace, addr_const, *values):
+    return update_choices(trace, addr_const, *values).get_score()
 
 
 enumerate_choices = jax.jit(
     jax.vmap(
         update_choices,
-        in_axes=(None, None, None, 0),
+        in_axes=(None, None, 0),
     )
 )
 
 enumerate_choices_get_scores = jax.jit(
     jax.vmap(
         update_choices_get_score,
-        in_axes=(None, None, None, 0),
+        in_axes=(None, None, 0),
     )
 )
+
+grid1 = multivmap(
+    update_choices_get_score,
+    (
+        False,
+        False,
+        True,
+    ),
+)
+grid2 = multivmap(update_choices_get_score, (False, False, True, True))
+grid3 = multivmap(update_choices_get_score, (False, False, True, True, True))
+grid4 = multivmap(update_choices_get_score, (False, False, True, True, True, True))
+
+
+@jax.jit
+def grid_trace(trace, addresses_const, values):
+    if len(addresses_const.const) == 1:
+        return grid1(trace, addresses_const, *values)
+    elif len(addresses_const.const) == 2:
+        return grid2(trace, addresses_const, *values)
+    elif len(addresses_const.const) == 3:
+        return grid3(trace, addresses_const, *values)
+    elif len(addresses_const.const) == 4:
+        return grid4(trace, addresses_const, *values)
+    else:
+        raise ValueError("Too many addresses")
 
 
 def nn_background_segmentation(images):
@@ -802,3 +854,22 @@ voxel_occupied_occluded_free_parallel_camera_depth = jax.jit(
         in_axes=(0, 0, 0, None, None, None, None, None, None, None),
     )
 )
+
+
+def make_grid_points(min_vec, max_vec, num_vec):
+    """
+    Generate uniformly spaced translation proposals in a 3D box
+    Args:
+        min_x, min_y, min_z: minimum x, y, z values
+    """
+    deltas = jnp.stack(
+        jnp.meshgrid(
+            *[
+                jnp.linspace(min_vec[i], max_vec[i], num_vec[i])
+                for i in range(len(min_vec))
+            ],
+        ),
+        axis=-1,
+    )
+    deltas = deltas.reshape((-1, len(min_vec)), order="F")
+    return deltas

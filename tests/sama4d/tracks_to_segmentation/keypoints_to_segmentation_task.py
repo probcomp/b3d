@@ -12,7 +12,7 @@ class KeypointsToSegmentationTask(Task):
     The task specification consists of:
         - keypoint_tracks_2D [2D keypoint tracks]
             (T, N, 2) array of 2D keypoint center positions at each frame
-            stored as (y, x) pixel coordinates
+            stored as (x, y) pixel coordinates
         - keypoint_visibility [keypoint visibility]
             (T, N) array of keypoint visibility at each frame
         - poses_WC [`poses_WC[t]` is the camera pose in the world's coordinate frame

@@ -19,7 +19,7 @@ class KeypointTrackingTask(Task):
         - poses_WC [camera pose in the world frame, per frame]
         - initial_keypoint_positions_2D [2D keypoint center positions at frame 0]
             (N, 2) array of 2D keypoint center positions at frame 0
-            stored as (y, x) pixel coordinates
+            stored as [x, y]) pixel coordinates
         - renderer [Renderer object containing camera intrincis]
 
     The "ground truth" data consists of
@@ -133,7 +133,7 @@ class KeypointTrackingTask(Task):
         rr.log(
             "/task/initial_keypoint_positions_2D",
             rr.Points2D(
-                np.array(self.keypoint_positions_2D[0][:, ::-1]),
+                np.array(self.keypoint_positions_2D[0]),
                 colors=np.array([0.0, 1.0, 0.0]),
             ),
             timeless=True,
@@ -176,7 +176,7 @@ class KeypointTrackingTask(Task):
                 rr.log(
                     "/groundtruth_solution/keypoints_2d",
                     rr.Points2D(
-                        np.array(self.keypoint_positions_2D[i, :, ::-1]),
+                        np.array(self.keypoint_positions_2D[i]),
                         colors=np.array([0.0, 1.0, 0.0]),
                     ),
                 )
@@ -213,7 +213,7 @@ class KeypointTrackingTask(Task):
             rr.log(
                 "/solution/keypoints_2D",
                 rr.Points2D(
-                    np.array(solution[i, :, ::-1]),
+                    np.array(solution[i]),
                     colors=np.array([0.0, 0.0, 1.0]),
 <<<<<<< HEAD
                     radii=0.3,

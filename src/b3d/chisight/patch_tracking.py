@@ -15,7 +15,7 @@ from b3d.chisight.particle_system import make_dense_gps_model
 
 def get_patches(centers, rgbds, pose_WC, fx, fy, cx, cy):
     """
-    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    Centers given as (N, 2) storing (x, y) pixel coordinates.
     """
     depths = rgbds[..., 3]
     xyzs_C = b3d.utils.xyz_from_depth_vectorized(depths, fx, fy, cx, cy)
@@ -25,7 +25,7 @@ def get_patches(centers, rgbds, pose_WC, fx, fy, cx, cy):
 
 def get_patches_from_pointcloud(centers, rgbs, xyzs_W, pose_WC, fx):
     """
-    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    Centers given as (N, 2) storing (x, y) pixel coordinates.
     """
     xyzs_C = pose_WC.inv().apply(xyzs_W)
 
@@ -45,12 +45,12 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, pose_WC, fx):
         center_x, center_y = center[0], center[1]
         patch_points_C = jax.lax.dynamic_slice(
             xyzs_C[0],
-            (center_x - del_pix, center_y - del_pix, 0),
+            (center_y - del_pix, center_x - del_pix, 0),
             (2 * del_pix - 1, 2 * del_pix - 1, 3),
         ).reshape(-1, 3)
         patch_rgbs = jax.lax.dynamic_slice(
             rgbs[0],
-            (center_x - del_pix, center_y - del_pix, 0),
+            (center_y - del_pix, center_x - del_pix, 0),
             (2 * del_pix - 1, 2 * del_pix - 1, 3),
         ).reshape(-1, 3)
 <<<<<<< HEAD:b3d/chisight/patch_tracking.py

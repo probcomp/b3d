@@ -54,7 +54,7 @@ def download_all(overwrite):
     )
     print("===============================================")
 
-    flags = [] if overwrite else ["--no-clobber"]
+    flags = [] if overwrite else ["-u"]
     download_cmd = (
         ["gsutil", "-m", "rsync", "--recursive", "-x", ".*\\.gstmp$"]
         + flags

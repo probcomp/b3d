@@ -602,20 +602,27 @@ def rr_init(name="demo"):
     rr.connect("127.0.0.1:8812")
 
 
-def rr_log_rgb(channel, rgb):
+def rr_log_rgb(rgb, channel="rgb"):
     rr.log(channel, rr.Image(rgb))
 
 
-def rr_log_depth(channel, depth):
-    rr.log(channel, rr.DepthImage(depth))
+def rr_log_depth(depth, channel="depth"):
+    rr.log(channel, rr.DepthImage(depth * 1.0))
 
 
-def rr_log_rgbd(channel, rgbd):
-    rr_log_rgb(channel + "/rgb", rgbd[..., :3])
-    rr_log_depth(channel + "/depth", rgbd[..., 3])
+def rr_log_mask(mask, channel="mask"):
+    rr.log(channel, rr.DepthImage(mask * 1.0))
 
 
-def rr_log_cloud(channel, cloud):
+def rr_log_rgbd(rgbd, channel="rgbd"):
+    rr_log_rgb(
+        rgbd[..., :3],
+        channel + "/rgb",
+    )
+    rr_log_depth(rgbd[..., 3], channel + "/depth")
+
+
+def rr_log_cloud(cloud, channel="cloud"):
     rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
 
 

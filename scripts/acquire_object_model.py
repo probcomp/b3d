@@ -101,7 +101,6 @@ def acquire(input_path, output_path=None):
     object_mesh.save(mesh_filename)
 
     # Load the mesh
-
     renderer = state.get("renderer")
     render_images = state.get("render_images")
     if renderer is None or renderer.width != image_width or renderer.fx != fx:

@@ -56,7 +56,7 @@ def download_all(overwrite):
 
     flags = [] if overwrite else ["-u"]
     download_cmd = (
-        ["gsutil", "-m", "rsync", "--recursive", "-x", ".*\\.gstmp$"]
+        ["gsutil", "-m", "rsync", "-r", "-x", ".*\\.gstmp$"]
         + flags
         + [
             GCLOUD_BUCKET_NAME,

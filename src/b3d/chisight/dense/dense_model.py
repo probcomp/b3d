@@ -95,23 +95,25 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         )
 
         info = info_from_trace(trace)
-        rr.log("rgb/observed", rr.Image(trace.get_choices()["rgbd"][..., :3]))
-        rr.log("rgb/depth/observed", rr.DepthImage(trace.get_choices()["rgbd"][..., 3]))
-        rr.log(
-            "rgb/depth/latent", rr.DepthImage(trace.get_retval()["latent_rgbd"][..., 3])
-        )
-        rr.log("rgb/latent", rr.Image(trace.get_retval()["latent_rgbd"][..., :3]))
+        rr.log("rgb", rr.Image(trace.get_choices()["rgbd"][..., :3]))
+        # rr.log("rgb/depth/observed", rr.DepthImage(trace.get_choices()["rgbd"][..., 3]))
+        # rr.log(
+        #     "rgb/depth/latent", rr.DepthImage(trace.get_retval()["latent_rgbd"][..., 3])
+        # )
+        # rr.log("rgb/latent", rr.Image(trace.get_retval()["latent_rgbd"][..., :3]))
 
+        # rr.log(
+        #     "rgb/color_space/observed_color_space_d",
+        #     rr.Image(info["observed_color_space_d"][..., :3]),
+        # )
+        # rr.log(
+        #     "rgb/color_space/latent_color_space_d",
+        #     rr.Image(info["latent_color_space_d"][..., :3]),
+        # )
+        b3d.rr_log_rgbd("rgb/observed", trace.get_choices()["rgbd"])
+        b3d.rr_log_rgbd("rgb/latent", trace.get_retval()["latent_rgbd"])
         rr.log(
-            "rgb/color_space/observed_color_space_d",
-            rr.Image(info["observed_color_space_d"][..., :3]),
-        )
-        rr.log(
-            "rgb/color_space/latent_color_space_d",
-            rr.Image(info["latent_color_space_d"][..., :3]),
-        )
-        rr.log(
-            "rgb/pixelwise_score",
+            "rgb/overlay/pixelwise_score",
             rr.DepthImage(info["pixelwise_score"]),
         )
 

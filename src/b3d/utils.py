@@ -99,7 +99,7 @@ def split_key(key):
 
 @partial(jax.jit, static_argnums=(1, 2))
 def resize_image_nearest(rgbd, height, width):
-    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="nearest")
+    return jax.image.resize(rgbd, (height, width, *rgbd.shape[2:]), method="nearest")
 
 
 resize_image_nearest_vmap = jax.jit(
@@ -109,7 +109,7 @@ resize_image_nearest_vmap = jax.jit(
 
 @partial(jax.jit, static_argnums=(1, 2))
 def resize_image_linear(rgbd, height, width):
-    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="linear")
+    return jax.image.resize(rgbd, (height, width, *rgbd.shape[2:]), method="linear")
 
 
 resize_image_linear_vmap = jax.jit(

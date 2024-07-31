@@ -67,9 +67,9 @@ def rr_visualize_mesh(channel, mesh):
 
 
 @jax.jit
-def voxel_mesh_from_xyz_colors_dimensions(xyz, resolutions, colors):
+def mesh_from_xyz_colors_dimensions(xyz, colors, dimensions):
     meshes = b3d.mesh.transform_mesh(
-        jax.vmap(b3d.mesh.Mesh.cube_mesh)(resolutions, colors),
+        jax.vmap(b3d.mesh.Mesh.cube_mesh)(dimensions, colors),
         b3d.Pose.from_translation(xyz)[:, None],
     )
     return b3d.mesh.Mesh.squeeze_mesh(meshes)
@@ -178,9 +178,7 @@ class Mesh:
     transform_and_merge_meshes = staticmethod(transform_and_merge_meshes)
     transform_mesh = staticmethod(transform_mesh)
     squeeze_mesh = staticmethod(squeeze_mesh)
-    voxel_mesh_from_xyz_colors_dimensions = staticmethod(
-        voxel_mesh_from_xyz_colors_dimensions
-    )
+    mesh_from_xyz_colors_dimensions = staticmethod(mesh_from_xyz_colors_dimensions)
 
     def rr_visualize(self, channel):
         rr_visualize_mesh(channel, self)

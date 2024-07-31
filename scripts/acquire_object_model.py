@@ -96,9 +96,9 @@ def acquire(input_path, output_path=None):
     object_mesh.rr_visualize("object_mesh")
 
     # Save the mesh
-    # mesh_filename = input_path + ".mesh.obj"
-    # print(f"Saving obj file to {mesh_filename}")
-    # object_mesh.save(mesh_filename)
+    mesh_filename = input_path + ".mesh.obj"
+    print(f"Saving obj file to {mesh_filename}")
+    object_mesh.save(mesh_filename)
 
     # Load the mesh
 

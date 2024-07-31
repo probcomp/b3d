@@ -110,15 +110,11 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         #     "rgb/color_space/latent_color_space_d",
         #     rr.Image(info["latent_color_space_d"][..., :3]),
         # )
-        b3d.rr_log_rgbd("rgb/observed", trace.get_choices()["rgbd"])
-        b3d.rr_log_rgbd("rgb/latent", trace.get_retval()["latent_rgbd"])
-        rr.log(
-            "rgb/overlay/pixelwise_score",
-            rr.DepthImage(info["pixelwise_score"]),
-        )
+        b3d.rr_log_rgbd(trace.get_choices()["rgbd"], "rgb/observed")
+        b3d.rr_log_rgbd(trace.get_retval()["latent_rgbd"], "rgb/latent")
+        rr.log("rgb/overlay/pixelwise_score", rr.DepthImage(info["pixelwise_score"]))
 
         b3d.rr_log_cloud(
-            "latent",
             b3d.xyz_from_depth(
                 trace.get_retval()["latent_rgbd"][..., 3],
                 fx,
@@ -126,9 +122,9 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 cx,
                 cy,
             ),
+            "latent",
         )
         b3d.rr_log_cloud(
-            "observed",
             b3d.xyz_from_depth(
                 trace.get_retval()["rgbd"][..., 3],
                 fx,
@@ -136,6 +132,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 cx,
                 cy,
             ),
+            "observed",
         )
         # rr.log("rgb/is_match", rr.DepthImage(intermediate_info["is_match"] * 1.0))
         # rr.log("rgb/color_match", rr.DepthImage(intermediate_info["color_match"] * 1.0))

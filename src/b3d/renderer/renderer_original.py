@@ -153,6 +153,9 @@ class RendererOriginal(object):
     def rasterize(self, pos, tri):
         return self.rasterize_many(pos[None, ...], tri)[0]
 
+    def rasterize_mesh(self, mesh):
+        return self.rasterize(mesh.vertices, mesh.faces)
+
     def rasterize_original(self, pos, tri):
         return _rasterize_fwd_custom_call(self, pos, tri, self.resolution)
 

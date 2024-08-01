@@ -13,7 +13,7 @@ from genjax import ChoiceMapBuilder as C
 
 def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):
     """
-    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    Centers given as (N, 2) storing (x, y) pixel coordinates.
     """
     depths = rgbds[..., 3]
     xyzs_C = b3d.utils.xyz_from_depth_vectorized(depths, fx, fy, cx, cy)
@@ -23,7 +23,7 @@ def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):
 
 def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
     """
-    Centers given as (N, 2) storing (y, x) pixel coordinates.
+    Centers given as (N, 2) storing (x, y) pixel coordinates.
     """
     xyzs_C = X_WC.inv().apply(xyzs_W)
 
@@ -43,12 +43,12 @@ def get_patches_from_pointcloud(centers, rgbs, xyzs_W, X_WC, fx):
         center_x, center_y = center[0], center[1]
         patch_points_C = jax.lax.dynamic_slice(
             xyzs_C[0],
-            (center_x - del_pix, center_y - del_pix, 0),
+            (center_y - del_pix, center_x - del_pix, 0),
             (2 * del_pix - 1, 2 * del_pix - 1, 3),
         ).reshape(-1, 3)
         patch_rgbs = jax.lax.dynamic_slice(
             rgbs[0],
-            (center_x - del_pix, center_y - del_pix, 0),
+            (center_y - del_pix, center_x - del_pix, 0),
             (2 * del_pix - 1, 2 * del_pix - 1, 3),
         ).reshape(-1, 3)
         patch_vertices_C, patch_faces, patch_vertex_colors, _patch_face_colors = (
@@ -148,11 +148,6 @@ def get_adam_optimization_patch_tracker(
         updates_quat, opt_state_quat = optimizer_quat.update(-grad_quat, opt_state_quat)
         pos = optax.apply_updates(pos, updates_pos)
         quat = optax.apply_updates(quat, updates_quat)
-        # jax.debug.print("Weight: {x}", x=weight)
-        # jax.debug.print("Pos grad magnitude: {x}", x=jnp.linalg.norm(grad_pos))
-        # jax.debug.print("Quat grad magnitude: {x}", x=jnp.linalg.norm(grad_quat))
-        # jax.debug.print("Position change: {x}", x=jnp.linalg.norm(og_pos - pos))
-        # jax.debug.print("Quaternion change: {x}", x=jnp.linalg.norm(og_quat - quat))
         return (opt_state_pos, opt_state_quat, pos, quat, observed_rgbd), (pos, quat)
 
     @jax.jit

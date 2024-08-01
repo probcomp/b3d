@@ -86,10 +86,10 @@ def acquire(input_path, output_path=None):
     grid_points = grid[model_mask]
     colors = grid_colors[model_mask]
 
-    _object_mesh = Mesh.voxel_mesh_from_xyz_colors_dimensions(
+    _object_mesh = Mesh.mesh_from_xyz_colors_dimensions(
         grid_points,
-        jnp.ones((grid_points.shape[0], 3)) * 0.002 * 2.0,
         colors,
+        jnp.ones((grid_points.shape[0], 3)) * 0.002 * 2.0,
     )
     object_pose = Pose.from_translation(jnp.median(_object_mesh.vertices, axis=0))
     object_mesh = _object_mesh.transform(object_pose.inv())
@@ -171,10 +171,10 @@ def acquire(input_path, output_path=None):
     distances_from_camera_ = distances_from_camera[m]
     colors_ = colors[m]
 
-    background_mesh = Mesh.voxel_mesh_from_xyz_colors_dimensions(
+    background_mesh = Mesh.mesh_from_xyz_colors_dimensions(
         background_xyzs_,
-        jnp.ones((background_xyzs_.shape[0], 3)) * distances_from_camera_,
         colors_,
+        jnp.ones((background_xyzs_.shape[0], 3)) * distances_from_camera_,
     )
     # background_mesh.rr_visualize("background_mesh")
 
@@ -219,9 +219,9 @@ def main():
     parser.add_argument("input", help="r3d file", type=str)
     args = parser.parse_args()
     filename = args.input
-    _ = acquire(filename)
-    run2 = acquire(filename)
-    return run2
+    run = acquire(filename)
+    # run = acquire(filename)
+    return run
 
 
 if __name__ == "__main__":

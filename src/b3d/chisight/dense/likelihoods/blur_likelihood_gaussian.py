@@ -124,7 +124,7 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
     ###########
     @functools.partial(
         jnp.vectorize,
-        signature="(m)->(),()",
+        signature="(m)->()",
         excluded=(
             1,
             2,
@@ -136,52 +136,38 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
         ij,
         observed_rgbd,
         latent_rgbd_padded,
-        blur,
+        log_kernel,
         filter_size,
     ):
-        log_kernel = log_gaussian_kernel(2 * filter_size + 1, blur)
-
         latent_rgb_padded_window = jax.lax.dynamic_slice(
             latent_rgbd_padded,
             (ij[0], ij[1], 0),
             (2 * filter_size + 1, 2 * filter_size + 1, 4),
         )
 
-        error = jnp.abs(latent_rgb_padded_window - observed_rgbd[ij[0], ij[1], :])
-        inlier = jnp.all(
-            error
-            < jnp.array(
-                [color_variance, color_variance, color_variance, depth_variance]
-            ),
-            axis=-1,
-        ) * (latent_rgb_padded_window[..., 3] != 0.0)
-        scores_inlier = jnp.where(inlier, 2.0, -jnp.inf)
-
-        # scores_inlier = genjax.truncated_normal.logpdf(
-        #     observed_rgbd[ij[0], ij[1], :],
-        #     latent_rgb_padded_window,
-        #     jnp.array([color_variance, color_variance, color_variance, depth_variance]),
-        #     0.0 - 0.00001,
-        #     1.0 + 0.00001,
-        # ).sum(-1)
+        scores_inlier = genjax.truncated_normal.logpdf(
+            observed_rgbd[ij[0], ij[1], :],
+            latent_rgb_padded_window,
+            jnp.array([color_variance, color_variance, color_variance, depth_variance]),
+            0.0,
+            1.0,
+        ).sum(-1)
 
         # no_mesh = latent_rgb_padded_window[..., 3] == 0.
         # outlier_probability_adjusted = (no_mesh) * 1.0 + (1 - no_mesh) * outlier_probability
 
-        score_mixed = jax.nn.logsumexp(scores_inlier + log_kernel)
-
-        final_score = jnp.logaddexp(
-            score_mixed + jnp.log(1.0 - outlier_probability),
+        scores = jnp.logaddexp(
+            scores_inlier + jnp.log(1.0 - outlier_probability),
             jnp.log(outlier_probability),
         )
-        return score_mixed, final_score
+        return jax.nn.logsumexp(scores + log_kernel)
 
     @jax.jit
     def likelihood_per_pixel(
         observed_rgbd: jnp.ndarray, latent_rgbd: jnp.ndarray, blur
     ):
-        # observed_rgbd = (observed_rgbd - lower_bound) / (upper_bound - lower_bound)
-        # latent_rgbd = (latent_rgbd - lower_bound) / (upper_bound - lower_bound)
+        observed_rgbd = (observed_rgbd - lower_bound) / (upper_bound - lower_bound)
+        latent_rgbd = (latent_rgbd - lower_bound) / (upper_bound - lower_bound)
 
         latent_rgbd_padded = jnp.pad(
             latent_rgbd,
@@ -196,19 +182,18 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
         #     jnp.arange(observed_rgbd.shape[1]), jnp.arange(observed_rgbd.shape[0])
         # )
         indices = jnp.stack([rows, cols], axis=-1)
+        log_kernel = log_gaussian_kernel(2 * filter_size + 1, blur)
 
-        scores_inlier, scores_final = per_pixel(
+        log_probabilities = per_pixel(
             indices,
             observed_rgbd,
             latent_rgbd_padded,
-            blur,
+            log_kernel,
             filter_size,
         )
-        return scores_inlier, scores_final
+        return log_probabilities
 
-    _, scores = likelihood_per_pixel(
-        observed_rgbd, latent_rgbd, likelihood_args["blur"]
-    )
+    scores = likelihood_per_pixel(observed_rgbd, latent_rgbd, likelihood_args["blur"])
 
     # score = genjax.truncated_normal.logpdf(observed_rgbd, latent_rgbd, color_variance, lower_bound, upper_bound)[...,:3].sum()
     # score = (jax.nn.logsumexp(pixelwise_score) - jnp.log(pixelwise_score.size)) * k

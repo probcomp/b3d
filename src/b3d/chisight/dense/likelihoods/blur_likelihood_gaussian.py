@@ -15,7 +15,7 @@ def log_gaussian_kernel(size: int, sigma: float) -> jnp.ndarray:
 
 
 lower_bound = jnp.array([0.0, 0.0, 0.0, 0.0])
-upper_bound = jnp.array([1.0, 1.0, 1.0, 3.0])
+upper_bound = jnp.array([1.0, 1.0, 1.0, 100.0])
 
 filter_size = 9
 
@@ -149,18 +149,20 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
             observed_rgbd[ij[0], ij[1], :],
             latent_rgb_padded_window,
             jnp.array([color_variance, color_variance, color_variance, depth_variance]),
-            0.0,
-            1.0,
-        ).sum(-1)
+            0.0 - 0.00001,
+            1.0 + 0.00001,
+        ).sum(-1) + jnp.where(latent_rgb_padded_window[..., 3] == 0.0, -jnp.inf, 0.0)
 
         # no_mesh = latent_rgb_padded_window[..., 3] == 0.
         # outlier_probability_adjusted = (no_mesh) * 1.0 + (1 - no_mesh) * outlier_probability
 
-        scores = jnp.logaddexp(
-            scores_inlier + jnp.log(1.0 - outlier_probability),
+        score_mixed = jax.nn.logsumexp(scores_inlier + log_kernel)
+
+        final_score = jnp.logaddexp(
+            score_mixed + jnp.log(1.0 - outlier_probability),
             jnp.log(outlier_probability),
         )
-        return jax.nn.logsumexp(scores + log_kernel)
+        return final_score
 
     @jax.jit
     def likelihood_per_pixel(
@@ -178,6 +180,7 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
             ),
             mode="edge",
         )
+
         # jj, ii = jnp.meshgrid(
         #     jnp.arange(observed_rgbd.shape[1]), jnp.arange(observed_rgbd.shape[0])
         # )

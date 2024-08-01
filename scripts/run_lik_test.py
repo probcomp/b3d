@@ -4,7 +4,11 @@ import jax.numpy as jnp
 import jax
 from b3d import Pose
 import trimesh
-from b3d.bayes3d.image_likelihoods import gaussian_iid_pix_likelihood_vec, threedp3_gmm_likelihood_vec, kray_likelihood_intermediate_vec
+from b3d.bayes3d.image_likelihoods import (
+    gaussian_iid_pix_likelihood_vec,
+    threedp3_gmm_likelihood_vec,
+    kray_likelihood_intermediate_vec,
+)
 import rerun as rr
 import matplotlib
 
@@ -17,11 +21,11 @@ image_width, image_height, fx, fy, cx, cy, near, far = (
     50.0,
     0.01,
     10.0,
- )
+)
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
 
 mesh_path = os.path.join(
-           b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+    b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
 )
 mesh = trimesh.load(mesh_path)
 vertices = jnp.array(mesh.vertices)
@@ -53,7 +57,7 @@ cps_to_test = [
     jnp.array([0.0, 0.0, +jnp.pi / 2]),  # Side
 ]
 
-text_index = 0 # 1
+text_index = 0  # 1
 
 gt_cp = cps_to_test[text_index]
 
@@ -66,8 +70,8 @@ gt_rgb, gt_depth = renderer.render_attribute(
     object_library.ranges[jnp.array([0])],
     object_library.attributes,
 )
-gt_depth = jnp.where(gt_depth == 0.0, jnp.ones(gt_depth.shape)*renderer.far, gt_depth)
-gt_img = jnp.concatenate((gt_rgb, gt_depth[...,None]),axis=2)
+gt_depth = jnp.where(gt_depth == 0.0, jnp.ones(gt_depth.shape) * renderer.far, gt_depth)
+gt_img = jnp.concatenate((gt_rgb, gt_depth[..., None]), axis=2)
 
 delta_cps = jnp.stack(
     jnp.meshgrid(
@@ -96,8 +100,7 @@ test_poses_batches = test_poses.split(100)
 scores = []
 
 # gaussian iid args
-likelihood_args = {'rgb_tolerance': 120.0,
-                   'depth_tolerance': 1.0}
+likelihood_args = {"rgb_tolerance": 120.0, "depth_tolerance": 1.0}
 
 # GMM args
 # likelihood_args = {'variance': 0.05,
@@ -116,15 +119,17 @@ likelihood_args = {'rgb_tolerance': 120.0,
 
 for batch in test_poses_batches:
     rgb_ims, depth_ims = renderer.render_attribute_many(
-        (camera_pose.inv() @ batch)[:,None, ...],
+        (camera_pose.inv() @ batch)[:, None, ...],
         object_library.vertices,
         object_library.faces,
         object_library.ranges[jnp.array([0])],
         object_library.attributes,
     )
-    rendered_imgs = jnp.concatenate((rgb_ims, depth_ims[...,None]),axis=3)
+    rendered_imgs = jnp.concatenate((rgb_ims, depth_ims[..., None]), axis=3)
 
-    scores_batch, _ = gaussian_iid_pix_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
+    scores_batch, _ = gaussian_iid_pix_likelihood_vec(
+        gt_img, rendered_imgs, likelihood_args
+    )
     # scores_batch, _ = threedp3_gmm_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
     # scores_batch, _ = kray_likelihood_intermediate_vec(gt_img, rendered_imgs,  likelihood_args)
     scores.append(scores_batch)
@@ -154,12 +159,15 @@ original_view_images, original_view_depths = renderer.render_attribute_many(
     object_library.attributes,
 )
 
-rendered_imgs = jnp.concatenate((original_view_images, original_view_depths[...,None]),axis=3)
+rendered_imgs = jnp.concatenate(
+    (original_view_images, original_view_depths[..., None]), axis=3
+)
 
-_, pixel_scores = gaussian_iid_pix_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
+_, pixel_scores = gaussian_iid_pix_likelihood_vec(
+    gt_img, rendered_imgs, likelihood_args
+)
 # _, pixel_scores = threedp3_gmm_likelihood_vec(gt_img, rendered_imgs,  likelihood_args)
 # _, pixel_scores = kray_likelihood_intermediate_vec(gt_img, rendered_imgs,  likelihood_args)
-
 
 
 PORT = 8812
@@ -169,13 +177,17 @@ rr.connect(addr=f"127.0.0.1:{PORT}")
 for t in range(len(alternate_view_images)):
     rr.set_time_sequence("time", t)
     rr.log(f"samples/alternate_view", rr.Image(alternate_view_images[t]))
-    rr.log(f"samples/original_view", rr.Image((original_view_images[t]*0.7 + (gt_img.sum(axis=2)>0)[...,None]*jnp.ones(3)[None,None,:] * 0.3)))
-
-    pixel_im = pixel_scores['pix_score'][t]
-    cmap = matplotlib.colormaps["inferno"]
-    norm = matplotlib.colors.Normalize(
-        vmin=pixel_im.min(), vmax=pixel_im.max()
+    rr.log(
+        f"samples/original_view",
+        rr.Image(
+            (
+                original_view_images[t] * 0.7
+                + (gt_img.sum(axis=2) > 0)[..., None] * jnp.ones(3)[None, None, :] * 0.3
+            )
+        ),
     )
+
+    pixel_im = pixel_scores["pix_score"][t]
+    cmap = matplotlib.colormaps["inferno"]
+    norm = matplotlib.colors.Normalize(vmin=pixel_im.min(), vmax=pixel_im.max())
     rr.log(f"samples/heatmap", rr.Image(cmap(norm(pixel_im))))
-
-

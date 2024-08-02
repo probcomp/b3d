@@ -155,7 +155,9 @@ def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_arg
             ),
             axis=-1,
         )
-        scores_inlier = jnp.where(inlier, 8.0, -jnp.inf)
+        scores_inlier = jnp.where(inlier, 8.0, -jnp.inf) * (
+            latent_rgb_padded_window[..., 3] != 0.0
+        )
 
         # scores_inlier = genjax.truncated_normal.logpdf(
         #     observed_rgbd[ij[0], ij[1], :],

@@ -17,7 +17,7 @@ def log_gaussian_kernel(size: int, sigma: float) -> jnp.ndarray:
 lower_bound = jnp.array([0.0, 0.0, 0.0, 0.0])
 upper_bound = jnp.array([1.0, 1.0, 1.0, 3.0])
 
-filter_size = 9
+filter_size = 4
 
 
 @jax.jit

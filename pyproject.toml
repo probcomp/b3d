@@ -135,12 +135,12 @@ cwd = "src/b3d/bucket_utils"
 
 [tool.pixi.feature.dev.tasks.dev-tests]
 description = "Execute tests"
-cmd = "./scripts/task-tests.sh"
+cmd = "./scripts/tests.sh"
 depends_on = ["dev-data-sync", "dev-rerun"]
 
 [tool.pixi.tasks.dev-rerun]
 description = "Launch rerun"
-cmd = "./task-rerun.sh"
+cmd = "./rerun.sh"
 cwd = "scripts"
 
 [tool.pixi.feature.dev.tasks.dev-jupyter]

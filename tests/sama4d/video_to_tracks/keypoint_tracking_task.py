@@ -102,7 +102,7 @@ class KeypointTrackingTask(Task):
         distance_error_threshold=3.0,  # pixels
     ):
         return {
-            "mean_distance_error": jnp.mean(
+            "mean_distance_error": safe_mean(
                 jnp.linalg.norm(
                     inferred_keypoint_positions_2D - self.keypoint_positions_2D, axis=-1
                 )
@@ -240,3 +240,8 @@ class KeypointTrackingTask(Task):
                 ),
             )
         )
+
+
+def safe_mean(x):
+    """Returns the mean of the non-inf and non-nan values of x."""
+    return jnp.mean(x[jnp.isfinite(x)])

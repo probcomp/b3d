@@ -5,7 +5,11 @@ from tests.common.solver import Solver
 
 
 class SinglePatchTracker2D(Solver):
-    def solve(self, task_specification):
+    def __init__(self):
+        self.patch = None
+        self.inferred_patches = None
+
+    def solve(self, task_specification, log_to_self=False):
         kp0 = task_specification["initial_keypoint_positions_2D"]
         assert kp0.shape == (
             1,
@@ -18,7 +22,24 @@ class SinglePatchTracker2D(Solver):
             lambda img: get_best_fit_pos(img, patch)
         )(rgb)
         stacked_xy = jnp.stack([bestfit_positions_x, bestfit_positions_y], axis=-1)
-        return stacked_xy[:, None, :]
+        result = stacked_xy[:, None, :]
+
+        if log_to_self:
+            self.patch = patch
+            self.inferred_patches = jax.vmap(
+                lambda t: get_patch_around_region_with_padding(
+                    rgb[t], stacked_xy[t], size=patch.shape[0]
+                )
+            )(jnp.arange(rgb.shape[0]))
+
+        return result
+
+    def get_patches_over_time(self, rgb, points_xy):
+        return jax.vmap(
+            lambda t: get_patch_around_region_with_padding(
+                rgb[t], points_xy[t], size=self.patch.shape[0]
+            )
+        )(jnp.arange(rgb.shape[0]))
 
 
 def get_patch_around_region_with_padding(rgb, center, size=11, pad_value=-1):

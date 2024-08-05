@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+if [[ $B3D_TEST_MODE -ne 1 ]]; then
+  set -eo pipefail
+fi
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
@@ -14,6 +16,7 @@ GCP_CONNECT="${GCP_CONNECT:-ssh}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 
+# Prints help
 gcp-help() {
   cat <<-EOF
 
@@ -35,6 +38,7 @@ gcp-help() {
 	EOF
 }
 
+# Prints the environment.
 gcp-env() {
   cat <<-EOF
 
@@ -48,100 +52,232 @@ gcp-env() {
 	EOF
 }
 
+# Executes a gcloud command.
+gcp-execute() {
+  local command=("$@")
+  "${command[@]}"
+}
+
+# Logs a user message.
 gcp-log() {
   local msg="$1"
   printf "%s\n" "$msg"
   return 0
 }
 
+# Gets the active host name.
+#
+# Returns:
+#   0 on success, echos host string
+#   1 on error, GCP_VM required
+#   2 on error, GCP_ZONE required
+#   3 on error, GCP_PROJECT required
 gcp-active-host() {
+  if [ -z "$GCP_VM" ]; then
+    echo "GCP_VM required"
+    return 1
+  fi
+  if [ -z "$GCP_ZONE" ]; then
+    echo "GCP_ZONE required"
+    return 2
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 3
+  fi
+
   local host="$GCP_VM.$GCP_ZONE.$GCP_PROJECT"
   echo "$host"
   return 0
 }
 
+# Gets the address name for GCP_VM.
+#
+# Returns:
+#   0 in success, echos address name
+#   1 on error, GCP_VM required
 gcp-address-name() {
-  local address
-
   if [ -z "$GCP_VM" ]; then
-    echo "error: GCP_VM is required"
+    echo "GCP_VM required"
     exit 1
   fi
 
-  address="${GCP_VM}-address"
+  local address="${GCP_VM}-address"
   echo "$address"
   return 0
 }
 
+# Creates an address with 'gcloud compute addresses create'.
+#
+# Returns:
+#   0 on success, echos address
+#   1 on error, GCP_REGION required
+#   2 on error, GCP_PROJECT required
+#   3 on error, unable to get address name
+#   4 on error, gcloud unable to create address
 gcp-create-address() {
+  if [ -z "$GCP_REGION" ]; then
+    echo "GCP_REGION required"
+    return 1
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
+  fi
+
   local address
   local command
+  local output
 
-  gcp-log "→ creating static ip address..."
+  if ! address=$(gcp-address-name); then
+    echo "error: unable to get address ($address)"
+    return 3
+  fi
 
-  address=$(gcp-address-name)
   command=(
     gcloud compute addresses create "$address"
     --region="$GCP_REGION"
     --project="$GCP_PROJECT"
   )
 
-  "${command[@]}"
+  if ! output=$(gcp-execute "${command[@]}"); then
+    echo "error: gcloud unable to create address"
+    echo "$output"
+    return 4
+  fi
+
+  echo "$address"
   return 0
 }
 
-gcp-get-static-ip() {
-  local address
-  local command
-  local ip
-
-  address=$(gcp-address-name)
-  command=(
-    gcloud compute addresses describe "$address"
-    --region="$GCP_REGION"
-    --format="get(address)"
-    --project="$GCP_PROJECT"
-  )
-
-  if ip=$("${command[@]}" >/dev/null 2>&1); then
-    echo "$ip"
-    return 0
-  else
+# Deletes an existing address with 'gcloud compute addresses delete'.
+#
+# Returns:
+#   0 on success, address was deleted
+#   1 on error, GCP_REGION required
+#   2 on error, GCP_PROJECT required
+#   3 on error, gcloud unable to delete address
+gcp-delete-address() {
+  if [ -z "$GCP_REGION" ]; then
+    echo "GCP_REGION required"
     return 1
   fi
-}
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
+  fi
 
-gcp-delete-address() {
   local address
   local command
 
-  gcp-log "→ deleting static ip address..."
-
   address=$(gcp-address-name)
+
   command=(
     gcloud compute addresses delete "$address"
     --region="$GCP_REGION"
     --project="$GCP_PROJECT"
   )
 
-  if gcp-get-static-ip; then
-    "${command[@]}"
-    return 0
+  if ! gcp-execute "${command[@]}"; then
+    return 3
   fi
+
+  return 0
 }
 
-gcp-create() {
-  local address
-  local command
-  local host
-
-  if [ -z "$GCP_VM" ]; then
-    echo "error: GCP_VM is required"
-    exit 1
+# Gets static IP for existing address with 'gcloud compute addresses describe'.
+#
+# Returns:
+#   0 on success, echos address
+#   1 on error, GCP_REGION required
+#   2 on error, GCP_PROJECT required
+#   3 on error, unable to get address name
+#   4 on error, gcloud unable to get static IP
+gcp-get-static-ip() {
+  if [ -z "$GCP_REGION" ]; then
+    echo "GCP_REGION required"
+    return 1
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
   fi
 
-  host=$(gcp-active-host)
-  gcp-log "→ creating $host"
+  local address
+  local command
+  local ip
+
+  if ! address=$(gcp-address-name); then
+    echo "error: unable to create address ($address)"
+    return 3
+  fi
+
+  command=(
+    gcloud compute addresses describe "$address"
+    --format="get(address)"
+    --region="$GCP_REGION"
+    --project="$GCP_PROJECT"
+  )
+
+  if ! ip=$(gcp-execute "${command[@]}"); then
+    echo "error: $ip"
+    return 4
+  fi
+
+  echo "$ip"
+  return 0
+}
+
+# Creates a VM with 'gcloud compute instances create'.
+#
+# Takes:
+#   address (optional) -- name of existing address created by `gcp-create-address`
+#
+# Returns:
+#   0 on success, VM created
+#   1 on error, address required for vscode
+#   2 on error, GCP_VM required
+#   3 on error, GCP_REGION required
+#   4 on error, GCP_PROJECT required
+#   5 on error, GCP_ZONE required
+#   6 on error, GCP_PROJECT required
+#   7 on error, could not get host
+#   8 on error, gcloud create
+gcp-create() {
+  if [ "$GCP_CONNECT" == "vscode" ] && [ -z "$1" ]; then
+    echo "address required (for the static IP) when creating a VM for vscode"
+    return 1
+  fi
+  if [ -z "$GCP_VM" ]; then
+    echo "error: GCP_VM is required"
+    exit 2
+  fi
+  if [ -z "$GCP_REGION" ]; then
+    echo "GCP_REGION required"
+    return 3
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 4
+  fi
+  if [ -z "$GCP_ZONE" ]; then
+    echo "GCP_ZONE required"
+    return 5
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 6
+  fi
+
+  local address="$1"
+  local command
+  local host
+  local result
+
+  if ! host=$(gcp-active-host); then
+    echo "error: could not get host ($host)"
+    return 7
+  fi
 
   command=(
     gcloud compute instances create "$GCP_VM"
@@ -157,22 +293,48 @@ gcp-create() {
   )
 
   if [ "$GCP_CONNECT" == "vscode" ]; then
-    address=$(gcp-address-name)
-    gcp-create-address
-    echo "attaching static ip address..."
     command+=(--address="$address")
   fi
 
-  "${command[@]}"
+  if ! result=$(gcp-execute "${command[@]}"); then
+    echo "error: gcp-create ($result)"
+    return 8
+  fi
+
   return 0
 }
 
+# Deletes a VM with 'gcloud compute instances delete'.
+#
+# Returns:
+#  0 on success, GCP_VM deleted
+#  1 on error, GCP_VM required
+#  2 on error, GCP_PROJECT required
+#  3 on error, GCP_ZONE required
+#  4 on error, couldn't get host
+#  5 on error, gcloud delete failed
 gcp-delete() {
+  if [ -z "$GCP_VM" ]; then
+    echo "error: GCP_VM is required"
+    return 1
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
+  fi
+  if [ -z "$GCP_ZONE" ]; then
+    echo "GCP_ZONE required"
+    return 3
+  fi
+
   local host
   local command
+  local result
 
-  host=$(gcp-active-host)
-  gcp-log "→ deleting $host"
+  if ! host=$(gcp-active-host); then
+    echo "error: could not get host ($host)"
+    return 4
+  fi
 
   command=(
     gcloud compute instances delete "$GCP_VM"
@@ -180,18 +342,44 @@ gcp-delete() {
     --zone="$GCP_ZONE"
   )
 
-  gcp-delete-address
+  if ! gcp-execute "${command[@]}"; then
+    return 5
+  fi
 
-  "${command[@]}"
   return 0
 }
 
+# Stops a VM with 'gcloud compute instances stop'.
+#
+# Returns:
+#  0 on success, VM stopped
+#  1 on error, GCP_VM required
+#  2 on error, GCP_PROJECT required
+#  3 on error, GCP_ZONE required
+#  4 on error, couldn't get host
+#  5 on error, gcloud stop failed
 gcp-stop() {
+  if [ -z "$GCP_VM" ]; then
+    echo "error: GCP_VM is required"
+    return 1
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
+  fi
+  if [ -z "$GCP_ZONE" ]; then
+    echo "GCP_ZONE required"
+    return 3
+  fi
+
   local host
   local command
+  local result
 
-  host=$(gcp-active-host)
-  gcp-log "→ stopping $host"
+  if ! host=$(gcp-active-host); then
+    echo "error: could not get host ($host)"
+    return 4
+  fi
 
   command=(
     gcloud compute instances stop "$GCP_VM"
@@ -199,13 +387,45 @@ gcp-stop() {
     --zone="$GCP_ZONE"
   )
 
-  "${command[@]}"
+  if ! result=$(gcp-execute "${command[@]}"); then
+    echo "error: gcp-stop ($result)"
+    return 5
+  fi
+
   return 0
 }
 
+# Gets VM status with 'gcloud compute instances describe'.
+#
+# Returns:
+#  0 on success, VM status
+#  1 on error, GCP_VM required
+#  2 on error, GCP_PROJECT required
+#  3 on error, GCP_ZONE required
+#  4 on error, couldn't get host
+#  5 on error, gcloud status failed
 gcp-status() {
-  local status
+  if [ -z "$GCP_VM" ]; then
+    echo "error: GCP_VM is required"
+    return 1
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
+  fi
+  if [ -z "$GCP_ZONE" ]; then
+    echo "GCP_ZONE required"
+    return 3
+  fi
+
+  local host
   local command
+  local status
+
+  if ! host=$(gcp-active-host); then
+    echo "error: could not get host ($host)"
+    return 4
+  fi
 
   command=(
     gcloud compute instances describe "$GCP_VM"
@@ -214,48 +434,164 @@ gcp-status() {
     --format='get(status)'
   )
 
-  if ! status=$("${command[@]}" 2>/dev/null); then
+  if ! status=$(gcp-execute "${command[@]}" 2>/dev/null); then
     echo "DOES_NOT_EXIST"
   else
     echo "$status"
   fi
 
+  return 0
 }
 
+# Starts a VM with 'gcloud compute instances start'.
+#
+# Returns:
+#  0 on success, VM started
+#  1 on error, GCP_VM required
+#  2 on error, GCP_PROJECT required
+#  3 on error, GCP_ZONE required
+#  4 on error, couldn't get host
+#  5 on error, gcloud start failed
 gcp-start() {
-  local status
+  if [ -z "$GCP_VM" ]; then
+    echo "error: GCP_VM is required"
+    return 1
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 2
+  fi
+  if [ -z "$GCP_ZONE" ]; then
+    echo "GCP_ZONE required"
+    return 3
+  fi
+
   local host
   local command
+  local result
 
-  host=$(gcp-active-host)
-  gcp-log "→ stopping $host"
+  if ! host=$(gcp-active-host); then
+    echo "error: could not get host ($host)"
+    return 4
+  fi
 
-  status=$(gcp-status)
+  command=(
+    gcloud compute instances start "$GCP_VM"
+    --project="$GCP_PROJECT"
+    --zone="$GCP_ZONE"
+  )
+
+  if ! result=$(gcp-execute "${command[@]}"); then
+    echo "error: gcp-start ($result)"
+    return 5
+  fi
+
+  return 0
+}
+
+# Runs 'gcloud compute config-ssh' for GCP_PROJECT
+#
+# Returns:
+#  0 on success, config-ssh completed
+#  1 on error, GCP_PROJECT required
+#  2 on error, gcp-config-ssh failed
+gcp-config-ssh() {
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 1
+  fi
+
+  local command
+  local result
+
+  command=(
+    gcloud compute config-ssh
+    --project="$GCP_PROJECT"
+  )
+
+  if ! result=$(gcp-execute "${command[@]}" >/dev/null); then
+    echo "error: gcp-config-ssh ($result)"
+    return 2
+  fi
+
+  return 0
+}
+
+# Lists all VMS with 'gcloud compute instances list'.
+#
+# Returns:
+#  0 on success, echos list of VMs
+#  1 on error, GCP_PROJECT reuired
+#  2 on error, gcp-list failed
+gcp-list() {
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 1
+  fi
+
+  local command
+  local result
+
+  command=(
+    gcloud compute instances list
+    --project="$GCP_PROJECT"
+  )
+
+  if ! gcp-execute "${command[@]}"; then
+    echo "error: gcp-list"
+    return 2
+  fi
+
+  return 0
+}
+
+# Tries to start a VM.
+#
+# Takes:
+#  status -- VM status
+#
+# Returns:
+#  0 on success, VM started
+#  1 on error, couldn't get VM status
+#  2 on error, couldn't start VM
+#  3 on failure, VM already running
+#  4 on failure, VM doesn't exist
+#  5 on error, unknown VM status
+gcp-try-to-start-vm() {
+  local status
+
+  if ! status=$(gcp-status); then
+    echo "$status"
+    return 1
+  fi
+
   case $status in
   TERMINATED)
-    command=(
-      gcloud compute instances start "$GCP_VM"
-      --project="$GCP_PROJECT"
-      --zone="$GCP_ZONE"
-    )
-    "${command[@]}"
-    return 0
+    if ! status=$(gcp-start); then
+      echo "$status"
+      return 2
+    fi
     ;;
   RUNNING)
-    gcp-log "✓ $GCP_VM already running"
-    return 0
+    echo "$status"
+    return 3
     ;;
   DOES_NOT_EXIST)
-    echo "$GCP_VM does not exist"
+    echo "$status"
+    return 4
     ;;
   *)
     echo "error: unknown status $status"
-    exit 1
+    return 5
     ;;
   esac
+
+  echo "$status"
+  return 0
 }
 
-gcp-remote-forward() {
+# Adds RemoteForward details to ssh config file.
+gcp-update-ssh-config-remote-forward() {
   local host=""
   local os=""
   local temp_file
@@ -314,64 +650,68 @@ gcp-remote-forward() {
   esac
 }
 
-gcp-config-ssh() {
-  local command
-
-  gcp-log "→ updating $SSH_CONFIG"
-
-  command=(
-    gcloud compute config-ssh
-    --project="$GCP_PROJECT"
-  )
-
-  "${command[@]}" >/dev/null
-  return 0
-}
-
-gcp-ssh() {
-  local host=""
+# Polls VM on status with linear backoff until it's RUNNING.
+gcp-wait-until-running() {
   local retry_count=5
   local wait_time=3
   local attempt=0
+  local status
 
-  host=$(gcp-active-host)
-  gcp-log "→ ssh $host"
+  gcp-log "→ checking VM status..."
 
   while [ $attempt -lt $retry_count ]; do
-    if ssh -o StrictHostKeyChecking=ask "$host"; then
-      return 0
+    if status=$(gcp-status); then
+      if [ "$status" == "RUNNING" ]; then
+        gcp-log "→ VM status $status"
+        return 0
+      else
+        attempt=$((attempt + 1))
+        echo "VM is '$status' (attempt $attempt, retry in $wait_time seconds)"
+        sleep $wait_time
+        wait_time=$((wait_time + 1))
+      fi
     else
-      echo "ssh attempt $((attempt + 1)), retrying in $wait_time seconds..."
-      sleep $wait_time
-      attempt=$((attempt + 1))
-      wait_time=$((wait_time + 1))
+      echo "unable to get status: $status"
+      return 1
     fi
   done
 
-  echo "error: failed to shh after $retry_count attempts"
+  echo "VM is not running yet, try again"
   return 1
+
 }
 
-gcp-list() {
+# Connect to VM through SSH.
+gcp-ssh() {
+  local host
   local command
 
+  host=$(gcp-active-host)
   command=(
-    gcloud compute instances list
-    --project="$GCP_PROJECT"
+    ssh -o
+    StrictHostKeyChecking=ask
+    "$host"
   )
 
-  "${command[@]}"
-  return 0
+  gcp-log "→ ssh $host"
+
+  if gcp-wait-until-running; then
+    gcp-execute "${command[@]}"
+    return 0
+  else
+    return 1
+  fi
 }
 
+# Connect to VM through vscode using supplied static IP.
+# Returns:
+#  0 on success, launched vscode
+#  1 on error, code command not found
+#  2 on error, VM not running after retries
 gcp-vscode() {
-  local static_ip="$1"
-  local retry_count=5
-  local wait_time=3
-  local attempt=0
-  local os
   local command
   local host
+  local status
 
   host=$(gcp-active-host)
   os=$(uname -s)
@@ -382,53 +722,51 @@ gcp-vscode() {
   )
 
   if ! hash code 2>/dev/null; then
+    local os
     echo "error: 'code' command was not found"
     if [ "$os" == "Darwin" ]; then
-      echo "try vscode command palette:"
+      echo "hint: from the vscode command palette, run"
       echo "  Shell Command: Install 'code' command in PATH"
     fi
     exit 1
   fi
 
-  while [ $attempt -lt $retry_count ]; do
-    status=$(gcp-status)
-    if [ "$status" == "RUNNING" ]; then
-      gcp-log "→ connecting to vscode through $static_ip"
-      "${command[@]}"
-      return 0
-    else
-      echo "connection attempt $((attempt + 1)), retry in $wait_time sec..."
-      sleep $wait_time
-      attempt=$((attempt + 1))
-      wait_time=$((wait_time + 1))
-    fi
-  done
-
-  echo "error: failed to connect after $retry_count attempts"
-  return 1
+  if status=$(gcp-wait-until-running); then
+    gcp-execute "${command[@]}"
+    return 0
+  else
+    echo "$status"
+    return 2
+  fi
 }
 
+# Dispatch to conncting through vscode or terminal.
 gcp-connect() {
-  local host
-  local status
-  local static_ip
-
   if [ "$GCP_CONNECT" != "ssh" ] && [ "$GCP_CONNECT" != "vscode" ]; then
     echo "error: GCP_CONNECT can only be 'ssh' or 'vscode'"
     exit 1
   fi
 
-  host=$(gcp-active-host)
-  gcp-log "→ connecting to $host through $GCP_CONNECT"
+  local host
+  local status
+  local address
 
+  host=$(gcp-active-host)
   status=$(gcp-status)
+
+  gcp-log "→ connecting to $host through $GCP_CONNECT"
 
   case $status in
   DOES_NOT_EXIST)
     gcp-log "→ vm does not exist, so a new vm will be created..."
-    gcp-create
+    gcp-log "→ creating vm address"
+    address=$(gcp-create-address)
+    gcp-log "→ creating vm $host"
+    gcp-create "$address"
+    gcp-log "→ configuring vm ssh"
     gcp-config-ssh
-    gcp-remote-forward
+    gcp-log "→ adding remote forwarding to $SSH_CONFIG..."
+    gcp-update-ssh-config-remote-forward
     ;;
   RUNNING)
     gcp-log "→ the vm is running..."
@@ -441,18 +779,19 @@ gcp-connect() {
 
   case $GCP_CONNECT in
   vscode)
-    static_ip=$(gcp-get-static-ip)
-    gcp-vscode "$static_ip"
+    gcp-log "→ connecting through vscode..."
+    gcp-vscode
     return 0
     ;;
   ssh)
+    gcp-log "→ connecting though terminal..."
     gcp-ssh
     return 0
     ;;
   esac
 }
 
-interpret() {
+execute() {
   case "$1" in
   :gcp-help)
     gcp-help
@@ -484,13 +823,14 @@ interpret() {
     gcp-active-host
     ;;
   :gcp-remote-forward)
-    gcp-remote-forward
+    gcp-update-ssh-config-remote-forward
     ;;
   :gcp-config-ssh)
     gcp-config-ssh
     ;;
   :gcp-delete)
     gcp-delete
+    gcp-delete-address
     ;;
   :gcp-start)
     gcp-start
@@ -516,7 +856,19 @@ main() {
     echo "failed to change into project root: $PROJECT_ROOT"
     exit 1
   fi
-  interpret "$@"
+
+  local result
+
+  if execute "$@"; then
+    exit 0
+  else
+    echo "$result"
+    exit 1
+  fi
 }
 
-main "$@"
+if [[ $B3D_TEST_MODE -eq 1 ]]; then
+  echo "entering test mode..."
+else
+  main "$@"
+fi

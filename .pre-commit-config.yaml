@@ -38,3 +38,12 @@ repos:
         language: system
         files: ^pyproject\.toml$
         types: [text]
+
+  - repo: local
+    hooks:
+      - id: gcp-sh-test
+        name: gcp.sh tests
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && cd scripts && ./test-gcp.sh'
+        language: system
+        files: .*gcp.*\.sh$
+        types: [executable]

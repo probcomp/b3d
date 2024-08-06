@@ -599,7 +599,7 @@ gcp-update-ssh-config-remote-forward() {
   host=$(gcp-active-host)
   os=$(uname -s)
 
-  gcp-log "→ setting up remote forwarding in $SSH_CONFIG"
+  gcp-log "→ setting up $host on $os with remote forwarding in $SSH_CONFIG"
 
   case $os in
   Darwin)

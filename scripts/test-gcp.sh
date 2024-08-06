@@ -5,6 +5,7 @@
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 suite() {
+  suite_addTest test-gcp-update-ssh-config-remote-forward
   suite_addTest test-gcp-create
   suite_addTest test-gcp-delete
   suite_addTest test-gcp-status
@@ -53,6 +54,158 @@ tearDown() {
 
 debug() {
   echo "debug"
+}
+
+create_temp_ssh_config() {
+  local temp_file
+
+  temp_file=$(mktemp)
+
+  cat <<EOF >"$temp_file"
+Host georgeb3dtest1.us-west1-a.probcomp-caliban
+    HostName 34.83.34.231
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.5878676690657768597
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host aaron-b3d-test.us-west1-a.probcomp-caliban
+    RemoteForward 8812 127.0.0.1:8812
+    HostName 34.145.107.172
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.5238194004790400266
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host gmatheos1.us-west1-a.probcomp-caliban
+    HostName 35.230.14.123
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.6292476908223395138
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host sam-b3d-l4.us-west1-a.probcomp-caliban
+    HostName 35.197.104.210
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.7495268330374633569
+    IdentitiesOnly=yes
+    CheckHostIP=no
+EOF
+
+  echo $temp_file
+}
+
+test-gcp-update-ssh-config-remote-forward() {
+  local ssh_config=$(
+    cat <<'EOF'
+Host aaron-b3d-test.us-west1-a.probcomp-caliban
+    RemoteForward 8812 127.0.0.1:8812
+    HostName 34.145.107.172
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.5238194004790400266
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host gmatheos1.us-west1-a.probcomp-caliban
+    HostName 35.230.14.123
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.6292476908223395138
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host sam-b3d-l4.us-west1-a.probcomp-caliban
+    HostName 35.197.104.210
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.7495268330374633569
+    IdentitiesOnly=yes
+    CheckHostIP=no
+EOF
+  )
+
+  local ssh_config_updated=$(
+    cat <<'EOF'
+Host aaron-b3d-test.us-west1-a.probcomp-caliban
+    RemoteForward 8812 127.0.0.1:8812
+    HostName 34.145.107.172
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.5238194004790400266
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host gmatheos1.us-west1-a.probcomp-caliban
+    HostName 35.230.14.123
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.6292476908223395138
+    IdentitiesOnly=yes
+    CheckHostIP=no
+
+Host sam-b3d-l4.us-west1-a.probcomp-caliban
+    RemoteForward 8812 127.0.0.1:8812
+    HostName 35.197.104.210
+    IdentityFile /home/eighty/.ssh/google_compute_engine
+    UserKnownHostsFile=/home/eighty/.ssh/google_compute_known_hosts
+    HostKeyAlias=compute.7495268330374633569
+    IdentitiesOnly=yes
+    CheckHostIP=no
+EOF
+  )
+
+  # echo "ssh_config"
+  # echo "$ssh_config"
+  # echo "ssh_config_updated"
+  # echo "$ssh_config_updated"
+
+  OS="Darwin"
+  GCP_VM=""
+  local host_with="aaron-b3d-test"
+  local host_without="sam-b3d-l4"
+  local expected
+  local actual
+
+  # mock uname
+  uname() {
+    echo "$OS"
+  }
+
+  # test adding remote forward to Darwin
+  ssh_config_temp=$(mktemp)
+  echo "$ssh_config" >"$ssh_config_temp"
+  ssh_config_updated_temp=$(mktemp)
+  echo "$ssh_config_updated" >"$ssh_config_updated_temp"
+  SSH_CONFIG="$ssh_config_temp"
+  GCP_VM="$host_without"
+  OS="Darwin"
+  gcp-update-ssh-config-remote-forward >/dev/null
+  status=$?
+  expected="$ssh_config_updated"
+  actual=$(cat "$ssh_config_temp")
+  $_ASSERT_TRUE_ $status
+  $_ASSERT_EQUALS_ '"$expected"' '"$actual"'
+
+  # test adding remote forward to Linux
+  ssh_config_temp=$(mktemp)
+  SSH_CONFIG="$ssh_config_temp"
+  echo "$ssh_config" >"$ssh_config_temp"
+  GCP_VM="$host_without"
+  OS="Linux"
+  gcp-update-ssh-config-remote-forward >/dev/null
+  status=$?
+  expected="$ssh_config_updated"
+  actual=$(cat "$ssh_config_temp")
+  $_ASSERT_TRUE_ $status
+  $_ASSERT_EQUALS_ '"$expected"' '"$actual"'
+
+  # restore uname
+  unset -f uname
 }
 
 test-gcp-get-static-ip() {

@@ -149,6 +149,7 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
 
     rasterize_results = likelihood_args["rasterize_results"]
     latent_rgbd = likelihood_args["latent_rgbd"]
+
     mesh_transformed = likelihood_args["scene_mesh"]
     vertices_mean_image = (
         mesh_transformed.vertices[

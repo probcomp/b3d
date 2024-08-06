@@ -186,7 +186,7 @@ torchvision = { version = "*", build = "cpu*" }
 
 [tool.pixi.feature.dev.dependencies]
 ninja = "*"
-rerun-sdk = "==0.16.1"
+rerun-sdk = "==0.17.0"
 ruff = "*"
 pytest = "*"
 jupyterlab = "*"

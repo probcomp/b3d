@@ -9,9 +9,9 @@ PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
 
 COMMAND=""
 GCP_VM="${GCP_VM:-}"
-GCP_PROJECT="${PROJECT_ID:-probcomp-caliban}"
+GCP_PROJECT="${GCP_PROJECT:-probcomp-caliban}"
 GCP_REGION="${GCP_REGION:-us-west1}"
-GCP_ZONE="${ZONE:-us-west1-a}"
+GCP_ZONE="${GCP_ZONE:-us-west1-a}"
 GCP_CONNECT="${GCP_CONNECT:-ssh}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
@@ -20,20 +20,20 @@ SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 gcp-help() {
   cat <<-EOF
 
-		GCP tasks are configured using environment variables, listed here with current values:
+		GCP tasks are configured using environment variables:
 
-		  GCP_VM = ${GCP_VM:-}
-		  GCP_PROJECT = ${GCP_PROJECT:-}
-		  GCP_CONNECT = ${GCP_CONNECT:-}
-		  GCP_REGION = ${GCP_REGION:-}
-		  GCP_ZONE = ${GCP_ZONE:-}
-		  SSH_CONFIG = ${SSH_CONFIG:-}
+		GCP_VM = ${GCP_VM:-}
+		GCP_PROJECT = ${GCP_PROJECT:-}
+		GCP_CONNECT = ${GCP_CONNECT:-}
+		GCP_REGION = ${GCP_REGION:-}
+		GCP_ZONE = ${GCP_ZONE:-}
+		SSH_CONFIG = ${SSH_CONFIG:-}
 
 		Many tasks require a VM name configured using the GCP_VM environment
 		variable. Here's an example of connecting to a new VM through vscode:
 
-		  export GCP_VM=neyman-b3d-gpu
-		  pixi run gcp-code
+		export GCP_VM=neyman-b3d-gpu
+		pixi run gcp-code
 
 	EOF
 }

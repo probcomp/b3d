@@ -159,11 +159,6 @@ Host sam-b3d-l4.us-west1-a.probcomp-caliban
 EOF
   )
 
-  # echo "ssh_config"
-  # echo "$ssh_config"
-  # echo "ssh_config_updated"
-  # echo "$ssh_config_updated"
-
   OS="Darwin"
   GCP_VM=""
   local host_with="aaron-b3d-test"

@@ -210,7 +210,6 @@ __wrap__() {
 			cd b3d
 			source ~/.bashrc
 			pixi run b3d-install
-
 		EOF
     exit 0
   else
@@ -231,13 +230,11 @@ __wrap__() {
   fi
 
   cat <<-EOF
-
 		✓ you can now install b3d
 
 		cd b3d
 		source ~/.bashrc
 		pixi run b3d-install
-
 	EOF
 }
 __wrap__

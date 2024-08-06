@@ -133,10 +133,10 @@ description = "Sync test data"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
 
-[tool.pixi.feature.dev.tasks.dev-tests]
-description = "Execute tests"
-cmd = "./scripts/tests.sh"
-depends_on = ["dev-data-sync", "dev-rerun"]
+[tool.pixi.feature.dev.tasks.dev-clear-pytorch-cache]
+description = "Clear PyTorch cache"
+cmd = 'rm -rf $PYTORCH_CACHE && echo "Cleared PyTorch cache: $PYTORCH_CACHE"'
+env = { PYTORCH_CACHE = "$HOME/.cache/torch_extensions" }
 
 [tool.pixi.tasks.dev-rerun]
 description = "Launch rerun"
@@ -155,6 +155,11 @@ cmd = [
     "notebooks",
 ]
 depends_on = ["dev-data-sync", "dev-rerun"]
+
+[tool.pixi.feature.dev.tasks.dev-tests]
+description = "Execute tests (optional PYTEST_TARGETS)"
+cmd = "./scripts/tests.sh"
+depends_on = ["dev-data-sync", "dev-clear-pytorch-cache", "dev-rerun"]
 
 # CPU feature
 

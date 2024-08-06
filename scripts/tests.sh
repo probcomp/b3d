@@ -2,36 +2,40 @@
 
 set -euo pipefail
 
-PYTORCH_CACHE="$HOME/.cache/torch_extensions/*"
+TEST_TARGETS="${PYTEST_TARGETS:-tests}"
 
-confirm-torch-cache() {
-  cat <<-EOF
-		Delete cached pytorch extensions in $PYTORCH_CACHE before running tests?
-	EOF
+resolve_test_targets() {
+  local pattern
+  local file
+  local targets=()
 
-  while true; do
-    read -p "(yes/no): " choice
-    case "$choice" in
-    yes | y)
-      echo "deleting $PYTORCH_CACHE"
-      rm -rf "$PYTORCH_CACHE"
-      return 0
-      ;;
-    no | n)
-      return 0
-      ;;
-    *)
-      echo "Answer yes or no"
-      ;;
-    esac
+  for pattern in $TEST_TARGETS; do
+    for file in $pattern; do
+      if [ -e "$file" ]; then
+        targets+=("$file")
+      else
+        echo "Warning: Skipping test since it wasn't found '$pattern'"
+      fi
+    done
   done
+
+  echo "${targets[@]}"
 }
 
 main() {
-  confirm-torch-cache
-  echo "Running unit tests..."
+  local targets
+  local test_files
+
+  IFS=' ' read -r -a test_files <<<"$(resolve_test_targets)"
+
+  if [ ${#test_files[@]} -eq 0 ]; then
+    echo "No valid test files found."
+    exit 1
+  fi
+
+  echo "Running test paths: ${test_files[*]}"
   cd "$PIXI_PROJECT_ROOT"
-  pytest tests
+  pytest "${test_files[@]}"
 }
 
 main

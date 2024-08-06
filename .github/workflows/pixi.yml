@@ -36,7 +36,13 @@ jobs:
             https://pypi.org/simple
 
           # ensure all deps across all environments and platforms can solve
-          pixi update --dry-run \
+          pixi install --locked \
+            -v \
+            --pypi-keyring-provider \
+            subprocess
+
+          pixi install --locked \
+            --environment cpu \
             -v \
             --pypi-keyring-provider \
             subprocess

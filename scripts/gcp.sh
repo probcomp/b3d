@@ -604,16 +604,25 @@ gcp-update-ssh-config-remote-forward() {
   case $os in
   Darwin)
     if grep -q "Host $host" "$SSH_CONFIG"; then
-      if ! grep -q "$REMOTE_FORWARD" "$SSH_CONFIG"; then
+      gcp-log "✓ host $host found in SSH config"
+
+      if awk -v host="$host" -v remote_forward="$REMOTE_FORWARD" '
+            $0 ~ "Host " host { in_host_block = 1 }
+            in_host_block && $0 ~ remote_forward { found = 1; exit }
+            in_host_block && $0 ~ /^Host / && !($0 ~ "Host " host) { in_host_block = 0 }
+            END { exit !found }
+        ' "$SSH_CONFIG"; then
+        gcp-log "✓ remote forwarding already set for $host"
+      else
         temp_file=$(mktemp)
         awk -v host="$host" -v rf="$REMOTE_FORWARD" '
-                $0 ~ "Host " host {
-                    print $0
-                    print "    " rf
-                    next
-                }
-                { print }
-            ' "$SSH_CONFIG" >"$temp_file"
+            $0 ~ "Host " host {
+                print $0
+                print "    " rf
+                next
+            }
+            { print }
+        ' "$SSH_CONFIG" >"$temp_file"
         chmod 600 "$temp_file"
         mv "$temp_file" "$SSH_CONFIG"
         gcp-log "✓ remote forwarding set: $SSH_CONFIG $host $REMOTE_FORWARD"

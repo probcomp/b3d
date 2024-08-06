@@ -128,12 +128,12 @@ cwd = "scripts"
 
 # Tasks for development
 
-[tool.pixi.feature.dev.tasks.dev-data-sync]
-description = "Sync test data"
+[tool.pixi.feature.dev.tasks.dev-sync]
+description = "Sync test data from GCP bucket"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
 
-[tool.pixi.feature.dev.tasks.dev-clear-pytorch-cache]
+[tool.pixi.feature.dev.tasks.dev-clean]
 description = "Clear PyTorch cache"
 cmd = 'rm -rf $PYTORCH_CACHE && echo "Cleared PyTorch cache: $PYTORCH_CACHE"'
 env = { PYTORCH_CACHE = "$HOME/.cache/torch_extensions" }
@@ -156,10 +156,11 @@ cmd = [
 ]
 depends_on = ["dev-data-sync", "dev-rerun"]
 
-[tool.pixi.feature.dev.tasks.dev-tests]
-description = "Execute tests (optional PYTEST_TARGETS)"
+[tool.pixi.feature.dev.tasks.dev-test]
+description = "Execute tests (optional TEST_TARGETS)"
 cmd = "./scripts/tests.sh"
-depends_on = ["dev-data-sync", "dev-clear-pytorch-cache", "dev-rerun"]
+depends_on = ["dev-sync", "dev-clean", "dev-rerun"]
+env = { TEST_TARGETS = "tests" }
 
 # CPU feature
 

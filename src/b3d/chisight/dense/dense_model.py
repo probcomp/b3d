@@ -66,7 +66,11 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         )
         rasterize_results = renderer.rasterize(scene_mesh.vertices, scene_mesh.faces)
         latent_rgbd = renderer.interpolate(
-            scene_mesh.vertex_attributes, rasterize_results, scene_mesh.faces
+            jnp.concatenate(
+                [scene_mesh.vertex_attributes, scene_mesh.vertices[..., -1:]], axis=-1
+            ),
+            rasterize_results,
+            scene_mesh.faces,
         )
         likelihood_args["scene_mesh"] = scene_mesh
         likelihood_args["latent_rgbd"] = latent_rgbd

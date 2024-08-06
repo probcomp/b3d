@@ -151,8 +151,8 @@ xyz_from_depth_vectorized = jnp.vectorize(
 
 
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
-    x = fx * xyz[..., 0] / xyz[..., 2] + cx
-    y = fy * xyz[..., 1] / xyz[..., 2] + cy
+    x = fx * xyz[..., 0] / (xyz[..., 2] + 1e-10) + cx
+    y = fy * xyz[..., 1] / (xyz[..., 2] + 1e-10) + cy
     return jnp.stack([y, x], axis=-1)
 
 

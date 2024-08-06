@@ -39,7 +39,7 @@ fi
 # Determine some reasonable command defaults.
 __SHUNIT_CMD_ECHO_ESC='echo -e'
 # shellcheck disable=SC2039,SC3037
-if ${__SHUNIT_BUILTIN} [ "`echo -e test`" = '-e test' ]; then
+if ${__SHUNIT_BUILTIN} [ "$(echo -e test)" = '-e test' ]; then
   __SHUNIT_CMD_ECHO_ESC='echo'
 fi
 
@@ -74,20 +74,20 @@ __SHUNIT_ANSI_CYAN='\033[1;36m'
 #
 
 # Variables.
-__shunit_lineno=''  # Line number of executed test.
-__shunit_mode=${__SHUNIT_MODE_SOURCED}  # Operating mode.
-__shunit_reportGenerated=${SHUNIT_FALSE}  # Is report generated.
-__shunit_script=''  # Filename of unittest script (standalone mode).
-__shunit_skip=${SHUNIT_FALSE}  # Is skipping enabled.
-__shunit_suite=''  # Suite of tests to execute.
-__shunit_clean=${SHUNIT_FALSE}  # _shunit_cleanup() was already called.
-__shunit_suiteName=''  # Text name of current test suite.
-__shunit_xmlSuiteName=''  # XML-ready text name of current test suite.
+__shunit_lineno=''                       # Line number of executed test.
+__shunit_mode=${__SHUNIT_MODE_SOURCED}   # Operating mode.
+__shunit_reportGenerated=${SHUNIT_FALSE} # Is report generated.
+__shunit_script=''                       # Filename of unittest script (standalone mode).
+__shunit_skip=${SHUNIT_FALSE}            # Is skipping enabled.
+__shunit_suite=''                        # Suite of tests to execute.
+__shunit_clean=${SHUNIT_FALSE}           # _shunit_cleanup() was already called.
+__shunit_suiteName=''                    # Text name of current test suite.
+__shunit_xmlSuiteName=''                 # XML-ready text name of current test suite.
 
 # JUnit XML variables.
-__shunit_junitXmlOutputFile=''  # File to use for JUnit XML output in addition to stdout.
-__shunit_junitXmlTestCases=''  # Test cases info in the JUnit XML format for output
-__shunit_junitXmlCurrentTestCaseErrors=''  # Current test case error info in the JUnit XML format for output
+__shunit_junitXmlOutputFile=''            # File to use for JUnit XML output in addition to stdout.
+__shunit_junitXmlTestCases=''             # Test cases info in the JUnit XML format for output
+__shunit_junitXmlCurrentTestCaseErrors='' # Current test case error info in the JUnit XML format for output
 
 # ANSI colors (populated by _shunit_configureColor()).
 __shunit_ansi_none=''
@@ -138,7 +138,7 @@ _SHUNIT_LINENO_='eval __shunit_lineno=""; if ${__SHUNIT_BUILTIN} [ "${1:-}" = "-
 
 # Specific shell checks.
 if ${__SHUNIT_BUILTIN} [ -n "${ZSH_VERSION:-}" ]; then
-  setopt |grep "^shwordsplit$" >/dev/null
+  setopt | grep "^shwordsplit$" >/dev/null
   if ${__SHUNIT_BUILTIN} [ $? -ne ${SHUNIT_TRUE} ]; then
     _shunit_fatal 'zsh shwordsplit option is required for proper operation'
   fi
@@ -149,19 +149,20 @@ if ${__SHUNIT_BUILTIN} [ -n "${ZSH_VERSION:-}" ]; then
 fi
 
 # Set the constants readonly.
-__shunit_constants=`set |grep '^__SHUNIT_' |cut -d= -f1`
-echo "${__shunit_constants}" |grep '^Binary file' >/dev/null && \
-    __shunit_constants=`set |grep -a '^__SHUNIT_' |cut -d= -f1`
+__shunit_constants=$(set | grep '^__SHUNIT_' | cut -d= -f1)
+echo "${__shunit_constants}" | grep '^Binary file' >/dev/null &&
+  __shunit_constants=$(set | grep -a '^__SHUNIT_' | cut -d= -f1)
 for __shunit_const in ${__shunit_constants}; do
   if ${__SHUNIT_BUILTIN} [ -z "${ZSH_VERSION:-}" ]; then
     readonly "${__shunit_const}"
   else
     case ${ZSH_VERSION} in
-      [123].*) readonly "${__shunit_const}" ;;
-      *)
-        # Declare readonly constants globally.
-        # shellcheck disable=SC2039,SC3045
-        readonly -g "${__shunit_const}"
+    [123].*) readonly "${__shunit_const}" ;;
+    *)
+      # Declare readonly constants globally.
+      # shellcheck disable=SC2039,SC3045
+      readonly -g "${__shunit_const}"
+      ;;
     esac
   fi
 done
@@ -283,7 +284,7 @@ assertContains() {
   shunit_container_=$1
   shunit_content_=$2
   shunit_return=${SHUNIT_TRUE}
-  if echo "${shunit_container_}" |grep -F -- "${shunit_content_}" >/dev/null; then
+  if echo "${shunit_container_}" | grep -F -- "${shunit_content_}" >/dev/null; then
     _shunit_assertPass
   else
     failNotFound "${shunit_message_}" "${shunit_content_}"
@@ -325,7 +326,7 @@ assertNotContains() {
   shunit_content_=$2
 
   shunit_return=${SHUNIT_TRUE}
-  if echo "$shunit_container_" |grep -F -- "$shunit_content_" > /dev/null; then
+  if echo "$shunit_container_" | grep -F -- "$shunit_content_" >/dev/null; then
     failFound "${shunit_message_}" "${shunit_content_}"
     shunit_return=${SHUNIT_FALSE}
   else
@@ -523,8 +524,7 @@ assertTrue() {
   if ${__SHUNIT_BUILTIN} [ -z "${shunit_condition_}" ]; then
     # Null condition.
     shunit_return=${SHUNIT_FALSE}
-  elif (expr \( "${shunit_condition_}" + '0' \) '=' "${shunit_condition_}" >/dev/null 2>&1)
-  then
+  elif (expr \( "${shunit_condition_}" + '0' \) '=' "${shunit_condition_}" >/dev/null 2>&1); then
     # Possible return value. Treating 0 as true, and non-zero as false.
     if ${__SHUNIT_BUILTIN} [ "${shunit_condition_}" -ne 0 ]; then
       shunit_return=${SHUNIT_FALSE}
@@ -891,7 +891,7 @@ suite_addTest() {
   shunit_func_=${1:-}
 
   __shunit_suite="${__shunit_suite:+${__shunit_suite} }${shunit_func_}"
-  __shunit_testsTotal=`expr "${__shunit_testsTotal}" + 1`
+  __shunit_testsTotal=$(expr "${__shunit_testsTotal}" + 1)
 
   unset shunit_func_
 }
@@ -958,25 +958,25 @@ suite_addTest() {
 #   string: the temporary directory that was created
 _shunit_mktempDir() {
   # Try the standard `mktemp` function.
-  if ( exec mktemp -dqt shunit.XXXXXX 2>/dev/null ); then
+  if (exec mktemp -dqt shunit.XXXXXX 2>/dev/null); then
     return
   fi
 
   # The standard `mktemp` didn't work. Use our own.
   # shellcheck disable=SC2039,SC3028
   if ${__SHUNIT_BUILTIN} [ -r '/dev/urandom' -a -x '/usr/bin/od' ]; then
-    _shunit_random_=`/usr/bin/od -vAn -N4 -tx4 </dev/urandom |command sed 's/^[^0-9a-f]*//'`
+    _shunit_random_=$(/usr/bin/od -vAn -N4 -tx4 </dev/urandom | command sed 's/^[^0-9a-f]*//')
   elif ${__SHUNIT_BUILTIN} [ -n "${RANDOM:-}" ]; then
     # $RANDOM works
     _shunit_random_=${RANDOM}${RANDOM}${RANDOM}$$
   else
     # `$RANDOM` doesn't work.
-    _shunit_date_=`date '+%Y%m%d%H%M%S'`
-    _shunit_random_=`expr "${_shunit_date_}" / $$`
+    _shunit_date_=$(date '+%Y%m%d%H%M%S')
+    _shunit_random_=$(expr "${_shunit_date_}" / $$)
   fi
 
   _shunit_tmpDir_="${TMPDIR:-/tmp}/shunit.${_shunit_random_}"
-  if ! ( umask 077 && command mkdir "${_shunit_tmpDir_}" ); then
+  if ! (umask 077 && command mkdir "${_shunit_tmpDir_}"); then
     _shunit_fatal 'could not create temporary directory! exiting'
   fi
 
@@ -989,8 +989,7 @@ _shunit_mktempDir() {
 # Args:
 #   None
 _shunit_mktempFunc() {
-  for _shunit_func_ in oneTimeSetUp oneTimeTearDown setUp tearDown suite noexec
-  do
+  for _shunit_func_ in oneTimeSetUp oneTimeTearDown setUp tearDown suite noexec; do
     _shunit_file_="${__shunit_tmpDir}/${_shunit_func_}"
     command cat <<EOF >"${_shunit_file_}"
 #! /bin/sh
@@ -1015,12 +1014,12 @@ _shunit_cleanup() {
 
   _shunit_signal_=0
   case "${_shunit_name_}" in
-    EXIT) ;;
-    INT) _shunit_signal_=130 ;;  # 2+128
-    TERM) _shunit_signal_=143 ;;  # 15+128
-    *)
-      _shunit_error "unrecognized trap value (${_shunit_name_})"
-      ;;
+  EXIT) ;;
+  INT) _shunit_signal_=130 ;;  # 2+128
+  TERM) _shunit_signal_=143 ;; # 15+128
+  *)
+    _shunit_error "unrecognized trap value (${_shunit_name_})"
+    ;;
   esac
   if ${__SHUNIT_BUILTIN} [ "${_shunit_name_}" != 'EXIT' ]; then
     _shunit_warn "trapped and now handling the (${_shunit_name_}) signal"
@@ -1032,15 +1031,15 @@ _shunit_cleanup() {
     __shunit_clean=${SHUNIT_TRUE}
 
     tearDown || _shunit_warn 'tearDown() returned non-zero return code.'
-    oneTimeTearDown || \
-        _shunit_warn 'oneTimeTearDown() returned non-zero return code.'
+    oneTimeTearDown ||
+      _shunit_warn 'oneTimeTearDown() returned non-zero return code.'
 
     command rm -fr "${__shunit_tmpDir}"
   fi
 
   if ${__SHUNIT_BUILTIN} [ "${_shunit_name_}" != 'EXIT' ]; then
     # Handle all non-EXIT signals.
-    trap - 0  # Disable EXIT trap.
+    trap - 0 # Disable EXIT trap.
     exit ${_shunit_signal_}
   elif ${__SHUNIT_BUILTIN} [ ${__shunit_reportGenerated} -eq ${SHUNIT_FALSE} ]; then
     _shunit_assertFail 'unknown failure encountered running a test'
@@ -1056,34 +1055,34 @@ _shunit_cleanup() {
 # Args:
 #   color: string: color mode (one of `always`, `auto`, or `never`).
 _shunit_configureColor() {
-  _shunit_color_=${SHUNIT_FALSE}  # By default, no color.
+  _shunit_color_=${SHUNIT_FALSE} # By default, no color.
   case $1 in
-    'always') _shunit_color_=${SHUNIT_TRUE} ;;
-    'auto')
-      if ${__SHUNIT_BUILTIN} [ "`_shunit_colors`" -ge 8 ]; then
-        _shunit_color_=${SHUNIT_TRUE}
-      fi
-      ;;
-    'never'|'none') ;;  # Support 'none' to support legacy usage.
-    *) _shunit_fatal "unrecognized color option '$1'" ;;
+  'always') _shunit_color_=${SHUNIT_TRUE} ;;
+  'auto')
+    if ${__SHUNIT_BUILTIN} [ "$(_shunit_colors)" -ge 8 ]; then
+      _shunit_color_=${SHUNIT_TRUE}
+    fi
+    ;;
+  'never' | 'none') ;; # Support 'none' to support legacy usage.
+  *) _shunit_fatal "unrecognized color option '$1'" ;;
   esac
 
   # shellcheck disable=SC2254
   case ${_shunit_color_} in
-    ${SHUNIT_TRUE})
-      __shunit_ansi_none=${__SHUNIT_ANSI_NONE}
-      __shunit_ansi_red=${__SHUNIT_ANSI_RED}
-      __shunit_ansi_green=${__SHUNIT_ANSI_GREEN}
-      __shunit_ansi_yellow=${__SHUNIT_ANSI_YELLOW}
-      __shunit_ansi_cyan=${__SHUNIT_ANSI_CYAN}
-      ;;
-    ${SHUNIT_FALSE})
-      __shunit_ansi_none=''
-      __shunit_ansi_red=''
-      __shunit_ansi_green=''
-      __shunit_ansi_yellow=''
-      __shunit_ansi_cyan=''
-      ;;
+  ${SHUNIT_TRUE})
+    __shunit_ansi_none=${__SHUNIT_ANSI_NONE}
+    __shunit_ansi_red=${__SHUNIT_ANSI_RED}
+    __shunit_ansi_green=${__SHUNIT_ANSI_GREEN}
+    __shunit_ansi_yellow=${__SHUNIT_ANSI_YELLOW}
+    __shunit_ansi_cyan=${__SHUNIT_ANSI_CYAN}
+    ;;
+  ${SHUNIT_FALSE})
+    __shunit_ansi_none=''
+    __shunit_ansi_red=''
+    __shunit_ansi_green=''
+    __shunit_ansi_yellow=''
+    __shunit_ansi_cyan=''
+    ;;
   esac
 
   unset _shunit_color_ _shunit_tput_
@@ -1091,7 +1090,7 @@ _shunit_configureColor() {
 
 # colors returns the number of supported colors for the TERM.
 _shunit_colors() {
-  if _shunit_tput_=`${SHUNIT_CMD_TPUT} colors 2>/dev/null`; then
+  if _shunit_tput_=$(${SHUNIT_CMD_TPUT} colors 2>/dev/null); then
     echo "${_shunit_tput_}"
   else
     echo 16
@@ -1143,9 +1142,9 @@ _shunit_execSuite() {
 
     # Update stats.
     if ${__SHUNIT_BUILTIN} [ ${__shunit_testSuccess} -eq ${SHUNIT_TRUE} ]; then
-      __shunit_testsPassed=`expr "${__shunit_testsPassed}" + 1`
+      __shunit_testsPassed=$(expr "${__shunit_testsPassed}" + 1)
     else
-      __shunit_testsFailed=`expr "${__shunit_testsFailed}" + 1`
+      __shunit_testsFailed=$(expr "${__shunit_testsFailed}" + 1)
     fi
   done
 
@@ -1186,7 +1185,7 @@ _shunit_generateReport() {
   tests=\"${__shunit_testsTotal}\"
   assertions=\"${__shunit_assertsTotal}\"
 >${__shunit_junitXmlTestCases}
-</testsuite>" > "${__shunit_junitXmlOutputFile}"
+</testsuite>" >"${__shunit_junitXmlOutputFile}"
     echo
     echo "JUnit XML file ${__shunit_junitXmlOutputFile} was saved."
   fi
@@ -1230,9 +1229,9 @@ _shunit_shouldSkip() {
 # Args:
 #   None
 _shunit_assertPass() {
-  __shunit_assertsPassed=`expr "${__shunit_assertsPassed}" + 1`
-  __shunit_assertsTotal=`expr "${__shunit_assertsTotal}" + 1`
-  __shunit_assertsCurrentTest=`expr "${__shunit_assertsCurrentTest}" + 1`
+  __shunit_assertsPassed=$(expr "${__shunit_assertsPassed}" + 1)
+  __shunit_assertsTotal=$(expr "${__shunit_assertsTotal}" + 1)
+  __shunit_assertsCurrentTest=$(expr "${__shunit_assertsCurrentTest}" + 1)
 }
 
 # Records a test failure.
@@ -1243,7 +1242,7 @@ _shunit_assertFail() {
   __shunit_testSuccess=${SHUNIT_FALSE}
   _shunit_incFailedCount
 
-  _shunit_xml_message_="`_shunit_escapeXmlData "$@"`"
+  _shunit_xml_message_="$(_shunit_escapeXmlData "$@")"
 
   __shunit_junitXmlCurrentTestCaseErrors="${__shunit_junitXmlCurrentTestCaseErrors}
     <failure
@@ -1263,9 +1262,9 @@ _shunit_assertFail() {
 # Args:
 #   none
 _shunit_incFailedCount() {
-  __shunit_assertsFailed=`expr "${__shunit_assertsFailed}" + 1`
-  __shunit_assertsTotal=`expr "${__shunit_assertsTotal}" + 1`
-  __shunit_assertsCurrentTest=`expr "${__shunit_assertsCurrentTest}" + 1`
+  __shunit_assertsFailed=$(expr "${__shunit_assertsFailed}" + 1)
+  __shunit_assertsTotal=$(expr "${__shunit_assertsTotal}" + 1)
+  __shunit_assertsCurrentTest=$(expr "${__shunit_assertsCurrentTest}" + 1)
 }
 
 # Records a skipped test.
@@ -1273,9 +1272,9 @@ _shunit_incFailedCount() {
 # Args:
 #   None
 _shunit_assertSkip() {
-  __shunit_assertsSkipped=`expr "${__shunit_assertsSkipped}" + 1`
-  __shunit_assertsTotal=`expr "${__shunit_assertsTotal}" + 1`
-  __shunit_assertsCurrentTest=`expr "${__shunit_assertsCurrentTest}" + 1`
+  __shunit_assertsSkipped=$(expr "${__shunit_assertsSkipped}" + 1)
+  __shunit_assertsTotal=$(expr "${__shunit_assertsTotal}" + 1)
+  __shunit_assertsCurrentTest=$(expr "${__shunit_assertsCurrentTest}" + 1)
 }
 
 # Dump the current test metrics.
@@ -1300,8 +1299,8 @@ skipped: ${__shunit_assertsSkipped} \
 _shunit_prepForSourcing() {
   _shunit_script_=$1
   case "${_shunit_script_}" in
-    /*|./*) echo "${_shunit_script_}" ;;
-    *) echo "./${_shunit_script_}" ;;
+  /* | ./*) echo "${_shunit_script_}" ;;
+  *) echo "./${_shunit_script_}" ;;
   esac
   unset _shunit_script_
 }
@@ -1318,9 +1317,9 @@ _shunit_extractTestFunctions() {
   # Extract the lines with test function names, strip of anything besides the
   # function name, and output everything on a single line.
   _shunit_regex_='^\s*((function test[A-Za-z0-9_-]*)|(test[A-Za-z0-9_-]* *\(\)))'
-  grep -E "${_shunit_regex_}" "${_shunit_script_}" \
-  |command sed 's/^[^A-Za-z0-9_-]*//;s/^function //;s/\([A-Za-z0-9_-]*\).*/\1/g' \
-  |xargs
+  grep -E "${_shunit_regex_}" "${_shunit_script_}" |
+    command sed 's/^[^A-Za-z0-9_-]*//;s/^function //;s/\([A-Za-z0-9_-]*\).*/\1/g' |
+    xargs
 
   unset _shunit_regex_ _shunit_script_
 }
@@ -1335,8 +1334,8 @@ _shunit_escapeXmlData() {
   # Required XML characters to escape are described here:
   # http://www.w3.org/TR/REC-xml/#syntax
   # https://www.liquid-technologies.com/Reference/Glossary/XML_EscapingData.html
-  echo "$*" \
-  |command sed 's/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/"/\&quot;/g'";s/'/\&apos;/g"
+  echo "$*" |
+    command sed 's/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/"/\&quot;/g'";s/'/\&apos;/g"
 }
 
 #------------------------------------------------------------------------------
@@ -1356,7 +1355,7 @@ else
 fi
 
 # Create a temporary storage location.
-__shunit_tmpDir=`_shunit_mktempDir`
+__shunit_tmpDir=$(_shunit_mktempDir)
 
 # Provide a public temporary directory for unit test scripts.
 # TODO(kward): document this.
@@ -1378,12 +1377,12 @@ PATH="${__shunit_tmpDir}:${PATH}"
 # current `$TMPDIR`) points to a path on a partition that was mounted with the
 # 'noexec' option. The noexec command was created with `_shunit_mktempFunc()`.
 noexec 2>/dev/null || _shunit_fatal \
-    'Please declare TMPDIR with path on partition with exec permission.'
+  'Please declare TMPDIR with path on partition with exec permission.'
 
 # We must manually source the tests in standalone mode.
 if ${__SHUNIT_BUILTIN} [ "${__shunit_mode}" = "${__SHUNIT_MODE_STANDALONE}" ]; then
   # shellcheck disable=SC1090
-  ${__SHUNIT_BUILTIN} . "`_shunit_prepForSourcing \"${__shunit_script}\"`"
+  ${__SHUNIT_BUILTIN} . "$(_shunit_prepForSourcing \"${__shunit_script}\")"
 fi
 
 # Configure default output coloring behavior.
@@ -1403,23 +1402,23 @@ if ${__SHUNIT_BUILTIN} [ "$#" -ge 2 ]; then
   #   - configuration options, that is started with the `--` prefix.
   # Interate through all remaining args in "$@" in a POSIX (likely portable) way.
   # Helpful tip: https://unix.stackexchange.com/questions/314032/how-to-use-arguments-like-1-2-in-a-for-loop
-  for _shunit_arg_ do
+  for _shunit_arg_; do
     case "${_shunit_arg_}" in
-      --output-junit-xml=*)
-        # It is a request for JUnit XML output.
-        __shunit_junitXmlOutputFile="${_shunit_arg_#--output-junit-xml=}"
-        ;;
-      --suite-name=*)
-        # It is a request for a custom suite name.
-        __shunit_suiteName="${_shunit_arg_#--suite-name=}"
-        ;;
-      --*)
-        _shunit_fatal "unrecognized option \"${_shunit_arg_}\""
-        ;;
-      *)
-        # It is the test name, process it in a usual way.
-        suite_addTest "${_shunit_arg_}"
-        ;;
+    --output-junit-xml=*)
+      # It is a request for JUnit XML output.
+      __shunit_junitXmlOutputFile="${_shunit_arg_#--output-junit-xml=}"
+      ;;
+    --suite-name=*)
+      # It is a request for a custom suite name.
+      __shunit_suiteName="${_shunit_arg_#--suite-name=}"
+      ;;
+    --*)
+      _shunit_fatal "unrecognized option \"${_shunit_arg_}\""
+      ;;
+    *)
+      # It is the test name, process it in a usual way.
+      suite_addTest "${_shunit_arg_}"
+      ;;
     esac
   done
   unset _shunit_arg_
@@ -1431,7 +1430,7 @@ fi
 
 # If no tests or suite specified, dynamically build a list of functions.
 if ${__SHUNIT_BUILTIN} [ -z "${__shunit_suite}" ]; then
-  shunit_funcs_=`_shunit_extractTestFunctions "${__shunit_script}"`
+  shunit_funcs_=$(_shunit_extractTestFunctions "${__shunit_script}")
   for shunit_func_ in ${shunit_funcs_}; do
     suite_addTest "${shunit_func_}"
   done
@@ -1444,7 +1443,7 @@ if ${__SHUNIT_BUILTIN} [ -z "${__shunit_suiteName}" ]; then
 fi
 
 # Prepare the suite name for XML output.
-__shunit_xmlSuiteName="`_shunit_escapeXmlData "${__shunit_suiteName}"`"
+__shunit_xmlSuiteName="$(_shunit_escapeXmlData "${__shunit_suiteName}")"
 
 # Execute the suite of unit tests.
 _shunit_execSuite

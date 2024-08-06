@@ -2,7 +2,7 @@
 
 # This script launches rerun.
 
-set -euo pipefail
+set -eo pipefail
 
 main() {
   cd "$PIXI_PROJECT_ROOT"

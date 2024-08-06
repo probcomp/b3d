@@ -433,4 +433,4 @@ test-gcp-active-host() {
   $_ASSERT_EQUALS_ '"3"' '"$status"'
 }
 
-. ./shunit2
+. ./shunit2.sh

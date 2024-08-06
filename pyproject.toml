@@ -28,6 +28,7 @@ platforms = ["linux-64", "osx-arm64", "osx-64"]
 index-url = "https://pypi.org/simple"
 extra-index-urls = [
     "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
+    # carvekit:
     "https://download.pytorch.org/whl/cu121",
     "https://download.pytorch.org/whl/cpu"
 ]

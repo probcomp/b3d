@@ -32,9 +32,25 @@ repos:
 
   - repo: local
     hooks:
-      - id: pixi-update
+      - id: pixi-install-default
         name: pixi update
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update --dry-run && git add pixi.lock'
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked && git add pixi.lock'
+        language: system
+        files: ^pyproject\.toml$
+        types: [text]
+
+      - id: pixi-install-cpu
+        name: pixi update
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e cpu && git add pixi.lock'
+        language: system
+        files: ^pyproject\.toml$
+        types: [text]
+
+      - id: pixi-install-gpu
+        name: pixi update
+        entry: bash -c 'if nvidia-smi &>/dev/null; then cd $(git rev-parse --show-toplevel) && pixi install --locked -e gpu && git add pixi.lock; else echo "nvidia-smi not found or no NVIDIA GPU detected."; fi'
+
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e cpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]

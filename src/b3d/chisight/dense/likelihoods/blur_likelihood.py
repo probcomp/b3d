@@ -63,11 +63,27 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
             (2 * filter_half_width + 1, 2 * filter_half_width + 1, 3),
         )
 
-        probability = jax.scipy.stats.norm.logpdf(
-            observed_rgbd[ij[0], ij[1], :],
-            jnp.concatenate([colors_window, vertices_mean_window[..., 2:3]], axis=-1),
-            jnp.array([color_variance, color_variance, color_variance, depth_variance]),
-        ).sum(-1)
+        latent_rgbd_padded_window = jnp.concatenate(
+            [colors_window, vertices_mean_window[..., 2:3]], axis=-1
+        )
+
+        # Case 1
+        # probability = jax.scipy.stats.norm.logpdf(
+        #     observed_rgbd[ij[0], ij[1], :],
+        #     latent_rgbd_padded_window,
+        #     jnp.array([color_variance, color_variance, color_variance, depth_variance]),
+        # ).sum(-1)
+
+        # Case 2
+        error = jnp.abs(latent_rgbd_padded_window - observed_rgbd[ij[0], ij[1], :])
+        inlier = jnp.all(
+            error
+            < jnp.array(
+                [color_variance, color_variance, color_variance, depth_variance]
+            ),
+            axis=-1,
+        )
+        probability = inlier * 10.00 + ~inlier * -jnp.inf
 
         valid_window = vertices_mean_window[..., 2] != 0.0
 

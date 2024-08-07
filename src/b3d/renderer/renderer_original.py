@@ -405,6 +405,16 @@ def _build_interpolate_fwd_primitive(r: "RendererOriginal"):
     def _interpolate_batch(args, axes):
         attributes, rast, faces = args
 
+        # pos, tri, resolution = args
+
+        # pos_reshaped = pos.reshape(-1, *pos.shape[-2:])
+
+        # (rendered,) = _rasterize_fwd_custom_call(r, pos_reshaped, tri, resolution)
+
+        # rendered_reshaped = rendered.reshape(*pos.shape[:-2], *rendered.shape[-3:])
+        # out_axes = (0,)
+        # return (rendered_reshaped,), out_axes
+
         attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
         rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
 
@@ -412,9 +422,7 @@ def _build_interpolate_fwd_primitive(r: "RendererOriginal"):
             r, attributes_reshaped, rast_reshaped, faces
         )
 
-        rendered_reshaped = rendered.reshape(
-            *attributes.shape[:-2], *rendered.shape[-3:]
-        )
+        rendered_reshaped = rendered.reshape(*rast.shape[:-1], attributes.shape[-1])
         out_axes = (0,)
         return (rendered_reshaped,), out_axes
 

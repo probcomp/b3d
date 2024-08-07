@@ -13,20 +13,18 @@ from b3d.modeling_utils import uniform_pose
 def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     if sample_func is None:
 
-        def f(key, rendered_rgbd, likelihood_args):
-            return rendered_rgbd
+        def f(key, likelihood_args):
+            return likelihood_args["latent_rgbd"]
 
         sample_func = f
 
     @Pytree.dataclass
     class ImageLikelihood(genjax.ExactDensity):
-        def sample(self, key, rendered_rgbd, likelihood_args):
-            return sample_func(key, rendered_rgbd, likelihood_args)
+        def sample(self, key, likelihood_args):
+            return sample_func(key, likelihood_args)
 
-        def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
-            return likelihood_func(observed_rgbd, rendered_rgbd, likelihood_args)[
-                "score"
-            ]
+        def logpdf(self, observed_rgbd, likelihood_args):
+            return likelihood_func(observed_rgbd, likelihood_args)["score"]
 
     image_likelihood = ImageLikelihood()
 
@@ -66,9 +64,18 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         scene_mesh = Mesh.transform_and_merge_meshes(meshes, all_poses).transform(
             camera_pose.inv()
         )
-        latent_rgbd = renderer.render_rgbd_from_mesh(scene_mesh)
-
-        image = image_likelihood(latent_rgbd, likelihood_args) @ "rgbd"
+        rasterize_results = renderer.rasterize(scene_mesh.vertices, scene_mesh.faces)
+        latent_rgbd = renderer.interpolate(
+            jnp.concatenate(
+                [scene_mesh.vertex_attributes, scene_mesh.vertices[..., -1:]], axis=-1
+            ),
+            rasterize_results,
+            scene_mesh.faces,
+        )
+        likelihood_args["scene_mesh"] = scene_mesh
+        likelihood_args["latent_rgbd"] = latent_rgbd
+        likelihood_args["rasterize_results"] = rasterize_results
+        image = image_likelihood(likelihood_args) @ "rgbd"
         return {
             "likelihood_args": likelihood_args,
             "scene_mesh": scene_mesh,
@@ -80,7 +87,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     def info_from_trace(trace):
         return likelihood_func(
             trace.get_choices()["rgbd"],
-            trace.get_retval()["latent_rgbd"],
             trace.get_retval()["likelihood_args"],
         )
 

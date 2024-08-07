@@ -162,7 +162,7 @@ depends_on = ["dev-data-sync", "dev-rerun"]
 [tool.pixi.feature.dev.tasks.dev-test]
 description = "Execute tests (optional TEST_TARGETS)"
 cmd = "./scripts/tests.sh"
-depends_on = ["dev-sync", "dev-clean", "dev-rerun"]
+depends_on = ["dev-sync", "dev-rerun"]
 env = { TEST_TARGETS = "tests" }
 
 # CPU feature

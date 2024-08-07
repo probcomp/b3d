@@ -13,6 +13,7 @@ GCP_PROJECT="${GCP_PROJECT:-probcomp-caliban}"
 GCP_REGION="${GCP_REGION:-us-west1}"
 GCP_ZONE="${GCP_ZONE:-us-west1-a}"
 GCP_CONNECT="${GCP_CONNECT:-ssh}"
+GCP_DEBUG="${GCP_DEBUG:-}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 
@@ -697,7 +698,15 @@ gcp-ssh() {
 
   host=$(gcp-active-host)
   command=(
-    ssh -o
+    ssh
+  )
+
+  if [ -n "$GCP_DEBUG" ]; then
+    command+=("-v")
+  fi
+
+  command+=(
+    -o
     StrictHostKeyChecking=ask
     "$host"
   )
@@ -777,11 +786,18 @@ gcp-connect() {
     gcp-log "→ adding remote forwarding to $SSH_CONFIG..."
     gcp-update-ssh-config-remote-forward
     ;;
+  TERMINATED)
+    gcp-log "→ vm is stopped, starting it now..."
+    gcp-start
+    ;;
   RUNNING)
     gcp-log "→ the vm is running..."
+    gcp-config-ssh
+    gcp-log "→ updating remote forwarding in $SSH_CONFIG..."
+    gcp-update-ssh-config-remote-forward
     ;;
   *)
-    echo "error: vm status is unknown '$status'"
+    echo "vm status is unknown: $status"
     exit 1
     ;;
   esac

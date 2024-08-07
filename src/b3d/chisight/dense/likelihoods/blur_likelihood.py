@@ -3,8 +3,6 @@ import functools
 import jax
 import jax.numpy as jnp
 
-import b3d
-
 
 def log_gaussian_kernel(size: int, sigma: float) -> jnp.ndarray:
     """Creates a 2D Gaussian kernel."""
@@ -21,10 +19,10 @@ filter_size = filter_half_width
 
 @jax.jit
 def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
-    fx = likelihood_args["fx"]
-    fy = likelihood_args["fy"]
-    cx = likelihood_args["cx"]
-    cy = likelihood_args["cy"]
+    # fx = likelihood_args["fx"]
+    # fy = likelihood_args["fy"]
+    # cx = likelihood_args["cx"]
+    # cy = likelihood_args["cy"]
 
     rasterize_results = likelihood_args["rasterize_results"]
     latent_rgbd = likelihood_args["latent_rgbd"]
@@ -51,6 +49,8 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
         signature="(m)->()",
     )
     def score_pixel(ij):
+        log_kernel = log_gaussian_kernel(2 * filter_size + 1, blur)
+
         lower_indices = (ij[0] - filter_half_width, ij[1] - filter_half_width, 0)
         vertices_mean_window = jax.lax.dynamic_slice(
             vertices_mean_image,
@@ -83,42 +83,28 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
             ),
             axis=-1,
         )
-        probability = inlier * 10.00 + ~inlier * -jnp.inf
 
-        valid_window = vertices_mean_window[..., 2] != 0.0
+        valid = latent_rgbd_padded_window[..., 3] != 0.0
 
-        probability_inlier_outlier_summed = jnp.logaddexp(
-            probability + jnp.log(1.0 - outlier_probability),
+        scores_inlier = (valid * inlier) * 5.00 + (valid * ~inlier) * -jnp.inf
+
+        # scores_inlier = genjax.truncated_normal.logpdf(
+        #     observed_rgbd[ij[0], ij[1], :],
+        #     latent_rgb_padded_window,
+        #     jnp.array([color_variance, color_variance, color_variance, depth_variance]),
+        #     0.0 - 0.00001,
+        #     1.0 + 0.00001,
+        # ).sum(-1)
+
+        # no_mesh = latent_rgb_padded_window[..., 3] == 0.
+        # outlier_probability_adjusted = (no_mesh) * 1.0 + (1 - no_mesh) * outlier_probability
+
+        score_mixed = jax.nn.logsumexp(scores_inlier + log_kernel)
+
+        final_score = jnp.logaddexp(
+            score_mixed + jnp.log(1.0 - outlier_probability),
             jnp.log(outlier_probability),
         )
-        scores_window = (
-            valid_window * probability_inlier_outlier_summed + ~valid_window * 0.0
-        )
-
-        pixel_coordinates = b3d.xyz_to_pixel_coordinates(
-            vertices_mean_window, fx, fy, cx, cy
-        )
-        pixel_coordinates_baseline = (
-            jnp.stack(
-                jnp.meshgrid(
-                    jnp.arange(-filter_half_width, filter_half_width + 1),
-                    jnp.arange(-filter_half_width, filter_half_width + 1),
-                ),
-                axis=-1,
-            )
-            + ij
-        )
-
-        pixel_coordinates = (
-            pixel_coordinates * valid_window[..., None]
-            + pixel_coordinates_baseline * ~valid_window[..., None]
-        )
-
-        _log_kernel = ((pixel_coordinates - ij) ** 2).sum(-1) * -1.0 / (2.0 * blur**2)
-        log_kernel = _log_kernel - jax.nn.logsumexp(_log_kernel)
-        log_kernel = log_kernel - jax.nn.logsumexp(log_kernel)
-
-        final_score = jax.nn.logsumexp(scores_window + log_kernel)
         return final_score
 
     indices = jnp.stack([rows, cols], axis=-1)

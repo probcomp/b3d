@@ -415,11 +415,6 @@ def _build_interpolate_fwd_primitive(r: "RendererOriginal"):
         # out_axes = (0,)
         # return (rendered_reshaped,), out_axes
 
-        print("attributes.shape", attributes.shape)
-        print("rast.shape", rast.shape)
-        print("faces.shape", faces.shape)
-        print("axes", axes)
-
         attributes_reshaped = attributes.reshape(-1, *attributes.shape[-2:])
         rast_reshaped = rast.reshape(-1, *rast.shape[-3:])
 

@@ -58,13 +58,13 @@ cwd = "scripts"
 description = "Connect to VM through vscode (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-connect-vscode"
 cwd = "scripts"
-depends_on = ["dev-rerun"]
+depends_on = ["rerun"]
 
 [tool.pixi.tasks.gcp-terminal]
 description = "Connect to VM through terminal (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-connect-terminal"
 cwd = "scripts"
-depends_on = ["dev-rerun"]
+depends_on = ["rerun"]
 
 [tool.pixi.tasks.gcp-start]
 description = "Start VM (requires GCP_VM and GCP_PROJECT)"

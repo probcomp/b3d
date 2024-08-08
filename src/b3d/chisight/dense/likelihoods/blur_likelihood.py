@@ -68,25 +68,28 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
         )
 
         # Case 1
-        # probability = jax.scipy.stats.norm.logpdf(
-        #     observed_rgbd[ij[0], ij[1], :],
-        #     latent_rgbd_padded_window,
-        #     jnp.array([color_variance, color_variance, color_variance, depth_variance]),
-        # ).sum(-1)
+        scores_inlier = (
+            jax.scipy.stats.norm.logpdf(
+                observed_rgbd[ij[0], ij[1], :],
+                latent_rgbd_padded_window,
+                jnp.array(
+                    [color_variance, color_variance, color_variance, depth_variance]
+                ),
+            )
+        ).sum(-1)
+        # # Case 2
+        # error = jnp.abs(latent_rgbd_padded_window - observed_rgbd[ij[0], ij[1], :])
+        # inlier = jnp.all(
+        #     error
+        #     < jnp.array(
+        #         [color_variance, color_variance, color_variance, depth_variance]
+        #     ),
+        #     axis=-1,
+        # )
 
-        # Case 2
-        error = jnp.abs(latent_rgbd_padded_window - observed_rgbd[ij[0], ij[1], :])
-        inlier = jnp.all(
-            error
-            < jnp.array(
-                [color_variance, color_variance, color_variance, depth_variance]
-            ),
-            axis=-1,
-        )
+        # valid = latent_rgbd_padded_window[..., 3] != 0.0
 
-        valid = latent_rgbd_padded_window[..., 3] != 0.0
-
-        scores_inlier = (valid * inlier) * 5.00 + (valid * ~inlier) * -jnp.inf
+        # scores_inlier = (valid * inlier) * 5.00 + (valid * ~inlier) * -jnp.inf
 
         # scores_inlier = genjax.truncated_normal.logpdf(
         #     observed_rgbd[ij[0], ij[1], :],

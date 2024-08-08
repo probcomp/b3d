@@ -627,7 +627,7 @@ def rr_log_cloud(cloud, channel="cloud"):
 
 
 def rr_set_time(t=0):
-    rr.set_time_sequence("time", t)
+    rr.set_time_sequence("step", t)
 
 
 def reload(x):

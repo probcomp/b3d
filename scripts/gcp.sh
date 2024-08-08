@@ -779,7 +779,7 @@ gcp-ssh() {
 
   if gcp-wait-until-running; then
     while [ $attempt -lt $retry_count ]; do
-      if ! gcp-scp 2>/dev/null--; then
+      if ! gcp-scp 2>/dev/null; then
         attempt=$((attempt + 1))
         echo "attempt $attempt, retry in $wait_time seconds..."
         sleep $wait_time

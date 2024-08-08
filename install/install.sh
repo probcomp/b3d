@@ -254,7 +254,7 @@ __wrap__() {
     pixi global install google-cloud-sdk
   fi
   printf "\n→ authenticating gcloud...\n\n"
-  gcloud auth login --update-adc --force
+  gcloud auth login --update-adc --force --no-browser
 
   printf "\n→ installing rerun into %s\n\n" "$BIN_DIR"
   pixi global install rerun-sdk

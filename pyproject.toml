@@ -39,6 +39,11 @@ CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
 
 # CPU-enabled tasks
 
+[tool.pixi.tasks.b3d-install]
+description = "Install b3d"
+cmd = "install.sh"
+cwd = "install"
+
 [tool.pixi.tasks.gcp-help]
 description = "Help with GCP tasks"
 cmd = "./gcp.sh :gcp-help"

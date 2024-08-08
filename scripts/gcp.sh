@@ -776,33 +776,38 @@ gcp-connect() {
 
   gcp-log "→ connecting to $host through $GCP_CONNECT"
 
-  case $status in
-  DOES_NOT_EXIST)
-    gcp-log "→ vm does not exist, so a new vm will be created..."
-    gcp-log "→ creating vm address"
-    address=$(gcp-create-address)
-    gcp-log "→ creating vm $host"
-    gcp-create "$address"
-    gcp-log "→ configuring vm ssh"
-    gcp-config-ssh
-    gcp-log "→ adding remote forwarding to $SSH_CONFIG..."
-    gcp-update-ssh-config-remote-forward
-    ;;
-  TERMINATED)
-    gcp-log "→ vm is stopped, starting it now..."
-    gcp-start
-    ;;
-  RUNNING)
-    gcp-log "→ the vm is running..."
-    gcp-config-ssh
-    gcp-log "→ updating remote forwarding in $SSH_CONFIG..."
-    gcp-update-ssh-config-remote-forward
-    ;;
-  *)
-    echo "vm status is unknown: $status"
-    exit 1
-    ;;
-  esac
+  while [[ $status != "READY" ]]; do
+    case $status in
+    DOES_NOT_EXIST)
+      gcp-log "→ vm does not exist, so a new vm will be created..."
+      gcp-log "→ creating vm address"
+      address=$(gcp-create-address)
+      gcp-log "→ creating vm $host"
+      gcp-create "$address"
+      gcp-log "→ configuring vm ssh"
+      gcp-config-ssh
+      gcp-log "→ adding remote forwarding to $SSH_CONFIG..."
+      gcp-update-ssh-config-remote-forward
+      status=READY
+      ;;
+    TERMINATED)
+      gcp-log "→ vm is stopped, starting it now..."
+      gcp-start
+      status=RUNNING
+      ;;
+    RUNNING)
+      gcp-log "→ the vm is running..."
+      gcp-config-ssh
+      gcp-log "→ updating remote forwarding in $SSH_CONFIG..."
+      gcp-update-ssh-config-remote-forward
+      status=READY
+      ;;
+    *)
+      echo "vm status is unknown: $status"
+      exit 1
+      ;;
+    esac
+  done
 
   case $GCP_CONNECT in
   vscode)

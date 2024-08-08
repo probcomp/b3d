@@ -662,13 +662,6 @@ gcp-update-ssh-config-remote-forward() {
   esac
 }
 
-# install.sh on local machine needs to do the auth flow.
-#  on vm (DISPLAY unset?) machine we do the transfer
-# install.sh needs to update .bashrc with:
-# export GOOGLE_APPLICATION_CREDENTIALS="/path/to/application_default_credentials.json"
-# install.sh should check that this works:
-# gcloud auth application-default print-access-token
-# then when creating a new VM, run gcp-scp to tranfer ADC
 gcp-scp() {
   local command
   local dir="$HOME"

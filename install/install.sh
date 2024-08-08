@@ -275,7 +275,7 @@ __wrap__() {
     pixi global install google-cloud-sdk
   fi
 
-  if [[ -z $DISPLAY ]] || [[ $platform == "Darwin arm64" ]]; then
+  if [[ -z $DISPLAY ]] || [[ $platform != "Darwin arm64" ]]; then
     # remote install
     if ! [[ -e $ADC_FILE_REMOTE ]]; then
       echo "error: remote gcloud creds not found $ADC_FILE_REMOTE"

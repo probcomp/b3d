@@ -45,7 +45,7 @@ cmd = "install.sh"
 cwd = "install"
 
 [tool.pixi.tasks.rerun]
-description = "Launch rerun"
+description = "Start rerun"
 cmd = "./rerun.sh"
 cwd = "scripts"
 
@@ -166,7 +166,7 @@ platforms = ["linux-64"]
 system-requirements = { cuda = "12" }
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
-carvekit = "==4.1.2"
+#carvekit = "==4.1.2"
 genjax = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]

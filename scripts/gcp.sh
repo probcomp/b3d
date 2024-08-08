@@ -662,6 +662,48 @@ gcp-update-ssh-config-remote-forward() {
   esac
 }
 
+# install.sh on local machine needs to do the auth flow.
+#  on vm (DISPLAY unset?) machine we do the transfer
+# install.sh needs to update .bashrc with:
+# export GOOGLE_APPLICATION_CREDENTIALS="/path/to/application_default_credentials.json"
+# install.sh should check that this works:
+# gcloud auth application-default print-access-token
+# then when creating a new VM, run gcp-scp to tranfer ADC
+gcp-scp() {
+  local command
+  local dir="$HOME"
+  local adc="$HOME/.config/gcloud/application_default_credentials.json"
+
+  if ! [[ -e $adc ]]; then
+    echo "error: not found $adc"
+    return 1
+  fi
+  if [ -z "$GCP_VM" ]; then
+    echo "error: GCP_VM is required"
+    return 2
+  fi
+  if [ -z "$GCP_PROJECT" ]; then
+    echo "GCP_PROJECT required"
+    return 3
+  fi
+
+  command=(
+    gcloud compute scp
+    "$adc"
+    "$USER@$GCP_VM:$dir/"
+    --zone="$GCP_ZONE"
+    --project="$GCP_PROJECT"
+  )
+
+  if ! gcp-execute "${command[@]}"; then
+    echo "error: could not tranfer $adc"
+    return 4
+  else
+    return 0
+  fi
+
+}
+
 # Polls VM on status with linear backoff until it's RUNNING.
 gcp-wait-until-running() {
   local retry_count=5
@@ -693,10 +735,37 @@ gcp-wait-until-running() {
 
 }
 
+# Polls VM on status with linear backoff until it's RUNNING.
+gcp-wait-until-connected() {
+  local retry_count=5
+  local wait_time=3
+  local attempt=0
+  local status
+
+  gcp-log "→ checking VM status..."
+
+  while [ $attempt -lt $retry_count ]; do
+    if ! gcp-execute "${command[@]}"; then
+      attempt=$((attempt + 1))
+      echo "ssh attempt $attempt, retry in $wait_time seconds..."
+      sleep $wait_time
+      wait_time=$((wait_time + 1))
+    fi
+  done
+
+  echo ""
+  return 1
+
+}
+
 # Connect to VM through SSH.
 gcp-ssh() {
   local host
   local command
+
+  local retry_count=5
+  local wait_time=3
+  local attempt=0
 
   host=$(gcp-active-host)
   command=(
@@ -716,9 +785,18 @@ gcp-ssh() {
   gcp-log "→ ssh $host"
 
   if gcp-wait-until-running; then
-    gcp-execute "${command[@]}"
-    return 0
-  else
+    while [ $attempt -lt $retry_count ]; do
+      if ! gcp-scp; then
+        attempt=$((attempt + 1))
+        echo "attempt $attempt, retry in $wait_time seconds..."
+        sleep $wait_time
+        wait_time=$((wait_time + 1))
+      else
+        gcp-execute "${command[@]}"
+        return 0
+      fi
+    done
+
     return 1
   fi
 }
@@ -788,6 +866,8 @@ gcp-connect() {
       gcp-config-ssh
       gcp-log "→ adding remote forwarding to $SSH_CONFIG..."
       gcp-update-ssh-config-remote-forward
+      gcp-log "→ transferring gcloud credentials $adc"
+      gcp-scp
       status=READY
       ;;
     TERMINATED)
@@ -827,6 +907,9 @@ execute() {
   case "$1" in
   :gcp-help)
     gcp-help
+    ;;
+  :gcp-scp)
+    gcp-scp
     ;;
   :gcp-env)
     gcp-env

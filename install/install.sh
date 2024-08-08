@@ -20,6 +20,22 @@ __wrap__() {
   B3D_REPO_SSH="git@github.com:probcomp/b3d.git"
   B3D_REPO_HTTPS="https://github.com/probcomp/b3d.git"
   PIPX_BIN="$HOME/.local/bin"
+  ADC_FILE_LOCAL="$HOME/.config/gcloud/application_default_credentials.json"
+  ADC_FILE_REMOTE="$HOME/application_default_credentials.json"
+
+  config-git() {
+    if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then
+      printf "\n→ updating git config --global user.name \"%s\"" "$GIT_USER_NAME"
+      printf "\n→ updating git config --global user.email \"%s\"\n" "$GIT_USER_EMAIL"
+      git config --global user.name "$GIT_USER_NAME"
+      git config --global user.email "$GIT_USER_EMAIL"
+    else
+      printf "\n  Oops! Your git config is missing (please set and try again)"
+      printf "\n  export GIT_USER_NAME=\"Your Name\""
+      printf "\n  export GIT_USER_EMAIL=\"Your Email\"\n\n"
+      exit 1
+    fi
+  }
 
   # ............................................................................
   # pixi
@@ -57,6 +73,14 @@ __wrap__() {
   fi
 
   platform=$(uname -sm)
+
+  if [ -d "$PWD/b3d" ]; then
+    printf "\nOops! The 'b3d' directory exists! Please rename or remove it, then try again.\n"
+    exit 1
+  fi
+
+  config-git
+
   cat <<-EOF
 
 		installing the b3d development environment on $platform...
@@ -164,20 +188,6 @@ __wrap__() {
   # ............................................................................
   # b3d
 
-  config-git() {
-    if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then
-      printf "\n→ updating git config --global user.name \"%s\"" "$GIT_USER_NAME"
-      printf "\n→ updating git config --global user.email \"%s\"\n" "$GIT_USER_EMAIL"
-      git config --global user.name "$GIT_USER_NAME"
-      git config --global user.email "$GIT_USER_EMAIL"
-    else
-      printf "\n  WARNING!\n"
-      printf "\n  → Your GIT_USER_NAME and GIT_USER_EMAIL was not set... Please run these commands:\n"
-      printf "\n    git config --global user.name \"Your Name\""
-      printf "\n    git config --global user.email \"Your Email\"\n\n"
-    fi
-  }
-
   is-gauth-injected() {
     local backends=""
     backends=$(keyring --list-backends)
@@ -205,10 +215,14 @@ __wrap__() {
     # Default to bashrc as that is used in non login shells instead of the profile.
     LINE='eval "$(pixi completion --shell bash)"'
     update_shell ~/.bashrc "$LINE"
+    LINE='export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"'
+    update_shell ~/.bashrc "$LINE"
     ;;
 
   fish)
     LINE='pixi completion --shell fish | source'
+    update_shell ~/.config/fish/config.fish "$LINE"
+    LINE='export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"'
     update_shell ~/.config/fish/config.fish "$LINE"
     ;;
 
@@ -218,6 +232,8 @@ __wrap__() {
     LINE="compinit"
     update_shell ~/.zshrc "$LINE"
     LINE='eval "$(pixi completion --shell zsh)"'
+    update_shell ~/.zshrc "$LINE"
+    LINE='export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"'
     update_shell ~/.zshrc "$LINE"
     ;;
 
@@ -246,15 +262,37 @@ __wrap__() {
 
   printf "\n→ installing gh into %s\n\n" "$BIN_DIR"
   pixi global install gh
-  printf "\n→ authenticating gh...\n\n"
-  gh auth login
 
-  printf "\n→ checking gcloud...\n"
+  printf "\n→ authenticating gh...\n\n"
+  if [[ -z $DISPLAY ]]; then
+    gh auth login
+  else
+    gh auth login --web
+  fi
+
   if ! hash gcloud 2>/dev/null; then
+    printf "\n→ installing gcloud...\n"
     pixi global install google-cloud-sdk
   fi
-  printf "\n→ authenticating gcloud...\n\n"
-  gcloud auth login --update-adc --force --no-browser
+
+  if [[ -z $DISPLAY ]]; then
+    # remote install
+    if ! [[ -e $ADC_FILE_REMOTE ]]; then
+      echo "error: remote gcloud creds not found $ADC_FILE_REMOTE"
+      exit 1
+    else
+      printf "\n→ gcloud credentials found\n"
+      cp -v "$ADC_FILE_REMOTE" "$HOME/.config/gcloud/"
+    fi
+  else
+    # local install
+    printf "\n→ authenticating gcloud...\n\n"
+    gcloud auth login --update-adc --force
+    if ! [[ -e $ADC_FILE_LOCAL ]]; then
+      echo "error: local gcloud creds not found $ADC_FILE_LOCAL"
+      exit 1
+    fi
+  fi
 
   printf "\n→ installing rerun into %s\n\n" "$BIN_DIR"
   pixi global install rerun-sdk
@@ -265,69 +303,87 @@ __wrap__() {
   B3D_HOME="$PWD"
   B3D_REPO="${B3D_HOME}/b3d"
 
-  if [ -d "$B3D_REPO" ] || [ -n "$B3D_CLONE" ]; then
-    config-git
-    cat <<-EOF
+  if ! mkdir "$B3D_REPO"; then
+    echo "error: failed to create $B3D_REPO (check permissions)" >&2
+    exit 1
+  fi
 
-			✓ done!
+  cd "$B3D_REPO" || exit 1
 
-			cd into the b3d directory
-			source ~/.bashrc
-			pre-commit install
-			pixi run test
-		EOF
-    exit 0
+  if [ "$B3D_CLONE_METHOD" = "SSH" ]; then
+    printf "\n→ cloning %s into current rectory\n\n" "$B3D_REPO_SSH"
+    git clone "$B3D_REPO_SSH" .
   else
-    if ! mkdir "$B3D_REPO"; then
-      echo "error: failed to create $B3D_REPO (check permissions)" >&2
-      exit 1
-    fi
+    printf "\n→ cloning %s into current directory\n\n" "$B3D_REPO_HTTPS"
+    git clone "$B3D_REPO_HTTPS" .
+  fi
 
-    cd "$B3D_REPO" || exit 1
+  printf "\n→ checking out %s branch\n\n" "$B3D_BRANCH"
+  git checkout -b "$B3D_BRANCH" origin/"$B3D_BRANCH"
 
-    if [ "$B3D_CLONE_METHOD" = "SSH" ]; then
-      printf "\n→ cloning %s into current rectory\n\n" "$B3D_REPO_SSH"
-      git clone "$B3D_REPO_SSH" .
+  printf "\n→ installing pre-commit hooks %s\n\n" "$BIN_DIR"
+  pre-commit install
+
+  printf "\n→ installing environments %s\n\n" "$PWD/.pixi/envs"
+
+  # temporary workaround hack for carvekit issue...
+  local success=1
+  local tries=5
+  local attempt=0
+
+  # solve default environment
+  while [[ $success -ne 0 ]] && [[ $attempt -lt $tries ]]; do
+    if pixi install -e default --locked; then
+      success=0
+      printf "\n\n→ success resolving 'pypi' requirements\n\n"
+      echo "checking pytorch..."
+      exec 3>&1 4>&2
+      exec >/dev/null 2>&1
+      if ! pixi run -e default python -c 'print("→ pypi resolved, checking pytorch...")' >/dev/null 2>&1; then
+        pixi run -e default default -c 'print("→ retry: checking pytorch...")' >/dev/null 2>&1
+      fi
+      exec 1>&3 2>&4
     else
-      printf "\n→ cloning %s into current directory\n\n" "$B3D_REPO_HTTPS"
-      git clone "$B3D_REPO_HTTPS" .
+      attempt=$((attempt + 1))
+      printf "\n→ resolving 'pypi' requirements (attempt %s of %s)...\n\n" "$attempt" "$tries"
     fi
+  done
 
-    printf "\n→ checking out %s branch\n\n" "$B3D_BRANCH"
-    git checkout -b "$B3D_BRANCH" origin/"$B3D_BRANCH"
-
-    printf "\n→ installing pre-commit hooks %s\n\n" "$BIN_DIR"
-    pre-commit install
-
-    printf "\n→ installing environments %s\n\n" "$PWD/.pixi/envs"
-    # temporary workaround hack to the carvekit issue...
-    local success=1
-    local tries=3
-    local attempt=0
+  # solve gpu environment
+  tries=5
+  attempt=0
+  if nvidia-smi 2>/dev/null; then
+    success=1
     while [[ $success -ne 0 ]] && [[ $attempt -lt $tries ]]; do
-      if pixi update &>/dev/null; then
+      printf "\n→ switching to GPU...\n\n"
+      if pixi install -e gpu --locked; then
         success=0
-        if hash nvidia-smi 2>/dev/null; then
-          pixi run -e gpu python -c 'print("wild")' &>/dev/null
-          pixi run -e gpu python -c 'print("hack")' &>/dev/null
-        else
-          pixi run python -c 'print("wild")' &>/dev/null
-          pixi run python -c 'print("hack")' &>/dev/null
+        printf "\n\n→ success resolving 'pypi' requirements\n\n"
+        echo "checking pytorch..."
+        exec 3>&1 4>&2
+        exec >/dev/null 2>&1
+        if ! pixi run -e gpu python -c 'print("→ pypi resolved, checking pytorch...")' >/dev/null 2>&1; then
+          pixi run -e gpu python -c 'print("→ retry: checking pytorch...")' >/dev/null 2>&1
         fi
+        exec 1>&3 2>&4
       else
         attempt=$((attempt + 1))
+        printf "\n→ resolving 'pypi' requirements (attempt %s of %s)...\n\n" "$attempt" "$tries"
       fi
     done
   fi
 
-  config-git
+  if [[ $success -ne 0 ]]; then
+    printf "\n→ unable to resolve 'pypi' requirements :(\n"
+    printf "\n  run 'cd b3d && pixi clean cache && cd ../ && rm -rf b3d' and try again\n\n"
+  else
+    cat <<-EOF
+			✓ done!
 
-  cat <<-EOF
-		✓ done!
-
-		cd b3d
-		source ~/.bashrc
-		pixi run test
-	EOF
+			cd b3d
+			source ~/.bashrc
+			pixi run test
+		EOF
+  fi
 }
 __wrap__

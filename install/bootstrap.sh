@@ -11,6 +11,8 @@ __wrap__() {
     conda config --set auto_activate_base false
   fi
 
+  GIT_USER_NAME=${GIT_USER_NAME:-}
+  GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
   B3D_CLONE=${B3D_CLONE:-}
   B3D_HOME=${B3D_HOME:-"$PWD"}
   B3D_BRANCH=${B3D_BRANCH:-main}
@@ -190,13 +192,30 @@ __wrap__() {
   PATH=$BIN_DIR:$PATH
 
   printf "\n→ installing pipx into %s\n\n" "$BIN_DIR"
-
   pixi global install pipx
   pipx ensurepath &>/dev/null
 
-  if ! hash git 2>/dev/null; then
-    printf "\n→ installing git into %s\n\n" "$BIN_DIR"
-    pixi global install git
+  #	if ! hash git 2>/dev/null; then
+  printf "\n→ installing git into %s\n\n" "$BIN_DIR"
+  pixi global install git
+  #	fi
+
+  #	if ! hash gh 2>/dev/null; then
+  printf "\n→ installing gh into %s\n\n" "$BIN_DIR"
+  pixi global install gh
+  gh auth login
+  #	fi
+
+  if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then
+    printf "\n→ updating git config --global user.name \"%s\"" "$GIT_USER_NAME"
+    printf "\n→ updating git config --global user.email \"%s\"\n" "$GIT_USER_EMAIL"
+    git config --global user.name "$GIT_USER_NAME"
+    git config --global user.email "$GIT_USER_EMAIL"
+  else
+    printf "\n  WARNING!\n"
+    printf "\n  → Your GIT_USER_NAME and GIT_USER_EMAIL was not set... Please run these commands:\n"
+    printf "\n    git config --global user.name \"Your Name\""
+    printf "\n    git config --global user.email \"Your Email\\n"
   fi
 
   B3D_HOME="$PWD"

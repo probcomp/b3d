@@ -28,6 +28,7 @@ gcp-help() {
 		GCP_CONNECT = ${GCP_CONNECT:-}
 		GCP_REGION = ${GCP_REGION:-}
 		GCP_ZONE = ${GCP_ZONE:-}
+		GCP_DEBUG="${GCP_DEBUG:-}"
 		SSH_CONFIG = ${SSH_CONFIG:-}
 
 		Many tasks require a VM name configured using the GCP_VM environment
@@ -48,6 +49,7 @@ gcp-env() {
 		GCP_CONNECT = ${GCP_CONNECT:-}
 		GCP_REGION = ${GCP_REGION:-}
 		GCP_ZONE = ${GCP_ZONE:-}
+		GCP_DEBUG="${GCP_DEBUG:-}"
 		SSH_CONFIG = ${SSH_CONFIG:-}
 
 	EOF

@@ -44,6 +44,11 @@ description = "Install b3d"
 cmd = "install.sh"
 cwd = "install"
 
+[tool.pixi.tasks.rerun]
+description = "Launch rerun"
+cmd = "./rerun.sh"
+cwd = "scripts"
+
 [tool.pixi.tasks.gcp-help]
 description = "Help with GCP tasks"
 cmd = "./gcp.sh :gcp-help"
@@ -103,11 +108,6 @@ env = { TEST_TARGETS = "tests" }
 description = "Sync test data from GCP bucket"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
-
-[tool.pixi.feature.core.tasks.rerun]
-description = "Launch rerun"
-cmd = "./rerun.sh"
-cwd = "scripts"
 
 [tool.pixi.pypi-options]
 index-url = "https://pypi.org/simple"

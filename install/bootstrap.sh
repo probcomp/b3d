@@ -160,6 +160,20 @@ __wrap__() {
   # ............................................................................
   # b3d
 
+  config-git() {
+    if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then
+      printf "\n→ updating git config --global user.name \"%s\"" "$GIT_USER_NAME"
+      printf "\n→ updating git config --global user.email \"%s\"\n" "$GIT_USER_EMAIL"
+      git config --global user.name "$GIT_USER_NAME"
+      git config --global user.email "$GIT_USER_EMAIL"
+    else
+      printf "\n  WARNING!\n"
+      printf "\n  → Your GIT_USER_NAME and GIT_USER_EMAIL was not set... Please run these commands:\n"
+      printf "\n    git config --global user.name \"Your Name\""
+      printf "\n    git config --global user.email \"Your Email\"\n\n"
+    fi
+  }
+
   printf "\n→ updating shell config\n"
 
   case "$(basename "$SHELL")" in
@@ -195,33 +209,19 @@ __wrap__() {
   pixi global install pipx
   pipx ensurepath &>/dev/null
 
-  #	if ! hash git 2>/dev/null; then
   printf "\n→ installing git into %s\n\n" "$BIN_DIR"
   pixi global install git
-  #	fi
 
-  #	if ! hash gh 2>/dev/null; then
   printf "\n→ installing gh into %s\n\n" "$BIN_DIR"
   pixi global install gh
+  printf "\n→ authenticating gh...\n\n"
   gh auth login
-  #	fi
-
-  if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then
-    printf "\n→ updating git config --global user.name \"%s\"" "$GIT_USER_NAME"
-    printf "\n→ updating git config --global user.email \"%s\"\n" "$GIT_USER_EMAIL"
-    git config --global user.name "$GIT_USER_NAME"
-    git config --global user.email "$GIT_USER_EMAIL"
-  else
-    printf "\n  WARNING!\n"
-    printf "\n  → Your GIT_USER_NAME and GIT_USER_EMAIL was not set... Please run these commands:\n"
-    printf "\n    git config --global user.name \"Your Name\""
-    printf "\n    git config --global user.email \"Your Email\\n"
-  fi
 
   B3D_HOME="$PWD"
   B3D_REPO="${B3D_HOME}/b3d"
 
   if [ -d "$B3D_REPO" ] || [ -n "$B3D_CLONE" ]; then
+    config-git
     cat <<-EOF
 
 			✓ you can now install b3d
@@ -247,6 +247,8 @@ __wrap__() {
     printf "\n→ checking out %s branch\n\n" "$B3D_BRANCH"
     git checkout -b "$B3D_BRANCH" origin/"$B3D_BRANCH"
   fi
+
+  config-git
 
   cat <<-EOF
 		✓ you can now install b3d

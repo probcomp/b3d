@@ -664,7 +664,7 @@ gcp-update-ssh-config-remote-forward() {
 
 gcp-scp() {
   local command
-  local dir="$HOME"
+  local remote_dir="/home/$USER"
   local adc="$HOME/.config/gcloud/application_default_credentials.json"
 
   if ! [[ -e $adc ]]; then
@@ -683,7 +683,7 @@ gcp-scp() {
   command=(
     gcloud compute scp
     "$adc"
-    "$USER@$GCP_VM:$dir/"
+    "$USER@$GCP_VM:$remote_dir/"
     --zone="$GCP_ZONE"
     --project="$GCP_PROJECT"
   )
@@ -779,7 +779,7 @@ gcp-ssh() {
 
   if gcp-wait-until-running; then
     while [ $attempt -lt $retry_count ]; do
-      if ! gcp-scp; then
+      if ! gcp-scp 2>/dev/null--; then
         attempt=$((attempt + 1))
         echo "attempt $attempt, retry in $wait_time seconds..."
         sleep $wait_time

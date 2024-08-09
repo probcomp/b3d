@@ -19,7 +19,7 @@ dependencies = []
 [tool.pixi.project]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64"]
-#conda-pypi-map = { "pytorch" = "torch_mapping.json" }
+conda-pypi-map = { "conda-forge" = "torch.json" }
 
 [build-system]
 requires = ["setuptools"]
@@ -27,6 +27,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.pixi.pypi-dependencies]
 b3d = { path = ".", editable = true }
+setuptools = "*"
 
 [tool.pixi.environments]
 cpu = { features = [], solve-group = "default" }
@@ -113,7 +114,6 @@ cwd = "src/b3d/bucket_utils"
 index-url = "https://pypi.org/simple"
 extra-index-urls = [
     "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
-    "https://download.pytorch.org/whl/cu121",
 ]
 
 [tool.pixi.feature.core.pypi-dependencies]
@@ -168,6 +168,7 @@ system-requirements = { cuda = "12" }
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"
 genjax = "*"
+torch = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]
 cuda-toolkit = "*"
@@ -177,7 +178,7 @@ jaxlib = { version = "0.4.28", build = "cuda12*" }
 libnvjitlink = "*"
 optax = ">=0.2.2,<0.3"
 pytorch = { version = "==2.3.0", build = "cuda12*" }
-torchvision = "*"
+torchvision = "==0.18.0"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

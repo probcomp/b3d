@@ -1,5 +1,5 @@
 ci:
-    skip: [ruff]
+    skip: [ruff] #, pixi-install-default, pixi-install-cpu, pixi-install-gpu]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -19,3 +19,47 @@ repos:
 
       - id: ruff-format
         types_or: [ python, pyi ]
+
+  - repo: https://github.com/pecigonzalo/pre-commit-shfmt
+    rev: v2.2.0
+    hooks:
+      - id: shell-fmt-go
+        args:
+          - --write
+          - --simplify
+          - --indent
+          - "2"
+
+  # - repo: local
+  #   hooks:
+  #     - id: pixi-install-default
+  #       name: pixi install default
+  #       entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked && git add pixi.lock'
+  #       language: system
+  #       files: ^pyproject\.toml$
+  #       types: [text]
+
+  #     - id: pixi-install-cpu
+  #       name: pixi install cpu
+  #       entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e cpu && git add pixi.lock'
+  #       language: system
+  #       files: ^pyproject\.toml$
+  #       types: [text]
+
+  #     - id: pixi-install-gpu
+  #       name: pixi install gpu
+  #       entry: bash -c 'if nvidia-smi &>/dev/null; then cd $(git rev-parse --show-toplevel) && pixi install --locked -e gpu && git add pixi.lock; else echo "nvidia-smi not found or no NVIDIA GPU detected."; fi'
+
+  #       entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e cpu && git add pixi.lock'
+  #       language: system
+  #       files: ^pyproject\.toml$
+  #       types: [text]
+
+  # - repo: local
+  #   hooks:
+  #     - id: gcp-sh-test
+  #       name: gcp.sh tests
+  #       entry: bash -c 'cd $(git rev-parse --show-toplevel) && cd scripts && ./test-gcp.sh'
+  #       language: system
+  #       files: .*gcp.*\.sh$
+  #       types: [executable]

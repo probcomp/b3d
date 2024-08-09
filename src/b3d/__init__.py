@@ -9,7 +9,7 @@ from .pose import Pose
 from .renderer import Renderer, RendererOriginal
 from .utils import *
 
-__version__ = metadata.version("genjax")
+__version__ = metadata.version("genjax")  # 1.0.0
 __all__ = [
     "Renderer",
     "renderer",

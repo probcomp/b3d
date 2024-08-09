@@ -13,17 +13,23 @@ __wrap__() {
 
   GIT_USER_NAME=${GIT_USER_NAME:-}
   GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
-  B3D_CLONE=${B3D_CLONE:-}
-  B3D_HOME=${B3D_HOME:-"$PWD"}
   B3D_BRANCH=${B3D_BRANCH:-main}
-  B3D_CLONE_METHOD=${B3D_CLONE_METHOD:-"HTTPS"}
-  B3D_REPO_SSH="git@github.com:probcomp/b3d.git"
-  B3D_REPO_HTTPS="https://github.com/probcomp/b3d.git"
   PIPX_BIN="$HOME/.local/bin"
   ADC_FILE_LOCAL="$HOME/.config/gcloud/application_default_credentials.json"
   ADC_FILE_REMOTE="$HOME/application_default_credentials.json"
+  B3D_REMOTE_MACHINE=1
+
+  if [[ -n $SSH_CONNECTION ]] && [[ -n $SSH_CLIENT ]] && [[ -n $SSH_TTY ]]; then
+    B3D_REMOTE_MACHINE=0
+  else
+    B3D_REMOTE_MACHINE=1
+  fi
 
   config-git() {
+    if [[ $B3D_REMOTE_MACHINE -eq 1 ]]; then
+      return 0
+    fi
+
     if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then
       printf "\n→ updating git config --global user.name \"%s\"" "$GIT_USER_NAME"
       printf "\n→ updating git config --global user.email \"%s\"\n" "$GIT_USER_EMAIL"
@@ -81,10 +87,13 @@ __wrap__() {
 
   config-git
 
-  cat <<-EOF
-
-		installing the b3d development environment on $platform...
-	EOF
+  local type
+  if [[ $B3D_REMOTE_MACHINE -eq 1 ]]; then
+    type="local"
+  else
+    type="remote"
+  fi
+  printf "\nInstalling the b3d development environment (%s %s machine)...\n" "$type" "$platform"
 
   sleep 3
 
@@ -263,34 +272,47 @@ __wrap__() {
   printf "\n→ installing gh into %s\n\n" "$BIN_DIR"
   pixi global install gh
 
-  printf "\n→ authenticating gh...\n\n"
-  if [[ -z $DISPLAY ]]; then
-    gh auth login
-  else
-    gh auth login --web
-  fi
-
   if ! hash gcloud 2>/dev/null; then
     printf "\n→ installing gcloud...\n"
     pixi global install google-cloud-sdk
   fi
 
-  if [[ -z $DISPLAY ]] || [[ $platform != "Darwin arm64" ]]; then
-    # remote install
-    if ! [[ -e $ADC_FILE_REMOTE ]]; then
+  # local machine
+  if [[ $B3D_REMOTE_MACHINE -eq 1 ]]; then
+    printf "\n→ authenticating gh...\n"
+    if ! gh auth status; then
+      gh auth status
+      gh auth login --web
+    else
+      printf "\n✓ gh authenticated\n"
+    fi
+    printf "\n→ authenticating gcloud...\n"
+    if ! [[ -e $ADC_FILE_LOCAL ]]; then
+      printf "  gcp application default credentials not found  %s\n" "$ADC_FILE_LOCAL"
+      gcloud auth login --update-adc --force
+    else
+      printf "✓ gcp application default credentials found  %s\n" "$ADC_FILE_LOCAL"
+    fi
+  fi
+
+  # remote machine
+  if [[ $B3D_REMOTE_MACHINE -eq 0 ]]; then
+    # gcloud creds
+    if [[ -e $ADC_FILE_REMOTE ]]; then
+      cp -v "$ADC_FILE_REMOTE" "$HOME/.config/gcloud/"
+      rm "$ADC_FILE_REMOTE"
+    elif ! [[ -e "$HOME/.config/gcloud/application_default_credentials.json" ]]; then
       echo "error: remote gcloud creds not found $ADC_FILE_REMOTE"
       exit 1
-    else
-      printf "\n→ gcloud credentials found\n"
-      cp -v "$ADC_FILE_REMOTE" "$HOME/.config/gcloud/"
     fi
-  else
-    # local install
-    printf "\n→ authenticating gcloud...\n\n"
-    gcloud auth login --update-adc --force
-    if ! [[ -e $ADC_FILE_LOCAL ]]; then
-      echo "error: local gcloud creds not found $ADC_FILE_LOCAL"
-      exit 1
+    # gh creds
+    local gh_creds="$HOME/gh_credentials.txt"
+    if [[ -e $gh_creds ]]; then
+      gh auth login --with-token <"$gh_creds"
+      rm "$gh_creds"
+    fi
+    if ! gh auth status; then
+      gh auth login
     fi
   fi
 
@@ -300,23 +322,12 @@ __wrap__() {
   printf "\n→ installing pre-commit into %s\n\n" "$BIN_DIR"
   pixi global install pre-commit
 
-  B3D_HOME="$PWD"
-  B3D_REPO="${B3D_HOME}/b3d"
+  B3D_ROOT="$PWD/b3d"
 
-  if ! mkdir "$B3D_REPO"; then
-    echo "error: failed to create $B3D_REPO (check permissions)" >&2
-    exit 1
-  fi
+  printf "\n→ cloning probcomp/b3d to %s\n\n" "$B3D_ROOT"
+  gh repo clone probcomp/b3d
 
-  cd "$B3D_REPO" || exit 1
-
-  if [ "$B3D_CLONE_METHOD" = "SSH" ]; then
-    printf "\n→ cloning %s into current rectory\n\n" "$B3D_REPO_SSH"
-    git clone "$B3D_REPO_SSH" .
-  else
-    printf "\n→ cloning %s into current directory\n\n" "$B3D_REPO_HTTPS"
-    git clone "$B3D_REPO_HTTPS" .
-  fi
+  cd "$B3D_ROOT" || exit 1
 
   printf "\n→ checking out %s branch\n\n" "$B3D_BRANCH"
   git checkout -b "$B3D_BRANCH" origin/"$B3D_BRANCH"
@@ -336,7 +347,7 @@ __wrap__() {
     if pixi install -e default --locked; then
       success=0
       printf "\n\n→ success resolving 'pypi' requirements\n\n"
-      echo "checking pytorch..."
+      printf "checking pytorch...\n\n"
       exec 3>&1 4>&2
       exec >/dev/null 2>&1
       if ! pixi run -e default python -c 'print("→ pypi resolved, checking pytorch...")' >/dev/null 2>&1; then
@@ -358,8 +369,8 @@ __wrap__() {
       printf "\n→ switching to GPU...\n\n"
       if pixi install -e gpu --locked; then
         success=0
-        printf "\n\n→ success resolving 'pypi' requirements\n\n"
-        echo "checking pytorch..."
+        printf "\n→ success resolving 'pypi' requirements\n\n"
+        printf "checking pytorch...\n"
         exec 3>&1 4>&2
         exec >/dev/null 2>&1
         if ! pixi run -e gpu python -c 'print("→ pypi resolved, checking pytorch...")' >/dev/null 2>&1; then
@@ -377,12 +388,14 @@ __wrap__() {
     printf "\n→ unable to resolve 'pypi' requirements :(\n"
     printf "\n  run 'cd b3d && pixi clean cache && cd ../ && rm -rf b3d' and try again\n\n"
   else
+    printf "\n✓ all environments ready\n"
     cat <<-EOF
-			✓ done!
+			✓ done! remember to...
 
 			cd b3d
 			source ~/.bashrc
-			pixi run test
+			pixi task list
+
 		EOF
   fi
 }

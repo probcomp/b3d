@@ -16,6 +16,10 @@ GCP_CONNECT="${GCP_CONNECT:-ssh}"
 GCP_DEBUG="${GCP_DEBUG:-}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
+GH_CREDS_FILE="$HOME/gh_credentials.txt"
+GH_CREDS_DIR="/home/$USER"
+GCLOUD_CREDS_FILE="$HOME/.config/gcloud/application_default_credentials.json"
+GCLOUD_CREDS_DIR="/home/$USER"
 
 # Prints help
 gcp-help() {
@@ -662,35 +666,63 @@ gcp-update-ssh-config-remote-forward() {
   esac
 }
 
-gcp-scp() {
-  local command
-  local remote_dir="/home/$USER"
-  local adc="$HOME/.config/gcloud/application_default_credentials.json"
+gcp-write-gh-creds() {
+  local token
 
-  if ! [[ -e $adc ]]; then
-    echo "error: not found $adc"
+  if ! gh auth status; then
+    echo "error: gh not authenticated"
     return 1
   fi
+
+  token=$(gh auth status --show-token | awk '/Token:/ {print $3}')
+
+  if [[ -z $token ]]; then
+    echo "error: gh token not found"
+    return 2
+  fi
+
+  echo "$token" >"$GH_CREDS_FILE"
+  return 0
+}
+
+# Uses SCP to transfer gcloud credentials to GCP.
+gcp-scp() {
+  local command
+  local src="$1"
+  local dest="$2"
+
+  echo "scp $src $dest"
+
+  if ! [[ -e $src ]]; then
+    echo "error: src not found $src"
+    return 1
+  fi
+
+  if [[ -z ${dest} ]]; then
+    echo "error: src not found $src"
+    return 3
+  fi
+
   if [ -z "$GCP_VM" ]; then
     echo "error: GCP_VM is required"
-    return 2
+    return 3
   fi
   if [ -z "$GCP_PROJECT" ]; then
     echo "GCP_PROJECT required"
-    return 3
+    return 4
   fi
 
   command=(
     gcloud compute scp
-    "$adc"
-    "$USER@$GCP_VM:$remote_dir/"
+    "$src"
+    "$USER@$GCP_VM:$dest/"
     --zone="$GCP_ZONE"
     --project="$GCP_PROJECT"
   )
 
   if ! gcp-execute "${command[@]}"; then
-    echo "error: could not tranfer $adc"
-    return 4
+    echo "error: could not tranfer $src"
+    return 5
   else
     return 0
   fi
@@ -758,7 +790,11 @@ gcp-ssh() {
 
   local retry_count=5
   local wait_time=3
-  local attempt=0
+  local attempts=0
+
+  if ! gcp-write-gh-creds; then
+    return 1
+  fi
 
   host=$(gcp-active-host)
   command=(
@@ -778,19 +814,50 @@ gcp-ssh() {
   gcp-log "→ ssh $host"
 
   if gcp-wait-until-running; then
-    while [ $attempt -lt $retry_count ]; do
-      if ! gcp-scp 2>/dev/null; then
+    # scp gcloud creds
+    while [ $attempts -lt $retry_count ]; do
+      if ! gcp-scp "$GCLOUD_CREDS_FILE" "$GCLOUD_CREDS_DIR"; then
         attempt=$((attempt + 1))
-        echo "attempt $attempt, retry in $wait_time seconds..."
+        echo "attempt $attempts, retry in $wait_time seconds..."
         sleep $wait_time
         wait_time=$((wait_time + 1))
       else
-        gcp-execute "${command[@]}"
-        return 0
+        break
       fi
     done
 
-    return 1
+    if [[ $attempts -eq $retry_count ]]; then
+      echo "error: unable to transfer gloud creds"
+      return 2
+    else
+      attempt=0
+    fi
+
+    # scp gh creds
+    while [ $attempts -lt $retry_count ]; do
+      if ! gcp-scp "$GH_CREDS_FILE" "$GH_CREDS_DIR"; then
+        attempt=$((attempt + 1))
+        echo "attempt $attempts, retry in $wait_time seconds..."
+        sleep $wait_time
+        wait_time=$((wait_time + 1))
+      else
+        rm "$GH_CREDS_FILE"
+        break
+      fi
+    done
+
+    # ssh in
+    if [[ $attempts -eq $retry_count ]]; then
+      echo "error: unable to transfer gh creds"
+      rm "$GH_CREDS_FILE"
+      return 3
+    else
+      gcp-execute "${command[@]}"
+      return 0
+    fi
+  else
+    echo "error: $host not running yet, try again"
+    return 4
   fi
 }
 
@@ -859,8 +926,6 @@ gcp-connect() {
       gcp-config-ssh
       gcp-log "→ adding remote forwarding to $SSH_CONFIG..."
       gcp-update-ssh-config-remote-forward
-      gcp-log "→ transferring gcloud credentials $adc"
-      gcp-scp
       status=READY
       ;;
     TERMINATED)

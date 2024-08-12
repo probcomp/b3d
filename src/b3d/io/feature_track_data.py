@@ -136,19 +136,22 @@ class FeatureTrackData:
     @property
     def rgb_float(self): 
         rgb = self.rgbd_images[...,:3]
-        if rgb.max() > 1.: rgb = rgb/255
+        if rgb.max() > 1.: 
+            rgb = rgb/255
         return rgb
     
     @property
     def rgb_uint(self): 
         rgb = self.rgbd_images[...,:3]
-        if rgb.max() <= 1.: rgb = (rgb*255).astype(jnp.uint8)
+        if rgb.max() <= 1.: 
+            rgb = (rgb*255).astype(jnp.uint8)
         return rgb
 
     @property
     def rgb(self): 
         rgb = self.rgbd_images[...,:3]
-        if rgb.max() > 1.: rgb = rgb/255
+        if rgb.max() > 1.: 
+            rgb = rgb/255
         return self.rgb_float
 
     @property

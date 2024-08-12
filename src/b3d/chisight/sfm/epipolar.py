@@ -1,15 +1,14 @@
 import jax
 import jax.numpy as jnp
-from b3d.pose import Pose, Rot
+
 from b3d.camera import (
-    screen_from_world,
-    screen_from_camera,
     camera_from_screen,
-    world_from_screen,
     camera_from_screen_and_depth,
+    screen_from_world,
+    world_from_screen,
 )
+from b3d.pose import uniform_pose_in_ball
 from b3d.utils import keysplit
-from sklearn.utils import Bunch
 
 
 # # # # # # # # # # # # # # # # # # # # 
@@ -17,19 +16,19 @@ from sklearn.utils import Bunch
 #   Helper
 # 
 # # # # # # # # # # # # # # # # # # # # 
-def dist_to_line(u, l):
+def dist_to_line(u, ell):
     """
     Returns the distance of 'u' to the line through 'l'.
     """
     # Normalize and 
     # rotate by 90 degrees
-    l = l/jnp.sqrt(l[...,[0]]**2 + l[...,[1]]**2)
-    il = jnp.stack([-l[...,1],l[...,0]], axis=-1)
-    d = u[...,0]*il[...,0] + u[...,1]*il[...,1] 
+    ell = ell/jnp.sqrt(ell[...,[0]]**2 + ell[...,[1]]**2)
+    iell = jnp.stack([-ell[...,1],ell[...,0]], axis=-1)
+    d = u[...,0]*iell[...,0] + u[...,1]*iell[...,1] 
     return jnp.abs(d)
 
 
-def dist_to_and_along_line(u, l):
+def dist_to_and_along_line(u, ell):
     """
     Returns the distance of 'u' to the line through 'l', and 
     the amount that of `u` along `l/|l|`, that is,
@@ -38,10 +37,10 @@ def dist_to_and_along_line(u, l):
     """
     # Normalize and 
     # rotate by 90 degrees
-    l = l/jnp.sqrt(l[...,[0]]**2 + l[...,[1]]**2)
-    il = jnp.stack([-l[...,1],l[...,0]], axis=-1)
-    d = u[...,0]*il[...,0] + u[...,1]*il[...,1] 
-    s = u[...,0]* l[...,0] + u[...,1]* l[...,1] 
+    ell = ell/jnp.sqrt(ell[...,[0]]**2 + ell[...,[1]]**2)
+    iell = jnp.stack([-ell[...,1],ell[...,0]], axis=-1)
+    d = u[...,0]*iell[...,0] + u[...,1]*iell[...,1] 
+    s = u[...,0]* ell[...,0] + u[...,1]* ell[...,1] 
     return jnp.abs(d), s
 
 # # # # # # # # # # # # # # # # # # # # 
@@ -233,11 +232,11 @@ def _epi_distance(cam, u0, u1, intr):
     # and project onto opposite screen
     x = camera_from_screen(u0, intr)
     v1 = screen_from_world(x, cam, intr)
-    l = v1 - e
+    ell = v1 - e
     u = u1 - e
 
-    d, _ = dist_to_and_along_line(u, l)
-    aux = {"epipole": e, "line_direction": l,}
+    d, _ = dist_to_and_along_line(u, ell)
+    aux = {"epipole": e, "line_direction": ell,}
     return d, aux
 
 vmap_epi_distance = jax.vmap(
@@ -260,13 +259,13 @@ def _get_epipolar_debugging_data(cam, u0, u1, intr):
     # and project onto opposite screen
     x = camera_from_screen(u0, intr)
     v1 = screen_from_world(x, cam, intr)
-    l = v1 - e
+    ell = v1 - e
     u = u1 - e
-    d, s = dist_to_and_along_line(u, l)
+    d, s = dist_to_and_along_line(u, ell)
 
-    l_norm = jnp.sqrt(l[...,[0]]**2 + l[...,[1]]**2)
+    l_norm = jnp.sqrt(ell[...,[0]]**2 + ell[...,[1]]**2)
 
-    proj_vec = s[...,None] * l/l_norm
+    proj_vec = s[...,None] * ell/l_norm
     error_vec = proj_vec - u
 
 
@@ -291,7 +290,7 @@ def _get_epipolar_debugging_data(cam, u0, u1, intr):
 
     return dict(
         epipole = e,
-        line_directions = l,
+        line_directions = ell,
         epi_distance = d,
         epi_scalar = s,
         projection_vector = proj_vec,
@@ -322,7 +321,6 @@ def angle(v,w):
 #   Proposal Factories
 # 
 # # # # # # # # # # # # # # # # # # # # 
-from b3d.pose import uniform_pose_in_ball
 vmap_uniform_pose = jax.jit(jax.vmap(uniform_pose_in_ball.sample, (0,None,None,None)))
 
 
@@ -385,20 +383,20 @@ def _epi_scorer_other_version(cam, u0, u1, intr):
     e = get_epipole(cam, intr)
 
     x0 = camera_from_screen_and_depth(u0, intr.far*jnp.ones(u0.shape[:-1]), intr)
-    l = screen_from_world(x0, cam, intr)
-    l_norm = jnp.sqrt(l[...,0]**2 + l[...,1]**2)
+    ell = screen_from_world(x0, cam, intr)
+    l_norm = jnp.sqrt(ell[...,0]**2 + ell[...,1]**2)
 
-    l = l - e
+    ell = ell - e
     u = u1 - e
 
     # TODO: Constrain so that we only consider the 
     #   positive part of the line. That "should" (might) get rid of 
     #   weird local maxima with points behind the camera. 
-    d, s = dist_to_and_along_line(u, l)
+    d, s = dist_to_and_along_line(u, ell)
     d = jnp.where(s >    0.0, d, 1e2)
     d = jnp.where(s < l_norm, d, 1e2)
 
     s = jnp.clip(s, 0.0, jnp.inf)
-    ys = e + s[:,None]*l/l_norm[:,None]
+    ys = e + s[:,None]*ell/l_norm[:,None]
 
     return d, ys

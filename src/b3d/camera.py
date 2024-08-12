@@ -1,6 +1,8 @@
-import jax.numpy as jnp
-from b3d.types import Array, Float, Int
 from typing import NamedTuple, TypeAlias
+
+import jax.numpy as jnp
+
+from b3d.types import Array, Float, Int
 
 ImageShape: TypeAlias = tuple[int, ...]
 ScreenCoordinates: TypeAlias = Array
@@ -142,7 +144,7 @@ def screen_from_camera(xyz: CameraCoordinates, intrinsics, culling=False) -> Scr
     v_ = y * fy / z + cy
 
     # TODO: What is the right way of doing this? Returning infs?
-    in_range = ((near <= z) & (z <= far)) | (culling==False)
+    in_range = ((near <= z) & (z <= far)) | (not culling)
 
     u = jnp.where(in_range, u_, jnp.inf)
     v = jnp.where(in_range, v_, jnp.inf)

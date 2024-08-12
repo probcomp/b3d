@@ -156,6 +156,42 @@ vmap_angle_check = jax.vmap(
         (0,None,None,None)
 )
 
+def _ortho_score(cam, u0, u1, intr):
+    """
+    Computes a score measuring if keypoint lines are orthogonal --
+    "zero" being co-linear, and "one" being orthogonal.
+    
+    This may be used as a heuristic scoring uncertainty of 
+    the depth estimate for each keypoint from the given pose.
+
+    Args:
+        cam: Relative camera Pose
+        u0: Array of shape (..., 2)
+        u1: Array of shape (..., 2) (same shape as `u0`)
+        intr: Intrinsics
+    
+    Returns
+        Array of shape (...)
+    """
+    # TODO: Add a reference.
+    # NOTE: We work with a relative pose here, that is, we assume
+    #       at time 0 world and camera frames are the same.
+    v0 = camera_from_screen(u0, intr)
+    v1 = world_from_screen(u1, cam, intr) - cam.pos
+
+    # Normalize
+    v0 = v0/jnp.sqrt(v0[...,[0]]**2 + v0[...,[1]]**2 + v0[...,[2]]**2)
+    v1 = v1/jnp.sqrt(v1[...,[0]]**2 + v1[...,[1]]**2 + v1[...,[2]]**2)
+
+    v0_dot_v1 = (v0*v1).sum(-1)
+
+    return 1. - jnp.abs(v0_dot_v1)
+
+vmap_ortho_score = jax.vmap(
+        lambda cam, uv0, uv1, intr: _ortho_score(cam, uv0, uv1, intr), 
+        (0,None,None,None)
+)
+
 # NOTE: Experimental, don't rely on this
 def _epi_constraint_variation_1(cam, u0, u1, intr):
     h, aux = _epi_constraint(cam, u0, u1, intr)[0]

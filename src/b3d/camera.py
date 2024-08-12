@@ -1,8 +1,6 @@
-from typing import NamedTuple, TypeAlias
-
 import jax.numpy as jnp
-
 from b3d.types import Array, Float, Int
+from typing import NamedTuple, TypeAlias
 
 ImageShape: TypeAlias = tuple[int, ...]
 ScreenCoordinates: TypeAlias = Array
@@ -33,7 +31,7 @@ class Intrinsics(NamedTuple):
     def as_array(self):
         """Returns intrinsics as a float array."""
         return jnp.array(self)
-
+    
     def downscale(self, factor):
         return Intrinsics(
             self.width // factor,
@@ -92,7 +90,7 @@ def camera_from_screen_and_depth(
 
 
 def camera_from_screen(uv: ScreenCoordinates, intrinsics) -> CameraCoordinates:
-    z = jnp.ones_like(uv.shape[-1:])
+    z = jnp.ones(uv.shape[:-1])
     return camera_from_screen_and_depth(uv, z, intrinsics)
 
 
@@ -122,7 +120,7 @@ xyz_from_depth = camera_from_depth
 unproject_depth = camera_from_depth
 
 
-def screen_from_camera(xyz: CameraCoordinates, intrinsics) -> ScreenCoordinates:
+def screen_from_camera(xyz: CameraCoordinates, intrinsics, culling=False) -> ScreenCoordinates:
     """
     Maps to sensor coordintaes `uv` from camera coordinates `xyz`, which are
     defined by $(u,v) = (u'/z,v'/z)$, where
@@ -138,26 +136,30 @@ def screen_from_camera(xyz: CameraCoordinates, intrinsics) -> ScreenCoordinates:
     Returns:
         (...,2) array of screen coordinates.
     """
-    # TODO: check this
-    xyz = jnp.clip(
-        xyz,
-        jnp.array([-jnp.inf, -jnp.inf, intrinsics.near]),
-        jnp.array([jnp.inf, jnp.inf, intrinsics.far]),
-    )
-    _, _, fx, fy, cx, cy, _, _ = intrinsics
+    _, _, fx, fy, cx, cy, near, far = intrinsics
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
-    u = x * fx / z + cx
-    v = y * fy / z + cy
+    u_ = x * fx / z + cx
+    v_ = y * fy / z + cy
+
+    # TODO: What is the right way of doing this? Returning infs?
+    in_range = ((near <= z) & (z <= far)) | (culling==False)
+
+    u = jnp.where(in_range, u_, jnp.inf)
+    v = jnp.where(in_range, v_, jnp.inf)
+
     return jnp.stack([u, v], axis=-1)
 
 
 screen_from_xyz = screen_from_camera
 
 
-def screen_from_world(x, cam, intr):
+def screen_from_world(x, cam, intr, culling=False):
     """Maps to screen coordintaes `uv` from world coordinates `xyz`."""
-    return screen_from_camera(cam.inv().apply(x), intr)
+    return screen_from_camera(cam.inv().apply(x), intr, culling=culling)
 
+def world_from_screen(uv, cam, intr):
+    """Maps to world coordintaes `xyz` from screen coords `uv`."""
+    return cam.apply(camera_from_screen(uv, intr))
 
 def camera_matrix_from_intrinsics(intr: Intrinsics) -> CameraMatrix3x3:
     """

@@ -31,7 +31,7 @@ class Intrinsics(NamedTuple):
     def as_array(self):
         """Returns intrinsics as a float array."""
         return jnp.array(self)
-    
+
     def downscale(self, factor):
         return Intrinsics(
             self.width // factor,
@@ -120,7 +120,9 @@ xyz_from_depth = camera_from_depth
 unproject_depth = camera_from_depth
 
 
-def screen_from_camera(xyz: CameraCoordinates, intrinsics, culling=False) -> ScreenCoordinates:
+def screen_from_camera(
+    xyz: CameraCoordinates, intrinsics, culling=False
+) -> ScreenCoordinates:
     """
     Maps to sensor coordintaes `uv` from camera coordinates `xyz`, which are
     defined by $(u,v) = (u'/z,v'/z)$, where
@@ -142,7 +144,7 @@ def screen_from_camera(xyz: CameraCoordinates, intrinsics, culling=False) -> Scr
     v_ = y * fy / z + cy
 
     # TODO: What is the right way of doing this? Returning infs?
-    in_range = ((near <= z) & (z <= far)) | (culling==False)
+    in_range = ((near <= z) & (z <= far)) | (culling == False)
 
     u = jnp.where(in_range, u_, jnp.inf)
     v = jnp.where(in_range, v_, jnp.inf)
@@ -157,9 +159,11 @@ def screen_from_world(x, cam, intr, culling=False):
     """Maps to screen coordintaes `uv` from world coordinates `xyz`."""
     return screen_from_camera(cam.inv().apply(x), intr, culling=culling)
 
+
 def world_from_screen(uv, cam, intr):
     """Maps to world coordintaes `xyz` from screen coords `uv`."""
     return cam.apply(camera_from_screen(uv, intr))
+
 
 def camera_matrix_from_intrinsics(intr: Intrinsics) -> CameraMatrix3x3:
     """

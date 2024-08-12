@@ -134,21 +134,24 @@ class FeatureTrackData:
         return self.visibility
 
     @property
-    def rgb_float(self): 
-        rgb = self.rgbd_images[...,:3]
-        if rgb.max() > 1.: rgb = rgb/255
-        return rgb
-    
-    @property
-    def rgb_uint(self): 
-        rgb = self.rgbd_images[...,:3]
-        if rgb.max() <= 1.: rgb = (rgb*255).astype(jnp.uint8)
+    def rgb_float(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() > 1.0:
+            rgb = rgb / 255
         return rgb
 
     @property
-    def rgb(self): 
-        rgb = self.rgbd_images[...,:3]
-        if rgb.max() > 1.: rgb = rgb/255
+    def rgb_uint(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() <= 1.0:
+            rgb = (rgb * 255).astype(jnp.uint8)
+        return rgb
+
+    @property
+    def rgb(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() > 1.0:
+            rgb = rgb / 255
         return self.rgb_float
 
     @property
@@ -423,7 +426,7 @@ class FeatureTrackData:
             ax.set_aspect(1)
             ax.axis("off")
 
-        rgb  = downsize_images(self.rgb_float, downsize)
+        rgb = downsize_images(self.rgb_float, downsize)
         if t is None:
             _h, w = self.rgb.shape[1:3]
             ax.imshow(np.concatenate(rgb, axis=1))

@@ -1,12 +1,11 @@
-name: docs
+name: pdoc
 
-# https://linear.app/chi-fro/issue/GEN-443/parallelhoss-config-check
-# on:
-#   pull_request:
-#   push:
-#     branches:
-#       - main
-#   workflow_dispatch:
+on:
+  pull_request:
+  push:
+    branches:
+      - eightysteele/gen-450-create-docs-environment-that-doesnt-require-gpu
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,10 +14,7 @@ permissions:
 
 jobs:
   build-deploy:
-    strategy:
-      matrix:
-        runner: [ParallelHoss]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 

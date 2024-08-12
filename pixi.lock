@@ -942,7 +942,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pandoc-3.3-ha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pandocfilters-1.5.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/parso-0.8.4-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.44-h0f59acf_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.44-hba22ea6_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pdoc-14.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pexpect-4.9.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pickleshare-0.7.5-py_1003.tar.bz2
@@ -2131,7 +2131,7 @@ packages:
   name: b3d
   version: 0.0.0
   path: .
-  sha256: 693b8d92b42c5a41416659d537281aba7a0650cc2b93313c1e23446bd742163a
+  sha256: c35b598e5b2fed4c297b8c374ac07504adf24a93472ce281f6613309a7673f7e
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -5806,6 +5806,7 @@ packages:
   - arrow-cpp <0.0a0
   - apache-arrow-proc =*=cpu
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 8400631
   timestamp: 1723429997611
@@ -5848,6 +5849,7 @@ packages:
   - parquet-cpp <0.0a0
   - apache-arrow-proc =*=cpu
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 5298967
   timestamp: 1723429696991
@@ -5866,6 +5868,7 @@ packages:
   - libgcc-ng >=12
   - libstdcxx-ng >=12
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 598611
   timestamp: 1723430032320
@@ -5883,6 +5886,7 @@ packages:
   - libarrow 17.0.0 h8291d6d_6_cpu
   - libcxx >=17
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 477328
   timestamp: 1723429779357
@@ -5903,6 +5907,7 @@ packages:
   - libparquet 17.0.0 h9e5060d_6_cpu
   - libstdcxx-ng >=12
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 580028
   timestamp: 1723430095085
@@ -5922,6 +5927,7 @@ packages:
   - libcxx >=17
   - libparquet 17.0.0 h56531a6_6_cpu
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 482935
   timestamp: 1723430672392
@@ -5944,6 +5950,7 @@ packages:
   - libcxx >=17
   - libprotobuf >=4.25.3,<4.25.4.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 466500
   timestamp: 1723430818431
@@ -5967,6 +5974,7 @@ packages:
   - libprotobuf >=4.25.3,<4.25.4.0a0
   - libstdcxx-ng >=12
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 546500
   timestamp: 1723430124399
@@ -8066,6 +8074,7 @@ packages:
   - libthrift >=0.19.0,<0.19.1.0a0
   - openssl >=3.3.1,<4.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 860869
   timestamp: 1723430615986
@@ -8086,6 +8095,7 @@ packages:
   - libthrift >=0.19.0,<0.19.1.0a0
   - openssl >=3.3.1,<4.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 1172037
   timestamp: 1723430079534
@@ -9697,6 +9707,7 @@ packages:
   - openssl >=3.3.1,<4.0a0
   - zlib
   license: MIT
+  license_family: MIT
   purls: []
   size: 21337290
   timestamp: 1723482049816
@@ -10336,20 +10347,22 @@ packages:
 - kind: conda
   name: pcre2
   version: '10.44'
-  build: h0f59acf_0
+  build: hba22ea6_2
+  build_number: 2
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.44-h0f59acf_0.conda
-  sha256: 90646ad0d8f9d0fd896170c4f3d754e88c4ba0eaf856c24d00842016f644baab
-  md5: 3914f7ac1761dce57102c72ca7c35d01
+  url: https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.44-hba22ea6_2.conda
+  sha256: 1087716b399dab91cc9511d6499036ccdc53eb29a288bebcb19cf465c51d7c0d
+  md5: df359c09c41cd186fffb93a2d87aa6f5
   depends:
+  - __glibc >=2.17,<3.0.a0
   - bzip2 >=1.0.8,<2.0a0
   - libgcc-ng >=12
   - libzlib >=1.3.1,<2.0a0
   license: BSD-3-Clause
   license_family: BSD
   purls: []
-  size: 955778
-  timestamp: 1718466128333
+  size: 952308
+  timestamp: 1723488734144
 - kind: conda
   name: pdoc
   version: 14.4.0
@@ -11039,6 +11052,7 @@ packages:
   - qt6-main 6.7.2.*
   - qt6-main >=6.7.2,<6.8.0a0
   license: LGPL-3.0-only
+  license_family: LGPL
   purls:
   - pkg:pypi/pyside6?source=project-defined-mapping
   size: 10639049
@@ -12574,6 +12588,7 @@ packages:
   constrains:
   - __osx >=11.0
   license: MIT
+  license_family: MIT
   purls:
   - pkg:pypi/watchfiles?source=project-defined-mapping
   size: 341524
@@ -12595,6 +12610,7 @@ packages:
   constrains:
   - __glibc >=2.17
   license: MIT
+  license_family: MIT
   purls:
   - pkg:pypi/watchfiles?source=project-defined-mapping
   size: 398424
@@ -12662,6 +12678,7 @@ packages:
   depends:
   - python >=3.5
   license: BSD-3-Clause
+  license_family: BSD
   purls:
   - pkg:pypi/webcolors?source=project-defined-mapping
   size: 18378

@@ -38,3 +38,38 @@ def vector_SIR(key, target, target_args, proposal, proposal_args,*, S=1, R=1):
     ws_ = ws[winners, jnp.arange(N)]
 
     return xs_, ws_
+
+
+
+@partial(jax.jit, static_argnames=("target_score", "weighted_proposal", "S"))
+def importance_sample(key, target_score, target_args, weighted_proposal, proposal_args,*, S=1):
+    key = jax.random.split(key)[1]
+    keys = jax.random.split(key, S)
+    proposal_weights, proposed_samples = jax.vmap(weighted_proposal, (0,) + (None,)*len(proposal_args))(keys, *proposal_args)
+    target_weights = jax.vmap(target_score, (0,) + (None,)*len(target_args))(proposed_samples, *target_args)
+    ws = target_weights - proposal_weights
+    return proposed_samples, ws
+
+
+
+@partial(jax.jit, static_argnames=("target_score", "weighted_proposal", "S","R"))
+def sample_importance_resample(key, target_score, target_args, weighted_proposal, proposal_args,*, S=1, R=1):
+    key = jax.random.split(key)[1]
+    keys = jax.random.split(key, S)
+    proposal_weights, proposed_samples = jax.vmap(weighted_proposal, (0,) + (None,)*len(proposal_args))(keys, *proposal_args)
+
+    key = jax.random.split(key)[1]
+    keys = jax.random.split(key, S)
+    target_weights = jax.vmap(target_score, (0,) + (None,)*len(target_args))(proposed_samples, *target_args)
+
+    ws = target_weights - proposal_weights
+    normalized_ws = ws  - logsumexp(ws)
+
+    # Resample
+    key = jax.random.split(key)[1]
+    winners = jax.random.categorical(key, normalized_ws, shape=(R,))
+
+    xs_ = proposed_samples[winners]
+    ws_ = normalized_ws[winners]
+
+    return xs_, ws_

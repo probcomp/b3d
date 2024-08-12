@@ -59,7 +59,8 @@ def dist_to_and_along_line(u, l):
 
 def _epi_constraint(cam, u0, u1, intr):
     """
-    Textbook epipolar constraint. Computes the (unsigned) alignment between the epipolar planes 
+    Epipolar constraint, but phrased in terms of the relative camera pose.
+    Computes the (unsigned) alignment between the epipolar planes 
     spanned by `u0`, `u1`, and `cam`; zero means perfectly aligned. 
 
     Args:
@@ -82,23 +83,108 @@ def _epi_constraint(cam, u0, u1, intr):
     v0 = v0/jnp.sqrt(v0[...,[0]]**2 + v0[...,[1]]**2 + v0[...,[2]]**2)
     v1 = v1/jnp.sqrt(v1[...,[0]]**2 + v1[...,[1]]**2 + v1[...,[2]]**2)
     c = c/jnp.sqrt(c[...,[0]]**2 + c[...,[1]]**2+ c[...,[2]]**2)
-    n = jnp.cross(v0, c[None], axis=-1)
-    n = n/jnp.sqrt(n[...,[0]]**2 + n[...,[1]]**2+ n[...,[2]]**2)
-    d = (n * v1).sum(-1)
 
-    # Project to epi plane spanned by v0 and c
-    v1_ = v1 - (v1*n).sum(-1)[:,None]*n
-    v1_ = v1_/jnp.linalg.norm(v1_, axis=-1, keepdims=True)
+    # Normal vector of epi-plane
+    n = jnp.cross(c[None], v0, axis=-1)
+    n = n/jnp.sqrt(n[...,[0]]**2 + n[...,[1]]**2+ n[...,[2]]**2)
+
+    # Angle between epi-plane normal vector 
+    # and target obseration
+    d = (n * v1).sum(-1)
     h = jnp.abs(d)
 
-    aux = dict(v0=v0, v1=v1, v1_in_epiplane=v1_)
-    return h, aux
+    # Project to epi plane spanned by v0 and c
+    # v1_ = v1 - (v1*n).sum(-1)[:,None]*n
+    # v1_ = v1_/jnp.linalg.norm(v1_, axis=-1, keepdims=True)
+
+    # aux = dict(v0=v0, v1=v1, v1_in_epiplane=v1_)
+    return h, None
 
 vmap_epi_constraint = jax.vmap(
         lambda cam, uv0, uv1, intr: _epi_constraint(cam, uv0, uv1, intr)[0], 
         (0,None,None,None)
 )
 
+def _angle_check(cam, u0, u1, intr):
+    """
+    Checks if hypothetic intersections would lie in front of both cameras.
+
+    Args:
+        cam: Relative camera Pose
+        u0: Array of shape (..., 2)
+        u1: Array of shape (..., 2) (same shape as `u0`)
+        intr: Intrinsics
+    
+    Returns
+        Array of bools of shape (...)
+    """
+    # TODO: Add a reference.
+    # NOTE: We work with a relative pose here, that is, we assume
+    #       at time 0 world and camera frames are the same.
+    v0 = camera_from_screen(u0, intr)
+    v1 = world_from_screen(u1, cam, intr) - cam.pos
+    c = cam.pos
+
+    # Normalize
+    v0 = v0/jnp.sqrt(v0[...,[0]]**2 + v0[...,[1]]**2 + v0[...,[2]]**2)
+    v1 = v1/jnp.sqrt(v1[...,[0]]**2 + v1[...,[1]]**2 + v1[...,[2]]**2)
+    c = c/jnp.sqrt(c[0]**2 + c[1]**2+ c[2]**2)
+
+    n = jnp.cross(c[None], v0, axis=-1)
+    n = n/jnp.sqrt(n[...,[0]]**2 + n[...,[1]]**2+ n[...,[2]]**2)
+
+    ic = jnp.cross(n, c[None], axis=-1)
+    ic = ic/jnp.sqrt(ic[...,[0]]**2 + ic[...,[1]]**2+ ic[...,[2]]**2)
+
+    x0 = (v0*c[None]).sum(-1)
+    y0 = (v0*ic).sum(-1)
+    
+
+    x1 = (v1*c[None]).sum(-1)
+    y1 = (v1*ic).sum(-1)
+
+    a0 = jnp.arctan2(y0, x0)
+    a1 = jnp.arctan2(y1, x1)
+
+    return (0 < a0 ) & (a0 < a1) & (a1 < jnp.pi)
+
+vmap_angle_check = jax.vmap(
+        lambda cam, uv0, uv1, intr: _angle_check(cam, uv0, uv1, intr), 
+        (0,None,None,None)
+)
+
+
+def _ortho_score(cam, u0, u1, intr):
+    """
+    Checks if hypothetic intersections would lie in front of both cameras.
+
+    Args:
+        cam: Relative camera Pose
+        u0: Array of shape (..., 2)
+        u1: Array of shape (..., 2) (same shape as `u0`)
+        intr: Intrinsics
+    
+    Returns
+        Array of bools of shape (...)
+    """
+    # TODO: Add a reference.
+    # NOTE: We work with a relative pose here, that is, we assume
+    #       at time 0 world and camera frames are the same.
+    v0 = camera_from_screen(u0, intr)
+    v1 = world_from_screen(u1, cam, intr) - cam.pos
+
+    # Normalize
+    v0 = v0/jnp.sqrt(v0[...,[0]]**2 + v0[...,[1]]**2 + v0[...,[2]]**2)
+    v1 = v1/jnp.sqrt(v1[...,[0]]**2 + v1[...,[1]]**2 + v1[...,[2]]**2)
+    
+    v0_dot_v1 = (v0*v1).sum(-1)
+
+    return 1. - jnp.abs(v0_dot_v1)
+
+vmap_ortho_score = jax.vmap(
+        lambda cam, uv0, uv1, intr: _ortho_score(cam, uv0, uv1, intr), 
+        (0,None,None,None)
+)
 
 # NOTE: Experimental, don't rely on this
 def _epi_constraint_variation_1(cam, u0, u1, intr):

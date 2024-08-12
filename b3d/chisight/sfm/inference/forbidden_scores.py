@@ -1,7 +1,11 @@
 import jax
 import jax.numpy as jnp
 from jax.scipy.stats.norm import logpdf as normal_logpdf
-from b3d.camera import Intrinsics, screen_from_world
+from b3d.camera import (
+    Intrinsics, 
+    screen_from_camera,
+    screen_from_world,
+    )
 from b3d.pose import Pose, uniform_pose_in_ball
 from jax.scipy.special import logsumexp
 from typing import TypeAlias
@@ -25,16 +29,29 @@ def single_observation_score(y:SensorCoordinates, x:LatentKeypoint, cam:Pose, in
     """log P(y | x, c)"""
     y_ = screen_from_world(x, cam, intr, culling=culling)
     w  = normal_logpdf(y, y_, jnp.array([sig,sig])).sum()
+
+    return w
+
+
+def single_observation_score_step_fn(y:SensorCoordinates, x:LatentKeypoint, cam:Pose, intr, sig, culling=True):
+    """log P(y | x, c)"""
+    y_ = screen_from_world(x, cam, intr, culling=culling)
+    w  = jnp.where(jnp.linalg.norm(y - y_) <= sig, 0.0, - jnp.inf)
+
     return w
 
 
 def maker_observation_scorer(single_score):
+    """
+    Factory for a nested vmapped observation score function over time and particle index.
+    """
 
     def observation_score(ys:SensorCoordinates, xs:LatentKeypoint, cams:Pose, intr, *args):
         """P(ys | xs, cs)"""
         observation_scores_over_i  = jax.vmap(single_score, (0, 0, None, None) + (None,)*len(args))
         observation_scores_over_ti = jax.vmap(observation_scores_over_i, (0, None, 0, None) + (None,)*len(args))
-        return observation_scores_over_ti(ys, xs, cams, intr, *args)
+        ws = observation_scores_over_ti(ys, xs, cams, intr, *args)
+        return ws
     
     return observation_score
 
@@ -50,13 +67,14 @@ def make_motion_scorer(step_logpdf):
     return motion_score
 
 
-uniform_motion_scores = make_motion_scorer(uniform_motion_step_score)
+motion_scores = make_motion_scorer(uniform_motion_step_score)
 observation_scores = maker_observation_scorer(single_observation_score)
 
 
 def uniform_particle_scores(xs, minvals, maxvals):
     """log P(xs)"""
     return jnp.repeat(-jnp.log(maxvals - minvals).sum(), xs.shape[0])
+
 
 def make_camera_posterior_scorer(
         motion_scores, 
@@ -69,14 +87,17 @@ def make_camera_posterior_scorer(
             cs:Pose, 
             ys:SensorCoordinates, 
             ws:ImportanceWeight, 
-            xs:ImportanceSample):
+            xs:ImportanceSample,
+        ):
         """
         Approximation of $\log P(c \mid y)$.
 
         Given a collection of weighted particle (posterior) samples $\big\{ (w_{ij}, x_{ij}) \big\}_{I\times J}$, 
         we can compute an approximate log score as follows:
         $$
-        \log P(c \mid y) \stackrel{\propto}{\approx} \log P(c) - N\log S + \sum_i \ \log \sum_j \exp \Big( \log w_{ij} + \sum_t \log \ell_{t,ij}  \Big).
+            \log P(c \mid y) 
+                \stackrel{\propto}{\approx} 
+                    \log P(c) - N\log S + \sum_i \ \log \sum_j \exp \Big( \log w_{ij} + \sum_t \log \ell_{t,ij}  \Big).
         $$
         """
         T, N = ys.shape[:2]
@@ -90,3 +111,6 @@ def make_camera_posterior_scorer(
         return w
     
     return camera_posterior_score
+
+
+# def particle_posterior_score(xs, ys, cs, intr):

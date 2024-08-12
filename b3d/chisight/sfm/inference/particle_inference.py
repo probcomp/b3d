@@ -11,6 +11,22 @@ from b3d.camera import (
 )
 from b3d.utils import keysplit
 from sklearn.utils import Bunch
+import genjax
+
+# # # # # # # # # # # # # # # # # # # # # # # # 
+# 
+#   Utils
+# 
+# # # # # # # # # # # # # # # # # # # # # # # # 
+def rotation_from_first_column(key, a):
+    b = jnp.cross(a, jax.random.normal(key, (3,)))
+    c = jnp.cross(a, b)
+
+    a = a/jnp.sqrt(a[0]**2 + a[1]**2 + a[2]**2)
+    b = b/jnp.sqrt(b[0]**2 + b[1]**2 + b[2]**2)
+    c = c/jnp.sqrt(c[0]**2 + c[1]**2 + c[2]**2)
+
+    return jnp.stack([a,b,c], axis=1)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -18,7 +34,44 @@ from sklearn.utils import Bunch
 #   Proposals and targets
 # 
 # # # # # # # # # # # # # # # # # # # # # # # # 
+class CylinderParticleProposal():
+    def weighted_sample(self, key, y, cam, intr, sig):
+
+        # Compute the ray through y
+        x_ = camera_from_screen_and_depth(y, jnp.array(10.), intr)
+        B = rotation_from_first_column(key, x_)
+
+        key = jax.random.split(key)[1]
+        s = jax.random.uniform(key, (3,), minval=jnp.zeros(3), maxval=jnp.ones(3))
+
+        B = jnp.array([[intr.far, sig, sig]])*B
+
+        w = jnp.array(0.0)
+        return w, cam(B@s)
+    
+cylinder_particle_proposal = CylinderParticleProposal()
+
+class SingleParticleProposal():
+    def weighted_sample(self, key, y, cam, intr, sig):
+
+        # Add sensor noise
+        key = jax.random.split(key)[1]
+        eps = sig*jax.random.normal(key,(2,))
+        y = y + eps
+
+        # Unproject with random depth along rays through y
+        key = jax.random.split(key)[1]
+        z = jax.random.uniform(key, minval=intr.near, maxval=intr.far)
+        x = cam(camera_from_screen_and_depth(y, z, intr))
+
+        # Compute the log scores
+        w  = - jnp.log(intr.far - intr.near)
+        w += normal_logpdf(eps, jnp.zeros(2), jnp.array([sig, sig])).sum()
+
+        return w, x
+
 def particle_vector_proposal_ti(key, t, i, ys, cams, intr, sig):
+        
         T, N = ys.shape[:2]
         y   = ys[t,i]
         cam = cams[t]
@@ -68,11 +121,32 @@ def particle_vector_proposal_t(key, t, ys, cams, intr, sig):
 # TODO: The score is approximate only, because we're actually sampling from a mixture over t.
 #   We have to add the weights for all the other t's.
 def particle_vector_proposal(key, vis, ys, cams, intr, sig):
+    """
+    Get an approximate weighted posterior sample for each keypoint.
+
+    To be more preceise, for each keypoint `i` sample `t` where `i` is visible and get a sample
+    from the approximate posterior `P(x_i | y_ti, c_t )`.
+
+    Args:
+        key: Random key
+        vis: Visibility mask (T,N)
+        ys: Observed 2D keypoints (T,N,2)
+        cams: Camera poses (T,)
+        intr: Camera intrinsics
+        sig: Sensor noise
+
+    Returns:
+        ws: Importance weights for each keypoint (N,)
+        xs: Particle positions (N,3)
+    """
     N = ys.shape[1]
     _,key = jax.random.split(key)
     keys = jax.random.split(key, N)
     return jax.vmap(particle_vector_proposal_i, (0, 0,None,None,None,None,None))(
         keys, jnp.arange(N), vis, ys, cams, intr, sig)
+
+
+
 
 # # # # # # # # # # # # # # # # # # # # # # # # 
 # 
@@ -140,18 +214,6 @@ from b3d.chisight.gps_utils import (
     gaussian_pdf_product_multiple,
     cov_from_dq_composition
 )
-
-
-def rotation_from_first_column(key, a):
-    b = jnp.cros(a, jax.random.normal(key, (3,)))
-    c = jnp.cross(a, b)
-
-    a = a/jnp.sqrt(a[0]**2 + a[1]**2 + a[2]**2)
-    b = b/jnp.sqrt(b[0]**2 + b[1]**2 + b[2]**2)
-    c = b/jnp.sqrt(c[0]**2 + c[1]**2 + c[2]**2)
-
-    return jnp.stack([a,b,c], axis=1)
-
 
 def gaussian_from_keypoint(z, diag, u, cam, intr):
     x = camera_from_screen_and_depth(u, z, intr)

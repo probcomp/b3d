@@ -14,21 +14,9 @@ from sklearn.utils import Bunch
 
 # # # # # # # # # # # # # # # # # # # # 
 # 
-#   Epipolar geometry
+#   Helper
 # 
 # # # # # # # # # # # # # # # # # # # # 
-
-def get_epipole(cam, intr):
-    """Get epipole of a camera with respect to fixed standard camera (at origin)."""
-    e = screen_from_world(jnp.zeros(3), cam, intr)
-    return e
-
-def get_epipoles(cam0, cam1, intr):
-    """Get epipoles of two cameras."""
-    e0 = screen_from_world(cam1.pos, cam0, intr)
-    e1 = screen_from_world(cam0.pos, cam1, intr)
-    return jnp.stack([e0, e1], axis=0)
-
 def dist_to_line(u, l):
     """
     Returns the distance of 'u' to the line through 'l'.
@@ -56,11 +44,26 @@ def dist_to_and_along_line(u, l):
     s = u[...,0]* l[...,0] + u[...,1]* l[...,1] 
     return jnp.abs(d), s
 
+# # # # # # # # # # # # # # # # # # # # 
+# 
+#   Epipolar geometry
+# 
+# # # # # # # # # # # # # # # # # # # # 
+def get_epipole(cam, intr):
+    """Get epipole of a camera with respect to fixed standard camera (at origin)."""
+    e = screen_from_world(jnp.zeros(3), cam, intr)
+    return e
+
+def get_epipoles(cam0, cam1, intr):
+    """Get epipoles of two cameras."""
+    e0 = screen_from_world(cam1.pos, cam0, intr)
+    e1 = screen_from_world(cam0.pos, cam1, intr)
+    return jnp.stack([e0, e1], axis=0)
 
 def _epi_constraint(cam, u0, u1, intr):
     """
     Epipolar constraint, but phrased in terms of the relative camera pose.
-    Computes the (unsigned) alignment between the epipolar planes 
+    Computes the alignment between the epipolar planes 
     spanned by `u0`, `u1`, and `cam`; zero means perfectly aligned. 
 
     Args:
@@ -93,11 +96,6 @@ def _epi_constraint(cam, u0, u1, intr):
     d = (n * v1).sum(-1)
     h = jnp.abs(d)
 
-    # Project to epi plane spanned by v0 and c
-    # v1_ = v1 - (v1*n).sum(-1)[:,None]*n
-    # v1_ = v1_/jnp.linalg.norm(v1_, axis=-1, keepdims=True)
-
-    # aux = dict(v0=v0, v1=v1, v1_in_epiplane=v1_)
     return h, None
 
 vmap_epi_constraint = jax.vmap(
@@ -118,27 +116,32 @@ def _angle_check(cam, u0, u1, intr):
     Returns
         Array of bools of shape (...)
     """
-    # TODO: Add a reference.
+    # TODO: Add a reference, and check if this makes sense!?
     # NOTE: We work with a relative pose here, that is, we assume
     #       at time 0 world and camera frames are the same.
+
+    # Extract relevant epipolar data 
+    # and normalize
     v0 = camera_from_screen(u0, intr)
     v1 = world_from_screen(u1, cam, intr) - cam.pos
     c = cam.pos
 
-    # Normalize
     v0 = v0/jnp.sqrt(v0[...,[0]]**2 + v0[...,[1]]**2 + v0[...,[2]]**2)
     v1 = v1/jnp.sqrt(v1[...,[0]]**2 + v1[...,[1]]**2 + v1[...,[2]]**2)
     c = c/jnp.sqrt(c[0]**2 + c[1]**2+ c[2]**2)
 
+    # We first compute the Normal of epipolar plane and use it to 
+    # rotate c by 90 degrees in plane spanned by v0 and c.
     n = jnp.cross(c[None], v0, axis=-1)
     n = n/jnp.sqrt(n[...,[0]]**2 + n[...,[1]]**2+ n[...,[2]]**2)
 
     ic = jnp.cross(n, c[None], axis=-1)
     ic = ic/jnp.sqrt(ic[...,[0]]**2 + ic[...,[1]]**2+ ic[...,[2]]**2)
 
+    # Coordinates of v0 and v1 in plane spanned by c and ic, 
+    # and their angles. 
     x0 = (v0*c[None]).sum(-1)
     y0 = (v0*ic).sum(-1)
-    
 
     x1 = (v1*c[None]).sum(-1)
     y1 = (v1*ic).sum(-1)
@@ -150,39 +153,6 @@ def _angle_check(cam, u0, u1, intr):
 
 vmap_angle_check = jax.vmap(
         lambda cam, uv0, uv1, intr: _angle_check(cam, uv0, uv1, intr), 
-        (0,None,None,None)
-)
-
-
-def _ortho_score(cam, u0, u1, intr):
-    """
-    Checks if hypothetic intersections would lie in front of both cameras.
-
-    Args:
-        cam: Relative camera Pose
-        u0: Array of shape (..., 2)
-        u1: Array of shape (..., 2) (same shape as `u0`)
-        intr: Intrinsics
-    
-    Returns
-        Array of bools of shape (...)
-    """
-    # TODO: Add a reference.
-    # NOTE: We work with a relative pose here, that is, we assume
-    #       at time 0 world and camera frames are the same.
-    v0 = camera_from_screen(u0, intr)
-    v1 = world_from_screen(u1, cam, intr) - cam.pos
-
-    # Normalize
-    v0 = v0/jnp.sqrt(v0[...,[0]]**2 + v0[...,[1]]**2 + v0[...,[2]]**2)
-    v1 = v1/jnp.sqrt(v1[...,[0]]**2 + v1[...,[1]]**2 + v1[...,[2]]**2)
-    
-    v0_dot_v1 = (v0*v1).sum(-1)
-
-    return 1. - jnp.abs(v0_dot_v1)
-
-vmap_ortho_score = jax.vmap(
-        lambda cam, uv0, uv1, intr: _ortho_score(cam, uv0, uv1, intr), 
         (0,None,None,None)
 )
 

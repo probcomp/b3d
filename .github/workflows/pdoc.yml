@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - eightysteele/gen-450-create-docs-environment-that-doesnt-require-gpu
+      - main
   workflow_dispatch:
 
 permissions:
@@ -40,18 +40,14 @@ jobs:
             --index-url \
             https://pypi.org/simple
 
-          # build docs
+          # render docs
           pixi run docs
-
-      - name: Prepend timestamp to index.html
-        run: |
-          echo "Published at: $(date)<br/>" | cat - ./docs/static/index.html > temp && mv temp ./docs/static/index.html
 
       - name: Create website artifact
         uses: actions/upload-artifact@v4
         with:
           name: website
-          path: ./docs/static
+          path: ./docs/render
 
   publish:
     needs: build-deploy

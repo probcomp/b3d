@@ -13,20 +13,18 @@ from b3d.modeling_utils import uniform_pose
 def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     if sample_func is None:
 
-        def f(key, rendered_rgbd, likelihood_args):
-            return rendered_rgbd
+        def f(key, likelihood_args):
+            return likelihood_args["latent_rgbd"]
 
         sample_func = f
 
     @Pytree.dataclass
     class ImageLikelihood(genjax.ExactDensity):
-        def sample(self, key, rendered_rgbd, likelihood_args):
-            return sample_func(key, rendered_rgbd, likelihood_args)
+        def sample(self, key, likelihood_args):
+            return sample_func(key, likelihood_args)
 
-        def logpdf(self, observed_rgbd, rendered_rgbd, likelihood_args):
-            return likelihood_func(observed_rgbd, rendered_rgbd, likelihood_args)[
-                "score"
-            ]
+        def logpdf(self, observed_rgbd, likelihood_args):
+            return likelihood_func(observed_rgbd, likelihood_args)["score"]
 
     image_likelihood = ImageLikelihood()
 
@@ -48,8 +46,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
 
             outlier_probability = genjax.uniform(0.0, 1.0) @ f"outlier_probability_{i}"
             lightness_variance = genjax.uniform(0.0001, 1.0) @ f"lightness_variance_{i}"
-            color_variance = genjax.uniform(0.0001, 1.0) @ f"color_variance_{i}"
-            depth_variance = genjax.uniform(0.0001, 1.0) @ f"depth_variance_{i}"
+            color_variance = genjax.uniform(0.0001, 100.0) @ f"color_variance_{i}"
+            depth_variance = genjax.uniform(0.0001, 100.0) @ f"depth_variance_{i}"
 
             likelihood_args[f"outlier_probability_{i}"] = outlier_probability
             likelihood_args[f"lightness_variance_{i}"] = lightness_variance
@@ -66,9 +64,18 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         scene_mesh = Mesh.transform_and_merge_meshes(meshes, all_poses).transform(
             camera_pose.inv()
         )
-        latent_rgbd = renderer.render_rgbd_from_mesh(scene_mesh)
-
-        image = image_likelihood(latent_rgbd, likelihood_args) @ "rgbd"
+        rasterize_results = renderer.rasterize(scene_mesh.vertices, scene_mesh.faces)
+        latent_rgbd = renderer.interpolate(
+            jnp.concatenate(
+                [scene_mesh.vertex_attributes, scene_mesh.vertices[..., -1:]], axis=-1
+            ),
+            rasterize_results,
+            scene_mesh.faces,
+        )
+        likelihood_args["scene_mesh"] = scene_mesh
+        likelihood_args["latent_rgbd"] = latent_rgbd
+        likelihood_args["rasterize_results"] = rasterize_results
+        image = image_likelihood(likelihood_args) @ "rgbd"
         return {
             "likelihood_args": likelihood_args,
             "scene_mesh": scene_mesh,
@@ -80,7 +87,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     def info_from_trace(trace):
         return likelihood_func(
             trace.get_choices()["rgbd"],
-            trace.get_retval()["latent_rgbd"],
             trace.get_retval()["likelihood_args"],
         )
 
@@ -95,28 +101,16 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         )
 
         info = info_from_trace(trace)
-        rr.log("rgb", rr.Image(trace.get_choices()["rgbd"][..., :3]))
-        rr.log("rgb/depth/observed", rr.DepthImage(trace.get_choices()["rgbd"][..., 3]))
-        rr.log(
-            "rgb/depth/latent", rr.DepthImage(trace.get_retval()["latent_rgbd"][..., 3])
+        rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
+        b3d.rr_log_rgb(trace.get_choices()["rgbd"][..., :3], "image/rgb/observed")
+        b3d.rr_log_rgb(trace.get_retval()["latent_rgbd"][..., :3], "image/rgb/latent")
+        b3d.rr_log_depth(trace.get_choices()["rgbd"][..., 3], "image/depth/observed")
+        b3d.rr_log_depth(
+            trace.get_retval()["latent_rgbd"][..., 3], "image/depth/latent"
         )
-        rr.log("rgb/latent", rr.Image(trace.get_retval()["latent_rgbd"][..., :3]))
-
-        rr.log(
-            "rgb/color_space/observed_color_space_d",
-            rr.Image(info["observed_color_space_d"][..., :3]),
-        )
-        rr.log(
-            "rgb/color_space/latent_color_space_d",
-            rr.Image(info["latent_color_space_d"][..., :3]),
-        )
-        rr.log(
-            "rgb/pixelwise_score",
-            rr.DepthImage(info["pixelwise_score"]),
-        )
+        rr.log("image/overlay/pixelwise_score", rr.DepthImage(info["pixelwise_score"]))
 
         b3d.rr_log_cloud(
-            "latent",
             b3d.xyz_from_depth(
                 trace.get_retval()["latent_rgbd"][..., 3],
                 fx,
@@ -124,9 +118,9 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 cx,
                 cy,
             ),
+            "latent",
         )
         b3d.rr_log_cloud(
-            "observed",
             b3d.xyz_from_depth(
                 trace.get_retval()["rgbd"][..., 3],
                 fx,
@@ -134,6 +128,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 cx,
                 cy,
             ),
+            "observed",
         )
         # rr.log("rgb/is_match", rr.DepthImage(intermediate_info["is_match"] * 1.0))
         # rr.log("rgb/color_match", rr.DepthImage(intermediate_info["color_match"] * 1.0))

@@ -1,0 +1,20 @@
+name: shfmt
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  shfmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run the sh-checker
+      uses: luizm/action-sh-checker@master
+      env:
+        SHFMT_OPTS: --write --simplify --indent 2
+      with:
+        sh_checker_shellcheck_disable: true

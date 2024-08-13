@@ -1,0 +1,54 @@
+name: pixi
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  pixi-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate gcloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run pixi update
+        run: |
+          # install pixi
+          curl -fsSL https://pixi.sh/install.sh | bash
+          export PATH=/home/runner/.pixi/bin:$PATH
+
+          # install pipx and inject gcp backend
+          pixi global install pipx
+          pipx install keyring
+          pipx inject keyring \
+            keyrings.google-artifactregistry-auth \
+            --index-url \
+            https://pypi.org/simple
+
+          # ensure all deps across all environments and platforms can solve
+          pixi install --locked \
+            -v \
+            --pypi-keyring-provider \
+            subprocess
+
+          pixi install --locked \
+            --environment cpu \
+            -v \
+            --pypi-keyring-provider \
+            subprocess
+
+          pixi install --locked \
+            --environment gpu \
+            -v \
+            --pypi-keyring-provider \
+            subprocess

@@ -1,0 +1,4 @@
+[pypi-config]
+index-url = "https://pypi.org/simple"
+extra-index-urls = ["https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple"]
+keyring-provider = "subprocess"

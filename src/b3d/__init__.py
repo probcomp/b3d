@@ -10,6 +10,8 @@ from .renderer import Renderer, RendererOriginal
 from .utils import *
 
 __version__ = metadata.version("genjax")
+
+
 __all__ = [
     "Renderer",
     "renderer",

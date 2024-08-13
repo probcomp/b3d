@@ -99,7 +99,7 @@ def split_key(key):
 
 @partial(jax.jit, static_argnums=(1, 2))
 def resize_image_nearest(rgbd, height, width):
-    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="nearest")
+    return jax.image.resize(rgbd, (height, width, *rgbd.shape[2:]), method="nearest")
 
 
 resize_image_nearest_vmap = jax.jit(
@@ -109,7 +109,7 @@ resize_image_nearest_vmap = jax.jit(
 
 @partial(jax.jit, static_argnums=(1, 2))
 def resize_image_linear(rgbd, height, width):
-    return jax.image.resize(rgbd, (height, width, rgbd.shape[-1]), method="linear")
+    return jax.image.resize(rgbd, (height, width, *rgbd.shape[2:]), method="linear")
 
 
 resize_image_linear_vmap = jax.jit(
@@ -151,8 +151,8 @@ xyz_from_depth_vectorized = jnp.vectorize(
 
 
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
-    x = fx * xyz[..., 0] / xyz[..., 2] + cx
-    y = fy * xyz[..., 1] / xyz[..., 2] + cy
+    x = fx * xyz[..., 0] / (xyz[..., 2] + 1e-10) + cx
+    y = fy * xyz[..., 1] / (xyz[..., 2] + 1e-10) + cy
     return jnp.stack([y, x], axis=-1)
 
 
@@ -602,20 +602,27 @@ def rr_init(name="demo"):
     rr.connect("127.0.0.1:8812")
 
 
-def rr_log_rgb(channel, rgb):
+def rr_log_rgb(rgb, channel="rgb"):
     rr.log(channel, rr.Image(rgb))
 
 
-def rr_log_depth(channel, depth):
-    rr.log(channel, rr.DepthImage(depth))
+def rr_log_depth(depth, channel="depth"):
+    rr.log(channel, rr.DepthImage(depth * 1.0))
 
 
-def rr_log_rgbd(channel, rgbd):
-    rr_log_rgb(channel + "/rgb", rgbd[..., :3])
-    rr_log_depth(channel + "/depth", rgbd[..., 3])
+def rr_log_mask(mask, channel="mask"):
+    rr.log(channel, rr.DepthImage(mask * 1.0))
 
 
-def rr_log_cloud(channel, cloud):
+def rr_log_rgbd(rgbd, channel="rgbd"):
+    rr_log_rgb(
+        rgbd[..., :3],
+        channel + "/rgb",
+    )
+    rr_log_depth(rgbd[..., 3], channel + "/depth")
+
+
+def rr_log_cloud(cloud, channel="cloud"):
     rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
 
 

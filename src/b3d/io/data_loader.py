@@ -75,6 +75,7 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
     scene_rgb_images_dir = os.path.join(scene_data_dir, "rgb")
     scene_depth_images_dir = os.path.join(scene_data_dir, "depth")
+    mask_visib_dir = os.path.join(scene_data_dir, "mask_visib")
 
     with open(os.path.join(scene_data_dir, "scene_camera.json")) as scene_cam_data_json:
         scene_cam_data = json.load(scene_cam_data_json)
@@ -126,6 +127,14 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
             [rgb / 255.0, (depth * cam_depth_scale / 1000.0)[..., None]], axis=-1
         )
         data["rgbd"] = rgbd
+
+        mask_visib_image_paths = sorted(
+            glob.glob(os.path.join(mask_visib_dir, f"{img_id}_*.png"))
+        )
+        masks = jnp.stack(
+            [jnp.array(Image.open(p)) > 0 for p in mask_visib_image_paths]
+        )
+        data["masks"] = masks
 
         # get GT object model ID+poses
         objects_gt_data = scene_imgs_gt_data[remove_zero_pad(img_id)]

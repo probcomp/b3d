@@ -4,4 +4,4 @@ from .mesh_data import MeshData
 from .utils import *
 from .video_input import VideoInput
 
-__all__ = [MeshData, FeatureTrackData, VideoInput]
+__all__ = ["MeshData", "FeatureTrackData", "VideoInput"]

@@ -25,6 +25,21 @@ conda-pypi-map = { "conda-forge" = "torch.json" }
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.pixi.environments]
+cpu = { features = ["no-cuda", "core"], solve-group = "default" }
+gpu = { features = ["cuda", "core"], solve-group = "cuda" }
+cuda = { features = ["cuda"], solve-group = "cuda" }
+
+[tool.pixi.target.osx-arm64.build-dependencies]
+scipy = { version = "1.14.0.*" }
+numpy = { version = "1.26.4.*" }
+
+[tool.pixi.pypi-options]
+index-url = "https://pypi.org/simple"
+extra-index-urls = [
+    "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
+]
+
 [tool.pixi.pypi-dependencies]
 b3d = { path = ".", editable = true }
 setuptools = "*"
@@ -32,20 +47,13 @@ setuptools = "*"
 [tool.pixi.dependencies]
 rerun-sdk = "==0.17.0"
 
-[tool.pixi.environments]
-cpu = { features = [], solve-group = "default" }
-doc = { features = ["no-cuda", "core", "gl"], solve-group = "no-cuda" }
-gpu = { features = ["cuda", "core", "gl"], solve-group = "cuda" }
-
 [tool.pixi.activation.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"
 XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
 CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
-
-[tool.pixi.feature.no-cuda.activation.env]
 LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 
-# CPU-enabled tasks
+# Default tasks (CPU-enabled)
 
 [tool.pixi.tasks.code]
 description = "launch vscode connected to vm (requires GCP_VM and GCP_PROJECT)"
@@ -99,68 +107,37 @@ description = "delete a vm (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-delete"
 cwd = "scripts"
 
-[tool.pixi.feature.no-cuda.tasks.docs]
-description = "render docs to docs/static"
-cmd = "python -m pdoc --logo https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622 --math --mermaid -o docs/static/ b3d"
-env = { PDOC_ALLOW_EXEC = "1" }
-
-# GPU-enabled tasks and features
-
-[tool.pixi.feature.core.tasks.torch]
-description = "torch status"
-cmd = "python -c 'import torch; print(\"torch: v{}, cuda={}\".format(torch.__version__, torch.cuda.is_available()))'"
-
-[tool.pixi.feature.core.tasks.jax]
-description = "jax status"
-cmd = "python -c 'import jax; print(\"jax: v{}, devices={}\".format(jax.__version__, jax.devices()))'"
-
-[tool.pixi.feature.core.tasks.gpu]
-description = "gpu status"
-cmd = "nvidia-smi"
-
-[tool.pixi.feature.core.tasks.sys]
-description = "gpu, torch, and jax statu"
-depends_on = ["gpu", "torch", "jax"]
-
-[tool.pixi.feature.core.tasks.test]
-description = "run tests (optionally set TEST_TARGETS)"
-cmd = "./scripts/pytest.sh"
-depends_on = ["sync", "rerun"]
-env = { TEST_TARGETS = "tests" }
-
-[tool.pixi.feature.core.tasks.sync]
-description = "sync test data"
-cmd = "python b3d_pull.py -ow"
-cwd = "src/b3d/bucket_utils"
-
-[tool.pixi.pypi-options]
-index-url = "https://pypi.org/simple"
-extra-index-urls = [
-    "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
-]
+# No-CUDA feature (CPU-enabled)
 
 [tool.pixi.feature.no-cuda]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.pixi.feature.no-cuda.target.osx-arm64.dependencies]
+jaxlib = { version = "*", build = "cpu*" }
+pytorch = { version = "==2.3.0", build = "cpu_generic*" }
 
 [tool.pixi.feature.no-cuda.target.linux-64.dependencies]
-cuda-toolkit = "*"
 gcc = "*"
-jax = "*"
-jaxlib = { version = "0.4.28", build = "cpu*" }
-libnvjitlink = "*"
-optax = ">=0.2.2,<0.3"
+jaxlib = { version = "*", build = "cpu*" }
 pytorch = { version = "==2.3.0", build = "cpu_generic*" }
-torchvision = "==0.18.0"
 
-[tool.pixi.feature.no-cuda.target.linux-64.pypi-dependencies]
-carvekit = "==4.1.2"
-genjax = "*"
-torch = "*"
+[tool.pixi.feature.no-cuda.tasks.docs]
+description = "render docs to docs/static"
+cmd = "python -m pdoc --logo https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622 --math --mermaid -o docs/render/ b3d"
+
+[tool.pixi.feature.no-cuda.tasks.docs.env]
+LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+PDOC_ALLOW_EXEC = "1"
+
+# Core feature (CPU-enabled)
 
 [tool.pixi.feature.core.pypi-dependencies]
+carvekit = "==4.1.2"
+genjax = "*"
 pykitti = "==0.3.1"
 pyliblzfse = ">=0.4.1,<0.5"
 pyransac3d = ">=0.6.0,<0.7"
+torch = "*"
 
 [tool.pixi.feature.core.dependencies]
 distinctipy = ">=1.3.4,<1.4"
@@ -169,6 +146,7 @@ fire = ">=0.6.0,<0.7"
 imageio = "*"
 ipykernel = "*"
 ipython = ">=8.26.0,<8.27"
+jax = "*"
 jupyter = ">=1.0.0,<1.1"
 jupyterlab = "*"
 jupytext = "*"
@@ -176,6 +154,7 @@ matplotlib = ">=3.9.1,<3.10"
 natsort = ">=8.4.0,<8.5"
 numpy = "<2.0.0"
 ninja = "*"
+optax = ">=0.2.2,<0.3"
 pdoc = "*"
 pillow = "==10.3.0"
 polars = ">=0.20,<0.21"
@@ -187,20 +166,18 @@ rerun-sdk = "==0.17.0"
 ruff = "*"
 scikit-learn = ">=1.5.1,<1.6"
 scipy = ">=1.14.0,<1.15"
+torchvision = "==0.18.0"
 trimesh = "==4.2.4"
 tqdm = "*"
 
-[tool.pixi.feature.gl.dependencies]
-glfw = "*"
-libglib = "*"
-libglu = "*"
-libglvnd-devel-cos7-x86_64 = ">=1.0.1,<1.1"
-libglvnd-cos7-x86_64 = ">=1.0.1,<1.1"
-mesalib = "*"
-mesa-libegl-devel-cos7-x86_64 = "*"
-mesa-libegl-cos7-x86_64 = "*"
-mesa-libglu-devel-cos7-x86_64 = "*"
-mesa-libglu-cos7-x86_64 = "*"
+# Core tasks (CPU-enabled)
+
+[tool.pixi.feature.core.tasks.sync]
+description = "sync test data"
+cmd = "python b3d_pull.py -ow"
+cwd = "src/b3d/bucket_utils"
+
+# CUDA feature (GPU-enabled)
 
 [tool.pixi.feature.cuda]
 platforms = ["linux-64"]
@@ -220,6 +197,46 @@ libnvjitlink = "*"
 optax = ">=0.2.2,<0.3"
 pytorch = { version = "==2.3.0", build = "cuda12*" }
 torchvision = "==0.18.0"
+
+# CUDA tasks (GPU-enabled)
+
+[tool.pixi.feature.cuda.tasks.gpu]
+description = "gpu status"
+cmd = "nvidia-smi"
+
+[tool.pixi.feature.cuda.tasks.torch]
+description = "torch status"
+cmd = "python -c 'import torch; print(\"torch: v{}, cuda={}\".format(torch.__version__, torch.cuda.is_available()))'"
+
+[tool.pixi.feature.cuda.tasks.jax]
+description = "jax status"
+cmd = "python -c 'import jax; print(\"jax: v{}, devices={}\".format(jax.__version__, jax.devices()))'"
+
+[tool.pixi.feature.cuda.tasks.sys]
+description = "gpu, torch, and jax statu"
+depends_on = ["gpu", "torch", "jax"]
+
+[tool.pixi.feature.cuda.tasks.test]
+description = "run tests (optionally set TEST_TARGETS)"
+cmd = "./scripts/pytest.sh"
+depends_on = ["sync", "rerun"]
+env = { TEST_TARGETS = "tests" }
+
+# OpenGL dependencies (Linux only)
+
+[tool.pixi.target.linux-64.dependencies]
+glfw = "*"
+libglib = "*"
+libglu = "*"
+libglvnd-devel-cos7-x86_64 = ">=1.0.1,<1.1"
+libglvnd-cos7-x86_64 = ">=1.0.1,<1.1"
+mesalib = "*"
+mesa-libegl-devel-cos7-x86_64 = "*"
+mesa-libegl-cos7-x86_64 = "*"
+mesa-libglu-devel-cos7-x86_64 = "*"
+mesa-libglu-cos7-x86_64 = "*"
+
+# Python tool configurations
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

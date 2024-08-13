@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - eightysteele/gen-454-loose-ends-on-b3d-docs
 
 jobs:
   pixi-update:
@@ -35,20 +35,11 @@ jobs:
             --index-url \
             https://pypi.org/simple
 
-          # ensure all deps across all environments and platforms can solve
-          pixi install --locked \
-            -v \
-            --pypi-keyring-provider \
-            subprocess
+          # ensure all deps across all environments and platforms are solving
+          pixi --version
 
-          pixi install --locked \
-            --environment cpu \
-            -v \
-            --pypi-keyring-provider \
-            subprocess
+          pixi clean && pixi clean cache --yes
 
-          pixi install --locked \
-            --environment gpu \
-            -v \
-            --pypi-keyring-provider \
-            subprocess
+          pixi install --locked -e default -v --pypi-keyring-provider subprocess
+          pixi install --locked -e cpu -v --pypi-keyring-provider subprocess
+          pixi install --locked -e gpu -v --pypi-keyring-provider subprocess

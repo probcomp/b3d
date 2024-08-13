@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - eightysteele/gen-450-create-docs-environment-that-doesnt-require-gpu
+      - main
   workflow_dispatch:
 
 permissions:

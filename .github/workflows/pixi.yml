@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - eightysteele/gen-454-loose-ends-on-b3d-docs
+      - main
 
 jobs:
   pixi-update:

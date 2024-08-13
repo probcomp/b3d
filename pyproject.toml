@@ -34,12 +34,16 @@ rerun-sdk = "==0.17.0"
 
 [tool.pixi.environments]
 cpu = { features = [], solve-group = "default" }
-gpu = { features = ["core", "cuda", "gl"], solve-group = "cuda" }
+doc = { features = ["no-cuda", "core", "gl"], solve-group = "no-cuda" }
+gpu = { features = ["cuda", "core", "gl"], solve-group = "cuda" }
 
 [tool.pixi.activation.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"
 XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
 CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
+
+[tool.pixi.feature.no-cuda.activation.env]
+LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 
 # CPU-enabled tasks
 
@@ -95,6 +99,11 @@ description = "delete a vm (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-delete"
 cwd = "scripts"
 
+[tool.pixi.feature.no-cuda.tasks.docs]
+description = "render docs to docs/static"
+cmd = "python -m pdoc --logo https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622 --math --mermaid -o docs/static/ b3d"
+env = { PDOC_ALLOW_EXEC = "1" }
+
 # GPU-enabled tasks and features
 
 [tool.pixi.feature.core.tasks.torch]
@@ -124,16 +133,29 @@ description = "sync test data"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
 
-[tool.pixi.feature.core.tasks.docs]
-description = "render docs to docs/static"
-cmd = "python -m pdoc --logo https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622 --math --mermaid -o docs/static/ b3d"
-env = { PDOC_ALLOW_EXEC = "1" }
-
 [tool.pixi.pypi-options]
 index-url = "https://pypi.org/simple"
 extra-index-urls = [
     "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
 ]
+
+[tool.pixi.feature.no-cuda]
+platforms = ["linux-64"]
+
+[tool.pixi.feature.no-cuda.target.linux-64.dependencies]
+cuda-toolkit = "*"
+gcc = "*"
+jax = "*"
+jaxlib = { version = "0.4.28", build = "cpu*" }
+libnvjitlink = "*"
+optax = ">=0.2.2,<0.3"
+pytorch = { version = "==2.3.0", build = "cpu_generic*" }
+torchvision = "==0.18.0"
+
+[tool.pixi.feature.no-cuda.target.linux-64.pypi-dependencies]
+carvekit = "==4.1.2"
+genjax = "*"
+torch = "*"
 
 [tool.pixi.feature.core.pypi-dependencies]
 pykitti = "==0.3.1"

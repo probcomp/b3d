@@ -3,6 +3,7 @@
 *.png
 assets/shared_data_bucket/*
 assets/test_results/*
+!assets/test_results/README.md
 assets/bop/*
 assets/nuscenes/*
 assets/ycbineoat/*
@@ -11,10 +12,14 @@ assets/ycbineoat/*
 **/**.npz
 **/**.log
 **/**.json
+!torch.json
 **/**.npy
 **/**.txt
 !src/b3d/renderer/**/**.txt
 assets/kitti/*
 **/**.pth
-**/**.obj
-**/**.r3d
+.pixi/envs/*
+.#*
+__pycache__/
+*.py[cod]
+docs/*

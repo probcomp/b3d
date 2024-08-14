@@ -252,6 +252,8 @@ class Pose:
         """Apply pose to vectors."""
         return Rot.from_quat(self.xyzw).apply(vec) + self.pos
 
+    transform_points = apply
+
     def __call__(self, vec: Array) -> Array:
         """Apply pose to vectors."""
         return self.apply(vec)

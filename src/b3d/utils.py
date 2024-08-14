@@ -151,8 +151,8 @@ xyz_from_depth_vectorized = jnp.vectorize(
 
 
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
-    x = fx * xyz[..., 0] / (xyz[..., 2] + 1e-10) + cx
-    y = fy * xyz[..., 1] / (xyz[..., 2] + 1e-10) + cy
+    x = fx * xyz[..., 0] / (xyz[..., 2]) + cx
+    y = fy * xyz[..., 1] / (xyz[..., 2]) + cy
     return jnp.stack([y, x], axis=-1)
 
 
@@ -603,7 +603,7 @@ def rr_init(name="demo"):
 
 
 def rr_log_rgb(rgb, channel="rgb"):
-    rr.log(channel, rr.Image(rgb))
+    rr.log(channel, rr.Image(rgb[..., :3]))
 
 
 def rr_log_depth(depth, channel="depth"):
@@ -622,12 +622,12 @@ def rr_log_rgbd(rgbd, channel="rgbd"):
     rr_log_depth(rgbd[..., 3], channel + "/depth")
 
 
-def rr_log_cloud(cloud, channel="cloud"):
+def rr_log_cloud(cloud, channel="cloud", colors=None):
     rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
 
 
 def rr_set_time(t=0):
-    rr.set_time_sequence("time", t)
+    rr.set_time_sequence("step", t)
 
 
 def reload(x):

@@ -4,6 +4,7 @@ import b3d
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
+import rerun.blueprint as rrb
 
 from tests.common.task import Task
 
@@ -101,7 +102,7 @@ class KeypointTrackingTask(Task):
         distance_error_threshold=3.0,  # pixels
     ):
         return {
-            "mean_distance_error": jnp.mean(
+            "mean_distance_error": safe_mean(
                 jnp.linalg.norm(
                     inferred_keypoint_positions_2D - self.keypoint_positions_2D, axis=-1
                 )
@@ -126,6 +127,7 @@ class KeypointTrackingTask(Task):
         rr.log(
             "/task/frame0", rr.Image(np.array(self.video[0, :, :, :3])), timeless=True
         )
+
         rr.log(
             "/task/initial_keypoint_positions_2D",
             rr.Points2D(
@@ -174,6 +176,7 @@ class KeypointTrackingTask(Task):
                     rr.Points2D(
                         np.array(self.keypoint_positions_2D[i]),
                         colors=np.array([0.0, 1.0, 0.0]),
+                        radii=4.0,
                     ),
                 )
                 rr.log(
@@ -207,10 +210,38 @@ class KeypointTrackingTask(Task):
         for i in range(self.video.shape[0]):
             rr.set_time_sequence("frame", i)
             rr.log(
-                "/solution/keypoints_2D",
+                "/solution/keypoints_2d",
                 rr.Points2D(
                     np.array(solution[i]),
                     colors=np.array([0.0, 0.0, 1.0]),
-                    radii=1.0,
+                    radii=3.0,
                 ),
             )
+
+    @classmethod
+    def rr_blueprint(cls):
+        return rrb.Blueprint(
+            rrb.Horizontal(
+                rrb.Spatial3DView(),
+                rrb.Vertical(
+                    rrb.Spatial2DView(
+                        contents=[
+                            "groundtruth_solution/keypoints_2d",
+                            "solution/keypoints_2d",
+                        ]
+                    ),
+                    rrb.Spatial2DView(
+                        contents=[
+                            "groundtruth_solution/keypoints_2d",
+                            "solution/keypoints_2d",
+                            "task/rgb_observed",
+                        ]
+                    ),
+                ),
+            )
+        )
+
+
+def safe_mean(x):
+    """Returns the mean of the non-inf and non-nan values of x."""
+    return jnp.mean(x[jnp.isfinite(x)])

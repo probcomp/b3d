@@ -69,7 +69,9 @@ def get_curated_single_patch_tracking_tasks():
     def load_ftd_from_task_spec(spec):
         # TODO: change this URL after uploading these data files to the b3d bucket
         ftd_full = b3d.io.FeatureTrackData.load(
-            b3d.get_assets_path() / "mydata" / spec["file"]
+            b3d.get_assets_path()
+            / "shared_data_bucket/dynamic_SfM/feature_track_data"
+            / spec["file"]
         )
         return (
             ftd_full.slice_time(spec["time0"])

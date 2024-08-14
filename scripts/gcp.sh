@@ -800,23 +800,23 @@ gcp-ssh() {
 
   if gcp-wait-until-running; then
     # scp gcloud creds
-    while [ $attempts -lt $retry_count ]; do
-      if ! gcp-scp "$GCLOUD_CREDS_FILE" "$GCLOUD_CREDS_DIR"; then
-        attempt=$((attempt + 1))
-        echo "attempt $attempts, retry in $wait_time seconds..."
-        sleep $wait_time
-        wait_time=$((wait_time + 1))
-      else
-        break
-      fi
-    done
+    # while [ $attempts -lt $retry_count ]; do
+    #   if ! gcp-scp "$GCLOUD_CREDS_FILE" "$GCLOUD_CREDS_DIR"; then
+    #     attempt=$((attempt + 1))
+    #     echo "attempt $attempts, retry in $wait_time seconds..."
+    #     sleep $wait_time
+    #     wait_time=$((wait_time + 1))
+    #   else
+    #     break
+    #   fi
+    # done
 
-    if [[ $attempts -eq $retry_count ]]; then
-      echo "error: unable to transfer gloud creds"
-      return 2
-    else
-      attempt=0
-    fi
+    # if [[ $attempts -eq $retry_count ]]; then
+    # 	echo "error: unable to transfer gloud creds"
+    # 	return 2
+    # else
+    # 	attempt=0
+    # fi
 
     # scp gh creds
     while [ $attempts -lt $retry_count ]; do

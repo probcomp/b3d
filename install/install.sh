@@ -253,7 +253,7 @@ __wrap__() {
     ;;
   esac
 
-  PATH=$BIN_DIR:$PIPX_BIN:$PATH
+  export PATH=$BIN_DIR:$PIPX_BIN:$PATH
 
   printf "\n→ installing pipx into %s\n\n" "$BIN_DIR"
   pixi global install pipx

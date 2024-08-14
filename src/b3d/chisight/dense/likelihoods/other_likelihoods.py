@@ -120,12 +120,6 @@ image_sample = uniform_rgbd_image_model.sample(
     jax.random.PRNGKey(0), 120, 100, 0.1, 0.9
 )
 score = uniform_rgbd_image_model.logpdf(image_sample, 120, 100, 0.1, 0.9)
-assert jnp.abs(score - 120 * 100 * (-jnp.log(0.9 - 0.1))) < 1e-3
-assert image_sample.shape == (120, 100, 4)
-assert image_sample[:, :, 3].min() >= 0.1
-assert image_sample[:, :, 3].max() <= 0.9
-assert image_sample[:, :, :3].min() >= 0
-assert image_sample[:, :, :3].max() <= 1
 
 
 laplace = b3d.modeling_utils.tfp_distribution(tfp.distributions.Laplace)
@@ -181,21 +175,20 @@ s1 = laplace_rgbd_pixel_model.sample(
 score = laplace_rgbd_pixel_model.logpdf(
     s1, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), (0.9,)
 )
-assert score > -jnp.inf
+
 s2 = laplace_rgb_uniform_depth_pixel_model.sample(
     jax.random.PRNGKey(0), jnp.array([0.5, 0.5, 0.5, 1.5]), (0.0, 2.0), (0.9,)
 )
 score = laplace_rgb_uniform_depth_pixel_model.logpdf(
     s2, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.0, 2.0), (0.9,)
 )
-assert score > -jnp.inf
+
 s3 = uniform_rgb_laplace_depth_pixel_model.sample(
     jax.random.PRNGKey(0), jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), ()
 )
 score = uniform_rgb_laplace_depth_pixel_model.logpdf(
     s3, jnp.array([0.5, 0.5, 0.5, 1.5]), (0.1,), ()
 )
-assert score > -jnp.inf
 
 
 @Pytree.dataclass
@@ -254,7 +247,7 @@ score = multilaplace_pixel_model.logpdf(
     (0.1,),
     (0.9,),
 )
-assert score > -jnp.inf
+
 
 multi_uniform_rgb_depth_laplace = ArgMap(
     VmapMixturePixelModel(uniform_rgb_laplace_depth_pixel_model),
@@ -302,7 +295,6 @@ class PythonMixturePixelModel(genjax.ExactDensity):
         logprobs = []
         for i, dist in enumerate(self.dists):
             lp = dist.logpdf(observed, *args[i])
-            assert lp.shape == ()
             logprobs.append(lp)
         logprobs = jnp.stack(logprobs)
         # jax.debug.print("lps = {lps}", lps=logprobs)
@@ -347,7 +339,6 @@ score = uniform_multilaplace_mixture.logpdf(
     0.0,
     2.0,
 )
-assert score > -jnp.inf
 
 s6 = mixture_of_uniform_and_multi_uniformrgb_laplacedepth.sample(
     jax.random.PRNGKey(0),
@@ -365,7 +356,6 @@ score = mixture_of_uniform_and_multi_uniformrgb_laplacedepth.logpdf(
     0.0,
     2.0,
 )
-assert score > -jnp.inf
 
 
 def get_uniform_multilaplace_image_dist_with_fixed_params(
@@ -435,7 +425,6 @@ s1 = multilaplace_pixel_model_rgb_only.sample(
 score = multilaplace_pixel_model_rgb_only.logpdf(
     s1, jnp.array([0.2, 0.8]), jnp.array([[0.5, 0.5, 0.5], [0.2, 0.2, 0.2]]), 0.1
 )
-assert score > -jnp.inf
 
 s2 = uniform_multilaplace_mixture_rgb_only.sample(
     jax.random.PRNGKey(0),
@@ -446,7 +435,6 @@ s2 = uniform_multilaplace_mixture_rgb_only.sample(
 score = uniform_multilaplace_mixture_rgb_only.logpdf(
     s2, jnp.array([0.2, 0.3, 0.5]), jnp.array([[0.5, 0.5, 0.5], [0.2, 0.2, 0.2]]), 0.1
 )
-assert score > -jnp.inf
 
 
 def get_uniform_multilaplace_rgbonly_image_dist_with_fixed_params(

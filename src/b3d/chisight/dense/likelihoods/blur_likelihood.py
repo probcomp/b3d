@@ -231,4 +231,5 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
     return {
         "score": scores.sum(),
         "pixelwise_score": pixelwise_score,
+        "latent_rgbd": latent_rgbd,
     }

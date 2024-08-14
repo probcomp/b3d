@@ -463,7 +463,7 @@ class FeatureTrackData:
         rgb = downsize_images(self.rgb, downsize)
         if t is None:
             _h, w = self.rgb.shape[1:3]
-            ax.imshow(np.concatenate(rgb / 255, axis=1))
+            ax.imshow(np.concatenate(rgb, axis=1))
             ax.scatter(
                 *np.concatenate(
                     [

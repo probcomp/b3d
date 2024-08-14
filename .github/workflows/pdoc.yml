@@ -1,12 +1,11 @@
-name: docs
+name: pdoc
 
-# https://linear.app/chi-fro/issue/GEN-443/parallelhoss-config-check
-# on:
-#   pull_request:
-#   push:
-#     branches:
-#       - main
-#   workflow_dispatch:
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,10 +14,7 @@ permissions:
 
 jobs:
   build-deploy:
-    strategy:
-      matrix:
-        runner: [ParallelHoss]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -44,18 +40,14 @@ jobs:
             --index-url \
             https://pypi.org/simple
 
-          # build docs
+          # render docs
           pixi run docs
-
-      - name: Prepend timestamp to index.html
-        run: |
-          echo "Published at: $(date)<br/>" | cat - ./docs/static/index.html > temp && mv temp ./docs/static/index.html
 
       - name: Create website artifact
         uses: actions/upload-artifact@v4
         with:
           name: website
-          path: ./docs/static
+          path: ./docs/render
 
   publish:
     needs: build-deploy

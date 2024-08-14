@@ -33,21 +33,21 @@ repos:
   - repo: local
     hooks:
       - id: pixi-update-default
-        name: pixi update default
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update && git add pixi.lock'
+        name: pixi update (solving default)
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e default && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]
 
       - id: pixi-update-cpu
-        name: pixi update cpu
+        name: pixi update (solving cpu)
         entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e cpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]
 
       - id: pixi-update-gpu
-        name: pixi update gpu
+        name: pixi update (solving gpu)
         entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e gpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
@@ -60,4 +60,11 @@ repos:
         entry: bash -c 'cd $(git rev-parse --show-toplevel) && cd scripts && ./test-gcp.sh'
         language: system
         files: .*gcp.*\.sh$
+        types: [executable]
+
+      - id: pytest-sh-test
+        name: pytest.sh tests
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && cd scripts && ./test-pytest.sh'
+        language: system
+        files: .*pytest.*\.sh$
         types: [executable]

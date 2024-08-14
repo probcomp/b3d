@@ -89,38 +89,27 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
         )
         return score_mixed, final_score
 
-    @jax.jit
-    def likelihood_per_pixel(
-        observed_rgbd: jnp.ndarray, latent_rgbd: jnp.ndarray, blur
-    ):
-        # observed_rgbd = (observed_rgbd - lower_bound) / (upper_bound - lower_bound)
-        # latent_rgbd = (latent_rgbd - lower_bound) / (upper_bound - lower_bound)
+    latent_rgbd_padded = jnp.pad(
+        latent_rgbd,
+        (
+            (filter_size, filter_size),
+            (filter_size, filter_size),
+            (0, 0),
+        ),
+        mode="edge",
+    )
+    # jj, ii = jnp.meshgrid(
+    #     jnp.arange(observed_rgbd.shape[1]), jnp.arange(observed_rgbd.shape[0])
+    # )
+    indices = jnp.stack([rows, cols], axis=-1)
 
-        latent_rgbd_padded = jnp.pad(
-            latent_rgbd,
-            (
-                (filter_size, filter_size),
-                (filter_size, filter_size),
-                (0, 0),
-            ),
-            mode="edge",
-        )
-        # jj, ii = jnp.meshgrid(
-        #     jnp.arange(observed_rgbd.shape[1]), jnp.arange(observed_rgbd.shape[0])
-        # )
-        indices = jnp.stack([rows, cols], axis=-1)
-
-        scores_inlier, scores_final = per_pixel(
-            indices,
-            observed_rgbd,
-            latent_rgbd_padded,
-            blur,
-            filter_size,
-        )
-        return scores_inlier, scores_final
-
-    _, scores = likelihood_per_pixel(
-        observed_rgbd, latent_rgbd, likelihood_args["blur"]
+    blur = likelihood_args["blur"]
+    _, scores = per_pixel(
+        indices,
+        observed_rgbd,
+        latent_rgbd_padded,
+        blur,
+        filter_size,
     )
 
     # score = genjax.truncated_normal.logpdf(observed_rgbd, latent_rgbd, color_variance, lower_bound, upper_bound)[...,:3].sum()

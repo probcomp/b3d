@@ -833,7 +833,7 @@ gcp-ssh() {
     ;;
   MSYS_NT*)
     adc_file="$GCLOUD_CREDS_FILE_WIN"
-    adc_dir="$GCLOUD_CREDS_DIR_WIN"
+    adc_dir="$GCLOUD_CREDS_DIR"
     ;;
   *)
     echo "unknown os $os"

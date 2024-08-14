@@ -18,6 +18,8 @@ REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 GCLOUD_CREDS_FILE="$HOME/.config/gcloud/application_default_credentials.json"
 GCLOUD_CREDS_DIR="/home/$USER"
+GCLOUD_CREDS_FILE_WIN="$HOME\AppData\Roaming\gcloud\application_default_credentials.json"
+GCLOUD_CREDS_DIR_WIN="$HOME"
 
 # Prints help
 gcp-help() {
@@ -818,25 +820,46 @@ gcp-ssh() {
 
   gcp-log "→ ssh $host"
 
+  os=$(uname -s)
+
+  gcp-log "→ setting up $host on $os with remote forwarding in $SSH_CONFIG"
+
+  local adc_file
+  local adc_dir
+  case $os in
+  Darwin:Linux)
+    adc_file="$GCLOUD_CREDS_FILE"
+    adc_dir="$GCLOUD_CREDS_DIR"
+    ;;
+  MSYS_NT*)
+    adc_file="$GCLOUD_CREDS_FILE_WIN"
+    adc_dir="$GCLOUD_CREDS_DIR_WIN"
+    ;;
+  *)
+    echo "unknown os $os"
+    exit 1
+    ;;
+  esac
+
   if gcp-wait-until-running; then
     # scp gcloud creds
-    # while [ $attempts -lt $retry_count ]; do
-    #   if ! gcp-scp "$GCLOUD_CREDS_FILE" "$GCLOUD_CREDS_DIR"; then
-    #     attempt=$((attempt + 1))
-    #     echo "attempt $attempts, retry in $wait_time seconds..."
-    #     sleep $wait_time
-    #     wait_time=$((wait_time + 1))
-    #   else
-    #     break
-    #   fi
-    # done
+    while [ $attempts -lt $retry_count ]; do
+      if ! gcp-scp "$adc_file" "$adc_dir"; then
+        attempt=$((attempt + 1))
+        echo "attempt $attempts, retry in $wait_time seconds..."
+        sleep $wait_time
+        wait_time=$((wait_time + 1))
+      else
+        break
+      fi
+    done
 
-    # if [[ $attempts -eq $retry_count ]]; then
-    # 	echo "error: unable to transfer gloud creds"
-    # 	return 2
-    # else
-    # 	attempt=0
-    # fi
+    if [[ $attempts -eq $retry_count ]]; then
+      echo "error: unable to transfer gloud creds"
+      return 2
+    else
+      attempt=0
+    fi
 
     # scp gh creds
     while [ $attempts -lt $retry_count ]; do

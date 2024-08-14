@@ -622,8 +622,8 @@ def rr_log_rgbd(rgbd, channel="rgbd"):
     rr_log_depth(rgbd[..., 3], channel + "/depth")
 
 
-def rr_log_cloud(cloud, colors=None, channel="cloud"):
-    rr.log(channel, rr.Points3D(cloud.reshape(-1, 3), colors=colors))
+def rr_log_cloud(cloud, channel="cloud", colors=None):
+    rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
 
 
 def rr_set_time(t=0):

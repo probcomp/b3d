@@ -188,7 +188,7 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
             observed_rgbd[ij[0], ij[1], :],
             jnp.concatenate([colors_window, vertices_mean_window[..., 2:3]], axis=-1),
             jnp.array([color_variance, color_variance, color_variance, depth_variance]),
-        )[..., 2:3].sum(-1)
+        ).sum(-1)
         valid_window = vertices_mean_window[..., 2] != 0.0
         scores_inlier = valid_window * probability
 
@@ -231,4 +231,5 @@ def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
     return {
         "score": scores.sum(),
         "pixelwise_score": pixelwise_score,
+        "latent_rgbd": latent_rgbd,
     }

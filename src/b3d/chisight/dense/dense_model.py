@@ -71,6 +71,23 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             camera_pose.inv()
         )
         likelihood_args["scene_mesh"] = scene_mesh
+
+        if renderer is not None:
+            rasterize_results = renderer.rasterize(
+                scene_mesh.vertices, scene_mesh.faces
+            )
+            latent_rgbd = renderer.interpolate(
+                jnp.concatenate(
+                    [scene_mesh.vertex_attributes, scene_mesh.vertices[..., -1:]],
+                    axis=-1,
+                ),
+                rasterize_results,
+                scene_mesh.faces,
+            )
+            likelihood_args["scene_mesh"] = scene_mesh
+            likelihood_args["latent_rgbd"] = latent_rgbd
+            likelihood_args["rasterize_results"] = rasterize_results
+
         image = image_likelihood(likelihood_args) @ "rgbd"
         return {
             "likelihood_args": likelihood_args,

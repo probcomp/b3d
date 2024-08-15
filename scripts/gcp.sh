@@ -730,6 +730,8 @@ gcp-scp() {
     --project="$GCP_PROJECT"
   )
 
+  echo "${command[@]}"
+
   if ! gcp-execute "${command[@]}"; then
     echo "error: could not tranfer $src"
     return 5

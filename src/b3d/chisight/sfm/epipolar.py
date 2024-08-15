@@ -158,7 +158,7 @@ vmap_angle_check = jax.vmap(
 def _ortho_score(cam, u0, u1, intr):
     """
     Computes a score measuring if keypoint lines are orthogonal --
-    "zero" being co-linear, and "one" being orthogonal.
+    "zero" being co-linear, and "one" being orthogonal. 
     
     This may be used as a heuristic scoring uncertainty of 
     the depth estimate for each keypoint from the given pose.

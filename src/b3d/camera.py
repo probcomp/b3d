@@ -219,6 +219,8 @@ def homogeneous_coordinates(xs, z=jnp.array(1.0)):
     """
     return jnp.concatenate([xs, jnp.ones_like(xs[..., :1])], axis=-1) * z[..., None]
 
+homogeneous = homogeneous_coordinates
+
 
 def planar_coordinates(xs):
     """

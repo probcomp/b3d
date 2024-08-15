@@ -189,3 +189,11 @@ class VideoToTracksTask(Task):
                     class_ids=np.arange(tracks.shape[1])[viz[t]],
                 ),
             )
+
+    def get_feature_track_data_from_solution(self, solution):
+        return b3d.io.FeatureTrackData(
+            observed_keypoints_positions=solution["keypoint_tracks"],
+            keypoint_visibility=solution["keypoint_visibility"],
+            rgbd_images=self.video,
+            camera_intrinsics=self.intrinsics.as_array(),
+        )

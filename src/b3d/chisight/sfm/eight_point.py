@@ -2,9 +2,37 @@
 Implementation of eight points essential matrix solver and triangulation.
 
 Notation:
-    x: World coordinates
-    y: Camera coordinates or unnormalized image coordinates.
+    Normalized image coordinates: "Normalized" means "intrinsics-free" coordinates, which 
+        in our language are just the coordinats in the camera frame.
+    `x`: World coordinates
+    `y`: Camera coordinates (3D), i.e. normalized image coordinates.
+    `uv`: Sensor coordinates (2D)
+    `intr`: Camera intrinsics
 
+Example:
+```
+from b3d.sfm.eight_point import estimate_essential_matrix, poses_from_essential
+
+# Load data and so on
+...
+
+# Choose a pair of frames
+t0 = 0
+t1 = 1
+
+# Choose a subset of keypoints to run the algorithm on
+key = keysplit(key)
+sub = jax.random.choice(key, jnp.where(vis[t0]*vis[t1])[0], (8,), replace=False)
+
+# Normalized image coordinates from sensor coordinates
+ys0 = camera.camera_from_screen(uvs[t0,sub], intr)
+ys1 = camera.camera_from_screen(uvs[t1,sub], intr)
+
+# Estimate essential matrix and extract 
+# possible choices for the second camera pose
+E = estimate_essential_matrix(ys0, ys1)
+ps = poses_from_essential(E)
+```
 """
 import jax
 from jax import numpy as jnp

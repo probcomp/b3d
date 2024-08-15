@@ -878,18 +878,18 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aom-3.9.1-hac33072_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/asttokens-2.4.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/attrs-24.2.0-pyh71513ae_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.7.25-h8a0f778_4.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-0.7.2-h7970872_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.7.25-hff137af_5.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-0.7.3-h7970872_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-common-0.9.25-h4bc722e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-compression-0.2.18-hc649ecc_8.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-event-stream-0.4.2-h04a40c0_20.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-http-0.8.7-hc9bb02b_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-io-0.14.18-h3e50d33_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-http-0.8.7-he2d3600_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-io-0.14.18-h7d46f39_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-mqtt-0.10.4-h674cf7e_16.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-s3-0.6.4-hbe604ca_6.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-s3-0.6.4-h28a8003_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-sdkutils-0.1.19-hc649ecc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-checksums-0.1.18-hc649ecc_8.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.27.5-hba11562_5.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.27.5-heec6497_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-sdk-cpp-1.11.379-he20dfa5_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-core-cpp-1.13.0-h935415a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-identity-cpp-1.8.0-hd126650_2.conda
@@ -1785,18 +1785,18 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/astunparse-1.6.3-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/async-lru-2.0.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/attrs-24.2.0-pyh71513ae_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.7.25-h8a0f778_4.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-0.7.2-h7970872_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.7.25-hff137af_5.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-0.7.3-h7970872_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-common-0.9.25-h4bc722e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-compression-0.2.18-hc649ecc_8.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-event-stream-0.4.2-h04a40c0_20.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-http-0.8.7-hc9bb02b_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-io-0.14.18-h3e50d33_2.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-http-0.8.7-he2d3600_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-io-0.14.18-h7d46f39_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-mqtt-0.10.4-h674cf7e_16.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-s3-0.6.4-hbe604ca_6.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-s3-0.6.4-h28a8003_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-sdkutils-0.1.19-hc649ecc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-checksums-0.1.18-hc649ecc_8.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.27.5-hba11562_5.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.27.5-heec6497_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-sdk-cpp-1.11.379-he20dfa5_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-core-cpp-1.13.0-h935415a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/azure-identity-cpp-1.8.0-hd126650_2.conda
@@ -2685,28 +2685,6 @@ packages:
 - kind: conda
   name: aws-c-auth
   version: 0.7.25
-  build: h8a0f778_4
-  build_number: 4
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.7.25-h8a0f778_4.conda
-  sha256: 06f0fd8fdcee90c45d3f711dae3f7439f5895e3ef0c498484a2a67c781eff748
-  md5: aa51e240a99df535e64e3472f54652c9
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - aws-c-cal >=0.7.2,<0.7.3.0a0
-  - aws-c-common >=0.9.25,<0.9.26.0a0
-  - aws-c-http >=0.8.7,<0.8.8.0a0
-  - aws-c-io >=0.14.18,<0.14.19.0a0
-  - aws-c-sdkutils >=0.1.19,<0.1.20.0a0
-  - libgcc-ng >=12
-  license: Apache-2.0
-  license_family: Apache
-  purls: []
-  size: 106691
-  timestamp: 1723215154132
-- kind: conda
-  name: aws-c-auth
-  version: 0.7.25
   build: hb20dbd5_5
   build_number: 5
   subdir: win-64
@@ -2770,25 +2748,6 @@ packages:
   purls: []
   size: 106627
   timestamp: 1723620516530
-- kind: conda
-  name: aws-c-cal
-  version: 0.7.2
-  build: h7970872_1
-  build_number: 1
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-0.7.2-h7970872_1.conda
-  sha256: 060d9fba6b18781aff862ca84b5b11f4681f6dc364c70856e5ab5d61cf5eb324
-  md5: f7f648ab6e51b66d2ada922498547732
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - aws-c-common >=0.9.25,<0.9.26.0a0
-  - libgcc-ng >=12
-  - openssl >=3.3.1,<4.0a0
-  license: Apache-2.0
-  license_family: Apache
-  purls: []
-  size: 47118
-  timestamp: 1723150410207
 - kind: conda
   name: aws-c-cal
   version: 0.7.3
@@ -3052,27 +3011,6 @@ packages:
 - kind: conda
   name: aws-c-http
   version: 0.8.7
-  build: hc9bb02b_2
-  build_number: 2
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/aws-c-http-0.8.7-hc9bb02b_2.conda
-  sha256: 58a5830a4bb878568b231e3215d2eedfd713e1ee9ea58dbc5e54e1793ea017e5
-  md5: 1fa3da862ddcc9e9b0538fd58273a65e
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - aws-c-cal >=0.7.2,<0.7.3.0a0
-  - aws-c-common >=0.9.25,<0.9.26.0a0
-  - aws-c-compression >=0.2.18,<0.2.19.0a0
-  - aws-c-io >=0.14.18,<0.14.19.0a0
-  - libgcc-ng >=12
-  license: Apache-2.0
-  license_family: Apache
-  purls: []
-  size: 197213
-  timestamp: 1723177819689
-- kind: conda
-  name: aws-c-http
-  version: 0.8.7
   build: he2d3600_3
   build_number: 3
   subdir: linux-64
@@ -3091,26 +3029,6 @@ packages:
   purls: []
   size: 197117
   timestamp: 1723610215579
-- kind: conda
-  name: aws-c-io
-  version: 0.14.18
-  build: h3e50d33_2
-  build_number: 2
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/aws-c-io-0.14.18-h3e50d33_2.conda
-  sha256: 8b94d550344392429931aa69f16c38cfd2dbb49ce1e5d2705cb10c8b735dd0ee
-  md5: 9b0aca26d579311a918a0f03047fc447
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - aws-c-cal >=0.7.2,<0.7.3.0a0
-  - aws-c-common >=0.9.25,<0.9.26.0a0
-  - libgcc-ng >=12
-  - s2n >=1.5.0,<1.5.1.0a0
-  license: Apache-2.0
-  license_family: Apache
-  purls: []
-  size: 159102
-  timestamp: 1723481752341
 - kind: conda
   name: aws-c-io
   version: 0.14.18
@@ -3300,30 +3218,6 @@ packages:
   size: 95444
   timestamp: 1723635970107
 - kind: conda
-  name: aws-c-s3
-  version: 0.6.4
-  build: hbe604ca_6
-  build_number: 6
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/aws-c-s3-0.6.4-hbe604ca_6.conda
-  sha256: c184511cf6d733bbdfc80d68b3087d8743c735d7bb40176cef73d9521c8d921d
-  md5: a57d5bbd0559aed25766420bbd371aa0
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - aws-c-auth >=0.7.25,<0.7.26.0a0
-  - aws-c-cal >=0.7.2,<0.7.3.0a0
-  - aws-c-common >=0.9.25,<0.9.26.0a0
-  - aws-c-http >=0.8.7,<0.8.8.0a0
-  - aws-c-io >=0.14.18,<0.14.19.0a0
-  - aws-checksums >=0.1.18,<0.1.19.0a0
-  - libgcc-ng >=12
-  - openssl >=3.3.1,<4.0a0
-  license: Apache-2.0
-  license_family: Apache
-  purls: []
-  size: 111628
-  timestamp: 1723207613777
-- kind: conda
   name: aws-c-sdkutils
   version: 0.1.19
   build: h0240d57_0
@@ -3481,33 +3375,6 @@ packages:
   purls: []
   size: 228375
   timestamp: 1723647641759
-- kind: conda
-  name: aws-crt-cpp
-  version: 0.27.5
-  build: hba11562_5
-  build_number: 5
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.27.5-hba11562_5.conda
-  sha256: 6c2d72591495d68b17d6f428b32517a9b59b710eafdc8200e627780812886e6f
-  md5: 3b97f88120ba6bc6c53b428954a15895
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - aws-c-auth >=0.7.25,<0.7.26.0a0
-  - aws-c-cal >=0.7.2,<0.7.3.0a0
-  - aws-c-common >=0.9.25,<0.9.26.0a0
-  - aws-c-event-stream >=0.4.2,<0.4.3.0a0
-  - aws-c-http >=0.8.7,<0.8.8.0a0
-  - aws-c-io >=0.14.18,<0.14.19.0a0
-  - aws-c-mqtt >=0.10.4,<0.10.5.0a0
-  - aws-c-s3 >=0.6.4,<0.6.5.0a0
-  - aws-c-sdkutils >=0.1.19,<0.1.20.0a0
-  - libgcc-ng >=12
-  - libstdcxx-ng >=12
-  license: Apache-2.0
-  license_family: Apache
-  purls: []
-  size: 345928
-  timestamp: 1723235386758
 - kind: conda
   name: aws-crt-cpp
   version: 0.27.5
@@ -3806,7 +3673,7 @@ packages:
   name: b3d
   version: 0.0.0
   path: .
-  sha256: b2504f289468efaca29f9748d369d3d856d3ec9fe6074eb808990a6742929e9d
+  sha256: e209a7428c97f60b90162052cf321f3ccecdcd1bf3b994de4d99cf2d3a473215
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -12744,6 +12611,7 @@ packages:
   constrains:
   - openmp 18.1.8|18.1.8.*
   license: Apache-2.0 WITH LLVM-exception
+  license_family: APACHE
   purls: []
   size: 58476497
   timestamp: 1723605385200

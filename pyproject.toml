@@ -63,8 +63,7 @@ depends_on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
-cmd = "rerun-task.py"
-cwd = "scripts"
+cmd = "python scripts/rerun-task.py"
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"

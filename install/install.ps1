@@ -205,8 +205,6 @@ if ($PATH -notlike "*$BinDir*") {
     Write-Output "$BinDir already in PATH"
 }
 
-Write-Output "PATH2: $PATH"
-
 if ($PATH -notlike "*$PipxBinDir*") {
     Write-Output "Adding $PipxBinDir to PATH"
     Write-Env -name 'PATH' -val "$PipxBinDir;$PATH"

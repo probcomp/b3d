@@ -63,7 +63,7 @@ depends_on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
-cmd = "./rerun.sh"
+cmd = "rerun-task.py"
 cwd = "scripts"
 
 [tool.pixi.tasks.gcp-help]
@@ -162,7 +162,6 @@ pyright = "*"
 pytest = "*"
 python-lzf = "*"
 py-opencv = "*"
-rerun-sdk = "==0.17.0"
 ruff = "*"
 scikit-learn = ">=1.5.1,<1.6"
 scipy = ">=1.14.0,<1.15"

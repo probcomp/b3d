@@ -18,8 +18,8 @@ REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 GCLOUD_CREDS_FILE="$HOME/.config/gcloud/application_default_credentials.json"
 GCLOUD_CREDS_DIR="/home/$USER"
-GCLOUD_CREDS_FILE_WIN="$HOME\AppData\Roaming\gcloud\application_default_credentials.json"
-GCLOUD_CREDS_DIR_WIN="$HOME"
+GCLOUD_CREDS_DIR_WIN="/home/$env:USERNAME"
+GCLOUD_CREDS_FILE_WIN="${GCLOUD_CREDS_FILE_WIN:-$HOME\AppData\Roaming\gcloud\application_default_credentials.json}"
 
 # Prints help
 gcp-help() {
@@ -833,13 +833,20 @@ gcp-ssh() {
     ;;
   MSYS_NT*)
     adc_file="$GCLOUD_CREDS_FILE_WIN"
-    adc_dir="$GCLOUD_CREDS_DIR"
+    adc_dir="$GCLOUD_CREDS_DIR_WIN"
     ;;
   *)
-    echo "unknown os $os"
-    exit 1
+    if [[ $(uname -o) == "Mysys" ]]; then
+      adc_file="$GCLOUD_CREDS_FILE_WIN"
+      adc_dir="$GCLOUD_CREDS_DIR_WIN"
+    else
+      echo "unknown os $os"
+      exit 1
+    fi
     ;;
   esac
+
+  gcp-log "→ scp $GCLOUD_CREDS_FILE_WIN $GCLOUD_CREDS_DIR"
 
   if gcp-wait-until-running; then
     # scp gcloud creds

@@ -11,7 +11,7 @@ main() {
     exit 0
   else
     if [ -n "$DISPLAY" ]; then
-      python -m rerun --port 8812 >/dev/null &
+      rerun --port 8812 >/dev/null &
       sleep 2
       echo "Rerun was launched"
       exit 0

@@ -34,6 +34,9 @@ Update-Shell -Fcd ile $PROFILE -Line '(& pixi completion --shell powershell) | O
 # add pipx bin to path
 Update-Shell -File $PROFILE -Line '$env:PATH = "$HOME\.local\bin;$env:PATH"'
 
+# add USER variable
+Update-Shell -File $PROFILE -Line '$USER = $env:USERNAME'
+
 # reload profile
 . $PROFILE
 

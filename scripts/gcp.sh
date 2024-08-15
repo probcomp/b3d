@@ -16,10 +16,9 @@ GCP_CONNECT="${GCP_CONNECT:-ssh}"
 GCP_DEBUG="${GCP_DEBUG:-}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
-GCLOUD_CREDS_FILE="$HOME/.config/gcloud/application_default_credentials.json"
-GCLOUD_CREDS_DIR="/home/$USER"
-GCLOUD_CREDS_DIR_WIN="/home/$env:USERNAME"
-GCLOUD_CREDS_FILE_WIN="${GCLOUD_CREDS_FILE_WIN:-$HOME\AppData\Roaming\gcloud\application_default_credentials.json}"
+GCLOUD_ADC_SRC="$HOME/.config/gcloud/application_default_credentials.json"
+GCLOUD_ADC_DEST="/home/$USER"
+GCLOUD_ADC_SRC_WIN="${GCLOUD_ADC_SRC_WIN:-$HOME\AppData\Roaming\gcloud\application_default_credentials.json}"
 
 # Prints help
 gcp-help() {
@@ -828,17 +827,17 @@ gcp-ssh() {
   local adc_dir
   case $os in
   Darwin:Linux)
-    adc_file="$GCLOUD_CREDS_FILE"
-    adc_dir="$GCLOUD_CREDS_DIR"
+    adc_file="$GCLOUD_ADC_SRC"
+    adc_dir="$GCLOUD_ADC_DEST"
     ;;
   MSYS_NT*)
-    adc_file="$GCLOUD_CREDS_FILE_WIN"
-    adc_dir="$GCLOUD_CREDS_DIR_WIN"
+    adc_file="$GCLOUD_ADC_SRC_WIN"
+    adc_dir="$GCLOUD_ADC_DEST"
     ;;
   *)
     if [[ $(uname -o) == "Mysys" ]]; then
-      adc_file="$GCLOUD_CREDS_FILE_WIN"
-      adc_dir="$GCLOUD_CREDS_DIR_WIN"
+      adc_file="$GCLOUD_ADC_SRC_WIN"
+      adc_dir="$GCLOUD_ADC_DEST"
     else
       echo "unknown os $os"
       exit 1
@@ -846,7 +845,7 @@ gcp-ssh() {
     ;;
   esac
 
-  gcp-log "→ scp $GCLOUD_CREDS_FILE_WIN $GCLOUD_CREDS_DIR"
+  gcp-log "→ scp $GCLOUD_ADC_SRC_WIN $GCLOUD_ADC_DEST"
 
   if gcp-wait-until-running; then
     # scp gcloud creds

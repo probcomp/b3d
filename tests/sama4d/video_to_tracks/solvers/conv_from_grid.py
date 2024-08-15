@@ -1,5 +1,8 @@
+from typing import Optional
+
 import jax
 import jax.numpy as jnp
+import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 from genjax import Pytree
@@ -60,6 +63,7 @@ class KeypointTracker2DFromInitialGrid(Solver):
     do_reinitialization: bool
 
     tracker_states: list[SingleKeypointTracker2DState]  # batched
+    video: Optional[jnp.ndarray]
 
     def __init__(self, grid_size_x, grid_size_y, patch_size, do_reinitialization):
         self.grid_size_x = grid_size_x
@@ -67,10 +71,11 @@ class KeypointTracker2DFromInitialGrid(Solver):
         self.patch_size = patch_size
         self.do_reinitialization = do_reinitialization
         self.tracker_states = []
+        self.video = None
 
     def get_initial_keypoints(self, height, width):
-        x = jnp.linspace(0, width, self.grid_size_x)
-        y = jnp.linspace(0, height, self.grid_size_y)
+        x = jnp.linspace(0, width, self.grid_size_x + 2)[1:-1]
+        y = jnp.linspace(0, height, self.grid_size_y + 2)[1:-1]
         grid = jnp.stack(jnp.meshgrid(x, y), axis=-1)
         return grid.reshape(-1, 2)
 
@@ -83,6 +88,7 @@ class KeypointTracker2DFromInitialGrid(Solver):
             lambda pos2D: initialize_tracker_state(video[0], pos2D, self.patch_size)
         )(keypoints)
         if save_states:
+            self.video = video
             self.tracker_states.append(tracker_states)
         for frame in video[1:]:
             tracker_states = jax.vmap(
@@ -98,17 +104,25 @@ class KeypointTracker2DFromInitialGrid(Solver):
         visibility = jnp.ones(tracks.shape[:2], dtype=bool)
         return {"keypoint_tracks": tracks, "keypoint_visibility": visibility}
 
-    def visualize_solver_state(self, send_blueprint=True):
+    def visualize_solver_state(self, send_blueprint=True, patch_to_view_idx=0):
         if send_blueprint:
-            rr.send_blueprint(self.rr_blueprint())
+            rr.send_blueprint(self.rr_blueprint(patch_to_view_idx))
 
         for t in range(len(self.tracker_states)):
             rr.set_time_sequence("frame", t)
             for i in range(self.tracker_states[t].pos2D.shape[0]):
                 state = self.tracker_states[t][i]
                 rr.log(
-                    f"/solver/patches/{i}",
-                    rr.Image(state.patch),
+                    f"/solver/template_patch/{i}",
+                    rr.Image(np.array(state.patch)),
+                )
+                rr.log(
+                    f"/solver/patch_found/{i}",
+                    rr.Image(
+                        get_patch_around_region_with_padding(
+                            self.video[t], state.pos2D, self.patch_size
+                        )
+                    ),
                 )
                 rr.log(
                     f"/solver/boxes/{i}",
@@ -122,17 +136,24 @@ class KeypointTracker2DFromInitialGrid(Solver):
                     ),
                 )
 
-    def rr_blueprint(self):
+    def update_blueprint(self, patch_to_view_idx):
+        rr.send_blueprint(self.rr_blueprint(patch_to_view_idx))
+
+    def rr_blueprint(self, patch_to_view_idx=0):
         return rrb.Blueprint(
             rrb.Horizontal(
                 rrb.Spatial2DView(
                     contents=["task/video", "solver/boxes/**"]
                 ),  # task video + boxes
-                rrb.Tabs(
-                    contents=[  # patches
-                        rrb.Spatial2DView(contents=[f"solver/patches/{i}"])
-                        for i in range(self.grid_size_x * self.grid_size_y)
-                    ]
+                rrb.Vertical(
+                    rrb.Spatial2DView(
+                        contents=[f"solver/template_patch/{patch_to_view_idx}"],
+                        name=f"Template patch for track {patch_to_view_idx}",
+                    ),
+                    rrb.Spatial2DView(
+                        contents=[f"solver/patch_found/{patch_to_view_idx}"],
+                        name=f"Found match for track {patch_to_view_idx}",
+                    ),
                 ),
             )
         )

@@ -184,6 +184,7 @@ if (Get-Command pixi -ErrorAction SilentlyContinue) {
     exit 1
 }
 
+$PATH = Get-Env 'PATH'
 $B3D_BRANCH = "eightysteele/win-64-test"
 $ADC_FILE_LOCAL = "$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json"
 $PipxHome = "$Env:USERPROFILE\.local"

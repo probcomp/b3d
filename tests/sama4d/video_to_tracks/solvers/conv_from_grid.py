@@ -16,29 +16,45 @@ from tests.common.solver import Solver
 class SingleKeypointTracker2DState(Pytree):
     patch: jnp.ndarray
     pos2D: jnp.ndarray
+    is_visible: jnp.ndarray
 
     def __getitem__(self, key):
         return SingleKeypointTracker2DState(
-            patch=self.patch[key], pos2D=self.pos2D[key]
+            patch=self.patch[key],
+            pos2D=self.pos2D[key],
+            is_visible=self.is_visible[key],
         )
+
+    def get_error(self, frame: jnp.ndarray):
+        return patch_l1_error_at_position(frame, self.pos2D, self.patch)
 
 
 def initialize_tracker_state(frame: jnp.ndarray, pos2D: jnp.ndarray, patch_size: int):
     patch = get_patch_around_region_with_padding(frame, pos2D, size=patch_size)
-    return SingleKeypointTracker2DState(patch=patch, pos2D=pos2D)
+    return SingleKeypointTracker2DState(patch=patch, pos2D=pos2D, is_visible=True)
 
 
 def update_tracker_state(
-    state: SingleKeypointTracker2DState, frame: jnp.ndarray, reinitialize_patch: bool
+    state: SingleKeypointTracker2DState,
+    frame: jnp.ndarray,
+    reinitialize_patch: bool,
+    culling_threshold: jnp.ndarray,
 ):
-    x, y = get_best_fit_pos(frame, state.patch)
+    (x, y), error = get_best_fit_pos(frame, state.patch)
     if reinitialize_patch:
         patch = get_patch_around_region_with_padding(
             frame, (x, y), size=state.patch.shape[0]
         )
     else:
         patch = state.patch
-    return SingleKeypointTracker2DState(patch=patch, pos2D=jnp.array([x, y]))
+
+    cull = error > culling_threshold
+
+    return SingleKeypointTracker2DState(
+        patch=patch,
+        pos2D=jnp.array([x, y]),
+        is_visible=jnp.logical_and(state.is_visible, jnp.logical_not(cull)),
+    )
 
 
 ## Multiple patch tracker (solver for VideoToTracksTask) ##
@@ -61,15 +77,24 @@ class KeypointTracker2DFromInitialGrid(Solver):
     grid_size_y: int
     patch_size: int
     do_reinitialization: bool
+    culling_threshold: jnp.ndarray  # shape: ()
 
     tracker_states: list[SingleKeypointTracker2DState]  # batched
     video: Optional[jnp.ndarray]
 
-    def __init__(self, grid_size_x, grid_size_y, patch_size, do_reinitialization):
+    def __init__(
+        self,
+        grid_size_x,
+        grid_size_y,
+        patch_size,
+        do_reinitialization,
+        culling_threshold=jnp.inf,
+    ):
         self.grid_size_x = grid_size_x
         self.grid_size_y = grid_size_y
         self.patch_size = patch_size
         self.do_reinitialization = do_reinitialization
+        self.culling_threshold = culling_threshold
         self.tracker_states = []
         self.video = None
 
@@ -87,22 +112,42 @@ class KeypointTracker2DFromInitialGrid(Solver):
         tracker_states = jax.vmap(
             lambda pos2D: initialize_tracker_state(video[0], pos2D, self.patch_size)
         )(keypoints)
+        visibility = jnp.array([tracker_states.is_visible])
         if save_states:
             self.video = video
             self.tracker_states.append(tracker_states)
         for frame in video[1:]:
             tracker_states = jax.vmap(
                 lambda state: update_tracker_state(
-                    state, frame, self.do_reinitialization
+                    state, frame, self.do_reinitialization, self.culling_threshold
                 )
             )(tracker_states)
             tracks = jnp.concatenate(
                 [tracks, jnp.array([tracker_states.pos2D])], axis=0
             )
+            visibility = jnp.concatenate(
+                [visibility, jnp.array([tracker_states.is_visible])], axis=0
+            )
             if save_states:
                 self.tracker_states.append(tracker_states)
-        visibility = jnp.ones(tracks.shape[:2], dtype=bool)
-        return {"keypoint_tracks": tracks, "keypoint_visibility": visibility}
+        return {
+            "keypoint_tracks": tracks,
+            "keypoint_visibility": visibility,
+        }  # visibility}
+
+    def get_errors_for_saved_states(self):
+        """
+        Returns an array of shape (num_frames, num_keypoints) containing the L1 error
+        between the patches and the corresponding patches in the video.
+        """
+        return jnp.stack(
+            [
+                jax.vmap(lambda state: state.get_error(self.video[t + 1]))(
+                    self.tracker_states[t]
+                )
+                for t in range(len(self.tracker_states))
+            ]
+        )
 
     def visualize_solver_state(self, send_blueprint=True, patch_to_view_idx=0):
         if send_blueprint:
@@ -200,4 +245,4 @@ def get_best_fit_pos(rgb, patch):
     errors = get_errors_across_image(rgb, patch)
     min_error = jnp.min(errors)
     y, x = jnp.where(errors == min_error, size=1)
-    return x[0], y[0]
+    return (x[0], y[0]), min_error

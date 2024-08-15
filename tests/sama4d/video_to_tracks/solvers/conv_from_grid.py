@@ -143,7 +143,7 @@ class KeypointTracker2DFromInitialGrid(Solver):
         return rrb.Blueprint(
             rrb.Horizontal(
                 rrb.Spatial2DView(
-                    contents=["task/video", "solver/boxes/**"]
+                    contents=["task/**", "solution/**", "solver/boxes/**"]
                 ),  # task video + boxes
                 rrb.Vertical(
                     rrb.Spatial2DView(

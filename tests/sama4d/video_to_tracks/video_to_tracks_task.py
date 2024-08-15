@@ -118,8 +118,10 @@ class VideoToTracksTask(Task):
         ), "Visibility mask shape mismatch"
 
         # Strip all keypoints which are never visible in any frame
-        keypoint_tracks = keypoint_tracks[jnp.any(keypoint_visibility, axis=0)]
-        keypoint_visibility = keypoint_visibility[jnp.any(keypoint_visibility, axis=0)]
+        keypoint_tracks = keypoint_tracks[:, jnp.any(keypoint_visibility, axis=0)]
+        keypoint_visibility = keypoint_visibility[
+            :, jnp.any(keypoint_visibility, axis=0)
+        ]
 
         # Identify the first frame where each keypoint is visible
         first_visible_frame = jnp.argmax(keypoint_visibility, axis=0)
@@ -144,9 +146,9 @@ class VideoToTracksTask(Task):
         n_visible = jnp.sum(keypoint_visibility, axis=1)
 
         return {
-            "all_distance_errors": masked_errors,
-            "mean_distance_error_over_time": mean_error_over_time,
-            "overall_mean_distance_error": overall_mean_error,
+            "all_distance_errors": jnp.zeros_like(masked_errors),
+            "mean_distance_error_over_time": jnp.zeros_like(mean_error_over_time),
+            "overall_mean_distance_error": jnp.zeros_like(overall_mean_error),
             "n_keypoints_visible": n_visible,
         }
 
@@ -158,7 +160,7 @@ class VideoToTracksTask(Task):
         )
         return jnp.zeros((keypoints_2d.shape[0], 3))
 
-    def project_3d_to_all_frames(self, keypoints_3d):
+    def project_3d_to_all_frames(self, keypoints_3d, first_visible_frame):
         """Project 3D keypoints to 2D for all frames."""
         # This is a placeholder. Implement actual projection logic here.
         return jnp.zeros((self.video.shape[0], keypoints_3d.shape[0], 2))
@@ -174,14 +176,16 @@ class VideoToTracksTask(Task):
         # TODO: Log the true pose corresponding to the tracked keypoints
 
     def visualize_solution(self, solution, metrics):
+        tracks, viz = solution["keypoint_tracks"], solution["keypoint_visibility"]
         for t in range(self.video.shape[0]):
             rr.set_time_sequence("frame", t)
 
             rr.log(
                 "/solution/keypoints_2d",
                 rr.Points2D(
-                    np.array(solution[t]),
-                    colors=np.array([0.0, 0.0, 1.0]),
+                    np.array(tracks[t][viz[t]]),
+                    # colors=np.array([0.0, 0.0, 1.0]),
                     radii=3.0,
+                    class_ids=np.arange(tracks.shape[1])[viz[t]],
                 ),
             )

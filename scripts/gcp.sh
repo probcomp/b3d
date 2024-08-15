@@ -17,7 +17,7 @@ GCP_DEBUG="${GCP_DEBUG:-}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 GCLOUD_ADC_SRC="$HOME/.config/gcloud/application_default_credentials.json"
-GCLOUD_ADC_DEST="/home/$USER"
+GCLOUD_ADC_DEST="${GCLOUD_ADC_DEST:-/home/$USER}"
 GCLOUD_ADC_SRC_WIN="${GCLOUD_ADC_SRC_WIN:-$HOME\AppData\Roaming\gcloud\application_default_credentials.json}"
 
 # Prints help

@@ -68,3 +68,5 @@ if (-not (Test-Path $env:ADC_FILE_LOCAL)) {
 gh repo clone probcomp/b3d
 cd b3d
 git checkout $env:B3D_BRANCH
+
+Write-Output "Done!"

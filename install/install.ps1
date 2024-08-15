@@ -20,7 +20,7 @@ function Update-Shell {
 
 if (Test-Path -Path ".\b3d") {
   Write-Output "The 'b3d' repo directory already exists."
-  exit 1
+  return
 }
 
 # env variables

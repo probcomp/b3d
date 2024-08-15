@@ -38,9 +38,10 @@ def update_tracker_state(
     state: SingleKeypointTracker2DState,
     frame: jnp.ndarray,
     reinitialize_patch: bool,
-    culling_threshold: jnp.ndarray,
+    culling_error_threshold: jnp.ndarray,
+    culling_error_ratio_threshold: jnp.ndarray,
 ):
-    (x, y), error = get_best_fit_pos(frame, state.patch)
+    (x, y), error, error_2 = get_best_fit_pos(frame, state.patch, get_second_error=True)
     if reinitialize_patch:
         patch = get_patch_around_region_with_padding(
             frame, (x, y), size=state.patch.shape[0]
@@ -48,7 +49,9 @@ def update_tracker_state(
     else:
         patch = state.patch
 
-    cull = error > culling_threshold
+    cull = jnp.logical_or(
+        error > culling_error_threshold, error / error_2 > culling_error_ratio_threshold
+    )
 
     return SingleKeypointTracker2DState(
         patch=patch,
@@ -77,7 +80,8 @@ class KeypointTracker2DFromInitialGrid(Solver):
     grid_size_y: int
     patch_size: int
     do_reinitialization: bool
-    culling_threshold: jnp.ndarray  # shape: ()
+    culling_l1_error_threshold: jnp.ndarray  # shape: ()
+    culling_error_ratio_threshold: jnp.ndarray  # shape: ()
 
     tracker_states: list[SingleKeypointTracker2DState]  # batched
     video: Optional[jnp.ndarray]
@@ -88,13 +92,15 @@ class KeypointTracker2DFromInitialGrid(Solver):
         grid_size_y,
         patch_size,
         do_reinitialization,
-        culling_threshold=jnp.inf,
+        culling_l1_error_threshold=jnp.inf,
+        culling_error_ratio_threshold=1.0,
     ):
         self.grid_size_x = grid_size_x
         self.grid_size_y = grid_size_y
         self.patch_size = patch_size
         self.do_reinitialization = do_reinitialization
-        self.culling_threshold = culling_threshold
+        self.culling_l1_error_threshold = culling_l1_error_threshold
+        self.culling_error_ratio_threshold = culling_error_ratio_threshold
         self.tracker_states = []
         self.video = None
 
@@ -119,7 +125,11 @@ class KeypointTracker2DFromInitialGrid(Solver):
         for frame in video[1:]:
             tracker_states = jax.vmap(
                 lambda state: update_tracker_state(
-                    state, frame, self.do_reinitialization, self.culling_threshold
+                    state,
+                    frame,
+                    self.do_reinitialization,
+                    self.culling_l1_error_threshold,
+                    self.culling_error_ratio_threshold,
                 )
             )(tracker_states)
             tracks = jnp.concatenate(
@@ -143,6 +153,21 @@ class KeypointTracker2DFromInitialGrid(Solver):
         return jnp.stack(
             [
                 jax.vmap(lambda state: state.get_error(self.video[t + 1]))(
+                    self.tracker_states[t]
+                )
+                for t in range(len(self.tracker_states))
+            ]
+        )
+
+    def get_error_ratios_for_saved_states(self):
+        """
+        Find the ratio between the min error and the min error at least
+        4 units away from the min error, at each frame, for each patch.
+        Returns an array of shape (num_frames, num_keypoints).
+        """
+        return jnp.stack(
+            [
+                jax.vmap(lambda state: get_error_ratio(self.video[t + 1], state.patch))(
                     self.tracker_states[t]
                 )
                 for t in range(len(self.tracker_states))
@@ -241,8 +266,43 @@ def get_errors_across_image(rgb, patch):
     )(jnp.arange(0, height), jnp.arange(0, width))
 
 
-def get_best_fit_pos(rgb, patch):
+def get_best_fit_pos(rgb, patch, get_second_error=False):
     errors = get_errors_across_image(rgb, patch)
     min_error = jnp.min(errors)
     y, x = jnp.where(errors == min_error, size=1)
+
+    if get_second_error:
+        # now, compute the minimum error at least 4 units
+        # away from (x, y)
+        (H, W) = errors.shape
+        mindist = 4
+        maxdist = 40
+        _, min_error2 = get_second_error_xy(H, W, y, x, errors, mindist, maxdist)
+
+        return (x[0], y[0]), min_error, min_error2
+
     return (x[0], y[0]), min_error
+
+
+def get_error_ratio(rgb, patch):
+    _, min_error, min_error_2 = get_best_fit_pos(rgb, patch, get_second_error=True)
+    return min_error / min_error_2
+
+
+def get_second_error_xy(H, W, y, x, errors, mindist, maxdist):
+    yy, xx = jnp.mgrid[:H, :W]
+
+    # Compute distances from (y, x)
+    distances = jnp.sqrt((yy - y) ** 2 + (xx - x) ** 2)
+
+    # Create a mask for points at least mindist units away
+    mask = jnp.logical_and(distances >= mindist, distances <= maxdist)
+
+    # Apply the mask to the errors array
+    masked_errors = jnp.where(mask, errors, jnp.inf)
+
+    # Find the minimum error and its location in the masked array
+    min_error2 = jnp.min(masked_errors)
+    y2, x2 = jnp.where(masked_errors == min_error2, size=1)
+
+    return (y2, x2), min_error2

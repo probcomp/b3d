@@ -18,6 +18,11 @@ function Update-Shell {
   }
 }
 
+if (Test-Path -Path ".\b3d") {
+  Write-Output "The 'b3d' repo directory already exists."
+  exit
+}
+
 # env variables
 $env:B3D_BRANCH = "eightysteele/win-64-test"
 $env:ADC_FILE_LOCAL="$HOME\AppData\Roaming\gcloud\application_default_credentials.json"

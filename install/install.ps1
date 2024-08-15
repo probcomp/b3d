@@ -180,8 +180,8 @@ if (Test-Path -Path ".\b3d") {
 
 param (
     [string] $B3D_BRANCH = "eightysteele/win-64-test",
-    [string] $ADC_FILE_LOCAL="$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json"
-    [string] $PipxHome = "$Env:USERPROFILE\.local",
+    [string] $ADC_FILE_LOCAL="$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json",
+    [string] $PipxHome = "$Env:USERPROFILE\.local"
 
 )
 

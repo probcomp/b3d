@@ -170,32 +170,17 @@ if (!$NoPathUpdate) {
 }
 
 
+# ..............................................................................
+# b3d
 
-
+$B3D_BRANCH = "eightysteele/win-64-test"
+$ADC_FILE_LOCAL = "$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json"
+$PipxHome = "$Env:USERPROFILE\.local"
+$PipxBinDir = Join-Path $PipxHome 'bin'
 
 if (Test-Path -Path ".\b3d") {
   Write-Output "The 'b3d' repo directory already exists."
   return
-}
-
-param (
-    [string] $B3D_BRANCH = "eightysteele/win-64-test",
-    [string] $ADC_FILE_LOCAL="$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json",
-    [string] $PipxHome = "$Env:USERPROFILE\.local"
-
-)
-
-function Update-Env {
-  param (
-      [string]$Name,
-      [string]$Value,
-      [string]$Message
-  )
-  Write-Output $Message
-  # For future sessions
-  Write-Env -name $Name -val $Value
-  # For the current session
-  $Env:$Name = $Value
 }
 
 function Add-Autocomplete {
@@ -205,19 +190,37 @@ function Add-Autocomplete {
   } else {
       Write-Output "Profile file found."
   }
-  Write-Output "Adding Pixi autocomplete to profile."
-  Add-Content -Path $PROFILE -Value '(& pixi completion --shell powershell) | Out-String | Invoke-Expression'
+  $content = Get-Content -Path $PROFILE -Raw
+  $ac = '(& pixi completion --shell powershell) | Out-String | Invoke-Expression'
+  if ($content -notlike "*$ac*") {
+    Add-Content -Path $PROFILE -Value $ac
+  }
 }
 
-$PATH = Get-Env 'PATH'
-$PipxBinDir = Join-Path $PipxHome 'bin'
+if ($PATH -notlike "*$BinDir*") {
+    Write-Output "Adding $BinDir to PATH"
+    Write-Env -name 'PATH' -val "$BinDir;$PATH"
+    $Env:PATH = "$BinDir;$PATH"
+} else {
+    Write-Output "$BinDir already in PATH"
+}
 
-Update-Env -Name 'PATH' -Value "$BinDir;$PATH" -Message "Adding $BinDir to PATH"
-Update-Env -Name 'PATH' -Value "$PipxBinDir;$PATH" -Message "Adding $PipxBinDir to PATH"
-Update-Env -Name 'USER' -Value "$env:USERNAME" -Message "Adding USER variable"
-Write-Output "You may need to restart your shell"
+Write-Output "PATH2: $PATH"
 
-Add_Autocomplete
+if ($PATH -notlike "*$PipxBinDir*") {
+    Write-Output "Adding $PipxBinDir to PATH"
+    Write-Env -name 'PATH' -val "$PipxBinDir;$PATH"
+    $Env:PATH = "$PipxBinDir;$PATH"
+} else {
+    Write-Output "$PipxBinDir already in PATH"
+}
+
+Write-Output "Adding USER to environment"
+Write-Env -name 'USER' -val "$Env:USERNAME"
+$Env:USER = "$Env:USERNAME"
+
+Write-Output "Adding Pixi autocomplete to profile..."
+Add-Autocomplete
 
 # reload profile
 . $PROFILE

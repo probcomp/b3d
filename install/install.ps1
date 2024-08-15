@@ -173,6 +173,17 @@ if (!$NoPathUpdate) {
 # ..............................................................................
 # b3d
 
+# refresh PATH for current session
+$Env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","User") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","Machine")
+
+# verify pixi is accessible
+if (Get-Command pixi -ErrorAction SilentlyContinue) {
+    Write-Output "Pixi is now accessible in the current session"
+} else {
+    Write-Output "Pixi is not accessible. Please restart your PowerShell session."
+    exit 1
+}
+
 $B3D_BRANCH = "eightysteele/win-64-test"
 $ADC_FILE_LOCAL = "$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json"
 $PipxHome = "$Env:USERPROFILE\.local"

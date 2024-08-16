@@ -152,6 +152,34 @@ if (-not (Test-Path $ADC_FILE_LOCAL)) {
     }
 }
 
+function Check-And-Handle-B3DDirectory {
+    $b3dPath = Join-Path $PWD "b3d"
+    if (Test-Path $b3dPath) {
+        Write-Host "A 'b3d' directory already exists in the current location."
+        $decision = Read-Host "Do you want to delete it? (y/n)"
+        if ($decision -eq 'y') {
+            try {
+                Remove-Item -Path $b3dPath -Recurse -Force
+                Write-Host "The 'b3d' directory has been deleted."
+            }
+            catch {
+                Write-Host "Error deleting the 'b3d' directory: $_"
+                Write-Host "Please delete the directory manually and run the script again."
+                exit
+            }
+        }
+        else {
+            Write-Host "The 'b3d' directory was not deleted. Exiting the script."
+            exit
+        }
+    }
+    else {
+        Write-Host "No existing 'b3d' directory found. Proceeding with the script."
+    }
+}
+
+Check-And-Handle-B3DDirectory
+
 # Clone and checkout b3d repository
 $B3D_BRANCH = "eightysteele/win-64-test"
 if (-not (Test-Path "b3d")) {
@@ -160,6 +188,54 @@ if (-not (Test-Path "b3d")) {
     Set-Location b3d
     & git checkout $B3D_BRANCH
     Set-Location ..
+}
+
+function Add-PathToProfile {
+    param(
+        [string[]]$Paths
+    )
+
+    $profileContent = @"
+# Ensure critical directories are in PATH
+`$criticalPaths = @(
+$($Paths | ForEach-Object { "    `"$_`"" } | Join-String -Separator ",`n")
+)
+
+foreach (`$path in `$criticalPaths) {
+    if (`$env:PATH -notlike "*`$path*") {
+        `$env:PATH += ";`$path"
+    }
+}
+"@
+
+    if (Test-Path $PROFILE) {
+        $currentContent = Get-Content $PROFILE -Raw
+        if ($currentContent -notmatch [regex]::Escape($profileContent)) {
+            Add-Content -Path $PROFILE -Value "`n$profileContent"
+            Write-Host "Profile updated with PATH checks."
+        } else {
+            Write-Host "PATH checks already present in profile."
+        }
+    } else {
+        Set-Content -Path $PROFILE -Value $profileContent
+        Write-Host "Profile created with PATH checks."
+    }
+}
+
+Write-Host "Setup complete. The following paths have been added to your system PATH:"
+$addedPaths | ForEach-Object { Write-Host " - $_" }
+
+Write-Host "`nTo ensure these paths are always available in your PowerShell sessions, you can add them to your profile."
+$addProfileUpdates = Read-Host "Would you like to update your PowerShell profile? (y/n)"
+
+if ($addProfileUpdates -eq 'y') {
+    Add-PathToProfile -Paths $addedPaths
+    Write-Host "To apply these changes to your current session, please run:"
+    Write-Host ". `$PROFILE"
+} else {
+    Write-Host "No changes made to your PowerShell profile."
+    Write-Host "If you want to add these paths to your profile later, you can run:"
+    Write-Host "Add-PathToProfile -Paths '$($addedPaths -join "','")'"
 }
 
 Write-Output "PATH updates have been checked and added to your PowerShell profile if necessary."

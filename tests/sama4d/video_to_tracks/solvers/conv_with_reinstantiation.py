@@ -53,6 +53,7 @@ from dataclasses import dataclass
 import genjax
 import jax
 import jax.numpy as jnp
+import rerun as rr
 from genjax import Pytree
 
 from tests.common.solver import Solver
@@ -142,15 +143,33 @@ class KeypointTrack(Pytree):
         cull_due_to_ratio = (
             self.last_min_error / self.second_to_last_min_error
         ) > params.culling_error_ratio_threshold
-        return cull_due_to_error | cull_due_to_ratio
+        do_cull = cull_due_to_error | cull_due_to_ratio
+        both_are_finite = jnp.isfinite(self.last_min_error) & jnp.isfinite(
+            self.second_to_last_min_error
+        )
+        return both_are_finite & do_cull
 
     def cull(self, params: PatchTrackerParams):
         return KeypointTrack(
             patch=self.patch,
             pos2D=self.pos2D,
-            active=self.active & self.do_cull(params),
+            active=self.active & (~self.do_cull(params)),
             last_min_error=self.last_min_error,
             second_to_last_min_error=self.second_to_last_min_error,
+        )
+
+    ## Visualization for debugging ##
+    def rr_visualize_point(self, name):
+        rr.log(
+            f"{name}/positions",
+            rr.Points2D(
+                self.pos2D,
+                colors=jax.vmap(
+                    lambda is_active: jnp.where(
+                        is_active, jnp.array([0.0, 1, 0]), jnp.array([1.0, 0, 0])
+                    )
+                )(self.active),
+            ),
         )
 
 
@@ -235,6 +254,10 @@ class KeypointTrackSet(Pytree):
 
         return KeypointTrackSet(new_batched_kpt)
 
+    ## Visualization for debugging ##
+    def rr_visualize_points(self, name):
+        self.batched_kpt.rr_visualize_point(name)
+
 
 ### Full tracker state ###
 
@@ -310,6 +333,12 @@ class TrackerState(Pytree):
             jax.vmap(lambda x: x.pos2D)(self.active_set.batched_kpt),
             jax.vmap(lambda x: x.active)(self.active_set.batched_kpt),
         )
+
+    ## Visualization for debugging ##
+    def rr_visualize(self):
+        self.active_set.rr_visualize_points(name="active_set")
+        for i, possible_set in enumerate(self.possible_sets):
+            possible_set.rr_visualize_points(name=f"possible_set/{i}")
 
 
 ### Solver for VideoToTracksTask ###

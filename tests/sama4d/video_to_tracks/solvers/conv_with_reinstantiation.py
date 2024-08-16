@@ -218,9 +218,11 @@ class KeypointTrackSet(Pytree):
         # 3. Replace the keypoints in the active set with the top N-M scoring keypoints
 
         scores = jax.vmap(
-            lambda keypoint: other.mindist_to_active_keypoint(keypoint.pos2D)
-        )(self.batched_kpt)
-        top_indices = jnp.argsort(scores, descending=True)
+            lambda keypoint: self.mindist_to_active_keypoint(keypoint.pos2D)
+        )(other.batched_kpt)
+        top_indices = jnp.argsort(
+            jnp.where(other.batched_kpt.active, scores, jnp.inf), descending=True
+        )
 
         # Replace the inactive keypoints with these top indices
         new_batched_kpt = jax.tree_map(

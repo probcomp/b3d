@@ -4,7 +4,6 @@ $PixiBinDir = Join-Path $PixiHome 'bin'
 $PipxHome = "$Env:USERPROFILE\.local"
 $PipxBinDir = Join-Path $PipxHome 'bin'
 
-# Function to update PATH
 $script:addedPaths = @()
 
 function Update-PathPermanently {
@@ -225,7 +224,15 @@ if (-not (Test-Path "b3d")) {
 }
 
 Write-Host "`nUpdating your PowerShell profile with PATH checks, USER environment variable, and Pixi completion..."
-Update-PowerShellProfile -Paths $script:addedPaths
+
+$allPaths = @(
+    "$env:USERPROFILE\.pixi\bin",
+    "$env:USERPROFILE\.local\bin"
+    # Add any other paths you want to ensure are always included
+)
+$allPaths += $script:addedPaths | Select-Object -Unique
+
+Update-PowerShellProfile -Paths $allPaths
 
 Write-Output "Profile updates have been applied."
 Write-Output "To ensure all changes take effect, please restart your PowerShell session or run:"

@@ -33,7 +33,9 @@ function Update-PowerShellProfile {
 
     $newContent = @"
 # Set USER environment variable
-`$Env:USER = "`$Env:USERNAME"
+`$env:USER = `$env:USERNAME
+# Also set it as a regular variable for easy access
+`$global:USER = `$env:USERNAME
 
 # Ensure critical directories are in PATH
 `$criticalPaths = @(
@@ -218,14 +220,6 @@ if (-not (Test-Path "b3d")) {
     Set-Location b3d
     & git checkout $B3D_BRANCH
     Set-Location ..
-}
-
-if ($script:addedPaths.Count -gt 0) {
-    Write-Host "Setup complete. The following paths have been added to your system PATH:"
-    $script:addedPaths | ForEach-Object { Write-Host " - $_" }
-}
-else {
-    Write-Host "Setup complete. No new paths were added to your system PATH."
 }
 
 Write-Host "`nUpdating your PowerShell profile with PATH checks, USER environment variable, and Pixi completion..."

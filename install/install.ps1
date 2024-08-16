@@ -141,11 +141,11 @@ if (-not (Test-Path $ADC_FILE_LOCAL)) {
         # Remote session or no browser available
         Write-Output "It seems you're in a remote session or no browser is available."
         Write-Output "Please use this command to authenticate:"
-        Write-Output "gcloud auth login --no-launch-browser --update-adc --force"
+        Write-Output "gcloud auth login --no-browser --update-adc --force"
 
         $proceed = Read-Host "Do you want to proceed with browser-less authentication now? (y/n)"
         if ($proceed -eq 'y') {
-            & gcloud auth login --no-launch-browser --update-adc --force
+            & gcloud auth login --no-browser --update-adc --force
         } else {
             Write-Output "Skipping Google Cloud authentication. Please run the command manually later."
         }

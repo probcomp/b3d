@@ -88,8 +88,8 @@ def replace_using_elements_from_other_vector(boolmask, x, new_values):
 
     def step(state, _):
         x, xidx, nidx = state
-        x = x.at[xidx].set(jnp.where(boolmask, x[xidx], new_values[nidx]))
-        new_nidx = jnp.where(boolmask, nidx, nidx + 1)
+        x = x.at[xidx].set(jnp.where(boolmask[xidx], x[xidx], new_values[nidx]))
+        new_nidx = jnp.where(boolmask[xidx], nidx, nidx + 1)
         new_xidx = xidx + 1
         return (x, new_xidx, new_nidx), None
 

@@ -90,6 +90,13 @@ class KeypointTrack(Pytree):
     last_min_error: jnp.ndarray
     second_to_last_min_error: jnp.ndarray
 
+    def __init__(self, patch, pos2D, active, last_min_error, second_to_last_min_error):
+        self.patch = patch
+        self.pos2D = jnp.array(pos2D, dtype=float)
+        self.active = active
+        self.last_min_error = last_min_error
+        self.second_to_last_min_error = second_to_last_min_error
+
     @classmethod
     def init_empty(cls, patch_size):
         return cls(
@@ -224,27 +231,6 @@ class KeypointTrackSet(Pytree):
             other.batched_kpt,
         )
 
-        # old_idx_to_new_idx = jnp.where(
-        #     self.batched_kpt.active,
-        #     jnp.arange(params.num_tracks),
-
-        # )
-
-        # old_idx_to_new_idx = (
-        #     jnp.zeros(params.num_tracks, dtype=int)
-        #     .at[~ self.batched_kpt.active].set(
-        #         jax.lax.dynamic_slice(top_indices, (0,), (num_to_add,))
-        #     )
-        # )
-        # new_batched_kpt = jax.tree_map(
-        #     lambda slf, othr: jnp.where(
-        #         self.batched_kpt.active,
-        #         slf,
-        #         othr[old_idx_to_new_idx]
-        #     ),
-        #     self.batched_kpt, other.batched_kpt
-        # )
-
         return KeypointTrackSet(new_batched_kpt)
 
 
@@ -317,6 +303,12 @@ class TrackerState(Pytree):
         with_updated_active_set = reinstantiated.update_active_set(params)
         return with_updated_active_set
 
+    def get_tracks_and_visibility(self):
+        return (
+            jax.vmap(lambda x: x.pos2D)(self.active_set.batched_kpt),
+            jax.vmap(lambda x: x.active)(self.active_set.batched_kpt),
+        )
+
 
 ### Solver for VideoToTracksTask ###
 class KeypointTracker2DWithReinitialization(Solver):
@@ -334,7 +326,7 @@ class KeypointTracker2DWithReinitialization(Solver):
             return (new_state, new_state.get_tracks_and_visibility())
 
         keys = jax.random.split(jax.random.PRNGKey(816527), video.shape[0])
-        keypoint_tracks, keypoint_visibility = jax.lax.scan(
+        _, (keypoint_tracks, keypoint_visibility) = jax.lax.scan(
             step, TrackerState.pre_init_state(self.params), (keys, video)
         )
 

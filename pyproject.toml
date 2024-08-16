@@ -82,7 +82,7 @@ cwd = "scripts"
 
 [tool.pixi.tasks.gcp-terminal]
 description = "connect to vm through terminal (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-connect-terminal"
+cmd = "gcp.sh :gcp-connect-terminal"
 cwd = "scripts"
 depends_on = ["rerun"]
 

@@ -1,4 +1,5 @@
-# Define paths
+# Installs b3d on Windows
+
 $PixiHome = "$Env:USERPROFILE\.pixi"
 $PixiBinDir = Join-Path $PixiHome 'bin'
 $PipxHome = "$Env:USERPROFILE\.local"
@@ -112,7 +113,7 @@ Write-Output "Installing keyring..."
 Write-Output "Installing Python, Git, and GitHub CLI..."
 & pixi global install python git gh
 
-# Function to check if a local browser is available
+# Check if a local browser is available
 function Test-BrowserAvailable {
     try {
         $key = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey("http\shell\open\command", $false)
@@ -124,7 +125,7 @@ function Test-BrowserAvailable {
     }
 }
 
-# Function to check if we're in a remote session
+# Check if we're in a remote session
 function Test-RemoteSession {
     return ((Get-Process -Name "mstsc" -ErrorAction SilentlyContinue) -or
             (Get-ChildItem -Path Env:\ | Where-Object { $_.Name -like "*SESSIONNAME*" -and $_.Value -like "*RDP*" }) -or
@@ -228,7 +229,6 @@ Write-Host "`nUpdating your PowerShell profile with PATH checks, USER environmen
 $allPaths = @(
     "$env:USERPROFILE\.pixi\bin",
     "$env:USERPROFILE\.local\bin"
-    # Add any other paths you want to ensure are always included
 )
 $allPaths += $script:addedPaths | Select-Object -Unique
 

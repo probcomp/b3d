@@ -828,7 +828,11 @@ gcp-ssh() {
   local adc_file
   local adc_dir
   case $os in
-  Darwin:Linux)
+  Darwin)
+    adc_file="$GCLOUD_ADC"
+    adc_dir="$GCLOUD_ADC_DEST"
+    ;;
+  Linux)
     adc_file="$GCLOUD_ADC"
     adc_dir="$GCLOUD_ADC_DEST"
     ;;

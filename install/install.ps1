@@ -31,6 +31,8 @@ function Update-PowerShellProfile {
         [string[]]$Paths
     )
 
+    $pathsString = ($Paths | ForEach-Object { "    `"$_`"" }) -join ",`n"
+
     $newContent = @"
 # Set USER environment variable
 `$env:USER = `$env:USERNAME
@@ -39,7 +41,7 @@ function Update-PowerShellProfile {
 
 # Ensure critical directories are in PATH
 `$criticalPaths = @(
-$($Paths | ForEach-Object { "    `"$_`"" } | Join-String -Separator ",`n")
+$pathsString
 )
 
 foreach (`$path in `$criticalPaths) {

@@ -26,17 +26,15 @@ function Update-PathPermanently {
     }
 }
 
-function Add-PathToProfile {
+function Update-PowerShellProfile {
     param(
         [string[]]$Paths
     )
 
-    if ($Paths.Count -eq 0) {
-        Write-Host "No paths to add to the profile."
-        return
-    }
+    $newContent = @"
+# Set USER environment variable
+`$Env:USER = "`$Env:USERNAME"
 
-    $profileContent = @"
 # Ensure critical directories are in PATH
 `$criticalPaths = @(
 $($Paths | ForEach-Object { "    `"$_`"" } | Join-String -Separator ",`n")
@@ -47,19 +45,22 @@ foreach (`$path in `$criticalPaths) {
         `$env:PATH += ";`$path"
     }
 }
+
+# Set up Pixi completion
+(& pixi completion --shell powershell) | Out-String | Invoke-Expression
 "@
 
     if (Test-Path $PROFILE) {
         $currentContent = Get-Content $PROFILE -Raw
-        if ($currentContent -notmatch [regex]::Escape($profileContent)) {
-            Add-Content -Path $PROFILE -Value "`n$profileContent"
-            Write-Host "Profile updated with PATH checks."
+        if ($currentContent -notmatch [regex]::Escape($newContent)) {
+            Set-Content -Path $PROFILE -Value $newContent
+            Write-Host "Profile updated with USER environment variable, PATH checks, and Pixi completion."
         } else {
-            Write-Host "PATH checks already present in profile."
+            Write-Host "Profile already contains all required content."
         }
     } else {
-        Set-Content -Path $PROFILE -Value $profileContent
-        Write-Host "Profile created with PATH checks."
+        Set-Content -Path $PROFILE -Value $newContent
+        Write-Host "Profile created with USER environment variable, PATH checks, and Pixi completion."
     }
 }
 
@@ -223,22 +224,14 @@ if ($script:addedPaths.Count -gt 0) {
     Write-Host "Setup complete. The following paths have been added to your system PATH:"
     $script:addedPaths | ForEach-Object { Write-Host " - $_" }
 
-    Write-Host "`nTo ensure these paths are always available in your PowerShell sessions, you can add them to your profile."
-    $addProfileUpdates = Read-Host "Would you like to update your PowerShell profile? (y/n)"
-
-    if ($addProfileUpdates -eq 'y') {
-        Add-PathToProfile -Paths $script:addedPaths
-        Write-Host "To apply these changes to your current session, please run:"
-        Write-Host ". `$PROFILE"
-    } else {
-        Write-Host "No changes made to your PowerShell profile."
-        Write-Host "If you want to add these paths to your profile later, you can run:"
-        Write-Host "Add-PathToProfile -Paths '$($script:addedPaths -join "','")'"
-    }
+    Write-Host "`nUpdating your PowerShell profile with PATH checks and USER environment variable..."
+    Update-PowerShellProfile -Paths $script:addedPaths
 } else {
     Write-Host "Setup complete. No new paths were added to your system PATH."
+    Write-Host "`nUpdating your PowerShell profile with USER environment variable..."
+    Update-PowerShellProfile -Paths @()
 }
 
-Write-Output "PATH updates have been checked and added to your PowerShell profile if necessary."
+Write-Output "Profile updates have been applied."
 Write-Output "To ensure all changes take effect, please restart your PowerShell session or run:"
 Write-Output ". `$PROFILE"

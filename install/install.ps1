@@ -5,6 +5,8 @@ $PipxHome = "$Env:USERPROFILE\.local"
 $PipxBinDir = Join-Path $PipxHome 'bin'
 
 # Function to update PATH
+$script:addedPaths = @()
+
 function Update-PathPermanently {
     param (
         [string]$NewPath
@@ -15,22 +17,49 @@ function Update-PathPermanently {
         [Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
         $Env:PATH = "$Env:PATH;$NewPath"
 
-        # Add to PowerShell profile if not already present
-        if (-not (Test-Path -Path $PROFILE)) {
-            New-Item -ItemType File -Path $PROFILE -Force
-        }
+        # Add to our tracking array
+        $script:addedPaths += $NewPath
 
-        $profileContent = Get-Content -Path $PROFILE -ErrorAction SilentlyContinue
-        $pathUpdateLine = "`$env:PATH += ';$NewPath'"
-
-        if ($profileContent -notcontains $pathUpdateLine) {
-            Add-Content -Path $PROFILE -Value $pathUpdateLine
-            Write-Output "Added PATH update to PowerShell profile for: $NewPath"
-        } else {
-            Write-Output "PATH update already exists in PowerShell profile for: $NewPath"
-        }
+        Write-Output "Added to PATH: $NewPath"
     } else {
         Write-Output "PATH already contains: $NewPath"
+    }
+}
+
+function Add-PathToProfile {
+    param(
+        [string[]]$Paths
+    )
+
+    if ($Paths.Count -eq 0) {
+        Write-Host "No paths to add to the profile."
+        return
+    }
+
+    $profileContent = @"
+# Ensure critical directories are in PATH
+`$criticalPaths = @(
+$($Paths | ForEach-Object { "    `"$_`"" } | Join-String -Separator ",`n")
+)
+
+foreach (`$path in `$criticalPaths) {
+    if (`$env:PATH -notlike "*`$path*") {
+        `$env:PATH += ";`$path"
+    }
+}
+"@
+
+    if (Test-Path $PROFILE) {
+        $currentContent = Get-Content $PROFILE -Raw
+        if ($currentContent -notmatch [regex]::Escape($profileContent)) {
+            Add-Content -Path $PROFILE -Value "`n$profileContent"
+            Write-Host "Profile updated with PATH checks."
+        } else {
+            Write-Host "PATH checks already present in profile."
+        }
+    } else {
+        Set-Content -Path $PROFILE -Value $profileContent
+        Write-Host "Profile created with PATH checks."
     }
 }
 
@@ -190,52 +219,24 @@ if (-not (Test-Path "b3d")) {
     Set-Location ..
 }
 
-function Add-PathToProfile {
-    param(
-        [string[]]$Paths
-    )
+if ($script:addedPaths.Count -gt 0) {
+    Write-Host "Setup complete. The following paths have been added to your system PATH:"
+    $script:addedPaths | ForEach-Object { Write-Host " - $_" }
 
-    $profileContent = @"
-# Ensure critical directories are in PATH
-`$criticalPaths = @(
-$($Paths | ForEach-Object { "    `"$_`"" } | Join-String -Separator ",`n")
-)
+    Write-Host "`nTo ensure these paths are always available in your PowerShell sessions, you can add them to your profile."
+    $addProfileUpdates = Read-Host "Would you like to update your PowerShell profile? (y/n)"
 
-foreach (`$path in `$criticalPaths) {
-    if (`$env:PATH -notlike "*`$path*") {
-        `$env:PATH += ";`$path"
-    }
-}
-"@
-
-    if (Test-Path $PROFILE) {
-        $currentContent = Get-Content $PROFILE -Raw
-        if ($currentContent -notmatch [regex]::Escape($profileContent)) {
-            Add-Content -Path $PROFILE -Value "`n$profileContent"
-            Write-Host "Profile updated with PATH checks."
-        } else {
-            Write-Host "PATH checks already present in profile."
-        }
+    if ($addProfileUpdates -eq 'y') {
+        Add-PathToProfile -Paths $script:addedPaths
+        Write-Host "To apply these changes to your current session, please run:"
+        Write-Host ". `$PROFILE"
     } else {
-        Set-Content -Path $PROFILE -Value $profileContent
-        Write-Host "Profile created with PATH checks."
+        Write-Host "No changes made to your PowerShell profile."
+        Write-Host "If you want to add these paths to your profile later, you can run:"
+        Write-Host "Add-PathToProfile -Paths '$($script:addedPaths -join "','")'"
     }
-}
-
-Write-Host "Setup complete. The following paths have been added to your system PATH:"
-$addedPaths | ForEach-Object { Write-Host " - $_" }
-
-Write-Host "`nTo ensure these paths are always available in your PowerShell sessions, you can add them to your profile."
-$addProfileUpdates = Read-Host "Would you like to update your PowerShell profile? (y/n)"
-
-if ($addProfileUpdates -eq 'y') {
-    Add-PathToProfile -Paths $addedPaths
-    Write-Host "To apply these changes to your current session, please run:"
-    Write-Host ". `$PROFILE"
 } else {
-    Write-Host "No changes made to your PowerShell profile."
-    Write-Host "If you want to add these paths to your profile later, you can run:"
-    Write-Host "Add-PathToProfile -Paths '$($addedPaths -join "','")'"
+    Write-Host "Setup complete. No new paths were added to your system PATH."
 }
 
 Write-Output "PATH updates have been checked and added to your PowerShell profile if necessary."

@@ -223,14 +223,13 @@ if (-not (Test-Path "b3d")) {
 if ($script:addedPaths.Count -gt 0) {
     Write-Host "Setup complete. The following paths have been added to your system PATH:"
     $script:addedPaths | ForEach-Object { Write-Host " - $_" }
-
-    Write-Host "`nUpdating your PowerShell profile with PATH checks and USER environment variable..."
-    Update-PowerShellProfile -Paths $script:addedPaths
-} else {
-    Write-Host "Setup complete. No new paths were added to your system PATH."
-    Write-Host "`nUpdating your PowerShell profile with USER environment variable..."
-    Update-PowerShellProfile -Paths @()
 }
+else {
+    Write-Host "Setup complete. No new paths were added to your system PATH."
+}
+
+Write-Host "`nUpdating your PowerShell profile with PATH checks, USER environment variable, and Pixi completion..."
+Update-PowerShellProfile -Paths $script:addedPaths
 
 Write-Output "Profile updates have been applied."
 Write-Output "To ensure all changes take effect, please restart your PowerShell session or run:"

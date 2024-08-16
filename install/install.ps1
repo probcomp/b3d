@@ -14,6 +14,23 @@ function Update-PathPermanently {
         $newUserPath = "$currentPath;$NewPath"
         [Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
         $Env:PATH = "$Env:PATH;$NewPath"
+
+        # Add to PowerShell profile if not already present
+        if (-not (Test-Path -Path $PROFILE)) {
+            New-Item -ItemType File -Path $PROFILE -Force
+        }
+
+        $profileContent = Get-Content -Path $PROFILE -ErrorAction SilentlyContinue
+        $pathUpdateLine = "`$env:PATH += ';$NewPath'"
+
+        if ($profileContent -notcontains $pathUpdateLine) {
+            Add-Content -Path $PROFILE -Value $pathUpdateLine
+            Write-Output "Added PATH update to PowerShell profile for: $NewPath"
+        } else {
+            Write-Output "PATH update already exists in PowerShell profile for: $NewPath"
+        }
+    } else {
+        Write-Output "PATH already contains: $NewPath"
     }
 }
 
@@ -145,5 +162,6 @@ if (-not (Test-Path "b3d")) {
     Set-Location ..
 }
 
-Write-Output "Setup complete! Please restart your PowerShell session for all changes to take effect."
-Write-Output "You can do this by running: powershell -NoExit -Command `"& {Import-Module `$profile}`""
+Write-Output "PATH updates have been checked and added to your PowerShell profile if necessary."
+Write-Output "To ensure all changes take effect, please restart your PowerShell session or run:"
+Write-Output ". `$PROFILE"

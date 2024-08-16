@@ -62,12 +62,6 @@ Write-Output "Installing keyring..."
 Write-Output "Installing Python, Git, and GitHub CLI..."
 & pixi global install python git gh
 
-# Set up GitHub CLI
-if (-not (& gh auth status 2>$null)) {
-    Write-Output "Authenticating with GitHub..."
-    & gh auth login --web
-}
-
 # Function to check if a local browser is available
 function Test-BrowserAvailable {
     try {
@@ -82,7 +76,37 @@ function Test-BrowserAvailable {
 
 # Function to check if we're in a remote session
 function Test-RemoteSession {
-    return (Get-Process -Name "mstsc" -ErrorAction SilentlyContinue) -or [System.Windows.Forms.SystemInformation]::TerminalServerSession
+    return ((Get-Process -Name "mstsc" -ErrorAction SilentlyContinue) -or
+            (Get-ChildItem -Path Env:\ | Where-Object { $_.Name -like "*SESSIONNAME*" -and $_.Value -like "*RDP*" }) -or
+            ($env:TERM_PROGRAM -eq "vscode") -or
+            [bool](Get-CimInstance -ClassName Win32_SystemAccount -Filter "Name = 'NETWORK SERVICE'" -ErrorAction SilentlyContinue))
+}
+
+# Set up GitHub CLI
+if (-not (& gh auth status 2>$null)) {
+    Write-Output "Authenticating with GitHub..."
+
+    $browserAvailable = Test-BrowserAvailable
+    $isRemoteSession = Test-RemoteSession
+
+    if ($browserAvailable -and -not $isRemoteSession) {
+        # Local session with browser available
+        & gh auth login --web
+    } else {
+        # Remote session or no browser available
+        Write-Output "It seems you're in a remote session or no browser is available."
+        Write-Output "You can authenticate using a device code or a token."
+        $authMethod = Read-Host "Choose authentication method: [D]evice code or [T]oken"
+
+        if ($authMethod -eq 'D' -or $authMethod -eq 'd') {
+            & gh auth login
+        } elseif ($authMethod -eq 'T' -or $authMethod -eq 't') {
+            & gh auth login --with-token
+            Write-Output "Please paste your GitHub personal access token when prompted."
+        } else {
+            Write-Output "Invalid choice. Skipping GitHub authentication. Please run 'gh auth login' manually later."
+        }
+    }
 }
 
 # Set up Google Cloud SDK
@@ -100,7 +124,7 @@ if (-not (Test-Path $ADC_FILE_LOCAL)) {
         # Remote session or no browser available
         Write-Output "It seems you're in a remote session or no browser is available."
         Write-Output "Please use this command to authenticate:"
-        Write-Output "gcloud auth login --no-launch-browser --update-adc"
+        Write-Output "gcloud auth login --no-launch-browser --update-adc --force"
 
         $proceed = Read-Host "Do you want to proceed with browser-less authentication now? (y/n)"
         if ($proceed -eq 'y') {

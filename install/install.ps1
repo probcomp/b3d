@@ -1,263 +1,83 @@
-# experimental win-64 installer for powershell
-# ............................................
-
-<#
-.SYNOPSIS
-    B3D install script.
-.DESCRIPTION
-    This script is used to install B3D on Windows from the command line.
-.PARAMETER PixiVersion
-    Specifies the version of Pixi to install.
-    The default value is 'latest'. You can also specify it by setting the
-    environment variable 'PIXI_VERSION'.
-.PARAMETER PixiHome
-    Specifies Pixi's home directory.
-    The default value is '$Env:USERPROFILE\.pixi'. You can also specify it by
-    setting the environment variable 'PIXI_HOME'.
-.PARAMETER NoPathUpdate
-    If specified, the script will not update the PATH environment variable.
-.LINK
-    https://github.com/probcomp/b3d
-.NOTES
-    Version: v0.0.0
-#>
-param (
-    [string] $PixiVersion = 'latest',
-    [string] $PixiHome = "$Env:USERPROFILE\.pixi",
-    [switch] $NoPathUpdate
-)
-
-Set-StrictMode -Version Latest
-
-function Publish-Env {
-    if (-not ("Win32.NativeMethods" -as [Type])) {
-        Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @"
-[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-public static extern IntPtr SendMessageTimeout(
-    IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
-    uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
-"@
-    }
-
-    $HWND_BROADCAST = [IntPtr] 0xffff
-    $WM_SETTINGCHANGE = 0x1a
-    $result = [UIntPtr]::Zero
-
-    [Win32.Nativemethods]::SendMessageTimeout($HWND_BROADCAST,
-        $WM_SETTINGCHANGE,
-        [UIntPtr]::Zero,
-        "Environment",
-        2,
-        5000,
-        [ref] $result
-    ) | Out-Null
-}
-
-function Write-Env {
-    param(
-        [String] $name,
-        [String] $val,
-        [Switch] $global
-    )
-
-    $RegisterKey = if ($global) {
-        Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
-    } else {
-        Get-Item -Path 'HKCU:'
-    }
-
-    $EnvRegisterKey = $RegisterKey.OpenSubKey('Environment', $true)
-    if ($null -eq $val) {
-        $EnvRegisterKey.DeleteValue($name)
-    } else {
-        $RegistryValueKind = if ($val.Contains('%')) {
-            [Microsoft.Win32.RegistryValueKind]::ExpandString
-        } elseif ($EnvRegisterKey.GetValue($name)) {
-            $EnvRegisterKey.GetValueKind($name)
-        } else {
-            [Microsoft.Win32.RegistryValueKind]::String
-        }
-        $EnvRegisterKey.SetValue($name, $val, $RegistryValueKind)
-    }
-    Publish-Env
-}
-
-function Get-Env {
-    param(
-        [String] $name,
-        [Switch] $global
-    )
-
-    $RegisterKey = if ($global) {
-        Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
-    } else {
-        Get-Item -Path 'HKCU:'
-    }
-
-    $EnvRegisterKey = $RegisterKey.OpenSubKey('Environment')
-    $RegistryValueOption = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
-    $EnvRegisterKey.GetValue($name, $null, $RegistryValueOption)
-}
-
-if ($Env:PIXI_VERSION) {
-    $PixiVersion = $Env:PIXI_VERSION
-}
-
-if ($Env:PIXI_HOME) {
-    $PixiHome = $Env:PIXI_HOME
-}
-
-if ($Env:PIXI_NO_PATH_UPDATE) {
-    $NoPathUpdate = $true
-}
-
-# Repository name
-$REPO = 'prefix-dev/pixi'
-$ARCH = 'x86_64'
-$PLATFORM = 'pc-windows-msvc'
-
-$BINARY = "pixi-$ARCH-$PLATFORM"
-
-if ($PixiVersion -eq 'latest') {
-    $DOWNLOAD_URL = "https://github.com/$REPO/releases/latest/download/$BINARY.zip"
-} else {
-    $DOWNLOAD_URL = "https://github.com/$REPO/releases/download/$PixiVersion/$BINARY.zip"
-}
-
-$BinDir = Join-Path $PixiHome 'bin'
-
-Write-Host "This script will automatically download and install Pixi ($PixiVersion) for you."
-Write-Host "Getting it from this url: $DOWNLOAD_URL"
-Write-Host "The binary will be installed into '$BinDir'"
-
-$TEMP_FILE = [System.IO.Path]::GetTempFileName()
-
-try {
-    Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TEMP_FILE
-
-    # Create the install dir if it doesn't exist
-    if (!(Test-Path -Path $BinDir)) {
-        New-Item -ItemType Directory -Path $BinDir | Out-Null
-    }
-
-    $ZIP_FILE = $TEMP_FILE + ".zip"
-    Rename-Item -Path $TEMP_FILE -NewName $ZIP_FILE
-
-    # Extract pixi from the downloaded zip file
-    Expand-Archive -Path $ZIP_FILE -DestinationPath $BinDir -Force
-} catch {
-    Write-Host "Error: '$DOWNLOAD_URL' is not available or failed to download"
-    exit 1
-} finally {
-    Remove-Item -Path $ZIP_FILE
-}
-
-# Add pixi to PATH if the folder is not already in the PATH variable
-if (!$NoPathUpdate) {
-    $PATH = Get-Env 'PATH'
-    if ($PATH -notlike "*$BinDir*") {
-        Write-Output "Adding $BinDir to PATH"
-        # For future sessions
-        Write-Env -name 'PATH' -val "$BinDir;$PATH"
-        # For current session
-        $Env:PATH = "$BinDir;$PATH"
-        Write-Output "You may need to restart your shell"
-    } else {
-        Write-Output "$BinDir is already in PATH"
-    }
-} else {
-    Write-Output "You may need to update your PATH manually to use pixi"
-}
-
-
-# ..............................................................................
-# b3d
-
-# refresh PATH for current session
-$Env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","User") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","Machine")
-
-# verify pixi is accessible
-if (Get-Command pixi -ErrorAction SilentlyContinue) {
-    Write-Output "Pixi is now accessible in the current session"
-} else {
-    Write-Output "Pixi is not accessible. Please restart your PowerShell session."
-    exit 1
-}
-
-$PATH = Get-Env 'PATH'
-$B3D_BRANCH = "eightysteele/win-64-test"
-$ADC_FILE_LOCAL = "$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json"
+# Define paths
+$PixiHome = "$Env:USERPROFILE\.pixi"
+$PixiBinDir = Join-Path $PixiHome 'bin'
 $PipxHome = "$Env:USERPROFILE\.local"
 $PipxBinDir = Join-Path $PipxHome 'bin'
 
-if (Test-Path -Path ".\b3d") {
-  Write-Output "The 'b3d' repo directory already exists."
-  return
+# Function to update PATH
+function Update-PathPermanently {
+    param (
+        [string]$NewPath
+    )
+    $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($currentPath -notlike "*$NewPath*") {
+        $newUserPath = "$currentPath;$NewPath"
+        [Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
+        $Env:PATH = "$Env:PATH;$NewPath"
+    }
 }
 
-function Add-Autocomplete {
-  if (-not (Test-Path -Path $PROFILE)) {
-      Write-Output "Profile file not found, creating a new one."
-      New-Item -Path $PROFILE -ItemType File -Force
-  } else {
-      Write-Output "Profile file found."
-  }
-  $content = Get-Content -Path $PROFILE -Raw
-  $ac = '(& pixi completion --shell powershell) | Out-String | Invoke-Expression'
-  if ($content -notlike "*$ac*") {
-    Add-Content -Path $PROFILE -Value $ac
-  }
+# Install Pixi
+if (-not (Test-Path $PixiBinDir)) {
+    Write-Output "Installing Pixi..."
+    Invoke-Expression (Invoke-WebRequest -useb https://pixi.sh/install.ps1)
 }
 
-if ($PATH -notlike "*$BinDir*") {
-    Write-Output "Adding $BinDir to PATH"
-    Write-Env -name 'PATH' -val "$BinDir;$PATH"
-    $Env:PATH = "$BinDir;$PATH"
-} else {
-    Write-Output "$BinDir already in PATH"
+# Update PATH for Pixi
+Update-PathPermanently $PixiBinDir
+
+# Add Pixi autocomplete to user profile
+$AutoCompleteCommand = '(& pixi completion --shell powershell) | Out-String | Invoke-Expression'
+if (-not (Select-String -Path $PROFILE -Pattern "pixi completion" -Quiet)) {
+    Add-Content -Path $PROFILE -Value $AutoCompleteCommand
+    # Load autocomplete in current session
+    Invoke-Expression $AutoCompleteCommand
 }
 
-if ($PATH -notlike "*$PipxBinDir*") {
-    Write-Output "Adding $PipxBinDir to PATH"
-    Write-Env -name 'PATH' -val "$PipxBinDir;$PATH"
-    $Env:PATH = "$PipxBinDir;$PATH"
-} else {
-    Write-Output "$PipxBinDir already in PATH"
+# Refresh PATH to include Pixi
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+# Install Pipx using Pixi
+Write-Output "Installing Pipx..."
+& pixi global install pipx
+
+# Update PATH for Pipx
+Update-PathPermanently $PipxBinDir
+
+# Refresh PATH to include Pipx
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+# Install keyring using Pipx
+Write-Output "Installing keyring..."
+& pipx install keyring --force
+& pipx inject keyring keyrings.google-artifactregistry-auth --index-url https://pypi.org/simple --force
+
+# Install other tools using Pixi
+Write-Output "Installing Python, Git, and GitHub CLI..."
+& pixi global install python git gh
+
+# Set up GitHub CLI
+if (-not (& gh auth status 2>$null)) {
+    Write-Output "Authenticating with GitHub..."
+    & gh auth login --web
 }
 
-Write-Output "Adding USER to environment"
-Write-Env -name 'USER' -val "$Env:USERNAME"
-$Env:USER = "$Env:USERNAME"
-
-Write-Output "Adding Pixi autocomplete to profile..."
-Add-Autocomplete
-
-# reload profile
-. $PROFILE
-
-# install pipx and keyring (for gcloud auth)
-pixi global install pipx
-pipx install keyring --force
-pipx inject keyring keyrings.google-artifactregistry-auth --index-url https://pypi.org/simple --force
-
-# install python, git, and gh
-pixi global install python git gh
-
-# authenticate gh if needed
-if (-not (gh auth status)) {
-    gh auth status
-    gh auth login --web
-}
-
-# authenticate gcloud
+# Set up Google Cloud SDK
+$ADC_FILE_LOCAL = "$Env:USERPROFILE\AppData\Roaming\gcloud\application_default_credentials.json"
 if (-not (Test-Path $ADC_FILE_LOCAL)) {
-    gcloud auth login --update-adc --force
+    Write-Output "Authenticating with Google Cloud..."
+    & gcloud auth login --update-adc --force
 }
 
-# clone b3d and checkout the branch
-gh repo clone probcomp/b3d
-cd b3d
-git checkout $B3D_BRANCH
-cd ..
+# Clone and checkout b3d repository
+$B3D_BRANCH = "eightysteele/win-64-test"
+if (-not (Test-Path "b3d")) {
+    Write-Output "Cloning b3d repository..."
+    & gh repo clone probcomp/b3d
+    Set-Location b3d
+    & git checkout $B3D_BRANCH
+    Set-Location ..
+}
 
-Write-Output "Done!"
+Write-Output "Setup complete! Please restart your PowerShell session for all changes to take effect."
+Write-Output "You can do this by running: powershell -NoExit -Command `"& {Import-Module `$profile}`""

@@ -12,7 +12,6 @@ import os
 import functools
 
 
-
 # @jax.jit
 def gaussian_depth_likelihood(observed_depth, rendered_depth, depth_variance):
     probabilities = jax.scipy.stats.norm.logpdf(
@@ -54,7 +53,6 @@ def gaussian_iid_pix_likelihood(observed_rgbd, likelihood_args):
         "rgb_pix_score": rgb_score,
         "depth_pix_score": depth_score,
     }
-
 
 
 # gaussian_iid_pix_likelihood_vec = jax.jit(

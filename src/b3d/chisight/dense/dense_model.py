@@ -38,15 +38,21 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     class PixelIndexDistribution(genjax.ExactDensity):
         def sample(self, key, log_pixel_weightings, num_rays):
             keys = jax.random.split(key, num_rays.const)
-            flat_indices = jax.vmap(genjax.categorical.sample,in_axes=(0, None,))(
-                    keys,
-                    log_pixel_weightings.flatten())
-            return flat_indices # jnp.unravel_index(flat_indices, log_pixel_weightings.shape) 
-        
+            flat_indices = jax.vmap(
+                genjax.categorical.sample,
+                in_axes=(
+                    0,
+                    None,
+                ),
+            )(keys, log_pixel_weightings.flatten())
+            return flat_indices  # jnp.unravel_index(flat_indices, log_pixel_weightings.shape)
+
         def logpdf(self, inds, log_pixel_weightings, num_rays):
-            #flat_indices = jnp.ravel_multi_index(inds, log_pixel_weightings.shape, mode='clip')
+            # flat_indices = jnp.ravel_multi_index(inds, log_pixel_weightings.shape, mode='clip')
             flat_indices = inds
-            pixel_logpdfs = genjax.categorical.logpdf(flat_indices, log_pixel_weightings.flatten())
+            pixel_logpdfs = genjax.categorical.logpdf(
+                flat_indices, log_pixel_weightings.flatten()
+            )
             return pixel_logpdfs.sum()
 
     pixel_index_distribution = PixelIndexDistribution()
@@ -96,7 +102,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             rasterize_results,
             scene_mesh.faces,
         )
-        
+
         likelihood_args["fx"] = renderer.fx
         likelihood_args["fy"] = renderer.fy
         likelihood_args["cx"] = renderer.cx
@@ -104,9 +110,14 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         # rows and cols needs to depend on image likelihood
 
         # uniform weighting from scene
-        weightings = latent_rgbd[...,3]/jnp.sum(latent_rgbd[...,3])
-        inds = pixel_index_distribution(weightings, args_dict["num_rays"]) @ "pixel_choices"
-        likelihood_args["rows"], likelihood_args["cols"] = jnp.unravel_index(inds, weightings.shape)
+        weightings = latent_rgbd[..., 3] / jnp.sum(latent_rgbd[..., 3])
+        inds = (
+            pixel_index_distribution(weightings, args_dict["num_rays"])
+            @ "pixel_choices"
+        )
+        likelihood_args["rows"], likelihood_args["cols"] = jnp.unravel_index(
+            inds, weightings.shape
+        )
 
         likelihood_args["scene_mesh"] = scene_mesh
 

@@ -1,4 +1,10 @@
 """
+A patch tracking module based on 2D image patches.
+This can be run across a video to produce a set of keypoint tracks
+that come into and out of existance over time, covering the full video.
+
+***Technical details***
+
 The way this solver works is as follows.
 
 We set a time interval I (e.g. I = 3) which is the number of frames
@@ -68,6 +74,27 @@ from .utils import (
 
 @dataclass
 class PatchTrackerParams:
+    """
+    Parameters for the patch tracker.
+
+    patch_size: int (the patch will be `patch_size` x `patch_size`; Davison recommends 11x11)
+    num_tracks: int (the number of tracks to try to maintain)
+    frames_before_adding_to_active_set: int (the number of frames to ensure a patch appears trackable
+        before it gets added to the set of active keypoint patches)
+    reinitialize_patches: bool (whether to reinitialize patches at each frame
+        [helpful for robustness to rotation, etc., but can lead to patch drift])
+    culling_error_threshold: float (if the L1 error between the patch and the best fit
+        is above this threshold, the patch is culled.  I have used the value 60.)
+    culling_error_ratio_threshold: float (Another hyperparameter for culling.
+        After finding the best fit patch position at a frame, we find the next best fit
+        between `mindist_for_second_error` and `maxdist_for_second_error`
+        pixels away from the best fit.  If the error at the best fit, divided by the error
+        at the next best fit, is above this threshold, the patch is culled [since
+        presumably this feature is not really a distinguishable one].  I've used 0.8.)
+    mindist_for_second_error: float (see `culling_error_ratio_threshold`)
+    maxdist_for_second_error: float (see `culling_error_ratio_threshold`)
+    """
+
     patch_size: int
     num_tracks: int
     frames_before_adding_to_active_set: int
@@ -97,6 +124,11 @@ class PatchTrackerParams:
 
 @Pytree.dataclass
 class KeypointTrack(Pytree):
+    """
+    Internally used class; represents a single keypoint track
+    (or, as a batched Jax object, a collection of keypoint tracks).
+    """
+
     patch: jnp.ndarray
     pos2D: jnp.ndarray
     active: jnp.ndarray
@@ -203,6 +235,10 @@ class KeypointTrack(Pytree):
 
 @Pytree.dataclass
 class KeypointTrackSet(Pytree):
+    """
+    Internally used class; represents a set of keypoint tracks.
+    """
+
     batched_kpt: KeypointTrack
 
     @classmethod
@@ -299,6 +335,10 @@ class KeypointTrackSet(Pytree):
 
 @Pytree.dataclass
 class TrackerState(Pytree):
+    """
+    Internally used class; represents the full state of the patch tracker.
+    """
+
     active_set: KeypointTrackSet
     possible_sets: list[KeypointTrackSet]
 
@@ -414,18 +454,67 @@ def _jitted_scan(params, state0, key, frames):
 
 @Pytree.dataclass
 class PatchTracker2D(Pytree):
+    """
+    A keypoint tracking module based on convolving 2D image patches against each frame
+    of a video.
+    """
+
     params: PatchTrackerParams
 
     def __init__(self, **kwargs):
         self.params = PatchTrackerParams(**kwargs)
 
     def initialize(self):
+        """
+        Get an initial patch tracker state.  This is the state
+        before any frames have been processed.
+        """
         return TrackerState.pre_init_state(self.params)
 
-    def update(self, key, frame, state):
+    def update(self, key: jax.random.PRNGKey, frame: jnp.ndarray, state: TrackerState):
+        """
+        Given a PRNGKey, the current tracker state, and the first unprocessed frame
+        of video `frame` (as an array of shape (H, W, 3)), update the tracker state
+        and output the keypoint positions and visibility at this frame.
+
+        Returns `new_tracker_state`, output_for_this_frame` where `output_for_this_state`
+        is a three-tuple containing
+        - `keypoint_tracks` (A 3D array of shape (N, 2) N is the number of keypoints,
+            containing the 2D positions of the keypoints.)
+        - `keypoint_visibility` (A 2D array of shape (N,) where N is the number of keypoints,
+            containing whether each keypoint is visible.)
+        - `is_new` (A 2D array of shape (N,) where N is the number of keypoints.
+            `is_new[t, n]` is True if the keypoint  being tracked at position `n` is replaced
+            with a totally separate keypoint track at this frame.)
+
+        *Important note*: the keypoint positions and visibility values at index `n` _do not necessarily
+        refer to the same keypoint track_ across frames.
+        This is to allow keypoint tracks to be culled and replaced by a fresh keypoint
+        without needing to continually expand the memory footprint.
+        The way you can tell when a keypoint is replaced by a new keypoint is by checking
+        the `is_new` array.  A single keypoint track will consist of all the keypoint positions
+        and visibility values at position `n` during a contiguous temporal sequence in which
+        `is_new[t, n] == False`.  Then, when a `t` is hit where `is_new[t, n] == True`,
+        a new keypoint track begins, stored in the same position `n` in the output arrays.
+
+        `expand_keypoint_tracks` can be used to convert from keypoint tracks in this format
+        to a format where each index `n` refers to a unique keypoint track.
+        """
         return _update(self.params, key, frame, state)
 
     def run_and_get_tracks_separated_by_dimension(self, key, video):
+        """
+        Run the patch tracker across the video.
+
+        Args:
+        - key (jax.random.PRNGKey): The random key to use for the tracker.
+        - video (T, H, W, 3): The video to run the tracker on.
+
+        Returns:
+        - keypoint_tracks (T, N, 2): The 2D positions of the keypoints.
+        - keypoint_visibility (T, N): Whether the keypoints are visible.
+        Each index in dimension 1 in these arrays will refer to a unique keypoint track.
+        """
         keypoint_tracks, keypoint_visibility, is_new = _jitted_scan(
             self.params, self.initialize(), key, video
         )
@@ -433,6 +522,18 @@ class PatchTracker2D(Pytree):
 
 
 def expand_keypoint_tracks(keypoint_tracks_2d, visibility, is_new):
+    """
+    Args:
+    - keypoint_tracks_2d (T, N, 2): The 2D positions of the keypoints.
+    - visibility (T, N): Whether the keypoints are visible.
+    - is_new (T, N): Whether the keypoints are new.
+
+    Returns:
+    - keypoint_tracks_2d (T, M, 2): The 2D positions of the keypoints, so that each index
+        in dimension 1 refers to a unique keypoint track.
+    - visibility (T, M): Whether the keypoints are visible.
+    """
+
     T, N, _ = keypoint_tracks_2d.shape
 
     new_tracks = []

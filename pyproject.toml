@@ -9,12 +9,12 @@
 
 [project]
 name = "b3d"
-dynamic = ["version"]
 description = "A 3D computer vision library"
 license = { text = "Apache 2.0" }
 authors = [{ name = "Nishad Gothoskar", email = "nishadg@mit.edu" }]
 requires-python = ">= 3.10"
 dependencies = []
+version = "0.1.0"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
@@ -22,8 +22,8 @@ platforms = ["linux-64", "osx-arm64", "win-64"]
 conda-pypi-map = { "conda-forge" = "torch.json" }
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [tool.pixi.environments]
 cpu = { features = ["no-cuda", "core"], solve-group = "default" }
@@ -64,6 +64,10 @@ depends_on = ["rerun"]
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
 cmd = "python scripts/rerun-task.py"
+
+[tool.pixi.tasks.echo]
+cmd = "echo $HELLO"
+env = { HELLO = "world" }
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"

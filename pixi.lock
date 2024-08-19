@@ -3677,9 +3677,9 @@ packages:
   timestamp: 1721925100762
 - kind: pypi
   name: b3d
-  version: 0.0.0
+  version: 0.1.0
   path: .
-  sha256: 7f7dc4f1abb9c357f37d3d1a0706d8e6a1d7cb60af4e869f9b42adc526b405eb
+  sha256: b5c2478ce976352baa4b992d53693535a6c627cc70559d4612921aedfa6405c6
   requires_python: '>=3.10'
   editable: true
 - kind: conda

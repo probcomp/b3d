@@ -85,14 +85,18 @@ class KeypointTrack(Pytree):
     patch: jnp.ndarray
     pos2D: jnp.ndarray
     active: jnp.ndarray
+    is_new: jnp.ndarray  # True if the keypoint was added in the last frame
 
     last_min_error: jnp.ndarray
     second_to_last_min_error: jnp.ndarray
 
-    def __init__(self, patch, pos2D, active, last_min_error, second_to_last_min_error):
+    def __init__(
+        self, patch, pos2D, active, is_new, last_min_error, second_to_last_min_error
+    ):
         self.patch = patch
         self.pos2D = jnp.array(pos2D, dtype=float)
         self.active = active
+        self.is_new = is_new
         self.last_min_error = last_min_error
         self.second_to_last_min_error = second_to_last_min_error
 
@@ -102,6 +106,7 @@ class KeypointTrack(Pytree):
             patch=jnp.zeros((patch_size, patch_size, 3)),
             pos2D=jnp.zeros(2),
             active=jnp.array(False),
+            is_new=jnp.array(False),
             last_min_error=jnp.inf,
             second_to_last_min_error=jnp.inf,
         )
@@ -112,7 +117,8 @@ class KeypointTrack(Pytree):
         return KeypointTrack(
             patch,
             pos2D,
-            active=True,
+            active=jnp.array(True),
+            is_new=jnp.array(True),
             last_min_error=jnp.inf,
             second_to_last_min_error=jnp.inf,
         )
@@ -133,7 +139,12 @@ class KeypointTrack(Pytree):
             patch = self.patch
 
         return KeypointTrack(
-            patch, jnp.array([x, y]), self.active, min_error, second_min_error
+            patch,
+            jnp.array([x, y]),
+            self.active,
+            jnp.array(False),
+            min_error,
+            second_min_error,
         )
 
     def do_cull(self, params: PatchTrackerParams):
@@ -152,6 +163,7 @@ class KeypointTrack(Pytree):
             patch=self.patch,
             pos2D=self.pos2D,
             active=self.active & (~self.do_cull(params)),
+            is_new=self.is_new,
             last_min_error=self.last_min_error,
             second_to_last_min_error=self.second_to_last_min_error,
         )
@@ -250,6 +262,16 @@ class KeypointTrackSet(Pytree):
             other.batched_kpt,
         )
 
+        # Mark the new keypoints as new
+        new_batched_kpt = KeypointTrack(
+            patch=new_batched_kpt.patch,
+            pos2D=new_batched_kpt.pos2D,
+            active=new_batched_kpt.active,
+            is_new=(~self.batched_kpt.active & new_batched_kpt.active),
+            last_min_error=new_batched_kpt.last_min_error,
+            second_to_last_min_error=new_batched_kpt.second_to_last_min_error,
+        )
+
         return KeypointTrackSet(new_batched_kpt)
 
     ## Visualization for debugging ##
@@ -332,8 +354,77 @@ class TrackerState(Pytree):
             jax.vmap(lambda x: x.active)(self.active_set.batched_kpt),
         )
 
+    def get_tracks_visibility_and_is_new(self):
+        return (
+            jax.vmap(lambda x: x.pos2D)(self.active_set.batched_kpt),
+            jax.vmap(lambda x: x.active)(self.active_set.batched_kpt),
+            jax.vmap(lambda x: x.is_new)(self.active_set.batched_kpt),
+        )
+
     ## Visualization for debugging ##
     def rr_visualize(self):
         self.active_set.rr_visualize_points(name="active_set")
         for i, possible_set in enumerate(self.possible_sets):
             possible_set.rr_visualize_points(name=f"possible_set/{i}")
+
+
+### Tracker object ###
+
+
+@Pytree.dataclass
+class PatchTracker2D(Pytree):
+    params: PatchTrackerParams
+
+    def __init__(self, **kwargs):
+        self.params = PatchTrackerParams(**kwargs)
+
+    def initialize(self):
+        return TrackerState.pre_init_state(self.params)
+
+    def update(self, key, frame, state):
+        new_state = state.update(key, frame, self.params)
+        keypoint_tracks, keypoint_visibility, is_new = (
+            new_state.get_tracks_visibility_and_is_new()
+        )
+
+        return new_state, (keypoint_tracks, keypoint_visibility, is_new)
+
+    def run_and_get_tracks_separated_by_dimension(self, key, video):
+        state = self.initialize()
+
+        def step(state, key_and_frame):
+            (key, frame) = key_and_frame
+            new_state, (keypoint_tracks, keypoint_visibility, is_new) = self.update(
+                key, frame, state
+            )
+            return (new_state, (keypoint_tracks, keypoint_visibility, is_new))
+
+        keys = jax.random.split(key, video.shape[0])
+        _, (keypoint_tracks, keypoint_visibility, is_new) = jax.lax.scan(
+            step, state, (keys, video)
+        )
+
+        return expand_keypoint_tracks(keypoint_tracks, keypoint_visibility, is_new)
+
+
+def expand_keypoint_tracks(keypoint_tracks_2d, visibility, is_new):
+    T, N, _ = keypoint_tracks_2d.shape
+
+    new_tracks = []
+    new_visibility = []
+
+    for n in range(N):
+        changepoints = jnp.concatenate(
+            [jnp.array([0]), jnp.where(is_new[:, n])[0], jnp.array([T])]
+        )
+        idx_pairs = jnp.stack([changepoints[:-1], changepoints[1:]], axis=1)
+        for low, high in idx_pairs:
+            # get the track with zeros everywhere but between the changepoints
+            track = jnp.zeros((T, 2)).at[low:high].set(keypoint_tracks_2d[low:high, n])
+            new_tracks.append(track)
+
+            # get the visibility with zeros everywhere but between the changepoints
+            vis = jnp.zeros(T, dtype=bool).at[low:high].set(visibility[low:high, n])
+            new_visibility.append(vis)
+
+    return jnp.stack(new_tracks, axis=1), jnp.stack(new_visibility, axis=1)

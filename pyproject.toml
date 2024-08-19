@@ -69,6 +69,10 @@ cmd = "python scripts/rerun-task.py"
 cmd = "echo $HELLO"
 env = { HELLO = "world" }
 
+[tool.pixi.target.win-64.tasks.echo]
+cmd = "Write-Host $env:HELLO_WIN"
+env = { HELLO_WIN = "world" }
+
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"
 cmd = "./gcp.sh :gcp-help"

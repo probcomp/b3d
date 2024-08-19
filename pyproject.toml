@@ -67,11 +67,11 @@ cmd = "python scripts/rerun-task.py"
 
 [tool.pixi.tasks.echo]
 cmd = "echo $HELLO"
-env = { HELLO = "world" }
+env = { HELLO = "world?" }
 
-[tool.pixi.target.win-64.tasks.echo]
+[tool.pixi.target.win-64.tasks.echo-win]
 cmd = "echo $HELLO_WIN"
-env = { HELLO_WIN = "world" }
+env = { HELLO_WIN = "world?" }
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"

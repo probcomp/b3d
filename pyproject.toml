@@ -70,7 +70,7 @@ cmd = "echo $HELLO"
 env = { HELLO = "world" }
 
 [tool.pixi.target.win-64.tasks.echo]
-cmd = "echo $env:HELLO_WIN"
+cmd = "echo $HELLO_WIN"
 env = { HELLO_WIN = "world" }
 
 [tool.pixi.tasks.gcp-help]

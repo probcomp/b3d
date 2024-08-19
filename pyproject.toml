@@ -85,6 +85,7 @@ description = "connect to vm through terminal (requires GCP_VM and GCP_PROJECT)"
 cmd = "bash gcp.sh :gcp-connect-terminal"
 cwd = "scripts"
 depends_on = ["rerun"]
+env = { GCP_VM = "", GCP_PROJECT = "" }
 
 [tool.pixi.tasks.gcp-start]
 description = "start a vm (requires GCP_VM and GCP_PROJECT)"

@@ -3679,7 +3679,7 @@ packages:
   name: b3d
   version: 0.1.0
   path: .
-  sha256: d9317b476a9b3cfda14cb218929eab7ca379c1e65795abda5536963d4f82e340
+  sha256: 8ce7c38c24705c53b380f3357851c7f4dd5449ef10a220a117665044db2cc24e
   requires_python: '>=3.10'
   editable: true
 - kind: conda

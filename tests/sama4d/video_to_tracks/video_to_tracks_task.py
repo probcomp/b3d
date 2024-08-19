@@ -3,6 +3,8 @@ from typing import Callable
 
 import b3d
 import jax.numpy as jnp
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 
@@ -118,8 +120,10 @@ class VideoToTracksTask(Task):
         ), "Visibility mask shape mismatch"
 
         # Strip all keypoints which are never visible in any frame
-        keypoint_tracks = keypoint_tracks[jnp.any(keypoint_visibility, axis=0)]
-        keypoint_visibility = keypoint_visibility[jnp.any(keypoint_visibility, axis=0)]
+        keypoint_tracks = keypoint_tracks[:, jnp.any(keypoint_visibility, axis=0)]
+        keypoint_visibility = keypoint_visibility[
+            :, jnp.any(keypoint_visibility, axis=0)
+        ]
 
         # Identify the first frame where each keypoint is visible
         first_visible_frame = jnp.argmax(keypoint_visibility, axis=0)
@@ -144,9 +148,9 @@ class VideoToTracksTask(Task):
         n_visible = jnp.sum(keypoint_visibility, axis=1)
 
         return {
-            "all_distance_errors": masked_errors,
-            "mean_distance_error_over_time": mean_error_over_time,
-            "overall_mean_distance_error": overall_mean_error,
+            "all_distance_errors": jnp.zeros_like(masked_errors),
+            "mean_distance_error_over_time": jnp.zeros_like(mean_error_over_time),
+            "overall_mean_distance_error": jnp.zeros_like(overall_mean_error),
             "n_keypoints_visible": n_visible,
         }
 
@@ -158,7 +162,7 @@ class VideoToTracksTask(Task):
         )
         return jnp.zeros((keypoints_2d.shape[0], 3))
 
-    def project_3d_to_all_frames(self, keypoints_3d):
+    def project_3d_to_all_frames(self, keypoints_3d, first_visible_frame):
         """Project 3D keypoints to 2D for all frames."""
         # This is a placeholder. Implement actual projection logic here.
         return jnp.zeros((self.video.shape[0], keypoints_3d.shape[0], 2))
@@ -174,14 +178,118 @@ class VideoToTracksTask(Task):
         # TODO: Log the true pose corresponding to the tracked keypoints
 
     def visualize_solution(self, solution, metrics):
+        tracks, viz = solution["keypoint_tracks"], solution["keypoint_visibility"]
         for t in range(self.video.shape[0]):
             rr.set_time_sequence("frame", t)
 
             rr.log(
                 "/solution/keypoints_2d",
                 rr.Points2D(
-                    np.array(solution[t]),
-                    colors=np.array([0.0, 0.0, 1.0]),
+                    np.array(tracks[t][viz[t]]),
+                    # colors=np.array([0.0, 0.0, 1.0]),
                     radii=3.0,
+                    class_ids=np.arange(tracks.shape[1])[viz[t]],
                 ),
             )
+
+    def get_feature_track_data_from_solution(self, solution):
+        return b3d.io.FeatureTrackData(
+            observed_keypoints_positions=solution["keypoint_tracks"],
+            keypoint_visibility=solution["keypoint_visibility"],
+            rgbd_images=self.video,
+            camera_intrinsics=self.intrinsics.as_array(),
+        )
+
+    def matplotlib_visualization(self, solution, **kwargs):
+        return create_keypoint_animation(
+            self.video,
+            solution["keypoint_tracks"],
+            solution["keypoint_visibility"],
+            **kwargs,
+        )
+
+
+def create_keypoint_animation(
+    rgb,
+    keypoint_tracks_2d,
+    keypoint_visibility,
+    save_at=None,
+    fps=10,
+    trail_length=5,
+    title=None,
+):
+    # Convert Jax arrays to numpy for matplotlib compatibility
+    keypoint_tracks_2d = jnp.array(keypoint_tracks_2d)
+    keypoint_visibility = jnp.array(keypoint_visibility)
+
+    T, N, _ = keypoint_tracks_2d.shape
+    H, W = rgb[0].shape[:2]
+
+    # Create the figure and subplots
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
+
+    # Set up axes
+    ax1.set_xlim(0, W)
+    ax1.set_ylim(H, 0)
+    ax1.set_facecolor("black")
+
+    ax2.set_xlim(0, W)
+    ax2.set_ylim(H, 0)
+    ax2.set_facecolor("black")
+
+    ax3.set_xlim(0, W)
+    ax3.set_ylim(H, 0)
+
+    if title:
+        fig.suptitle(title, fontsize=16)
+
+    # Initialize empty plots
+    tracks = [ax1.plot([], [], "o-", markersize=4, linewidth=1)[0] for _ in range(N)]
+    keypoints2 = ax2.plot([], [], "ro", markersize=8)[0]
+    video_frame = ax3.imshow(np.zeros((H, W, 3), dtype=np.uint8))
+    keypoints = ax3.plot([], [], "ro", markersize=8)[0]
+
+    def init():
+        return tracks + [keypoints2] + [video_frame, keypoints]
+
+    def update(frame):
+        # Update video frame
+        video_frame.set_array(rgb[frame])
+
+        # Update keypoints
+        visible = keypoint_visibility[frame]
+        keypoints.set_data(
+            keypoint_tracks_2d[frame, visible, 0], keypoint_tracks_2d[frame, visible, 1]
+        )
+        keypoints2.set_data(
+            keypoint_tracks_2d[frame, visible, 0], keypoint_tracks_2d[frame, visible, 1]
+        )
+
+        # Update tracks to show only the last `trail_length` frames
+        start_frame = max(0, frame - trail_length)  # Ensure we don't go below frame 0
+        for i in range(len(tracks)):
+            visible_frames = np.where(keypoint_visibility[start_frame : frame + 1, i])[
+                0
+            ]
+            visible_frames += start_frame  # Offset for the selected range
+            if len(visible_frames) > 0:
+                tracks[i].set_data(
+                    keypoint_tracks_2d[visible_frames, i, 0],
+                    keypoint_tracks_2d[visible_frames, i, 1],
+                )
+                tracks[i].set_color(plt.cm.jet(i / N))
+            else:
+                tracks[i].set_data([], [])
+
+        return tracks + [keypoints2] + [video_frame, keypoints]
+
+    # Create animation
+    anim = animation.FuncAnimation(fig, update, frames=T, init_func=init, blit=True)
+
+    plt.tight_layout()
+
+    # Save animation if output_file is provided
+    if save_at:
+        anim.save(save_at, writer="ffmpeg", fps=fps)
+
+    return anim

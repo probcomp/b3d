@@ -210,7 +210,13 @@ class VideoToTracksTask(Task):
 
 
 def create_keypoint_animation(
-    rgb, keypoint_tracks_2d, keypoint_visibility, save_at=None, fps=10
+    rgb,
+    keypoint_tracks_2d,
+    keypoint_visibility,
+    save_at=None,
+    fps=10,
+    trail_length=5,
+    title=None,
 ):
     # Convert Jax arrays to numpy for matplotlib compatibility
     keypoint_tracks_2d = jnp.array(keypoint_tracks_2d)
@@ -234,6 +240,9 @@ def create_keypoint_animation(
     ax3.set_xlim(0, W)
     ax3.set_ylim(H, 0)
 
+    if title:
+        fig.suptitle(title, fontsize=16)
+
     # Initialize empty plots
     tracks = [ax1.plot([], [], "o-", markersize=4, linewidth=1)[0] for _ in range(N)]
     keypoints2 = ax2.plot([], [], "ro", markersize=8)[0]
@@ -256,9 +265,13 @@ def create_keypoint_animation(
             keypoint_tracks_2d[frame, visible, 0], keypoint_tracks_2d[frame, visible, 1]
         )
 
-        # Update tracks
+        # Update tracks to show only the last `trail_length` frames
+        start_frame = max(0, frame - trail_length)  # Ensure we don't go below frame 0
         for i in range(len(tracks)):
-            visible_frames = np.where(keypoint_visibility[: frame + 1, i])[0]
+            visible_frames = np.where(keypoint_visibility[start_frame : frame + 1, i])[
+                0
+            ]
+            visible_frames += start_frame  # Offset for the selected range
             if len(visible_frames) > 0:
                 tracks[i].set_data(
                     keypoint_tracks_2d[visible_frames, i, 0],
@@ -273,9 +286,10 @@ def create_keypoint_animation(
     # Create animation
     anim = animation.FuncAnimation(fig, update, frames=T, init_func=init, blit=True)
 
+    plt.tight_layout()
+
     # Save animation if output_file is provided
     if save_at:
         anim.save(save_at, writer="ffmpeg", fps=fps)
 
-    plt.tight_layout()
     return anim

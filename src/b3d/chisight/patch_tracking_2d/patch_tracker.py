@@ -49,6 +49,7 @@ Possible improvements for a future iteration:
 """
 
 from dataclasses import dataclass
+from functools import partial
 
 import genjax
 import jax
@@ -75,6 +76,20 @@ class PatchTrackerParams:
     culling_error_ratio_threshold: jnp.ndarray
     mindist_for_second_error: jnp.ndarray
     maxdist_for_second_error: jnp.ndarray
+
+    def __hash__(self):
+        return hash(
+            (
+                self.patch_size,
+                self.num_tracks,
+                self.frames_before_adding_to_active_set,
+                self.reinitialize_patches,
+                self.culling_error_threshold,
+                self.culling_error_ratio_threshold,
+                self.mindist_for_second_error,
+                self.maxdist_for_second_error,
+            )
+        )
 
 
 ### Single Track ###
@@ -371,6 +386,32 @@ class TrackerState(Pytree):
 ### Tracker object ###
 
 
+@partial(jax.jit, static_argnums=0)
+def _update(params, key, frame, state):
+    new_state = state.update(key, frame, params)
+    keypoint_tracks, keypoint_visibility, is_new = (
+        new_state.get_tracks_visibility_and_is_new()
+    )
+
+    return new_state, (keypoint_tracks, keypoint_visibility, is_new)
+
+
+@partial(jax.jit, static_argnums=0)
+def _jitted_scan(params, state0, key, frames):
+    def step(state, key_and_frame):
+        (key, frame) = key_and_frame
+        new_state, (keypoint_tracks, keypoint_visibility, is_new) = _update(
+            params, key, frame, state
+        )
+        return (new_state, (keypoint_tracks, keypoint_visibility, is_new))
+
+    keys = jax.random.split(key, frames.shape[0])
+    _, (keypoint_tracks, keypoint_visibility, is_new) = jax.lax.scan(
+        step, state0, (keys, frames)
+    )
+    return keypoint_tracks, keypoint_visibility, is_new
+
+
 @Pytree.dataclass
 class PatchTracker2D(Pytree):
     params: PatchTrackerParams
@@ -382,28 +423,12 @@ class PatchTracker2D(Pytree):
         return TrackerState.pre_init_state(self.params)
 
     def update(self, key, frame, state):
-        new_state = state.update(key, frame, self.params)
-        keypoint_tracks, keypoint_visibility, is_new = (
-            new_state.get_tracks_visibility_and_is_new()
-        )
-
-        return new_state, (keypoint_tracks, keypoint_visibility, is_new)
+        return _update(self.params, key, frame, state)
 
     def run_and_get_tracks_separated_by_dimension(self, key, video):
-        state = self.initialize()
-
-        def step(state, key_and_frame):
-            (key, frame) = key_and_frame
-            new_state, (keypoint_tracks, keypoint_visibility, is_new) = self.update(
-                key, frame, state
-            )
-            return (new_state, (keypoint_tracks, keypoint_visibility, is_new))
-
-        keys = jax.random.split(key, video.shape[0])
-        _, (keypoint_tracks, keypoint_visibility, is_new) = jax.lax.scan(
-            step, state, (keys, video)
+        keypoint_tracks, keypoint_visibility, is_new = _jitted_scan(
+            self.params, self.initialize(), key, video
         )
-
         return expand_keypoint_tracks(keypoint_tracks, keypoint_visibility, is_new)
 
 

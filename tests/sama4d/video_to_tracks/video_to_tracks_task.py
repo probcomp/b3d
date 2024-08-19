@@ -3,6 +3,8 @@ from typing import Callable
 
 import b3d
 import jax.numpy as jnp
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 
@@ -197,3 +199,194 @@ class VideoToTracksTask(Task):
             rgbd_images=self.video,
             camera_intrinsics=self.intrinsics.as_array(),
         )
+
+    def matplotlib_visualization(self, solution, **kwargs):
+        return create_keypoint_animation(
+            self.video,
+            solution["keypoint_tracks"],
+            solution["keypoint_visibility"],
+            **kwargs,
+        )
+
+
+def create_keypoint_animation(
+    rgb, keypoint_tracks_2d, keypoint_visibility, save_at=None, fps=10
+):
+    # Convert Jax arrays to numpy for matplotlib compatibility
+    keypoint_tracks_2d = jnp.array(keypoint_tracks_2d)
+    keypoint_visibility = jnp.array(keypoint_visibility)
+
+    T, N, _ = keypoint_tracks_2d.shape
+    H, W = rgb[0].shape[:2]
+
+    # Create the figure and subplots
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
+
+    # Set up axes
+    ax1.set_xlim(0, W)
+    ax1.set_ylim(H, 0)
+    ax1.set_facecolor("black")
+    ax1.set_title("Keypoint Tracks")
+
+    ax2.set_xlim(0, W)
+    ax2.set_ylim(H, 0)
+    ax2.set_facecolor("black")
+    ax2.set_title("Keypoint Tracks with Connections")
+
+    ax3.set_xlim(0, W)
+    ax3.set_ylim(H, 0)
+    ax3.set_title("Keypoints on Video")
+
+    # Initialize empty plots
+    tracks = [ax1.plot([], [], "o-", markersize=4, linewidth=1)[0] for _ in range(N)]
+    keypoints2 = ax2.plot([], [], "ro", markersize=8)[0]
+    video_frame = ax3.imshow(np.zeros((H, W, 3), dtype=np.uint8))
+    keypoints = ax3.plot([], [], "ro", markersize=8)[0]
+
+    def init():
+        return tracks + [keypoints2] + [video_frame, keypoints]
+
+    def update(frame):
+        # Update video frame
+        video_frame.set_array(rgb[frame])
+
+        # Update keypoints
+        visible = keypoint_visibility[frame]
+        keypoints.set_data(
+            keypoint_tracks_2d[frame, visible, 0], keypoint_tracks_2d[frame, visible, 1]
+        )
+        keypoints2.set_data(
+            keypoint_tracks_2d[frame, visible, 0], keypoint_tracks_2d[frame, visible, 1]
+        )
+
+        # Update tracks
+        for i in range(len(tracks)):
+            visible_frames = np.where(keypoint_visibility[: frame + 1, i])[0]
+            if len(visible_frames) > 0:
+                tracks[i].set_data(
+                    keypoint_tracks_2d[visible_frames, i, 0],
+                    keypoint_tracks_2d[visible_frames, i, 1],
+                )
+                tracks[i].set_color(plt.cm.jet(i / N))
+            else:
+                tracks[i].set_data([], [])
+
+        return tracks + [keypoints2] + [video_frame, keypoints]
+
+    # Create animation
+    anim = animation.FuncAnimation(fig, update, frames=T, init_func=init, blit=True)
+
+    # Save animation if output_file is provided
+    if save_at:
+        anim.save(save_at, writer="ffmpeg", fps=fps)
+
+    plt.tight_layout()
+    return anim
+
+
+# Example usage:
+# anim, fig = create_keypoint_animation(rgb, keypoint_tracks_2d, keypoint_visibility, 'keypoint_tracks_animation.mp4')
+# plt.show()
+# import matplotlib.pyplot as plt
+# from matplotlib.animation import FuncAnimation
+# import cv2
+
+# def create_keypoint_animation(
+#         rgb, keypoint_tracks_2d, keypoint_visibility,
+#         save_at=None, fps=10
+#     ):
+#     """
+#     Create a matplotlib animation of keypoints and their tracks alongside video.
+
+#     Parameters:
+#     - rgb: (T, H, W, 3) numpy array of video frames
+#     - keypoint_tracks_2d: (T, N, 2) numpy array of (x, y) coordinates for N keypoints over T frames
+#     - keypoint_visibility: (T, N) boolean numpy array indicating keypoint visibility
+
+#     Returns:
+#     - anim: matplotlib.animation.FuncAnimation object
+#     """
+
+#     T, N, _ = keypoint_tracks_2d.shape
+#     H, W = rgb.shape[1:3]
+
+#     # Create the figure and subplots
+#     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
+
+#     # Set up the plots
+#     for ax in (ax1, ax2, ax3):
+#         ax.set_xlim(0, W)
+#         ax.set_ylim(H, 0)  # Reverse y-axis for image coordinates
+#         ax.set_facecolor('black')
+
+#     ax1.set_title('Keypoints')
+#     ax2.set_title('Keypoint Tracks')
+#     ax3.set_title('Video with Keypoints')
+
+#     # Initialize empty plots
+#     keypoints_only = ax1.plot([], [], 'o', markersize=4)[0]
+#     tracks = [ax2.plot([], [], 'o-', markersize=2, linewidth=1)[0] for _ in range(N)]
+#     video_frame = ax3.imshow(np.zeros((H, W, 3), dtype=np.uint8))
+#     keypoints_video = ax3.plot([], [], 'ro', markersize=4)[0]
+
+#     def init():
+#         return [keypoints_only] + tracks + [video_frame, keypoints_video]
+
+#     def update(frame):
+#         # Update keypoints only
+#         visible = keypoint_visibility[frame]
+#         visible_points = keypoint_tracks_2d[frame, visible]
+#         visible_indices = np.where(visible)[0]
+
+#         if np.any(visible):
+#             keypoints_only.set_data(visible_points[:, 0], visible_points[:, 1])
+#             colors = [plt.cm.jet(i / N) for i in visible_indices]
+#             keypoints_only.set_color(colors)
+#             keypoints_only.set_visible(True)
+#         else:
+#             keypoints_only.set_visible(False)
+
+#         # Update tracks
+#         for i, track in enumerate(tracks):
+#             visible_frames = np.where(keypoint_visibility[:frame+1, i])[0]
+#             if len(visible_frames) > 0:
+#                 track.set_data(keypoint_tracks_2d[visible_frames, i, 0],
+#                             keypoint_tracks_2d[visible_frames, i, 1])
+#                 track.set_color(plt.cm.jet(i / N))
+#             else:
+#                 track.set_data([], [])
+
+#         # Update video frame
+#         video_frame.set_array(rgb[frame])
+
+#         # Update keypoints on video
+#         if np.any(visible):
+#             keypoints_video.set_data(visible_points[:, 0], visible_points[:, 1])
+#             keypoints_video.set_color(colors)  # Use the same colors as keypoints_only
+#             keypoints_video.set_visible(True)
+#         else:
+#             keypoints_video.set_visible(False)
+
+#         return [keypoints_only] + tracks + [video_frame, keypoints_video]
+
+#     # Create the animation
+#     anim = FuncAnimation(fig, update, frames=T, init_func=init, blit=True)
+
+#     if save_at:
+#         anim.save(save_at, writer='ffmpeg', fps=fps)
+
+#     return anim
+
+# Usage example:
+# Assuming you have these variables:
+# rgb: (T, H, W, 3) numpy array of video frames
+# keypoint_tracks_2d: (T, N, 2) numpy array of (x, y) coordinates
+# keypoint_visibility: (T, N) boolean numpy array
+
+# animation = create_keypoint_animation(rgb, keypoint_tracks_2d, keypoint_visibility)
+
+# To display the animation:
+# plt.show()
+
+# To save the animation:
+# animation.save('keypoint_tracks_animation.mp4', writer='ffmpeg', fps=30)

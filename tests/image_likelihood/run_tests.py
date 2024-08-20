@@ -23,17 +23,27 @@ from image_likelihood_tests import *
 
 # set up latent image as likelihood arg
 def rgbd_latent_likelihood(likelihood, observed_rgbd, rendered_rgbd, likelihood_args):
-        likelihood_args['latent_rgbd'] = rendered_rgbd
-        return likelihood(observed_rgbd, likelihood_args)
+    likelihood_args["latent_rgbd"] = rendered_rgbd
+    return likelihood(observed_rgbd, likelihood_args)
+
+
 rgbd_latent_model_vec = jax.vmap(rgbd_latent_likelihood, in_axes=(None, None, 0, None))
+
 
 @partial(jax.jit, static_argnums=(0,))
 def rgbd_latent_model_jit(likelihood, observed_rgbd, rendered_rgbd, likelihood_args):
-    return rgbd_latent_model_vec(likelihood, observed_rgbd, rendered_rgbd, likelihood_args)
+    return rgbd_latent_model_vec(
+        likelihood, observed_rgbd, rendered_rgbd, likelihood_args
+    )
 
-gaussian_iid_pix_likelihood_vec = partial(rgbd_latent_model_jit, gaussian_iid_pix_likelihood)
+
+gaussian_iid_pix_likelihood_vec = partial(
+    rgbd_latent_model_jit, gaussian_iid_pix_likelihood
+)
 threedp3_gmm_likelihood_vec = partial(rgbd_latent_model_jit, threedp3_gmm_likelihood)
-kray_likelihood_intermediate_vec = partial(rgbd_latent_model_jit, kray_likelihood_intermediate)
+kray_likelihood_intermediate_vec = partial(
+    rgbd_latent_model_jit, kray_likelihood_intermediate
+)
 
 # gaussian iid args
 gaussian_iid_pix_likelihood_args = {
@@ -79,17 +89,21 @@ kray_likelihood_args = {
     ),
 }
 
+
 def get_renderer_original():
     h, w, fx, fy, cx, cy = 50, 50, 100.0, 100.0, 25.0, 25.0
     scale = 9
-    renderer = b3d.RendererOriginal(scale * h, scale * w, scale * fx, scale * fy, scale * cx, scale * cy, 0.01, 10.0)
+    renderer = b3d.RendererOriginal(
+        scale * h, scale * w, scale * fx, scale * fy, scale * cx, scale * cy, 0.01, 10.0
+    )
     return renderer
 
+
 models = [
-        gaussian_iid_pix_likelihood_vec,
-        threedp3_gmm_likelihood_vec,
-        kray_likelihood_intermediate_vec,
-    ]
+    gaussian_iid_pix_likelihood_vec,
+    threedp3_gmm_likelihood_vec,
+    kray_likelihood_intermediate_vec,
+]
 model_names = ["i.i.d Normal", "3DP3 GMM", "Surface-ray"]
 model_args = [
     gaussian_iid_pix_likelihood_args,
@@ -100,7 +114,9 @@ model_args = [
 # set up renderer specs
 h, w, fx, fy, cx, cy = 50, 50, 100.0, 100.0, 25.0, 25.0
 scale = 9
-renderer = b3d.RendererOriginal(scale * h, scale * w, scale * fx, scale * fy, scale * cx, scale * cy, 0.01, 10.0)
+renderer = b3d.RendererOriginal(
+    scale * h, scale * w, scale * fx, scale * fy, scale * cx, scale * cy, 0.01, 10.0
+)
 scales = jnp.array([1, 3, 5, 7, 9])
 renderers_scaled_resolution = [
     b3d.RendererOriginal(

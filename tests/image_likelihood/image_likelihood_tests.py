@@ -9,10 +9,12 @@ import b3d
 import trimesh
 import matplotlib.pyplot as plt
 
+
 def render_rgbd_many(renderer, vertices, faces, attributes):
     return renderer.render_many(
         vertices, faces, jnp.concatenate([attributes, vertices[..., -1:]], axis=-1)
     )
+
 
 def make_mesh_object_library(mesh_path):
     mesh = trimesh.load(mesh_path)
@@ -21,9 +23,11 @@ def make_mesh_object_library(mesh_path):
     object_library.add_trimesh(mesh)
     return object_library
 
-def test_distance_invariance(renderer, models, model_names, model_args_dicts):
 
-    mesh_path = os.path.join(b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj")
+def test_distance_invariance(renderer, models, model_names, model_args_dicts):
+    mesh_path = os.path.join(
+        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+    )
     object_library = make_mesh_object_library(mesh_path)
 
     cam_y_distance = 0.8
@@ -88,7 +92,11 @@ def test_distance_invariance(renderer, models, model_names, model_args_dicts):
                     jnp.tile(object_library.attributes, (len(linear_poses), 1, 1)),
                 )
                 logpdfs.append(
-                    model(observed_images[d_ind], rendered_imgs, model_args_dicts[model_ind])[0]
+                    model(
+                        observed_images[d_ind],
+                        rendered_imgs,
+                        model_args_dicts[model_ind],
+                    )[0]
                 )
                 translations.append(linear_poses.pos[:, 0])
             logpdfs = jnp.concatenate(logpdfs)
@@ -117,10 +125,10 @@ def test_distance_invariance(renderer, models, model_names, model_args_dicts):
             ax.yaxis.set_ticklabels([])
         ax.set_ylim(0.0, 0.008)
     fig.tight_layout()
-    fig.savefig('test_distance_invariance.png')
+    fig.savefig("test_distance_invariance.png")
     model_scores = jnp.array(model_scores)
-    
-    ## Draw samples to show posterior 
+
+    ## Draw samples to show posterior
 
     key = jax.random.PRNGKey(0)
     apply_vec = jax.vmap(lambda pose, vertices: pose.apply(vertices), (0, None))
@@ -171,14 +179,19 @@ def test_distance_invariance(renderer, models, model_names, model_args_dicts):
 
             for ax, row in zip(axes[:, 0], model_names):
                 ax.set_ylabel(row, rotation=90)
-                ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+                ax.tick_params(
+                    left=False, labelleft=False, bottom=False, labelbottom=False
+                )
         # fig.tight_layout()
-        fig.savefig(f'test_distance_invariance_samples_{distance + cam_y_distance}m.png')
+        fig.savefig(
+            f"test_distance_invariance_samples_{distance + cam_y_distance}m.png"
+        )
 
 
 def test_resolution_invariance(renderers, models, model_names, model_args_dicts):
-
-    mesh_path = os.path.join(b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj")
+    mesh_path = os.path.join(
+        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+    )
     object_library = make_mesh_object_library(mesh_path)
 
     linear_pose_from_points = (
@@ -237,7 +250,11 @@ def test_resolution_invariance(renderers, models, model_names, model_args_dicts)
                     jnp.tile(object_library.attributes, (len(linear_poses), 1, 1)),
                 )
                 logpdfs.append(
-                    model(observed_images[r_ind], rendered_imgs, model_args_dicts[model_ind])[0]
+                    model(
+                        observed_images[r_ind],
+                        rendered_imgs,
+                        model_args_dicts[model_ind],
+                    )[0]
                 )
                 translations.append(linear_poses.pos[:, 0])
             logpdfs = jnp.concatenate(logpdfs)
@@ -264,7 +281,7 @@ def test_resolution_invariance(renderers, models, model_names, model_args_dicts)
             ax.yaxis.set_ticklabels([])
         ax.set_ylim(0.0, 0.008)
     fig.tight_layout()
-    fig.savefig('test_resolution_invariance.png')
+    fig.savefig("test_resolution_invariance.png")
 
     plt.figure()
     fig, axes = plt.subplots(1, len(renderers), figsize=(10 * len(renderers), 7))
@@ -280,11 +297,13 @@ def test_resolution_invariance(renderers, models, model_names, model_args_dicts)
         )
         ax.imshow(observed_images[r_ind][..., :3])
         ax.axis("off")
-    fig.savefig(f'test_resolution_invariance_renderings.png')
+    fig.savefig(f"test_resolution_invariance_renderings.png")
 
 
 def test_noise_invariance(renderer, models, model_names, model_args_dicts):
-    mesh_path = os.path.join(b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj")
+    mesh_path = os.path.join(
+        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+    )
     object_library = make_mesh_object_library(mesh_path)
 
     linear_pose_from_points = (
@@ -317,7 +336,9 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
             jnp.tile(object_library.attributes, (1, 1, 1)),
         )
         gt_image = images[0, ..., :3]
-        gt_image = jax.random.normal(key, shape=gt_image.shape) * rgb_noise_level + gt_image
+        gt_image = (
+            jax.random.normal(key, shape=gt_image.shape) * rgb_noise_level + gt_image
+        )
         gt_image_depth = np.array(images[0, ..., 3])
         gt_image_depth[gt_image_depth == 0] = 10.0
         gt_image_depth = jnp.array(gt_image_depth)
@@ -356,7 +377,11 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
                     jnp.tile(object_library.attributes, (len(linear_poses), 1, 1)),
                 )
                 logpdfs.append(
-                    model(observed_images[n_ind], rendered_imgs, model_args_dicts[model_ind])[0]
+                    model(
+                        observed_images[n_ind],
+                        rendered_imgs,
+                        model_args_dicts[model_ind],
+                    )[0]
                 )
                 translations.append(linear_poses.pos[:, 0])
             logpdfs = jnp.concatenate(logpdfs)
@@ -389,11 +414,15 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
             ax.yaxis.set_ticklabels([])
         ax.set_ylim(0.0, 0.008)
     fig.tight_layout()
-    fig.savefig(f'test_noise_invariance.png')
+    fig.savefig(f"test_noise_invariance.png")
 
     plt.figure()
-    fig, axes = plt.subplots(1, len(rgb_noise_levels), figsize=(10 * len(rgb_noise_levels), 7))
-    for noise_ind, (rgb_noise_level, depth_noise_level) in enumerate(zip(rgb_noise_levels, depth_noise_levels)):
+    fig, axes = plt.subplots(
+        1, len(rgb_noise_levels), figsize=(10 * len(rgb_noise_levels), 7)
+    )
+    for noise_ind, (rgb_noise_level, depth_noise_level) in enumerate(
+        zip(rgb_noise_levels, depth_noise_levels)
+    ):
         ax = axes[noise_ind]
         ax.set_title(
             "conditioned image: \ncolor $\sigma$: "
@@ -404,11 +433,13 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
         )
         ax.imshow(jnp.clip(observed_images[noise_ind], 0, 1))
         ax.axis("off")
-    fig.savefig(f'test_noise_invariance_renderings.png')
+    fig.savefig(f"test_noise_invariance_renderings.png")
 
 
 def test_mode_volume(renderer, models, model_names, model_args_dicts):
-    mesh_path = os.path.join(b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj")
+    mesh_path = os.path.join(
+        b3d.get_root_path(), "assets/shared_data_bucket/025_mug/textured.obj"
+    )
     object_library = make_mesh_object_library(mesh_path)
 
     linear_pose_from_points = (
@@ -429,16 +460,18 @@ def test_mode_volume(renderer, models, model_names, model_args_dicts):
     )(jnp.arange(len(linear_poses)))
 
     rendered_imgs = render_rgbd_many(
-                    renderer,
-                    transformed_vertices,
-                    object_library.faces,
-                    jnp.tile(object_library.attributes, (len(linear_poses), 1, 1)),
-                )
+        renderer,
+        transformed_vertices,
+        object_library.faces,
+        jnp.tile(object_library.attributes, (len(linear_poses), 1, 1)),
+    )
 
     gt_near_ind = len(alphas) // 6
     gt_far_ind = 4 * len(alphas) // 6
     gt_image = rendered_imgs[gt_near_ind, ..., :3] + rendered_imgs[gt_far_ind, ..., :3]
-    gt_image_depth = np.array(rendered_imgs[gt_near_ind, ..., 3] + rendered_imgs[gt_far_ind, ..., 3])
+    gt_image_depth = np.array(
+        rendered_imgs[gt_near_ind, ..., 3] + rendered_imgs[gt_far_ind, ..., 3]
+    )
     gt_image_depth[gt_image_depth == 0] = 10.0
     gt_image_depth = jnp.array(gt_image_depth)
     observed_image = jnp.concatenate([gt_image, gt_image_depth[..., None]], axis=-1)
@@ -458,14 +491,13 @@ def test_mode_volume(renderer, models, model_names, model_args_dicts):
         axarr[ind].set_yticklabels([])
         axarr[ind].set_yticks([])
         axarr[ind].set_title(labels[ind], fontsize=30, pad=20)
-    f.savefig('mode_volume_test_renders.png')
-
+    f.savefig("mode_volume_test_renders.png")
 
     # generate posterior plot
     alphas = jnp.linspace(-0.05, 1.5, 2001)
     linear_poses = vec_fun(point1, point2, alphas)
     fig, axes = plt.subplots(1, 1, figsize=(31, 9))
-    
+
     for model_ind, model in enumerate(models):
         linear_poses_batches = vec_fun(point1, point2, alphas).split(10)
         logpdfs = []
@@ -517,7 +549,8 @@ def test_mode_volume(renderer, models, model_names, model_args_dicts):
     axes.set_xlabel("Distance from camera (meters)", fontsize=30)
     axes.set_ylabel("Posterior Probability", fontsize=30)
     axes.grid()
-    fig.savefig('mode_volume_test.png')
+    fig.savefig("mode_volume_test.png")
+
 
 # this plot is alredy implemented in a separate existing test
 def mug_posterior_peakiness_samples(renderer, models, model_names, model_args_dicts):
@@ -525,4 +558,3 @@ def mug_posterior_peakiness_samples(renderer, models, model_names, model_args_di
     # Case 1: mug handle is showing (posterior on angle should be delta function)
     # Case 2: mug handle is hidden (posterior should be fully cover angles that occlude handle from viewer)
     return None
-

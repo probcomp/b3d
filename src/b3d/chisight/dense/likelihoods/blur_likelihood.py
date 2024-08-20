@@ -140,8 +140,6 @@ filter_size = filter_half_width
 #     }
 
 
-# object-aware image likelihood
-# rays are shot out from camera
 @jax.jit
 def blur_intermediate_likelihood_func(observed_rgbd, likelihood_args):
     fx = likelihood_args["fx"]

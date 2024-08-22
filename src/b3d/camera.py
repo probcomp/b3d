@@ -33,7 +33,7 @@ class Intrinsics(NamedTuple):
     def as_array(self):
         """Returns intrinsics as a float array."""
         return jnp.array(self)
-    
+
     def downscale(self, factor):
         return Intrinsics(
             self.width // factor,
@@ -122,7 +122,9 @@ xyz_from_depth = camera_from_depth
 unproject_depth = camera_from_depth
 
 
-def screen_from_camera(xyz: CameraCoordinates, intrinsics, culling=False) -> ScreenCoordinates:
+def screen_from_camera(
+    xyz: CameraCoordinates, intrinsics, culling=False
+) -> ScreenCoordinates:
     """
     Maps to sensor coordintaes `uv` from camera coordinates `xyz`, which are
     defined by $(u,v) = (u'/z,v'/z)$, where
@@ -159,9 +161,11 @@ def screen_from_world(x, cam, intr, culling=False):
     """Maps to screen coordintaes `uv` from world coordinates `xyz`."""
     return screen_from_camera(cam.inv().apply(x), intr, culling=culling)
 
+
 def world_from_screen(uv, cam, intr):
     """Maps to world coordintaes `xyz` from screen coords `uv`."""
     return cam.apply(camera_from_screen(uv, intr))
+
 
 def camera_matrix_from_intrinsics(intr: Intrinsics) -> CameraMatrix3x3:
     """
@@ -218,6 +222,7 @@ def homogeneous_coordinates(xs, z=jnp.array(1.0)):
         (...,N+1) array of homogeneous coordinates.
     """
     return jnp.concatenate([xs, jnp.ones_like(xs[..., :1])], axis=-1) * z[..., None]
+
 
 homogeneous = homogeneous_coordinates
 

@@ -34,13 +34,14 @@ E = normalized_eight_point(ys0, ys1)
 ps = poses_from_essential(E)
 ```
 """
+from typing import Tuple
+
 import jax
 from jax import numpy as jnp
 
-import b3d.camera as camera
 from b3d.pose import Pose
 from b3d.types import Array, Int, Matrix3x3, Matrix3x4, Point3D
-from typing import Tuple
+
 
 def cross_product_matrix(a) -> Matrix3x3:
     """

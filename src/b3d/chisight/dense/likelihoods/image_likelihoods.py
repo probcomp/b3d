@@ -1,18 +1,12 @@
-import genjax
-from genjax.generative_functions.distributions import ExactDensity
-import jax.numpy as jnp
-import b3d
-
-# from b3d import Mesh, Pos
-from collections import namedtuple
-from b3d.modeling_utils import uniform_discrete, uniform_pose
-from b3d.camera import unproject_depth
-import jax
-import os
 import functools
 
+import jax
+import jax.numpy as jnp
 
-# @jax.jit
+import b3d
+from b3d.camera import unproject_depth
+
+
 def gaussian_depth_likelihood(observed_depth, rendered_depth, depth_variance):
     probabilities = jax.scipy.stats.norm.logpdf(
         observed_depth, rendered_depth, depth_variance
@@ -20,7 +14,6 @@ def gaussian_depth_likelihood(observed_depth, rendered_depth, depth_variance):
     return probabilities
 
 
-# @jax.jit
 def gaussian_rgb_likelihood(observed_rgb, rendered_rgb, lab_variance):
     probabilities = jax.scipy.stats.norm.logpdf(
         b3d.colors.rgb_to_lab(observed_rgb),
@@ -30,7 +23,6 @@ def gaussian_rgb_likelihood(observed_rgb, rendered_rgb, lab_variance):
     return probabilities
 
 
-# @jax.jit
 def gaussian_iid_pix_likelihood(observed_rgbd, likelihood_args):
     rgb_variance = likelihood_args["rgb_tolerance"]
     depth_variance = likelihood_args["depth_tolerance"]
@@ -55,12 +47,6 @@ def gaussian_iid_pix_likelihood(observed_rgbd, likelihood_args):
     }
 
 
-# gaussian_iid_pix_likelihood_vec = jax.jit(
-#     jax.vmap(gaussian_iid_pix_likelihood, in_axes=(None, 0, None))
-# )
-
-
-###########
 @functools.partial(
     jnp.vectorize,
     signature="(m)->()",
@@ -167,11 +153,6 @@ def threedp3_gmm_likelihood(observed_rgbd, likelihood_args):
     return log_probabilities_per_pixel["pix_score"].sum(), log_probabilities_per_pixel
 
 
-# threedp3_gmm_likelihood_vec = jax.jit(
-#     jax.vmap(threedp3_gmm_likelihood, in_axes=(None, 0, None))
-# )
-
-
 def get_rgb_depth_inliers_from_observed_rendered_args(
     observed_rgb,
     rendered_rgb,
@@ -231,7 +212,7 @@ def kray_likelihood_intermediate(observed_rgbd, likelihood_args):
 
     outliers = teleport_outliers + nonteleport_outliers
 
-    image_width, image_height, fx, fy, cx, cy, near, far = likelihood_args["intrinsics"]
+    image_width, image_height, fx, fy, _cx, _cy, _near, far = likelihood_args["intrinsics"]
 
     inlier_score = likelihood_args["inlier_score"]
     outlier_prob = likelihood_args["outlier_prob"]
@@ -279,7 +260,3 @@ def kray_likelihood_intermediate(observed_rgbd, likelihood_args):
         "pix_score": final_score_per_pix,
     }
 
-
-# kray_likelihood_intermediate_vec = jax.jit(
-#     jax.vmap(kray_likelihood_intermediate, in_axes=(None, 0, None))
-# )

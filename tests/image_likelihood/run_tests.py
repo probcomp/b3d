@@ -1,24 +1,21 @@
-import rerun as rr
-import genjax
-import os
-import numpy as np
-import jax.numpy as jnp
+from functools import partial
+
 import jax
-from b3d import Pose
+import jax.numpy as jnp
+from image_likelihood_tests import (
+    mug_posterior_peakiness_samples,
+    test_distance_invariance,
+    test_mode_volume,
+    test_noise_invariance,
+    test_resolution_invariance,
+)
+
 import b3d
-from tqdm import tqdm
-import trimesh
-import pytest
-from PIL import Image
-import matplotlib.pyplot as plt
-import matplotlib
 from b3d.chisight.dense.likelihoods.image_likelihoods import (
     gaussian_iid_pix_likelihood,
-    threedp3_gmm_likelihood,
     kray_likelihood_intermediate,
+    threedp3_gmm_likelihood,
 )
-from functools import partial
-from image_likelihood_tests import *
 
 
 # set up latent image as likelihood arg

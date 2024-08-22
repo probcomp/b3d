@@ -283,7 +283,6 @@ def in_front_count(cam0, cam1, xs_world: Point3D) -> Int:
   ys1 = cam1.inv()(xs_world)
   return jnp.sum((ys0[:,2] > 0) & (ys1[:,2] > 0))
 
-
 def find_best_chirality(cams, ys0, ys1):
    xss = jax.vmap(triangulate_linear_hartley, (None,0,None,None))(Pose.id(), cams, ys0, ys1)
    counts = jax.vmap(in_front_count, (None,0,0))(Pose.id(), cams, xss)

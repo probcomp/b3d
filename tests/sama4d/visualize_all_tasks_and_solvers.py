@@ -11,7 +11,9 @@ import rerun as rr
 from tests.sama4d.tracks_to_segmentation.registration import (
     all_task_solver_pairs as pairs_2,
 )
-from tests.sama4d.video_to_tracks.registration import all_task_solver_pairs as pairs_1
+from tests.sama4d.video_to_tracks.from_initialization.registration import (
+    all_task_solver_pairs as pairs_1,
+)
 from tests.sama4d.video_to_tracks_and_segmentation.registration import (
     all_task_solver_pairs as pairs_3,
 )

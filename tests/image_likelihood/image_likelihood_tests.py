@@ -33,7 +33,9 @@ def test_distance_invariance(renderer, models, model_names, model_args_dicts):
     cam_y_distance = 0.8
 
     def linear_pose_from_points(points1, points2, alpha):
-        return Pose.from_position_and_target(jnp.array([0.0, -cam_y_distance, 0.1]), jnp.zeros(3)).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
+        return Pose.from_position_and_target(
+            jnp.array([0.0, -cam_y_distance, 0.1]), jnp.zeros(3)
+        ).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
 
     distances = jnp.linspace(0, 1.5, 4) - 0.3
     num_points = 4001
@@ -191,7 +193,9 @@ def test_resolution_invariance(renderers, models, model_names, model_args_dicts)
     object_library = make_mesh_object_library(mesh_path)
 
     def linear_pose_from_points(points1, points2, alpha):
-        return b3d.Pose.from_position_and_target(jnp.array([0.0, -0.8, 0.1]), jnp.zeros(3)).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
+        return b3d.Pose.from_position_and_target(
+            jnp.array([0.0, -0.8, 0.1]), jnp.zeros(3)
+        ).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
 
     num_points = 4001
     distance = 0.25
@@ -299,7 +303,9 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
     object_library = make_mesh_object_library(mesh_path)
 
     def linear_pose_from_points(points1, points2, alpha):
-        return b3d.Pose.from_position_and_target(jnp.array([0.0, -0.8, 0.1]), jnp.zeros(3)).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
+        return b3d.Pose.from_position_and_target(
+            jnp.array([0.0, -0.8, 0.1]), jnp.zeros(3)
+        ).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
 
     num_points = 4001
     distance = 0.25
@@ -431,7 +437,9 @@ def test_mode_volume(renderer, models, model_names, model_args_dicts):
     object_library = make_mesh_object_library(mesh_path)
 
     def linear_pose_from_points(points1, points2, alpha):
-        return b3d.Pose.from_position_and_target(jnp.array([0.0, -0.8, 0.1]), jnp.zeros(3)).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
+        return b3d.Pose.from_position_and_target(
+            jnp.array([0.0, -0.8, 0.1]), jnp.zeros(3)
+        ).inv() @ b3d.Pose.from_translation((1 - alpha) * points1 + alpha * points2)
 
     point1 = jnp.array([-0.05, -0.25, 0])
     point2 = jnp.array([0.2, 1.5, 0])

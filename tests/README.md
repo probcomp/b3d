@@ -33,7 +33,8 @@ will work.
 - `dense_model_unit_tests`: some tests for the dense model and inference.
 - `sama4d`: integration tests for major parts of the SAMA4D system.
   - `data_curation.py`: this file collects high-quality test scenes to use for evaluation.
-  - `video_to_tracks/`: Task, patch-tracking solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions.
+  - `video_to_tracks/`: [WIP] Task, patch-tracking solver, assertion testing, and visualization notebooks, for producing a set of 2D keypoint tracks from RGB(D) video.
+  - `video_to_tracks/from_initialization/`: Task, patch-tracking solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions.
   - `tracks_to_segmentation/`: [WIP] Task, solver, assertion testing, and visualization notebooks, for segmenting the tracked keypoints into independently moving objects.
   - `video_to_tracks_and_segmentation/`: [WIP] Task, solver, assertion testing, and visualization notebooks, for tracking keypoints from RGB(D) video, given the initial 2D keypoint positions, and segmenting the tracked keypoints into independently moving objects.  (This is a first test for the integrated SAMA4D system.)
 

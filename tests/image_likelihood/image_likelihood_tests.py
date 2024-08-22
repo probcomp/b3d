@@ -121,7 +121,7 @@ def test_distance_invariance(renderer, models, model_names, model_args_dicts):
             ax.yaxis.set_ticklabels([])
         ax.set_ylim(0.0, 0.008)
     fig.tight_layout()
-    fig.savefig("test_distance_invariance.png")
+    fig.savefig("posterior_invariance_plots/test_distance_invariance.png")
     model_scores = jnp.array(model_scores)
 
     ## Draw samples to show posterior
@@ -180,7 +180,7 @@ def test_distance_invariance(renderer, models, model_names, model_args_dicts):
                 )
         # fig.tight_layout()
         fig.savefig(
-            f"test_distance_invariance_samples_{distance + cam_y_distance}m.png"
+            f"posterior_invariance_plots/test_distance_invariance_samples_{distance + cam_y_distance}m.png"
         )
 
 
@@ -273,7 +273,7 @@ def test_resolution_invariance(renderers, models, model_names, model_args_dicts)
             ax.yaxis.set_ticklabels([])
         ax.set_ylim(0.0, 0.008)
     fig.tight_layout()
-    fig.savefig("test_resolution_invariance.png")
+    fig.savefig("posterior_invariance_plots/test_resolution_invariance.png")
 
     plt.figure()
     fig, axes = plt.subplots(1, len(renderers), figsize=(10 * len(renderers), 7))
@@ -289,7 +289,7 @@ def test_resolution_invariance(renderers, models, model_names, model_args_dicts)
         )
         ax.imshow(observed_images[r_ind][..., :3])
         ax.axis("off")
-    fig.savefig("test_resolution_invariance_renderings.png")
+    fig.savefig("posterior_invariance_plots/test_resolution_invariance_renderings.png")
 
 
 def test_noise_invariance(renderer, models, model_names, model_args_dicts):
@@ -402,7 +402,7 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
             ax.yaxis.set_ticklabels([])
         ax.set_ylim(0.0, 0.008)
     fig.tight_layout()
-    fig.savefig("test_noise_invariance.png")
+    fig.savefig("posterior_invariance_plots/test_noise_invariance.png")
 
     plt.figure()
     fig, axes = plt.subplots(
@@ -421,7 +421,7 @@ def test_noise_invariance(renderer, models, model_names, model_args_dicts):
         )
         ax.imshow(jnp.clip(observed_images[noise_ind], 0, 1))
         ax.axis("off")
-    fig.savefig("test_noise_invariance_renderings.png")
+    fig.savefig("posterior_invariance_plots/test_noise_invariance_renderings.png")
 
 
 def test_mode_volume(renderer, models, model_names, model_args_dicts):
@@ -475,7 +475,7 @@ def test_mode_volume(renderer, models, model_names, model_args_dicts):
         axarr[ind].set_yticklabels([])
         axarr[ind].set_yticks([])
         axarr[ind].set_title(labels[ind], fontsize=30, pad=20)
-    f.savefig("mode_volume_test_renders.png")
+    f.savefig("posterior_invariance_plots/mode_volume_test_renders.png")
 
     # generate posterior plot
     alphas = jnp.linspace(-0.05, 1.5, 2001)
@@ -533,7 +533,7 @@ def test_mode_volume(renderer, models, model_names, model_args_dicts):
     axes.set_xlabel("Distance from camera (meters)", fontsize=30)
     axes.set_ylabel("Posterior Probability", fontsize=30)
     axes.grid()
-    fig.savefig("mode_volume_test.png")
+    fig.savefig("posterior_invariance_plots/mode_volume_test.png")
 
 
 # this plot is alredy implemented in a separate existing test

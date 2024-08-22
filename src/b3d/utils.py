@@ -623,7 +623,10 @@ def rr_log_rgbd(rgbd, channel="rgbd"):
 
 
 def rr_log_cloud(cloud, channel="cloud", colors=None):
-    rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
+    if colors is None:
+        rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
+    else:
+        rr.log(channel, rr.Points3D(cloud.reshape(-1, 3), colors=colors.reshape(-1, 3)))
 
 
 def rr_set_time(t=0):

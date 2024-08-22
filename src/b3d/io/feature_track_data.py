@@ -13,9 +13,10 @@ from b3d.utils import downsize_images
 
 DESCR = """
 FeatureTrackData:
-    Timesteps: {data.uv.shape[0]}
+    Num Frames: {data.uv.shape[0]}
     Num Keypoints: {data.uv.shape[1]}
-    Sensor shape (width x height): {data.rgb.shape[2]} x {data.rgb.shape[1]}
+    Image shape (width x height): {data.rgb.shape[2]} x {data.rgb.shape[1]}
+    FPS: {data.fps}
 """
 
 
@@ -133,8 +134,25 @@ class FeatureTrackData:
         return self.visibility
 
     @property
+    def rgb_float(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() > 1.0:
+            rgb = rgb / 255
+        return rgb
+
+    @property
+    def rgb_uint(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() <= 1.0:
+            rgb = (rgb * 255).astype(jnp.uint8)
+        return rgb
+
+    @property
     def rgb(self):
-        return self.rgbd_images[..., :3]
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() > 1.0:
+            rgb = rgb / 255
+        return self.rgb_float
 
     @property
     def visibility(self):
@@ -451,7 +469,9 @@ class FeatureTrackData:
         distances = jnp.where(jnp.eye(distances.shape[0]) == 1.0, jnp.inf, distances)
         return jnp.min(distances)
 
-    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3, 3), downsize=10):
+    def quick_plot(
+        self, t=None, fname=None, ax=None, figsize=(3, 3), downsize=10, ids=None
+    ):
         if t is None:
             figsize = (figsize[0] * self.num_frames, figsize[1])
 
@@ -460,15 +480,18 @@ class FeatureTrackData:
             ax.set_aspect(1)
             ax.axis("off")
 
-        rgb = downsize_images(self.rgb, downsize)
+        rgb = downsize_images(self.rgb_float, downsize)
+
+        if ids is None:
+            ids = np.where(self.vis[t])[0]
+
         if t is None:
             _h, w = self.rgb.shape[1:3]
             ax.imshow(np.concatenate(rgb, axis=1))
             ax.scatter(
                 *np.concatenate(
                     [
-                        self.uv[t, self.vis[t]] / downsize
-                        + np.array([t * w, 0]) / downsize
+                        self.uv[t, ids] / downsize + np.array([t * w, 0]) / downsize
                         for t in range(self.num_frames)
                     ]
                 ).T,
@@ -476,7 +499,7 @@ class FeatureTrackData:
             )
         else:
             ax.imshow(rgb[t])
-            ax.scatter(*(self.uv[t, self.vis[t]] / downsize).T, s=1)
+            ax.scatter(*(self.uv[t, ids] / downsize).T, s=1)
 
 
 ### Filter 2D keypoints to ones that are sufficently distant ###

@@ -43,6 +43,11 @@ def volume_of_cap_around_north_pole(r):
     return jnp.pi * (jnp.pi - (jnp.sin(2 * jnp.arccos(r)) + 2 * jnp.arccos(r)))
 
 
+def uniform_quat_samples_around_identity(key, N, rq):
+    qs = unit_disc_to_sphere(rq * uniform_samples_from_disc(key, N, d=3))
+    return qs
+
+
 def uniform_samples_from_SE3_around_identity(key, N, rx=1.0, rq=1.0):
     """
     Returns N samples from SE(3) around the identity, where positions

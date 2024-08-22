@@ -1,17 +1,17 @@
 """
-Implementation of eight points essential matrix solver and triangulation.
+Implementation of the eight point algorithm and other relevant pieces.
 
-Notation:
+Notation and terminology:
     Normalized image coordinates: "Normalized" means "intrinsics-free" coordinates, which 
-        in our language are just the coordinats in the camera frame.
+        in our language are just the coordinates in the camera frame.
     `x`: World coordinates
     `y`: Camera coordinates (3D), i.e. normalized image coordinates.
-    `uv`: Sensor coordinates (2D)
+    `uv` or sometimes only `u`: Sensor coordinates (2D)
     `intr`: Camera intrinsics
 
 Example:
 ```
-from b3d.sfm.eight_point import estimate_essential_matrix, poses_from_essential
+from b3d.sfm.eight_point import normalized_eight_point, poses_from_essential
 
 # Load data and so on
 ...
@@ -30,7 +30,7 @@ ys1 = camera.camera_from_screen(uvs[t1,sub], intr)
 
 # Estimate essential matrix and extract 
 # possible choices for the second camera pose
-E = estimate_essential_matrix(ys0, ys1)
+E = normalized_eight_point(ys0, ys1)
 ps = poses_from_essential(E)
 ```
 """
@@ -39,15 +39,13 @@ from jax import numpy as jnp
 
 import b3d.camera as camera
 from b3d.pose import Pose
-from b3d.types import Array, Float, Int, Matrix3, Point3D
+from b3d.types import Array, Int, Matrix3x3, Matrix3x4, Point3D
+from typing import Tuple
 
-hom = camera.homogeneous_coordinates
-
-
-def cross_product_matrix(a):
+def cross_product_matrix(a) -> Matrix3x3:
     """
-    Cross product matrix of a vector a, i.e. the matrix A such that
-    for any vector b, the cross product of a and b is given by Ab.
+    Returns matrix A such that for any vector b, 
+    the cross product of a and b is given by Ab.
     """
     # > https://en.wikipedia.org/wiki/Cross_product#Conversion_to_matrix_multiplication
     return jnp.array([
@@ -56,7 +54,7 @@ def cross_product_matrix(a):
         [-a[1],  a[0],     0]
     ])
 
-def essential_from_pose(p):
+def essential_from_pose(p) -> Matrix3x3:
     """
     Essential matrix from B3D camera pose.
     
@@ -69,9 +67,9 @@ def essential_from_pose(p):
     # Two things to note:
     # 
     # 1) A camera projection matrix [R | t] that maps 
-    #   world coordinates x to camera coordinates y = [R | t] hom(x) 
+    #   *world* coordinates x to *camera* coordinates y = Rx + t
     #   corresponds to a B3D camera pose with rotation `R.T` and 
-    #   translation `- R.T t`. 
+    #   translation `- R.T t` (this is the inverse of [R | t]). 
     # 
     # 2) Recall that the essential matrix for a camera 
     #   projection matrix [R | t] is given by E = [t] R, 
@@ -79,12 +77,50 @@ def essential_from_pose(p):
     #   cross product with t
     # 
     # Therefore, the essential matrix for a B3D camera pose p = Pose(x,q)
-    # is given by E = [-Qtx] Q.T 
+    # is given by E = [-Q^T x] Q^T, where x is the position and Q 
+    # is the rotation matrix.
     x = p.pos
     Q = p.rot.as_matrix()
     return cross_product_matrix(- Q.T @ x) @ Q.T
 
-def poses_from_essential(E: Matrix3) -> Pose:
+def camera_projection_from_pose(p) -> Tuple[Matrix3x3, Point3D]:
+    """
+    Returns camera projection data R,t from from B3D camera pose.
+    
+    Args:
+        `p`: Camera pose
+
+    Returns:
+        Camera projection matrix entries R,t
+    """
+    # Note: A camera projection matrix [R | t] that maps 
+    #   *world* coordinates x to *camera* coordinates y = Rx + t
+    #   corresponds to a B3D camera pose with rotation `R.T` and 
+    #   translation `- R.T t` (this is the inverse of [R | t]). 
+    x = p.pos
+    Q = p.rot.as_matrix()
+    return Q.T, - Q.T @ x
+
+def camera_projection_matrix(p: Pose) -> Matrix3x4:
+    """
+    Returns camera projection matrix P = [R | t] from from B3D camera pose.
+    
+    Args:
+        `p`: Camera pose
+
+    Returns:
+        Camera projection matrix P = [R | t]
+    """
+    # Note: A camera projection matrix [R | t] that maps 
+    #   *world* coordinates x to *camera* coordinates y = Rx + t
+    #   corresponds to a B3D camera pose with rotation `R.T` and 
+    #   translation `- R.T t` (this is the inverse of [R | t]). 
+    x = p.pos
+    Q = p.rot.as_matrix()
+    return jnp.concatenate([Q.T, (- Q.T @ x)[:, None]], axis=1)
+
+
+def poses_from_essential(E: Matrix3x3) -> Pose:
     """
     Extract the 4 possible choices for the second camera matrix 
     from essential matrix.
@@ -128,11 +164,14 @@ def poses_from_essential(E: Matrix3) -> Pose:
 
 extract_poses = poses_from_essential
 
-def solve_epipolar_constraints(ys0: Point3D, ys1: Point3D) -> Matrix3:
-    """Minimize the epipolar constraint y1.T E y0."""
+def solve_epipolar_constraints(ys0: Point3D, ys1: Point3D) -> Matrix3x3:
+    """
+    Returns the essential matrix that minimizes 
+    the epipolar constraint `y1.T E y0`.
+    """
     # We want to solve `y1.T E y0 = 0`, which can be 
     # rewritten as `(y0 kronecker Y1).T vec(E) = 0`,
-    # where "kronecke" denotes the Kronecker product and 
+    # where "kronecker" denotes the Kronecker product and 
     # vec(E) is the vectorized form of E.
     # 
     # Useful references:
@@ -144,9 +183,10 @@ def solve_epipolar_constraints(ys0: Point3D, ys1: Point3D) -> Matrix3:
     e = vt[-1].reshape((3, 3))
     return e
 
-def epipolar_errors(E: Matrix3, ys0: Point3D, ys1: Point3D) -> Float:
+def epipolar_errors(E: Matrix3x3, ys0: Point3D, ys1: Point3D) -> Array:
     """
-    Compute the epipolar errors for a given essential matrix.
+    Compute the epipolar errors for a given essential matrix and 
+    normalized image coordinates.
     
     Args:
         `E`: Essential matrix
@@ -154,22 +194,21 @@ def epipolar_errors(E: Matrix3, ys0: Point3D, ys1: Point3D) -> Float:
         `ys1`: Normalized image coordinates at time 1
 
     Returns:
-        Epipolar error
+        Array of Epipolar errors
     """
     return jax.vmap(lambda y0, y1: jnp.abs(y1.T @ E @ y0))(ys0, ys1)
 
-def enforce_internal_constraint(E_est:Matrix3) -> Matrix3:
+def enforce_internal_constraint(E_est:Matrix3x3) -> Matrix3x3:
     """Enforce the fundamental matrix rank constraint."""
     # > https://en.wikipedia.org/wiki/Eight-point_algorithm#Step_3:_Enforcing_the_internal_constraint
     u, s, vt = jnp.linalg.svd(E_est)
     return u @ jnp.diag(jnp.array([s[0], s[1], 0.])) @ vt  
 
-
 def normalize_hartley(x: Array) -> tuple[Array, Array]:
     """
     Normalize a homogeneous batch to mean zero and range from -1 to 1;
     as suggested in
-    > R.I. Hartley, "In defense of the eight point algorithm", 1997.
+    > Hartley, "In defense of the eight point algorithm", 1997.
     """
     x /= x[:, -1:]
     u = x[:, :-1]
@@ -179,42 +218,86 @@ def normalize_hartley(x: Array) -> tuple[Array, Array]:
         -means / maxes)
     return (x @ normalizer.T, normalizer)
 
-
-def estimate_essential_matrix(
-        ys0: Point3D, 
-        ys1: Point3D, 
-        enforce_rank=True) -> Matrix3:
+def _normalized_eight_point(ys0, ys1):
     """
-    Estimate essential matrix from **normalized** 
-    (intrinsics-free) image coordinates.
+    Normalized 8-point algorithm estimating the essential matrix, 
+    as described in 
+    > Hartley-Zisserman, "Multiple view geometry in computer vision", 2nd ed., Algorithm 11.1.
 
     Args:
         `ys0`: Normalized 3D image coordinates at time 0 
         `ys1`: Normalized 3D image coordinates at time 1
-
+    
     Returns:
         Estimated essential matrix
     """
-    # "In defense of the eight point algorithm" 
-    # strongly suggests normalizing
     ys0, T0 = normalize_hartley(ys0)
     ys1, T1 = normalize_hartley(ys1)
-
-    # Estimate essential matrix
     E = solve_epipolar_constraints(ys0, ys1) 
-
-    # Hartley-Zisserman suggests denormalizing after enforcing constraints, but
-    # we want the rotation and translations, not the essential matrix. 
-    # Does this matter for the pose information within E?
-    # TODO: Exact reference for this.
     E = enforce_internal_constraint(E)
     E = T1.T @ E @ T0
-
     return E
 
+normalized_eight_point = jax.jit(_normalized_eight_point)
 
-def _triangulate_linear(cam0, cam1, y0, y1):
+def _triangulate_linear_hartley(cam0, cam1, y0, y1) -> Point3D:
     """
+    Linear triangulation method as described in 
+    > Hartley-Zisserman, "Multiple view geometry in computer vision", 2nd ed.; Section 12.2
+    
+    Args:
+        `cam0`: Camera pose at time 0
+        `cam1`: Camera pose at time 1
+        `y0`: Normalized image coordinates of keypoint at time 0 
+        `y1`: Normalized image coordinates of keypoint at time 1
+
+    Returns:
+        Inferred world point.
+    """
+    # We follow Section 12.2 in Hartley-Zisserman.
+    # First we map to notation from Hartley-Zisserman. 
+    # Here "underscore" reads "prime", i.e. 
+    # `x_` translates to `x'`
+    P  = camera_projection_matrix(cam0)
+    P_ = camera_projection_matrix(cam1)
+    x , y  = y0[:2]
+    x_, y_ = y1[:2]
+    A = jnp.array([
+        x *P[2] - P[0],
+        y *P[2] - P[1],
+        x_*P_[2] - P_[0],
+        y_*P_[2] - P_[1]
+    ])
+    _, _, vt = jnp.linalg.svd(A)
+    X = vt[-1]    
+    # TODO: Obviously there is a problem when X[3] is zero. Review this.
+    #   Hartley-Zisserman address this I think.
+    return X[:3] / X[3]
+
+triangulate_linear_hartley = jax.vmap(_triangulate_linear_hartley, (None,None,0,0))
+
+def in_front_count(cam0, cam1, xs_world: Point3D) -> Int:
+  """Count the world points that are in front of both cameras."""
+  ys0 = cam0.inv()(xs_world)
+  ys1 = cam1.inv()(xs_world)
+  return jnp.sum((ys0[:,2] > 0) & (ys1[:,2] > 0))
+
+
+def find_best_chirality(cams, ys0, ys1):
+   xss = jax.vmap(triangulate_linear_hartley, (None,0,None,None))(Pose.id(), cams, ys0, ys1)
+   counts = jax.vmap(in_front_count, (None,0,0))(Pose.id(), cams, xss)
+   i = jnp.argmax(counts)
+   return cams[i], xss[i]
+
+# TODO:
+#   - Check triangulation angles ("orthogonality score")
+#   - Asses posterior
+
+def _triangulate_linear_midpoint(cam0, cam1, y0, y1):
+    """
+    Returns the mid point of the line segment 
+    between the two rays through the keypoints.
+
     Args:
         `cam0`: Camera pose at time 0
         `cam1`: Camera pose at time 1
@@ -224,6 +307,10 @@ def _triangulate_linear(cam0, cam1, y0, y1):
     Returns:
         Inferred world point.
     """
+    # We need to solve
+    #   c0 + s0*v0 = c1 + s1*v1, 
+    # where ci are the camera positions in the world and vi 
+    # are world vectors through the image keypoints.
     v0 = cam0(y0) - cam0.pos
     v1 = cam1(y1) - cam1.pos
 
@@ -236,21 +323,7 @@ def _triangulate_linear(cam0, cam1, y0, y1):
         cam0.pos + s[0]*v0,
         cam1.pos + s[1]*v1
     ])
+    x = xs.mean(0)
+    return x
 
-    return xs.mean(0)
-
-triangulate_linear = jax.vmap(_triangulate_linear, (None,None,0,0))
-
-
-def in_front_count(cam0, cam1, xs_world: Point3D) -> Int:
-  """Count the world points that are in front of both cameras."""
-  ys0 = cam0.inv()(xs_world)
-  ys1 = cam1.inv()(xs_world)
-  return jnp.sum((ys0[:,2] > 0) & (ys1[:,2] > 0))
-
-
-def find_best_chirality(cams, ys0, ys1):
-   xss = jax.vmap(triangulate_linear, (None,0,None,None))(Pose.id(), cams, ys0, ys1)
-   counts = jax.vmap(in_front_count, (None,0,0))(Pose.id(), cams, xss)
-   i = jnp.argmax(counts)
-   return cams[i], xss[i]
+triangulate_linear_midpoint = jax.vmap(_triangulate_linear_midpoint, (None,None,0,0))

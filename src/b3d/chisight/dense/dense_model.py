@@ -49,25 +49,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
                 @ f"object_pose_{i}"
             )
-
-            color_outlier_probability = (
-                genjax.uniform(0.0, 1.0) @ f"color_outlier_probability_{i}"
-            )
-            depth_outlier_probability = (
-                genjax.uniform(0.0, 1.0) @ f"depth_outlier_probability_{i}"
-            )
-            color_variance = genjax.uniform(0.0001, 100.0) @ f"color_variance_{i}"
-            depth_variance = genjax.uniform(0.0001, 100.0) @ f"depth_variance_{i}"
-
-            likelihood_args[f"color_outlier_probability_{i}"] = (
-                color_outlier_probability
-            )
-            likelihood_args[f"depth_outlier_probability_{i}"] = (
-                depth_outlier_probability
-            )
-            likelihood_args[f"color_variance_{i}"] = color_variance
-            likelihood_args[f"depth_variance_{i}"] = depth_variance
-
             all_poses.append(object_pose)
         all_poses = Pose.stack_poses(all_poses)
 
@@ -79,6 +60,19 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             camera_pose.inv()
         )
         likelihood_args["scene_mesh"] = scene_mesh
+
+        num_vertices = scene_mesh.vertices.shape[0]
+
+        depth_outlier_probability = (
+            genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
+            @ "depth_outlier_probability"
+        )
+        color_outlier_probability = (
+            genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
+            @ "color_outlier_probability"
+        )
+        likelihood_args["depth_outlier_probability"] = depth_outlier_probability
+        likelihood_args["color_outlier_probability"] = color_outlier_probability
 
         if renderer is not None:
             rasterize_results = renderer.rasterize(
@@ -110,9 +104,16 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             trace.get_retval()["likelihood_args"],
         )
 
-    def viz_trace(trace, t=0):
+    def viz_trace(trace, t=0, cloud=False):
         info = info_from_trace(trace)
         b3d.utils.rr_set_time(t)
+        likelihood_args = trace.get_retval()["likelihood_args"]
+        fx, fy, cx, cy = (
+            likelihood_args["fx"],
+            likelihood_args["fy"],
+            likelihood_args["cx"],
+            likelihood_args["cy"],
+        )
 
         info = info_from_trace(trace)
         rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
@@ -122,26 +123,27 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         b3d.rr_log_depth(info["latent_rgbd"][..., 3], "image/depth/latent")
         rr.log("image/overlay/pixelwise_score", rr.DepthImage(info["pixelwise_score"]))
 
-        # b3d.rr_log_cloud(
-        #     b3d.xyz_from_depth(
-        #         info["latent_rgbd"][..., 3],
-        #         fx,
-        #         fy,
-        #         cx,
-        #         cy,
-        #     ),
-        #     "latent",
-        # )
-        # b3d.rr_log_cloud(
-        #     b3d.xyz_from_depth(
-        #         trace.get_retval()["rgbd"][..., 3],
-        #         fx,
-        #         fy,
-        #         cx,
-        #         cy,
-        #     ),
-        #     "observed",
-        # )
+        if cloud:
+            b3d.rr_log_cloud(
+                b3d.xyz_from_depth(
+                    info["latent_rgbd"][..., 3],
+                    fx,
+                    fy,
+                    cx,
+                    cy,
+                ),
+                "latent",
+            )
+            b3d.rr_log_cloud(
+                b3d.xyz_from_depth(
+                    trace.get_retval()["rgbd"][..., 3],
+                    fx,
+                    fy,
+                    cx,
+                    cy,
+                ),
+                "observed",
+            )
         # rr.log("rgb/is_match", rr.DepthImage(intermediate_info["is_match"] * 1.0))
         # rr.log("rgb/color_match", rr.DepthImage(intermediate_info["color_match"] * 1.0))
 

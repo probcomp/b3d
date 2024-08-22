@@ -212,7 +212,9 @@ def kray_likelihood_intermediate(observed_rgbd, likelihood_args):
 
     outliers = teleport_outliers + nonteleport_outliers
 
-    image_width, image_height, fx, fy, _cx, _cy, _near, far = likelihood_args["intrinsics"]
+    image_width, image_height, fx, fy, _cx, _cy, _near, far = likelihood_args[
+        "intrinsics"
+    ]
 
     inlier_score = likelihood_args["inlier_score"]
     outlier_prob = likelihood_args["outlier_prob"]
@@ -259,4 +261,3 @@ def kray_likelihood_intermediate(observed_rgbd, likelihood_args):
         "rendered_rgbd": rendered_rgbd,
         "pix_score": final_score_per_pix,
     }
-

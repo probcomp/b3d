@@ -61,16 +61,22 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         )
         likelihood_args["scene_mesh"] = scene_mesh
 
-        num_vertices = scene_mesh.vertices.shape[0]
-
         depth_outlier_probability = (
-            genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
-            @ "depth_outlier_probability"
+            genjax.uniform(0.0, 1.0) @ "depth_outlier_probability"
         )
         color_outlier_probability = (
-            genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
-            @ "color_outlier_probability"
+            genjax.uniform(0.0, 1.0) @ "color_outlier_probability"
         )
+
+        # depth_outlier_probability = (
+        #     genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
+        #     @ "depth_outlier_probability"
+        # )
+        # color_outlier_probability = (
+        #     genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
+        #     @ "color_outlier_probability"
+        # )
+
         likelihood_args["depth_outlier_probability"] = depth_outlier_probability
         likelihood_args["color_outlier_probability"] = color_outlier_probability
 

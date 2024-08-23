@@ -92,7 +92,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 rasterize_results,
                 scene_mesh.faces,
             )
-            likelihood_args["scene_mesh"] = scene_mesh
             likelihood_args["latent_rgbd"] = latent_rgbd
             likelihood_args["rasterize_results"] = rasterize_results
 

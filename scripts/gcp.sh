@@ -16,8 +16,9 @@ GCP_CONNECT="${GCP_CONNECT:-ssh}"
 GCP_DEBUG="${GCP_DEBUG:-}"
 REMOTE_FORWARD="RemoteForward 8812 127.0.0.1:8812"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
-GCLOUD_CREDS_FILE="$HOME/.config/gcloud/application_default_credentials.json"
-GCLOUD_CREDS_DIR="/home/$USER"
+GCLOUD_ADC="$HOME/.config/gcloud/application_default_credentials.json"
+GCLOUD_ADC_DEST="${GCLOUD_ADC_DEST:-/home/$USER}"
+GCLOUD_ADC_SRC_WIN="${GCLOUD_ADC_SRC_WIN:-$HOME\AppData\Roaming\gcloud\application_default_credentials.json}"
 
 # Prints help
 gcp-help() {
@@ -667,6 +668,26 @@ gcp-update-ssh-config-remote-forward() {
       exit 1
     fi
     ;;
+  MSYS_NT*)
+    if grep -q "Host $host" "$SSH_CONFIG"; then
+      gcp-log "✓ host $host found in SSH config"
+
+      if awk -v host="$host" -v remote_forward="$REMOTE_FORWARD" '
+            $0 ~ "Host " host { in_host_block = 1 }
+            in_host_block && $0 ~ remote_forward { found = 1; exit }
+            in_host_block && $0 ~ /^Host / && !($0 ~ "Host " host) { in_host_block = 0 }
+            END { exit !found }
+        ' "$SSH_CONFIG"; then
+        gcp-log "✓ remote forwarding already set for $host"
+      else
+        sed -i "/Host $host/a\\    $REMOTE_FORWARD" "$SSH_CONFIG"
+        gcp-log "✓ remote forwarding set: $SSH_CONFIG $host $REMOTE_FORWARD"
+      fi
+    else
+      echo "$host is not defined in $SSH_CONFIG"
+      exit 1
+    fi
+    ;;
   *)
     echo "unknown os $os"
     exit 1
@@ -708,6 +729,8 @@ gcp-scp() {
     --zone="$GCP_ZONE"
     --project="$GCP_PROJECT"
   )
+
+  echo "${command[@]}"
 
   if ! gcp-execute "${command[@]}"; then
     echo "error: could not tranfer $src"
@@ -798,10 +821,42 @@ gcp-ssh() {
 
   gcp-log "→ ssh $host"
 
+  os=$(uname -s)
+
+  gcp-log "→ setting up $host on $os with remote forwarding in $SSH_CONFIG"
+
+  local adc_file
+  local adc_dir
+  case $os in
+  Darwin)
+    adc_file="$GCLOUD_ADC"
+    adc_dir="$GCLOUD_ADC_DEST"
+    ;;
+  Linux)
+    adc_file="$GCLOUD_ADC"
+    adc_dir="$GCLOUD_ADC_DEST"
+    ;;
+  MSYS_NT*)
+    adc_file="$GCLOUD_ADC_SRC_WIN"
+    adc_dir="$GCLOUD_ADC_DEST"
+    ;;
+  *)
+    if [[ $(uname -o) == "Mysys" ]]; then
+      adc_file="$GCLOUD_ADC_SRC_WIN"
+      adc_dir="$GCLOUD_ADC_DEST"
+    else
+      echo "unknown os $os"
+      exit 1
+    fi
+    ;;
+  esac
+
+  gcp-log "→ scp $GCLOUD_ADC_SRC_WIN $GCLOUD_ADC_DEST"
+
   if gcp-wait-until-running; then
     # scp gcloud creds
     while [ $attempts -lt $retry_count ]; do
-      if ! gcp-scp "$GCLOUD_CREDS_FILE" "$GCLOUD_CREDS_DIR"; then
+      if ! gcp-scp "$adc_file" "$adc_dir"; then
         attempt=$((attempt + 1))
         echo "attempt $attempts, retry in $wait_time seconds..."
         sleep $wait_time

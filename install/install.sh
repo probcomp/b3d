@@ -253,7 +253,7 @@ __wrap__() {
     ;;
   esac
 
-  PATH=$BIN_DIR:$PIPX_BIN:$PATH
+  export PATH=$BIN_DIR:$PIPX_BIN:$PATH
 
   printf "\n→ installing pipx into %s\n\n" "$BIN_DIR"
   pixi global install pipx
@@ -326,7 +326,7 @@ __wrap__() {
   cd "$B3D_ROOT" || exit 1
 
   printf "\n→ checking out %s branch\n\n" "$B3D_BRANCH"
-  git checkout -b "$B3D_BRANCH" origin/"$B3D_BRANCH"
+  git checkout "$B3D_BRANCH" origin/"$B3D_BRANCH"
 
   printf "\n→ installing pre-commit hooks %s\n\n" "$BIN_DIR"
   pre-commit install

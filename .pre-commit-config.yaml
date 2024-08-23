@@ -34,21 +34,21 @@ repos:
     hooks:
       - id: pixi-update-default
         name: pixi update (solving default)
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e default && git add pixi.lock'
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e default && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]
 
       - id: pixi-update-cpu
         name: pixi update (solving cpu)
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e cpu && git add pixi.lock'
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e cpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]
 
       - id: pixi-update-gpu
         name: pixi update (solving gpu)
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e gpu && git add pixi.lock'
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e gpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]

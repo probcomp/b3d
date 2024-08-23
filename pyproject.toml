@@ -9,21 +9,21 @@
 
 [project]
 name = "b3d"
-dynamic = ["version"]
 description = "A 3D computer vision library"
 license = { text = "Apache 2.0" }
 authors = [{ name = "Nishad Gothoskar", email = "nishadg@mit.edu" }]
 requires-python = ">= 3.10"
 dependencies = []
+version = "0.1.0"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-arm64"]
+platforms = ["linux-64", "osx-arm64", "win-64"]
 conda-pypi-map = { "conda-forge" = "torch.json" }
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [tool.pixi.environments]
 cpu = { features = ["no-cuda", "core"], solve-group = "default" }
@@ -63,8 +63,15 @@ depends_on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
-cmd = "./rerun.sh"
-cwd = "scripts"
+cmd = "python scripts/rerun-task.py"
+
+[tool.pixi.tasks.echo]
+cmd = "echo $HELLO"
+env = { HELLO = "world?" }
+
+[tool.pixi.target.win-64.tasks.echo-win]
+cmd = "echo $HELLO_WIN"
+env = { HELLO_WIN = "world?" }
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"
@@ -83,9 +90,17 @@ cwd = "scripts"
 
 [tool.pixi.tasks.gcp-terminal]
 description = "connect to vm through terminal (requires GCP_VM and GCP_PROJECT)"
+cmd = "bash gcp.sh :gcp-connect-terminal"
+cwd = "scripts"
+depends_on = ["rerun"]
+env = { GCP_VM = "", GCP_PROJECT = "" }
+
+[tool.pixi.tasks.gcp-terminal-test]
+description = "connect to vm through terminal (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-connect-terminal"
 cwd = "scripts"
 depends_on = ["rerun"]
+env = { GCP_VM = "", GCP_PROJECT = "" }
 
 [tool.pixi.tasks.gcp-start]
 description = "start a vm (requires GCP_VM and GCP_PROJECT)"
@@ -162,7 +177,6 @@ pyright = "*"
 pytest = "*"
 python-lzf = "*"
 py-opencv = "*"
-rerun-sdk = "==0.17.0"
 ruff = "*"
 scikit-learn = ">=1.5.1,<1.6"
 scipy = ">=1.14.0,<1.15"

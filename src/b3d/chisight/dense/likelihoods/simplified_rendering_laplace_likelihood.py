@@ -22,6 +22,14 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
         b3d.xyz_to_pixel_coordinates(transformed_points, fx, fy, cx, cy)
     ).astype(jnp.int32)
 
+    latent_rgbd = jnp.zeros_like(rgbd)
+    latent_rgbd = latent_rgbd.at[
+        projected_pixels[..., 0], projected_pixels[..., 1], :3
+    ].set(template_colors)
+    latent_rgbd = latent_rgbd.at[
+        projected_pixels[..., 0], projected_pixels[..., 1], 3
+    ].set(transformed_points[..., 2])
+
     c_outlier_prob = likelihood_args["color_outlier_probability"]
     d_outlier_prob = likelihood_args["depth_outlier_probability"]
 
@@ -30,7 +38,7 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
     ]
 
     color_probability = jax.scipy.stats.laplace.logpdf(
-        corresponding_observed_rgbd[..., :3], template_colors, 0.05
+        corresponding_observed_rgbd[..., :3], template_colors, 0.1
     ).sum(-1)
     depth_probability = jax.scipy.stats.laplace.logpdf(
         corresponding_observed_rgbd[..., 3], transformed_points[..., 2], 0.01
@@ -50,14 +58,6 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
         lmbda * color_probability_outlier_adjusted
         + (1.0 - lmbda) * depth_probability_outlier_adjusted
     )
-
-    latent_rgbd = jnp.zeros_like(rgbd)
-    latent_rgbd = latent_rgbd.at[
-        projected_pixels[..., 0], projected_pixels[..., 1], :3
-    ].set(template_colors)
-    latent_rgbd = latent_rgbd.at[
-        projected_pixels[..., 0], projected_pixels[..., 1], 3
-    ].set(transformed_points[..., 2])
 
     return {
         "score": scores.sum(),

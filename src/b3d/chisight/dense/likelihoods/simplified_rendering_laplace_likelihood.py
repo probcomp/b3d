@@ -7,7 +7,7 @@ b3d.reload(b3d.chisight.dense.dense_model)
 
 
 @jax.jit
-def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
+def simplified_rendering_laplace_likelihood(observed_rgbd, likelihood_args):
     scene_mesh = likelihood_args["scene_mesh"]
     transformed_points = scene_mesh.vertices
     template_colors = scene_mesh.vertex_attributes
@@ -22,7 +22,7 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
         b3d.xyz_to_pixel_coordinates(transformed_points, fx, fy, cx, cy)
     ).astype(jnp.int32)
 
-    latent_rgbd = jnp.zeros_like(rgbd)
+    latent_rgbd = jnp.zeros_like(observed_rgbd)
     latent_rgbd = latent_rgbd.at[
         projected_pixels[..., 0], projected_pixels[..., 1], :3
     ].set(template_colors)
@@ -33,7 +33,7 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
     c_outlier_prob = likelihood_args["color_outlier_probability"]
     d_outlier_prob = likelihood_args["depth_outlier_probability"]
 
-    corresponding_observed_rgbd = rgbd[
+    corresponding_observed_rgbd = observed_rgbd[
         projected_pixels[..., 0], projected_pixels[..., 1]
     ]
 
@@ -53,7 +53,7 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
         jnp.log(d_outlier_prob) + jnp.log(1.0 / 1.0),
     )
 
-    lmbda = 0.5
+    lmbda = 0.9
     scores = (
         lmbda * color_probability_outlier_adjusted
         + (1.0 - lmbda) * depth_probability_outlier_adjusted
@@ -66,6 +66,9 @@ def simplified_rendering_laplace_likelihood(rgbd, likelihood_args):
         "color_probability_outlier_adjusted": color_probability_outlier_adjusted,
         "depth_probability_outlier_adjusted": depth_probability_outlier_adjusted,
         "scene_mesh": scene_mesh,
+        "model_rgbd": jnp.concatenate(
+            [template_colors, transformed_points[..., 2:]], -1
+        ),
         "corresponding_observed_rgbd": corresponding_observed_rgbd,
-        "pixelwise_score": jnp.zeros_like(rgbd[..., 0]),
+        "pixelwise_score": jnp.zeros_like(observed_rgbd[..., 0]),
     }

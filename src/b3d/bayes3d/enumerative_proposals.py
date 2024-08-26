@@ -7,7 +7,7 @@ from b3d.pose import Pose
 
 
 def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
-    addr = addressses[0]
+    addr = addressses.const[0]
     current_pose = trace.get_choices()[addr]
     for i in range(len(all_deltas)):
         test_poses = current_pose @ all_deltas[i]
@@ -15,7 +15,7 @@ def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
             trace, addressses, test_poses
         )
         current_pose = test_poses[potential_scores.argmax()]
-    trace = b3d.update_choices(trace, key, addressses, current_pose)
+    trace = b3d.update_choices(trace, addressses, current_pose)
     return trace, key
 
 

@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 from b3d import Pose
+from genjax import Pytree
 from tqdm import tqdm
 
 
@@ -151,14 +152,13 @@ def test_demo():
     ACQUISITION_T = 90
     for T_observed_image in tqdm(range(ACQUISITION_T)):
         # Constrain on new RGB and Depth data.
-        trace = b3d.update_choices_jit(
+        trace = b3d.update_choices(
             trace,
-            key,
-            ("observed_rgb_depth",),
+            Pytree.const(["observed_rgb_depth"]),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         )
         trace, key = bayes3d.enumerate_and_select_best_move(
-            trace, ("camera_pose",), key, all_deltas
+            trace, Pytree.const(("camera_pose",)), key, all_deltas
         )
         bayes3d.rerun_visualize_trace_t(trace, T_observed_image)
 
@@ -220,17 +220,16 @@ def test_demo():
     FINAL_T = len(xyzs)
     for T_observed_image in tqdm(range(ACQUISITION_T, FINAL_T)):
         # Constrain on new RGB and Depth data.
-        trace = b3d.update_choices_jit(
+        trace = b3d.update_choices(
             trace,
-            key,
-            ("observed_rgb_depth",),
+            Pytree.const(("observed_rgb_depth",)),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         )
         trace, key = bayes3d.enumerate_and_select_best_move(
-            trace, ("camera_pose",), key, all_deltas
+            trace, Pytree.const(("camera_pose",)), key, all_deltas
         )
         trace, key = bayes3d.enumerate_and_select_best_move(
-            trace, ("object_pose_1",), key, all_deltas
+            trace, Pytree.const(("object_pose_1",)), key, all_deltas
         )
         bayes3d.rerun_visualize_trace_t(trace, T_observed_image)
 

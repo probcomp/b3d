@@ -217,7 +217,7 @@ depends_on = ["gpu", "torch", "jax"]
 [tool.pixi.feature.cuda.tasks.test]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
-depends_on = ["sync", "reru"]
+depends_on = ["sync", "rerun"]
 env = { TEST_TARGETS = "tests" }
 
 # OpenGL dependencies (Linux only)

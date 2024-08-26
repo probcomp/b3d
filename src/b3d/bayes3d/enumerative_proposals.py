@@ -6,6 +6,13 @@ import b3d
 from b3d.pose import Pose
 
 
+@jax.jit
+def enumerate_and_select_best(trace, address, values):
+    potential_scores = b3d.enumerate_choices_get_scores(trace, address, values)
+    trace = b3d.update_choices(trace, address, values[potential_scores.argmax()])
+    return trace
+
+
 def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
     addr = addressses[0]
     current_pose = trace.get_choices()[addr]

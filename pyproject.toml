@@ -133,6 +133,7 @@ PDOC_ALLOW_EXEC = "1"
 
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
+datasync = { git = "https://github.com/probcomp/datasync.git" }
 genjax = "*"
 pykitti = "==0.3.1"
 pyliblzfse = ">=0.4.1,<0.5"

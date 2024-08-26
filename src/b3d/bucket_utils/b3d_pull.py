@@ -40,15 +40,6 @@ def download_all(overwrite):
     """
     Download all contents from the bucket.
     """
-    if overwrite:
-        confirm = input(
-            "WARNING:This will overwrite any existing local copy of the specified data with the version on the GCP bucket.\nContinue? [y/[n]]: "
-        )
-        if confirm != "y":
-            print("Aborting.")
-            return -1
-
-    print("===============================================")
     print(
         f"Downloading all contents from {GCLOUD_BUCKET_NAME} into {LOCAL_BUCKET_PATH}...\n(overwrite={overwrite})"
     )
@@ -86,15 +77,6 @@ def download_item(overwrite, filename):
     while filename[-1] == "/":
         filename = filename[:-1]
 
-    if overwrite:
-        confirm = input(
-            "WARNING:This will overwrite any existing local copy of the specified data with the version on the GCP bucket.\nContinue? [y/[n]]: "
-        )
-        if confirm != "y":
-            print("Aborting.")
-            return -1
-
-    print("===============================================")
     print(
         f"Downloading {filename} from {GCLOUD_BUCKET_NAME} into {LOCAL_BUCKET_PATH + '/' + filename}...\n(overwrite={overwrite})"
     )

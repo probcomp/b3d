@@ -62,8 +62,7 @@ depends_on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
-cmd = "./rerun.sh"
-cwd = "scripts"
+cmd = "python scripts/rerun-task.py"
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"
@@ -218,7 +217,7 @@ depends_on = ["gpu", "torch", "jax"]
 [tool.pixi.feature.cuda.tasks.test]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
-depends_on = ["sync", "rerun"]
+depends_on = ["sync", "reru"]
 env = { TEST_TARGETS = "tests" }
 
 # OpenGL dependencies (Linux only)

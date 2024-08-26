@@ -61,24 +61,18 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         )
         likelihood_args["scene_mesh"] = scene_mesh
 
-        depth_outlier_probability = (
-            genjax.uniform(0.0, 1.0) @ "depth_outlier_probability"
-        )
-        color_outlier_probability = (
-            genjax.uniform(0.0, 1.0) @ "color_outlier_probability"
-        )
+        depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"
+        likelihood_args["depth_noise_variance"] = depth_noise_variance
+        color_noise_variance = genjax.uniform(0.0001, 100000.0) @ "color_noise_variance"
+        likelihood_args["color_noise_variance"] = color_noise_variance
 
-        # depth_outlier_probability = (
-        #     genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
-        #     @ "depth_outlier_probability"
-        # )
-        # color_outlier_probability = (
-        #     genjax.uniform.vmap(in_axes=(0, None))(jnp.zeros(num_vertices), 1.0)
-        #     @ "color_outlier_probability"
-        # )
+        num_vertices = scene_mesh.vertices.shape[0]
 
-        likelihood_args["depth_outlier_probability"] = depth_outlier_probability
-        likelihood_args["color_outlier_probability"] = color_outlier_probability
+        outlier_probability = (
+            genjax.uniform(jnp.zeros(num_vertices), jnp.ones(num_vertices))
+            @ "outlier_probability"
+        )
+        likelihood_args["outlier_probability"] = outlier_probability
 
         if renderer is not None:
             rasterize_results = renderer.rasterize(

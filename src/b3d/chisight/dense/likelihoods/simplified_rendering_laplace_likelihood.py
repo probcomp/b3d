@@ -30,30 +30,33 @@ def simplified_rendering_laplace_likelihood(observed_rgbd, likelihood_args):
         projected_pixels[..., 0], projected_pixels[..., 1], 3
     ].set(transformed_points[..., 2])
 
-    c_outlier_prob = likelihood_args["color_outlier_probability"]
-    d_outlier_prob = likelihood_args["depth_outlier_probability"]
+    outlier_prob = likelihood_args["outlier_probability"]
 
     corresponding_observed_rgbd = observed_rgbd[
         projected_pixels[..., 0], projected_pixels[..., 1]
     ]
 
     color_probability = jax.scipy.stats.laplace.logpdf(
-        corresponding_observed_rgbd[..., :3], template_colors, 0.1
+        corresponding_observed_rgbd[..., :3],
+        template_colors,
+        likelihood_args["color_noise_variance"],
     ).sum(-1)
     depth_probability = jax.scipy.stats.laplace.logpdf(
-        corresponding_observed_rgbd[..., 3], transformed_points[..., 2], 0.01
+        corresponding_observed_rgbd[..., 3],
+        transformed_points[..., 2],
+        likelihood_args["depth_noise_variance"],
     )
 
     color_probability_outlier_adjusted = jnp.logaddexp(
-        color_probability + jnp.log(1 - c_outlier_prob),
-        jnp.log(c_outlier_prob) + jnp.log(1.0 / 1.0),
+        color_probability + jnp.log(1 - outlier_prob),
+        jnp.log(outlier_prob) + jnp.log(1.0 / 1.0),
     )
     depth_probability_outlier_adjusted = jnp.logaddexp(
-        depth_probability + jnp.log(1 - d_outlier_prob),
-        jnp.log(d_outlier_prob) + jnp.log(1.0 / 1.0),
+        depth_probability + jnp.log(1 - outlier_prob),
+        jnp.log(outlier_prob) + jnp.log(1.0 / 1.0),
     )
 
-    lmbda = 0.9
+    lmbda = 0.5
     scores = (
         lmbda * color_probability_outlier_adjusted
         + (1.0 - lmbda) * depth_probability_outlier_adjusted

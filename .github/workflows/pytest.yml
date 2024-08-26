@@ -56,4 +56,4 @@ jobs:
           pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
 
           # run test
-          pixi run test
+          pixi run --e gpu test

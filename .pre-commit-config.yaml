@@ -1,5 +1,5 @@
 ci:
-    skip: [ruff, pixi-update-default, pixi-update-cpu, pixi-update-gpu]
+    skip: [ruff, pixi-install-default, pixi-install-cpu, pixi-install-gpu]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -32,23 +32,23 @@ repos:
 
   - repo: local
     hooks:
-      - id: pixi-update-default
-        name: pixi update (solving default)
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e default && git add pixi.lock'
+      - id: pixi-install-default
+        name: pixi install (solving default)
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e default && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]
 
-      - id: pixi-update-cpu
-        name: pixi update (solving cpu)
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e cpu && git add pixi.lock'
+      - id: pixi-install-cpu
+        name: pixi install (solving cpu)
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e cpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]
 
-      - id: pixi-update-gpu
-        name: pixi update (solving gpu)
-        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi update -e gpu && git add pixi.lock'
+      - id: pixi-install-gpu
+        name: pixi install (solving gpu)
+        entry: bash -c 'cd $(git rev-parse --show-toplevel) && pixi install --locked -e gpu && git add pixi.lock'
         language: system
         files: ^pyproject\.toml$
         types: [text]

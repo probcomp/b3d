@@ -108,8 +108,6 @@ cwd = "scripts"
 # Core feature (CPU-enabled)
 
 [tool.pixi.feature.core.pypi-dependencies]
-carvekit = "==4.1.2"
-datasync = { git = "https://github.com/probcomp/datasync.git" }
 genjax = "*"
 pykitti = "==0.3.1"
 pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
@@ -184,6 +182,7 @@ system-requirements = { cuda = "12" }
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"
+datasync = { git = "https://github.com/probcomp/datasync.git" }
 genjax = "*"
 torch = "*"
 

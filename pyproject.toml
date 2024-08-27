@@ -105,35 +105,13 @@ description = "delete a vm (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-delete"
 cwd = "scripts"
 
-# No-CUDA feature (CPU-enabled)
-
-[tool.pixi.feature.no-cuda]
-platforms = ["linux-64", "osx-arm64"]
-
-[tool.pixi.feature.no-cuda.target.osx-arm64.dependencies]
-jaxlib = { version = "*", build = "cpu*" }
-pytorch = { version = "==2.3.0", build = "cpu_generic*" }
-
-[tool.pixi.feature.no-cuda.target.linux-64.dependencies]
-gcc = "*"
-jaxlib = { version = "*", build = "cpu*" }
-pytorch = { version = "==2.3.0", build = "cpu_generic*" }
-
-[tool.pixi.feature.no-cuda.tasks.docs]
-description = "render docs to docs/static"
-cmd = "python -m pdoc --logo https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622 --math --mermaid -o docs/render/ b3d"
-
-[tool.pixi.feature.no-cuda.tasks.docs.env]
-LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
-PDOC_ALLOW_EXEC = "1"
-
 # Core feature (CPU-enabled)
 
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
 genjax = "*"
 pykitti = "==0.3.1"
-lzfse = "*"
+pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
 pyransac3d = ">=0.6.0,<0.7"
 torch = "*"
 
@@ -176,14 +154,33 @@ description = "sync test data"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
 
+# No-CUDA feature (CPU-enabled)
+
+[tool.pixi.feature.no-cuda]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.pixi.feature.no-cuda.target.osx-arm64.dependencies]
+jaxlib = { version = "*", build = "cpu*" }
+pytorch = { version = "==2.3.0", build = "cpu_generic*" }
+
+[tool.pixi.feature.no-cuda.target.linux-64.dependencies]
+gcc = "*"
+jaxlib = { version = "*", build = "cpu*" }
+pytorch = { version = "==2.3.0", build = "cpu_generic*" }
+
+[tool.pixi.feature.no-cuda.tasks.docs]
+description = "render docs to docs/static"
+cmd = "python -m pdoc --logo https://github.com/probcomp/b3d/assets/66085644/50bc2fc3-c9cd-4139-bed6-9c6d53933622 --math --mermaid -o docs/render/ b3d"
+
+[tool.pixi.feature.no-cuda.tasks.docs.env]
+LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+PDOC_ALLOW_EXEC = "1"
+
 # CUDA feature (GPU-enabled)
 
 [tool.pixi.feature.cuda]
 platforms = ["linux-64", "osx-arm64"]
 system-requirements = { cuda = "12" }
-
-[tool.pixi.feature.no-cuda.target.osx-arm64.pypi-dependencies]
-lzfse = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"

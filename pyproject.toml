@@ -210,6 +210,16 @@ XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
 CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
 LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 
+[tool.pixi.feature.cuda.tasks.gpu-test-2]
+description = "gpu runner test"
+cmd = "python scripts/acquire_object_model.py assets/shared_data_bucket/input_data/lysol_static.r3d"
+
+[tool.pixi.feature.cuda.tasks.gpu-test-2.env]
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
+CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
+LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+
 [tool.pixi.feature.cuda.tasks.gpu]
 description = "gpu status"
 cmd = "nvidia-smi"

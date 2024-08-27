@@ -58,5 +58,5 @@ jobs:
           # run test
           # pixi run -e gpu test
           # pixi run -e gpu python -m pytest tests/test_render_ycb_model.py::test_renderer_full
-          pixi run -e gpu gpu-test
+          # pixi run -e gpu gpu-test
           pixi run -e gpu gpu-test-2

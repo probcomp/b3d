@@ -4,6 +4,7 @@
 assets/shared_data_bucket/*
 assets/test_results/*
 !assets/test_results/README.md
+!assets/shared_data_bucket/input_data/lysol_static.r3d
 assets/bop/*
 assets/nuscenes/*
 assets/ycbineoat/*

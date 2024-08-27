@@ -9,7 +9,7 @@
 
 [project]
 name = "b3d"
-dynamic = ["version"]
+version = "0.0.1"
 description = "A 3D computer vision library"
 license = { text = "Apache 2.0" }
 authors = [{ name = "Nishad Gothoskar", email = "nishadg@mit.edu" }]
@@ -22,8 +22,8 @@ platforms = ["linux-64", "osx-arm64"]
 conda-pypi-map = { "conda-forge" = "torch.json" }
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [tool.pixi.environments]
 cpu = { features = ["no-cuda", "core"], solve-group = "default" }
@@ -42,7 +42,6 @@ extra-index-urls = [
 
 [tool.pixi.pypi-dependencies]
 b3d = { path = ".", editable = true }
-setuptools = "*"
 
 [tool.pixi.dependencies]
 rerun-sdk = "==0.17.0"
@@ -180,7 +179,7 @@ cwd = "src/b3d/bucket_utils"
 # CUDA feature (GPU-enabled)
 
 [tool.pixi.feature.cuda]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64"]
 system-requirements = { cuda = "12" }
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]

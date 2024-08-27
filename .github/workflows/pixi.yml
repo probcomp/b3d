@@ -12,9 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
+      - name: Checkout probcomp/datasync
+        uses: actions/checkout@v4
         with:
           repository: probcomp/datasync
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: datasync
 
       - name: Authenticate gcloud
         id: auth

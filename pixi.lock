@@ -459,6 +459,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: git+https://github.com/probcomp/datasync.git@12804848a36b8a36c374881d04a6a98b77d98193
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -843,6 +844,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: git+https://github.com/probcomp/datasync.git@12804848a36b8a36c374881d04a6a98b77d98193
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/10/5f9eed00b1186921e447960443f03cda6374cba8cd5cf7aff2b42ecb8a0e/dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -1748,6 +1750,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: git+https://github.com/probcomp/datasync.git@12804848a36b8a36c374881d04a6a98b77d98193
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -2132,6 +2135,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: git+https://github.com/probcomp/datasync.git@12804848a36b8a36c374881d04a6a98b77d98193
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/10/5f9eed00b1186921e447960443f03cda6374cba8cd5cf7aff2b42ecb8a0e/dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -3226,7 +3230,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: 37e4af06b638458a45013994425b564118e32f921444d5e52304c36d959160a3
+  sha256: 96a199ae96e415242260ab5a8b180aea594c5b7381ecfe62a934d690a072c95c
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -4789,6 +4793,14 @@ packages:
   - pkg:pypi/cycler?source=project-defined-mapping
   size: 13458
   timestamp: 1696677888423
+- kind: pypi
+  name: datasync
+  version: 0.0.1
+  url: git+https://github.com/probcomp/datasync.git@12804848a36b8a36c374881d04a6a98b77d98193
+  requires_dist:
+  - jax[cuda12]~=0.4.28
+  - matplotlib>=3.9.1
+  requires_python: '>=3.9'
 - kind: conda
   name: dav1d
   version: 1.2.1
@@ -7613,6 +7625,7 @@ packages:
   - apache-arrow-proc =*=cpu
   - parquet-cpp <0.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 8514348
   timestamp: 1724771999840
@@ -7655,6 +7668,7 @@ packages:
   - apache-arrow-proc =*=cpu
   - arrow-cpp <0.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 5283314
   timestamp: 1724772384484
@@ -7673,6 +7687,7 @@ packages:
   - libgcc-ng >=13
   - libstdcxx-ng >=13
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 608144
   timestamp: 1724772035977
@@ -7690,6 +7705,7 @@ packages:
   - libarrow 17.0.0 hf7baa94_11_cpu
   - libcxx >=17
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 477385
   timestamp: 1724772506685
@@ -7710,6 +7726,7 @@ packages:
   - libparquet 17.0.0 h39682fd_11_cpu
   - libstdcxx-ng >=13
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 583348
   timestamp: 1724772099169
@@ -7729,6 +7746,7 @@ packages:
   - libcxx >=17
   - libparquet 17.0.0 hf0ba9ef_11_cpu
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 482916
   timestamp: 1724773522346
@@ -7751,6 +7769,7 @@ packages:
   - libcxx >=17
   - libprotobuf >=4.25.3,<4.25.4.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 467463
   timestamp: 1724773727281
@@ -7774,6 +7793,7 @@ packages:
   - libprotobuf >=4.25.3,<4.25.4.0a0
   - libstdcxx-ng >=13
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 550337
   timestamp: 1724772128722
@@ -10401,6 +10421,7 @@ packages:
   - libthrift >=0.20.0,<0.20.1.0a0
   - openssl >=3.3.1,<4.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 1189232
   timestamp: 1724772083439
@@ -10420,6 +10441,7 @@ packages:
   - libthrift >=0.20.0,<0.20.1.0a0
   - openssl >=3.3.1,<4.0a0
   license: Apache-2.0
+  license_family: APACHE
   purls: []
   size: 861600
   timestamp: 1724773446219

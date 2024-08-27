@@ -2,6 +2,7 @@
 *.pyc
 *.png
 assets/shared_data_bucket/*
+assets/physion/*
 assets/test_results/*
 !assets/test_results/README.md
 assets/bop/*

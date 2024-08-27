@@ -28,7 +28,6 @@ requires = ["hatchling"]
 [tool.pixi.environments]
 cpu = { features = ["no-cuda", "core"], solve-group = "default" }
 gpu = { features = ["cuda", "core"], solve-group = "cuda" }
-cuda = { features = ["cuda"], solve-group = "cuda" }
 
 [tool.pixi.target.osx-arm64.build-dependencies]
 scipy = { version = "1.14.0.*" }
@@ -134,7 +133,7 @@ PDOC_ALLOW_EXEC = "1"
 carvekit = "==4.1.2"
 genjax = "*"
 pykitti = "==0.3.1"
-pyliblzfse = ">=0.4.1,<0.5"
+lzfse = "*"
 pyransac3d = ">=0.6.0,<0.7"
 torch = "*"
 
@@ -168,6 +167,7 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "==0.18.0"
 trimesh = "==4.2.4"
 tqdm = "*"
+typing = "*"
 
 # Core tasks (CPU-enabled)
 
@@ -181,6 +181,9 @@ cwd = "src/b3d/bucket_utils"
 [tool.pixi.feature.cuda]
 platforms = ["linux-64", "osx-arm64"]
 system-requirements = { cuda = "12" }
+
+[tool.pixi.feature.no-cuda.target.osx-arm64.pypi-dependencies]
+lzfse = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"

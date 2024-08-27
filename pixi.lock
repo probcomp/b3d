@@ -1526,7 +1526,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtasn1-4.19.0-h166bdaf_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libthrift-0.20.0-h0e7cc3e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.6.0-h46a8edc_4.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtorch-2.3.0-cuda120_h2b0da52_301.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/libtorch-2.3.1-cuda120_h2b0da52_300.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libunistring-0.9.10-h7f98852_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libutf8proc-2.8.0-h166bdaf_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.38.1-h0b41bf4_0.conda
@@ -1638,7 +1638,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/python-json-logger-2.0.7-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/python-lzf-0.2.6-py312h41a817b_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/python_abi-3.12-5_cp312.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pytorch-2.3.0-cuda120_py312h26b3cf7_301.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pytorch-2.3.1-cuda120_py312h26b3cf7_300.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytz-2024.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyyaml-6.0.2-py312h41a817b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyzmq-26.2.0-py312hbf22597_0.conda
@@ -3226,7 +3226,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: 51b9e7d5f26123167891b5ef6ea8defa41813dc78845eeddf69e4dcb09d0e915
+  sha256: b62c5fcf0cfbd247a4c98d60e7e0a302a5576158b2eec4604abae1f053d97831
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -10897,49 +10897,6 @@ packages:
   timestamp: 1716584208699
 - kind: conda
   name: libtorch
-  version: 2.3.0
-  build: cuda120_h2b0da52_301
-  build_number: 301
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/libtorch-2.3.0-cuda120_h2b0da52_301.conda
-  sha256: 80edf1bff06164db3720b1dc47bde49d35eee07e0afeb810328f65aa2f528721
-  md5: 2016d407a061f5f62c10eb42fdc609ce
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - _openmp_mutex >=4.5
-  - cuda-cudart >=12.0.107,<13.0a0
-  - cuda-nvrtc >=12.0.76,<13.0a0
-  - cuda-nvtx >=12.0.76,<13.0a0
-  - cuda-version >=12.0,<13
-  - cudnn >=8.9.7.29,<9.0a0
-  - libabseil * cxx17*
-  - libabseil >=20240116.2,<20240117.0a0
-  - libcblas >=3.9.0,<4.0a0
-  - libcublas >=12.0.1.189,<13.0a0
-  - libcufft >=11.0.0.21,<12.0a0
-  - libcurand >=10.3.1.50,<11.0a0
-  - libcusolver >=11.4.2.57,<12.0a0
-  - libcusparse >=12.0.0.76,<13.0a0
-  - libgcc-ng >=12
-  - libmagma >=2.7.2,<2.7.3.0a0
-  - libmagma_sparse >=2.7.2,<2.7.3.0a0
-  - libprotobuf >=4.25.3,<4.25.4.0a0
-  - libstdcxx-ng >=12
-  - libuv >=1.48.0,<2.0a0
-  - mkl >=2023.2.0,<2024.0a0
-  - nccl >=2.21.5.1,<3.0a0
-  - sleef >=3.5.1,<4.0a0
-  constrains:
-  - pytorch 2.3.0 cuda120_*_301
-  - pytorch-gpu ==2.3.0
-  - pytorch-cpu ==99999999
-  license: BSD-3-Clause
-  license_family: BSD
-  purls: []
-  size: 504830436
-  timestamp: 1716604864471
-- kind: conda
-  name: libtorch
   version: 2.3.1
   build: cpu_generic_h95df8ed_1
   build_number: 1
@@ -10970,6 +10927,49 @@ packages:
   purls: []
   size: 28218721
   timestamp: 1719369604577
+- kind: conda
+  name: libtorch
+  version: 2.3.1
+  build: cuda120_h2b0da52_300
+  build_number: 300
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/libtorch-2.3.1-cuda120_h2b0da52_300.conda
+  sha256: ba3280cb165878d746c8ec1903dd8d6d0fde125fa55bb1688c5e0f1bca63d431
+  md5: 1ed803c2884f0fedd6691bffdf3ad2a2
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - _openmp_mutex >=4.5
+  - cuda-cudart >=12.0.107,<13.0a0
+  - cuda-nvrtc >=12.0.76,<13.0a0
+  - cuda-nvtx >=12.0.76,<13.0a0
+  - cuda-version >=12.0,<13
+  - cudnn >=8.9.7.29,<9.0a0
+  - libabseil * cxx17*
+  - libabseil >=20240116.2,<20240117.0a0
+  - libcblas >=3.9.0,<4.0a0
+  - libcublas >=12.0.1.189,<13.0a0
+  - libcufft >=11.0.0.21,<12.0a0
+  - libcurand >=10.3.1.50,<11.0a0
+  - libcusolver >=11.4.2.57,<12.0a0
+  - libcusparse >=12.0.0.76,<13.0a0
+  - libgcc-ng >=12
+  - libmagma >=2.7.2,<2.7.3.0a0
+  - libmagma_sparse >=2.7.2,<2.7.3.0a0
+  - libprotobuf >=4.25.3,<4.25.4.0a0
+  - libstdcxx-ng >=12
+  - libuv >=1.48.0,<2.0a0
+  - mkl >=2023.2.0,<2024.0a0
+  - nccl >=2.21.5.1,<3.0a0
+  - sleef >=3.5.1,<4.0a0
+  constrains:
+  - pytorch-cpu ==99999999
+  - pytorch 2.3.1 cuda120_*_300
+  - pytorch-gpu ==2.3.1
+  license: BSD-3-Clause
+  license_family: BSD
+  purls: []
+  size: 505233077
+  timestamp: 1718608435113
 - kind: conda
   name: libunistring
   version: 0.9.10
@@ -14445,60 +14445,6 @@ packages:
   timestamp: 1716588456984
 - kind: conda
   name: pytorch
-  version: 2.3.0
-  build: cuda120_py312h26b3cf7_301
-  build_number: 301
-  subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/pytorch-2.3.0-cuda120_py312h26b3cf7_301.conda
-  sha256: c45a2745b7de3c801815b3e58d1660ff3787d4a0da5982f2ea914dcb62e421cd
-  md5: 0606ae18769a5cc272d6ccf9d1b339c6
-  depends:
-  - __cuda
-  - __glibc >=2.17,<3.0.a0
-  - _openmp_mutex >=4.5
-  - cuda-cudart >=12.0.107,<13.0a0
-  - cuda-nvrtc >=12.0.76,<13.0a0
-  - cuda-nvtx >=12.0.76,<13.0a0
-  - cuda-version >=12.0,<13
-  - cudnn >=8.9.7.29,<9.0a0
-  - filelock
-  - fsspec
-  - jinja2
-  - libabseil * cxx17*
-  - libabseil >=20240116.2,<20240117.0a0
-  - libcblas >=3.9.0,<4.0a0
-  - libcublas >=12.0.1.189,<13.0a0
-  - libcufft >=11.0.0.21,<12.0a0
-  - libcurand >=10.3.1.50,<11.0a0
-  - libcusolver >=11.4.2.57,<12.0a0
-  - libcusparse >=12.0.0.76,<13.0a0
-  - libgcc-ng >=12
-  - libmagma >=2.7.2,<2.7.3.0a0
-  - libmagma_sparse >=2.7.2,<2.7.3.0a0
-  - libprotobuf >=4.25.3,<4.25.4.0a0
-  - libstdcxx-ng >=12
-  - libtorch 2.3.0.*
-  - libuv >=1.48.0,<2.0a0
-  - mkl >=2023.2.0,<2024.0a0
-  - nccl >=2.21.5.1,<3.0a0
-  - networkx
-  - numpy >=1.19,<3
-  - python >=3.12,<3.13.0a0
-  - python_abi 3.12.* *_cp312
-  - sleef >=3.5.1,<4.0a0
-  - sympy
-  - typing_extensions
-  constrains:
-  - pytorch-gpu ==2.3.0
-  - pytorch-cpu ==99999999
-  license: BSD-3-Clause
-  license_family: BSD
-  purls:
-  - pkg:pypi/torch?source=project-defined-mapping
-  size: 24505855
-  timestamp: 1716610192371
-- kind: conda
-  name: pytorch
   version: 2.3.1
   build: cpu_generic_py312h2aa0b4f_1
   build_number: 1
@@ -14538,6 +14484,60 @@ packages:
   - pkg:pypi/torch?source=project-defined-mapping
   size: 23428922
   timestamp: 1719369950286
+- kind: conda
+  name: pytorch
+  version: 2.3.1
+  build: cuda120_py312h26b3cf7_300
+  build_number: 300
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/pytorch-2.3.1-cuda120_py312h26b3cf7_300.conda
+  sha256: 82f777301ba9a26e5165a73347616b27e2f9045ba8517ad9aff8c4150232bd6d
+  md5: b2d81e39d61a4d0b29d8061cf0093ede
+  depends:
+  - __cuda
+  - __glibc >=2.17,<3.0.a0
+  - _openmp_mutex >=4.5
+  - cuda-cudart >=12.0.107,<13.0a0
+  - cuda-nvrtc >=12.0.76,<13.0a0
+  - cuda-nvtx >=12.0.76,<13.0a0
+  - cuda-version >=12.0,<13
+  - cudnn >=8.9.7.29,<9.0a0
+  - filelock
+  - fsspec
+  - jinja2
+  - libabseil * cxx17*
+  - libabseil >=20240116.2,<20240117.0a0
+  - libcblas >=3.9.0,<4.0a0
+  - libcublas >=12.0.1.189,<13.0a0
+  - libcufft >=11.0.0.21,<12.0a0
+  - libcurand >=10.3.1.50,<11.0a0
+  - libcusolver >=11.4.2.57,<12.0a0
+  - libcusparse >=12.0.0.76,<13.0a0
+  - libgcc-ng >=12
+  - libmagma >=2.7.2,<2.7.3.0a0
+  - libmagma_sparse >=2.7.2,<2.7.3.0a0
+  - libprotobuf >=4.25.3,<4.25.4.0a0
+  - libstdcxx-ng >=12
+  - libtorch 2.3.1.*
+  - libuv >=1.48.0,<2.0a0
+  - mkl >=2023.2.0,<2024.0a0
+  - nccl >=2.21.5.1,<3.0a0
+  - networkx
+  - numpy >=1.19,<3
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  - sleef >=3.5.1,<4.0a0
+  - sympy
+  - typing_extensions
+  constrains:
+  - pytorch-cpu ==99999999
+  - pytorch-gpu ==2.3.1
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/torch?source=project-defined-mapping
+  size: 24706723
+  timestamp: 1718613214315
 - kind: conda
   name: pytz
   version: '2024.1'

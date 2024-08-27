@@ -145,7 +145,6 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "==0.18.0"
 trimesh = "==4.2.4"
 tqdm = "*"
-#typing = "*"
 
 # Core tasks (CPU-enabled)
 
@@ -185,7 +184,7 @@ system-requirements = { cuda = "12" }
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"
 genjax = "*"
-torch = "*"
+torch = "==2.3.1"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]
 cuda-toolkit = "*"
@@ -193,9 +192,8 @@ gcc = "*"
 jax = "*"
 jaxlib = { version = "0.4.28", build = "cuda12*" }
 libnvjitlink = "*"
-#lzfse = "*"
 optax = ">=0.2.2,<0.3"
-pytorch = { version = "==2.3.0", build = "cuda12*" }
+pytorch = { version = "==2.3.1", build = "cuda12*" }
 torchvision = "==0.18.0"
 
 # CUDA tasks (GPU-enabled)
@@ -209,6 +207,7 @@ XLA_PYTHON_CLIENT_PREALLOCATE = "false"
 XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
 CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
 LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+TORCH_COMPILE_DEBUG = "1"
 
 [tool.pixi.feature.cuda.tasks.gpu-test-2]
 description = "gpu runner test"
@@ -217,8 +216,9 @@ cmd = "python scripts/acquire_object_model.py assets/shared_data_bucket/input_da
 [tool.pixi.feature.cuda.tasks.gpu-test-2.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"
 XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
-CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
-LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+CPLUS_INCLUDE_PATH = "$GITHUB_WORKSPACE/.pixi/envs/gpu/targets/x86_64-linux/include"
+LD_LIBRARY_PATH = "$GITHUB_WORKSPACE/.pixi/envs/gpu/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+TORCH_COMPILE_DEBUG = "1"
 
 [tool.pixi.feature.cuda.tasks.gpu]
 description = "gpu status"

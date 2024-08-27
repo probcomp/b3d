@@ -145,7 +145,6 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "==0.18.0"
 trimesh = "==4.2.4"
 tqdm = "*"
-#typing = "*"
 
 # Core tasks (CPU-enabled)
 
@@ -193,7 +192,6 @@ gcc = "*"
 jax = "*"
 jaxlib = { version = "0.4.28", build = "cuda12*" }
 libnvjitlink = "*"
-#lzfse = "*"
 optax = ">=0.2.2,<0.3"
 pytorch = { version = "==2.3.0", build = "cuda12*" }
 torchvision = "==0.18.0"

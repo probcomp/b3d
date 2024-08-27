@@ -1,5 +1,5 @@
 ci:
-    skip: [ruff, pixi-install-default, pixi-install-cpu, pixi-install-gpu]
+    skip: [pixi-install-default, pixi-install-cpu, pixi-install-gpu]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

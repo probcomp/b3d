@@ -165,6 +165,7 @@ EOF
   local host_without="sam-b3d-l4"
   local expected
   local actual
+  local this_machine=$(uname -s)
 
   # mock uname
   uname() {
@@ -186,19 +187,21 @@ EOF
   $_ASSERT_TRUE_ $status
   $_ASSERT_EQUALS_ '"$expected"' '"$actual"'
 
-  # test adding remote forward to Linux
-  ssh_config_temp=$(mktemp)
-  SSH_CONFIG="$ssh_config_temp"
-  echo "$ssh_config" >"$ssh_config_temp"
-  GCP_VM="$host_without"
-  OS="Linux"
-  gcp-update-ssh-config-remote-forward >/dev/null
-  status=$?
-  expected="$ssh_config_updated"
-  actual=$(cat "$ssh_config_temp")
-  $_ASSERT_TRUE_ $status
-  $_ASSERT_EQUALS_ '"$expected"' '"$actual"'
-
+  # Linux can test both Darwin and Linux, but Darwin cannot
+  if [[ $this_machine != "Darwin" ]]; then
+    # test adding remote forward to Linux
+    ssh_config_temp=$(mktemp)
+    SSH_CONFIG="$ssh_config_temp"
+    echo "$ssh_config" >"$ssh_config_temp"
+    GCP_VM="$host_without"
+    OS="Linux"
+    gcp-update-ssh-config-remote-forward >/dev/null
+    status=$?
+    expected="$ssh_config_updated"
+    actual=$(cat "$ssh_config_temp")
+    $_ASSERT_TRUE_ $status
+    $_ASSERT_EQUALS_ '"$expected"' '"$actual"'
+  fi
   # restore uname
   unset -f uname
 }

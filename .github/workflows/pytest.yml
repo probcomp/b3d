@@ -36,27 +36,34 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Run pixi test
-        run: |
-          # install pixi
-          curl -fsSL https://pixi.sh/install.sh | bash
-          source ~/.bashrc
-          export PATH=/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH
+      - name: ssh
+        uses: ryanchapman/gha-ssh@v1
+        timeout-minutes: 20
+        with:
+          authorized_github_users: 'eightysteele'
+          debug: true
 
-          # install pipx and inject gcp backend
-          pixi global install pipx
-          pipx install keyring
-          pipx inject keyring \
-            keyrings.google-artifactregistry-auth \
-            --index-url \
-            https://pypi.org/simple
+      # - name: Run pixi test
+      #   run: |
+      #     # install pixi
+      #     curl -fsSL https://pixi.sh/install.sh | bash
+      #     source ~/.bashrc
+      #     export PATH=/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH
 
-          # install gpu environment
-          pixi clean && pixi clean cache --yes
-          pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
+      #     # install pipx and inject gcp backend
+      #     pixi global install pipx
+      #     pipx install keyring
+      #     pipx inject keyring \
+      #       keyrings.google-artifactregistry-auth \
+      #       --index-url \
+      #       https://pypi.org/simple
 
-          # run test
-          # pixi run -e gpu test
-          # pixi run -e gpu python -m pytest tests/test_render_ycb_model.py::test_renderer_full
-          # pixi run -e gpu gpu-test
-          pixi run -e gpu gpu-test-2
+      #     # install gpu environment
+      #     pixi clean && pixi clean cache --yes
+      #     pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
+
+      #     # run test
+      #     # pixi run -e gpu test
+      #     # pixi run -e gpu python -m pytest tests/test_render_ycb_model.py::test_renderer_full
+      #     # pixi run -e gpu gpu-test
+      #     pixi run -e gpu gpu-test-2

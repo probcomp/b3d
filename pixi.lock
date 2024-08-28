@@ -1735,7 +1735,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
-      - pypi: git+https://github.com/probcomp/datasync.git@6956b93c718bbb116d9947c0badec830a2f1d8f0
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -3202,7 +3201,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: 5280ed4112cff85347620e04ece516b5c7f560de3616542efb6a367f85921949
+  sha256: 65c35dc959bee9422fb3072dc5d1f579ed409766b08e92c897016a262d09b1fd
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -4765,14 +4764,6 @@ packages:
   - pkg:pypi/cycler?source=project-defined-mapping
   size: 13458
   timestamp: 1696677888423
-- kind: pypi
-  name: datasync
-  version: 0.0.1
-  url: git+https://github.com/probcomp/datasync.git@6956b93c718bbb116d9947c0badec830a2f1d8f0
-  requires_dist:
-  - jax[cuda12]~=0.4.28
-  - matplotlib>=3.9.1
-  requires_python: '>=3.9'
 - kind: conda
   name: datasync
   version: 0.0.2

@@ -59,7 +59,7 @@ def test_demo():
     # Arguments of the generative model.
     # These control the inlier / outlier decision boundary for color error and depth error.
     color_error, depth_error = (60.0, 0.01)
-    inlier_score, outlier_prob = (5.0, 0.00001)
+    inlier_score, outlier_prob = (5.0, 1.0)
     color_multiplier, depth_multiplier = (10000.0, 500.0)
     model_args = bayes3d.ModelArgs(
         color_error,

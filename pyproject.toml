@@ -145,6 +145,7 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "==0.18.0"
 trimesh = "==4.2.4"
 tqdm = "*"
+h5py = ">=3.11.0,<3.12"
 
 # Core tasks (CPU-enabled)
 

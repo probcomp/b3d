@@ -22,15 +22,7 @@ def simplified_rendering_laplace_likelihood(observed_rgbd, likelihood_args):
         b3d.xyz_to_pixel_coordinates(transformed_points, fx, fy, cx, cy)
     ).astype(jnp.int32)
 
-    latent_rgbd = jnp.zeros_like(observed_rgbd)
-    latent_rgbd = latent_rgbd.at[
-        projected_pixels[..., 0], projected_pixels[..., 1], :3
-    ].set(template_colors)
-    latent_rgbd = latent_rgbd.at[
-        projected_pixels[..., 0], projected_pixels[..., 1], 3
-    ].set(transformed_points[..., 2])
-
-    outlier_prob = likelihood_args["outlier_probability"]
+    outlier_probability_per_vertex = likelihood_args["outlier_probability"]
 
     corresponding_observed_rgbd = observed_rgbd[
         projected_pixels[..., 0], projected_pixels[..., 1]
@@ -41,6 +33,7 @@ def simplified_rendering_laplace_likelihood(observed_rgbd, likelihood_args):
         template_colors,
         likelihood_args["color_noise_variance"],
     ).sum(-1)
+
     depth_probability = jax.scipy.stats.laplace.logpdf(
         corresponding_observed_rgbd[..., 3],
         transformed_points[..., 2],
@@ -48,12 +41,13 @@ def simplified_rendering_laplace_likelihood(observed_rgbd, likelihood_args):
     )
 
     color_probability_outlier_adjusted = jnp.logaddexp(
-        color_probability + jnp.log(1 - outlier_prob),
-        jnp.log(outlier_prob) + jnp.log(1.0 / 1.0),
+        color_probability + jnp.log(1 - outlier_probability_per_vertex),
+        jnp.log(outlier_probability_per_vertex) + jnp.log(1.0 / 1.0),
     )
+
     depth_probability_outlier_adjusted = jnp.logaddexp(
-        depth_probability + jnp.log(1 - outlier_prob),
-        jnp.log(outlier_prob) + jnp.log(1.0 / 1.0),
+        depth_probability + jnp.log(1 - outlier_probability_per_vertex),
+        jnp.log(outlier_probability_per_vertex) + jnp.log(1.0 / 1.0),
     )
 
     lmbda = 0.5
@@ -61,6 +55,15 @@ def simplified_rendering_laplace_likelihood(observed_rgbd, likelihood_args):
         lmbda * color_probability_outlier_adjusted
         + (1.0 - lmbda) * depth_probability_outlier_adjusted
     )
+
+    # Visualization
+    latent_rgbd = jnp.zeros_like(observed_rgbd)
+    latent_rgbd = latent_rgbd.at[
+        projected_pixels[..., 0], projected_pixels[..., 1], :3
+    ].set(template_colors)
+    latent_rgbd = latent_rgbd.at[
+        projected_pixels[..., 0], projected_pixels[..., 1], 3
+    ].set(transformed_points[..., 2])
 
     return {
         "score": scores.sum(),

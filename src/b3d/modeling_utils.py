@@ -10,6 +10,23 @@ from b3d.pose import (
     sample_uniform_pose,
 )
 
+
+@jax.jit
+def sample_uniform_broadcasted(key, low, high):
+    return genjax.uniform.sample(key, low, high)
+
+
+def logpdf_uniform_broadcasted(values, low, high):
+    valid = (low <= values) & (values <= high)
+    position_score = jnp.log((valid * 1.0) * (jnp.ones_like(values) / (high - low)))
+    return position_score.sum() + jnp.pi**2
+
+
+uniform_broadcasted = genjax.exact_density(
+    sample_uniform_broadcasted, logpdf_uniform_broadcasted
+)
+
+
 uniform_discrete = genjax.exact_density(
     lambda key, vals: jax.random.choice(key, vals),
     lambda sampled_val, vals: jnp.log(1.0 / (vals.shape[0])),

@@ -2,7 +2,9 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from genjax import Pytree
+from genjax import ChoiceMapBuilder as C
+from genjax import Diff, Pytree
+from genjax import UpdateProblemBuilder as U
 
 import b3d
 from b3d import Pose
@@ -85,20 +87,35 @@ def update_address_with_sweep(trace, address, sweep):
     return b3d.update_choices(trace, address, best_setting)
 
 
+@jax.jit
+def advance_time(key, trace, observed_rgbd):
+    """
+    Advance to the next timestep, setting the new latent state to the
+    same thing as the previous latent state, and setting the new
+    observed RGBD value.
+
+    Returns a trace where previous_state (stored in the arguments)
+    and new_state (sampled in the choices and returned) are identical.
+    """
+    hyperparams, _ = trace.get_args()
+    previous_state = trace.get_retval()["new_state"]
+    trace, _, _, _ = trace.update(
+        key,
+        U.g(
+            (Diff.no_change(hyperparams), Diff.unknown_change(previous_state)),
+            C.kw(rgbd=observed_rgbd),
+        ),
+    )
+    return trace
+
+
 ### Inference step loop ###
 
 
-@jax.jit
 def inference_step(trace, key, observed_rgbd):
-    outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-    trace = b3d.update_choices(
-        trace,
-        Pytree.const(("old_pose", "old_colors")),
-        trace.get_choices()["pose"],
-        trace.get_choices()["colors"],
-    )
+    trace = advance_time(key, trace, observed_rgbd)
 
-    trace = b3d.update_choices(trace, Pytree.const(("rgbd",)), observed_rgbd)
+    outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
 
     for _ in range(2):
         trace, key = gaussian_vmf_enumerative_move_with_other_updates(

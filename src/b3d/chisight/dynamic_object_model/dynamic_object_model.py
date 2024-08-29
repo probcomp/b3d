@@ -130,6 +130,7 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         @ "pose"
     )
 
+    # TODO: change this to a mixture of 0.02 * this distribution + 0.98 * a very tight laplace around the old colors
     colors = (
         b3d.modeling_utils.uniform_broadcasted(
             previous_state["colors"] - max_color_shift,
@@ -138,13 +139,16 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         @ "colors"
     )
 
+    # TODO: gradual change on the outlier probabilities and variance values
+    # One way: mixture of 1% switch to a uniformly new value, and 99% sample
+    # from a tight laplace/normal around the old value
+
     color_outlier_probability = (
         b3d.modeling_utils.uniform_broadcasted(
             0.0 * jnp.ones((num_vertices,)), 1.0 * jnp.ones((num_vertices,))
         )
         @ "color_outlier_probability"
     )
-
     depth_outlier_probability = (
         b3d.modeling_utils.uniform_broadcasted(
             0.0 * jnp.ones((num_vertices,)), 1.0 * jnp.ones((num_vertices,))

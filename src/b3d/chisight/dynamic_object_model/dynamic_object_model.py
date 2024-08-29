@@ -9,6 +9,130 @@ from b3d import Pose
 
 ### Kernel from pointcloud -> image ###
 
+# def raycast_to_image_nondeterministic(key, intrinsics, vertices_in_camera_frame, K):
+#     """
+#     Returns an array of shape (H, W, K) containing K point indices, or -1 to indicate no point was registered.
+#     """
+#     N_pts = vertices_in_camera_frame.shape[0]
+
+#     projected_pixel_coordinates = jnp.rint(
+#         b3d.xyz_to_pixel_coordinates(
+#             vertices_in_camera_frame, intrinsics["fx"], intrinsics["fy"], intrinsics["cx"], intrinsics["cy"]
+#         )
+#     ).astype(jnp.int32)
+#     shuffled_pixel_coordinates = jax.random.shuffle(key, projected_pixel_coordinates)
+
+#     random_indices = jax.random.randint(key, (N_pts,), 0, K) # (N_pts,) array of random indices from 0 to K-1
+#     registered_pixel_indices = -jnp.ones((intrinsics["height"], intrinsics["width"], K), dtype=int)
+#     registered_pixel_indices = registered_pixel_indices.at[shuffled_pixel_coordinates, random_indices].set(jnp.arange(N_pts))
+
+#     return registered_pixel_indices
+
+# # def raycast_to_image_deterministic(key, args):
+# #     return None
+# # TODO: if the nondeterministic one seems to be making debugging hard, implement
+# # a deterministic version using jnp.unique.
+
+
+# # def accumulate_pixel_color(carry, projected_info):
+# #     carry_color, count = carry
+# #     vertex_pixel_xy, vertex_color = projected_info
+# #     carry_color = carry_color.at[vertex_pixel_xy].add(vertex_color)
+# #     count = count.at[vertex_pixel_xy].add(1)
+# #     return (carry_color, count), None
+
+# # (new_pixel_color, count), _ = jax.lax.scan(
+# #     accumulate_pixel_color, (new_pixel_color, count), (vertex_pixel_xys, vertex_rgbs)
+# # )
+# # new_pixel_color = jnp.where(count > 0, new_pixel_color / count, new_pixel_color)
+
+# #
+# #
+# # `pts` `colors`
+# # `pts_ij` is all the points that project to pixel (i, j)
+# # mean_color = mean of all point colors (ignoring "off" points)
+# # mean_outlier_prob_{color/depth} = mean of all outlier probs (ignoring "off" points)
+
+# # sampled from laplace centered at mean with color_variance, depth_variance
+
+# # w.p. prod_{pt} nonregistration_prob[pt], no color is registered.
+# # else, sample a point w.p. prop to (1 - nonregistration_prob[pt])
+# # sample a color around this point from a laplace
+
+# # Version 1 [exactly do this]
+# # 1. Fill a `pts` array with K points that hit pixel (i, j).  Some slots may be empty.
+# # 2.
+
+# # Version 2 [approximate this with a mean]:
+# # `pts` is the set of all points projecting to one pixel (i, j)
+# # `nonregistration_prob[pt]` = probability a point is not registered, if it is the only one observed (nonregistration_prob = "outlier prob")
+# # `color[pt]` = RGB or D value for the point
+# # 1. Compute overall_p_nonregistered = prod_{pt} nonregistration_prob[pt].  [Set to 1.0 if pts is empty.]
+# # 2. Compute the mean of all the colors for each point, where the color for `pt` is weighted proportionally to (1 - nonregistration_prob[pt])
+# # 3. Sample from a mixture of [1] a uniform, with probability `nonregistration_prob[pt]`, and [2] a laplace around the mean color
+
+# # For both of these, we should generate samples and look at them!
+
+# @Pytree.dataclass
+# class PixelDistribution(genjax.ExactDensity):
+#     def sample(self, key, registered_point_indices, args):
+#         """
+#         Args:
+#             key
+#             registered_point_indices: (K,) array
+#         """
+#         valid_mask = (registered_point_indices >= 0)
+
+#         sampled_inlier_colors = jax.scipy.stats.laplace.sample(
+#             key, args["colors"][registered_point_indices], args["color_variance"]
+#         )
+#         outlier_colors = jax.random.uniform(key, args["colors"].shape)
+#         corrupted = (
+#             jax.random.uniform(key, len()) <
+#             args["color_outlier_probability"][registered_point_indices]
+#         )
+#         sampled_colors = corrupted * outlier_colors + ~corrupted * sampled_inlier_colors
+#         index = jax.random.categorical(jnp.log(valid_mask))
+
+
+#         sampled_inlier_depth  = jax.scipy.stats.laplace.sample(
+#             key, args["colors"][registered_point_indices], args["color_variance"]
+#         )
+#         outlier_colors = jax.random.uniform(key, args["colors"].shape)
+#         corrupted = (
+#             jax.random.uniform(key, len()) <
+#             args["color_outlier_probability"][registered_point_indices]
+#         )
+#         sampled_colors = corrupted * outlier_colors + ~corrupted * sampled_inlier_colors
+#         index = jax.random.categorical(jnp.log(valid_mask))
+
+
+#         return sampled_colors[index]
+
+#     def logpdf(self, observed_rgbd, likelihood_args):
+
+
+# mapped_pixel_distribution = ArgMap(ImageDistFromPixelDist(
+#         PixelDistribution(),
+#         (True, False), # map over `registered_point_indices` per pixel, but not `args`
+#     ),
+#     lambda registered_point_indices, args: (H, W, *args)
+# )
+
+
+# @Pytree.dataclass
+# class ImageDistribution(genjax.Distribution):
+#     def random_weighted(key, args):
+#         raycasted_image = raycast_to_image.simulate(key, args).get_retval()
+#         value = mapped_pixel_distribution.sample(key, raycasted_image, args)
+#         pdf_estimate = mapped_pixel_distribution.logpdf(value, raycasted_image, args)
+#         return value, pdf_estimate
+
+#     def estimate_logpdf(key, obs, args):
+#         raycasted_image = raycast_to_image.simulate(key, args).get_retval()
+#         pdf_estimate = mapped_pixel_distribution.logpdf(obs, raycasted_image, args)
+#         return pdf_estimate
+
 
 @jax.jit
 def laplace_no_rendering_likelihood_function(observed_rgbd, args):

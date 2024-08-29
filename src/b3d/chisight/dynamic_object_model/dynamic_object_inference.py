@@ -111,6 +111,16 @@ def advance_time(key, trace, observed_rgbd):
 
 ### Inference step loop ###
 
+# def georges_proposed_inference_step(trace):
+#     trace = advance_time(trace)
+
+#     for i in range(4):
+#         trace = outlier_prob_sweep(trace)
+#         trace = color_variance_sweep(trace)
+#         trace = depth_variance_sweep(trace)
+
+#     # TODO
+
 
 def inference_step(trace, key, observed_rgbd):
     trace = advance_time(key, trace, observed_rgbd)

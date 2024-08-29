@@ -89,58 +89,54 @@ class ImageLikelihood(genjax.ExactDensity):
 
 image_likelihood = ImageLikelihood()
 
+# @genjax.gen
+# def likelihood(args):
+#     metadata = f()
+#     image = image_likelihood(metadata)
+
 
 @jax.jit
 def info_from_trace(trace):
     return laplace_no_rendering_likelihood_function(
         trace.get_choices()["rgbd"],
-        trace.get_retval()["args"],
+        trace.get_retval()["likelihood_args"],
     )
 
 
 ### Step model ###
 
+# 1. (theta, z0) ~ P_0
+# 2. For t > 0:
+#     z_t ~ P_step(. ; theta, z_{t-1})
+
+# P_0 --> P*(hyperparams_0, dummy_z)
+# P_step -> P*(hyperparams_step, z_{t-1})
+# We are implementing P*.
+
 
 @genjax.gen
-def dynamic_object_generative_model(args):
-    num_vertices = args["num_vertices"].const
-
-    vertices = (
-        b3d.modeling_utils.uniform_broadcasted(
-            -1.0 * jnp.ones((num_vertices, 3)), 1.0 * jnp.ones((num_vertices, 3))
-        )
-        @ "vertices"
-    )
-    args["vertices"] = vertices
-
-    old_pose = (
-        Pose.uniform_pose_centered(
-            Pose.identity(), -100.0 * jnp.ones(3), 100.0 * jnp.ones(3)
-        )
-        @ "old_pose"
-    )
+def dynamic_object_generative_model(hyperparams, previous_state):
+    max_color_shift = hyperparams["max_color_shift"].const
+    max_pose_position_shift = hyperparams["max_pose_position_shift"].const
+    vertices = hyperparams["vertices"]
+    num_vertices = vertices.shape[0]
 
     pose = (
-        Pose.uniform_pose_centered(old_pose, -0.1 * jnp.ones(3), 0.1 * jnp.ones(3))
+        Pose.uniform_pose_centered(
+            previous_state["pose"],
+            -max_pose_position_shift * jnp.ones(3),
+            max_pose_position_shift * jnp.ones(3),
+        )
         @ "pose"
     )
-    args["pose"] = pose
 
-    old_colors = (
-        b3d.modeling_utils.uniform_broadcasted(
-            jnp.zeros((num_vertices, 3)), jnp.ones((num_vertices, 3))
-        )
-        @ "old_colors"
-    )
-
-    max_color_shift = args["max_color_shift"].const
     colors = (
         b3d.modeling_utils.uniform_broadcasted(
-            old_colors - max_color_shift, old_colors + max_color_shift
+            previous_state["colors"] - max_color_shift,
+            previous_state["colors"] + max_color_shift,
         )
         @ "colors"
     )
-    args["colors"] = colors
 
     color_outlier_probability = (
         b3d.modeling_utils.uniform_broadcasted(
@@ -148,7 +144,6 @@ def dynamic_object_generative_model(args):
         )
         @ "color_outlier_probability"
     )
-    args["color_outlier_probability"] = color_outlier_probability
 
     depth_outlier_probability = (
         b3d.modeling_utils.uniform_broadcasted(
@@ -156,30 +151,50 @@ def dynamic_object_generative_model(args):
         )
         @ "depth_outlier_probability"
     )
-    args["depth_outlier_probability"] = depth_outlier_probability
 
     depth_variance = genjax.uniform(0.0001, 100000.0) @ "depth_variance"
     color_variance = genjax.uniform(0.0001, 100000.0) @ "color_variance"
-    args["color_variance"] = color_variance
-    args["depth_variance"] = depth_variance
 
-    rgbd = image_likelihood(args) @ "rgbd"
-    return {"args": args, "rgbd": rgbd}
+    likelihood_args = {
+        "fx": hyperparams["fx"],
+        "fy": hyperparams["fy"],
+        "cx": hyperparams["cx"],
+        "cy": hyperparams["cy"],
+        "image_height": hyperparams["image_height"],
+        "image_width": hyperparams["image_width"],
+        "vertices": vertices,
+        "pose": pose,
+        "colors": colors,
+        "color_outlier_probability": color_outlier_probability,
+        "depth_outlier_probability": depth_outlier_probability,
+        "depth_variance": depth_variance,
+        "color_variance": color_variance,
+    }
+    rgbd = image_likelihood(likelihood_args) @ "rgbd"
+
+    new_state = {
+        "pose": pose,
+        "colors": colors,
+    }
+    return {
+        "new_state": new_state,
+        "rgbd": rgbd,
+        "likelihood_args": likelihood_args,
+    }
 
 
 ### Viz ###
-
-
 def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     info = info_from_trace(trace)
     b3d.utils.rr_set_time(t)
-    args = trace.get_retval()["args"]
+    likelihood_args = trace.get_retval()["likelihood_args"]
     fx, fy, cx, cy = (
-        args["fx"],
-        args["fy"],
-        args["cx"],
-        args["cy"],
+        likelihood_args["fx"],
+        likelihood_args["fy"],
+        likelihood_args["cx"],
+        likelihood_args["cy"],
     )
+    vertices = trace.get_args()[0]["vertices"]
 
     info = info_from_trace(trace)
     rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
@@ -206,18 +221,18 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     )
 
     b3d.rr_log_cloud(
-        trace.get_choices()["vertices"],
+        vertices,
         "object/model",
         trace.get_choices()["colors"],
     )
     b3d.rr_log_cloud(
-        trace.get_choices()["vertices"],
+        vertices,
         "object/color_outlier_probability",
         jnp.array([[1.0, 0.0, 0.0]])
         * trace.get_choices()["color_outlier_probability"][:, None],
     )
     b3d.rr_log_cloud(
-        trace.get_choices()["vertices"],
+        vertices,
         "object/depth_outlier_probability",
         jnp.array([[0.0, 1.0, 0.0]])
         * trace.get_choices()["depth_outlier_probability"][:, None],

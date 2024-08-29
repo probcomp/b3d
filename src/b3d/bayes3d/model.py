@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import genjax
+import jax
 import jax.numpy as jnp
 import rerun as rr
 
@@ -39,11 +40,23 @@ def get_rgb_depth_inliers_from_observed_rendered_args(
     ) + jnp.abs(observed_lab[..., 0] - rendered_lab[..., 0])
 
     valid_data_mask = rendered_rgb.sum(-1) != 0.0
+    jax.debug.print(
+        "Better looking printing: {rendered_rgb}", rendered_rgb=rendered_rgb
+    )
+    jax.debug.print(
+        "Better looking printing: {valid_data_mask}", valid_data_mask=valid_data_mask
+    )
 
     color_inliers = (error < model_args.color_tolerance) * valid_data_mask
+    jax.debug.print(
+        "Better looking printing: {color_inliers}", color_inliers=color_inliers
+    )
     depth_inliers = (
         jnp.abs(observed_depth - rendered_depth) < model_args.depth_tolerance
     ) * valid_data_mask
+    jax.debug.print(
+        "Better looking printing: {depth_inliers}", depth_inliers=depth_inliers
+    )
     inliers = color_inliers * depth_inliers
     outliers = jnp.logical_not(inliers) * valid_data_mask
     undecided = jnp.logical_not(inliers) * jnp.logical_not(outliers)

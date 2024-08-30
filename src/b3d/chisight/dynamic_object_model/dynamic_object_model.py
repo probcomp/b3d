@@ -11,7 +11,7 @@ from b3d import Pose
 
 
 @jax.jit
-def laplace_no_rendering_likelihood_function(observed_rgbd, args):
+def likelihood_func(observed_rgbd, args):
     transformed_points = args["pose"].apply(args["vertices"])
 
     projected_pixel_coordinates = jnp.rint(
@@ -32,7 +32,7 @@ def laplace_no_rendering_likelihood_function(observed_rgbd, args):
             observed_rgbd_masked[..., :3], args["colors"], args["color_variance"]
         ).sum(axis=-1)
         + jnp.log(1 - color_outlier_probability),
-        jnp.log(color_outlier_probability) * jnp.log(1 / 1.0**3),  # <- log(1) == 0 tho
+        jnp.log(color_outlier_probability) + jnp.log(1 / 1.0**3),  # <- log(1) == 0 tho
     )
     depth_probability = jnp.logaddexp(
         jax.scipy.stats.laplace.logpdf(
@@ -41,7 +41,7 @@ def laplace_no_rendering_likelihood_function(observed_rgbd, args):
             args["depth_variance"],
         )
         + jnp.log(1 - depth_outlier_probability),
-        jnp.log(depth_outlier_probability) * jnp.log(1 / 1.0),
+        jnp.log(depth_outlier_probability) + jnp.log(1 / 1.0),
     )
 
     scores = color_probability + depth_probability
@@ -76,33 +76,6 @@ def sample_func(key, likelihood_args):
     )
 
 
-@Pytree.dataclass
-class ImageLikelihood(genjax.ExactDensity):
-    def sample(self, key, likelihood_args):
-        return sample_func(key, likelihood_args)
-
-    def logpdf(self, observed_rgbd, likelihood_args):
-        return laplace_no_rendering_likelihood_function(observed_rgbd, likelihood_args)[
-            "score"
-        ]
-
-
-image_likelihood = ImageLikelihood()
-
-# @genjax.gen
-# def likelihood(args):
-#     metadata = f()
-#     image = image_likelihood(metadata)
-
-
-@jax.jit
-def info_from_trace(trace):
-    return laplace_no_rendering_likelihood_function(
-        trace.get_choices()["rgbd"],
-        trace.get_retval()["likelihood_args"],
-    )
-
-
 ### Step model ###
 
 # 1. (theta, z0) ~ P_0
@@ -112,6 +85,118 @@ def info_from_trace(trace):
 # P_0 --> P*(hyperparams_0, dummy_z)
 # P_step -> P*(hyperparams_step, z_{t-1})
 # We are implementing P*.
+
+
+# # Version 2 [approximate this with a mean]:
+# # `pts` is the set of all points projecting to one pixel (i, j)
+# # `nonregistration_prob[pt]` = probability a point is not registered, if it is the only one observed (nonregistration_prob = "outlier prob")
+# # `color[pt]` = RGB or D value for the point
+# # 1. Compute overall_p_nonregistered = prod_{pt} nonregistration_prob[pt].  [Set to 1.0 if pts is empty.]
+# # 2. Compute the mean of all the colors for each point, where the color for `pt` is weighted proportionally to (1 - nonregistration_prob[pt])
+# # 3. Sample from a mixture of [1] a uniform, with probability `nonregistration_prob[pt]`, and [2] a laplace around the mean color
+
+# def sample_func(key, args):
+#     transformed_points = args["pose"].apply(args["vertices"])
+#     pixels = jnp.rint(
+#         b3d.xyz_to_pixel_coordinates(
+#             transformed_points, args["fx"], args["fy"], args["cx"], args["cy"]
+#         )
+#     ).astype(jnp.int32)
+
+
+#     latent_image_sum = jnp.zeros((args["image_height"].const, args["image_width"].const, 4))
+#     latent_image_sum = latent_image_sum.at[
+#         pixels[..., 0], pixels[..., 1], :3
+#     ].add(args["colors"] * (1 - args["color_outlier_probability"])[:, None])
+#     latent_image_sum = latent_image_sum.at[
+#         pixels[..., 0], pixels[..., 1], 3
+#     ].add(transformed_points[..., 2] * (1 - args["depth_outlier_probability"]))
+
+#     projected_points_count = jnp.zeros((args["image_height"].const, args["image_width"].const))
+#     projected_points_count = projected_points_count.at[
+#         pixels[..., 0], pixels[..., 1]
+#     ].add(1)
+
+#     non_registration_probability = jnp.ones((args["image_height"].const, args["image_width"].const))
+#     non_registration_probability = non_registration_probability.at[
+#         pixels[..., 0], pixels[..., 1]
+#     ].multiply(args["color_outlier_probability"])
+
+#     latent_image_mean = latent_image_sum / (projected_points_count[..., None] + 1e-10)
+
+#     is_outlier_pixel = jax.random.uniform(key, non_registration_probability.shape) < non_registration_probability
+#     variances = jnp.array([args["color_variance"], args["color_variance"], args["color_variance"], args["depth_variance"]])
+#     latent_image_noised = genjax.laplace.sample(key, latent_image_mean, variances)
+#     latent_image_uniform = jax.random.uniform(key, latent_image_mean.shape) * jnp.array([1.0, 1.0, 1.0, 5.0])
+#     return latent_image_noised * ~is_outlier_pixel[...,None] + latent_image_uniform * is_outlier_pixel[...,None]
+
+# def likelihood_func(observed_rgbd, args):
+#     transformed_points = args["pose"].apply(args["vertices"])
+#     pixels = jnp.rint(
+#         b3d.xyz_to_pixel_coordinates(
+#             transformed_points, args["fx"], args["fy"], args["cx"], args["cy"]
+#         )
+#     ).astype(jnp.int32)
+
+
+#     latent_image_sum = jnp.zeros((args["image_height"].const, args["image_width"].const, 4))
+#     latent_image_sum = latent_image_sum.at[
+#         pixels[..., 0], pixels[..., 1], :3
+#     ].add(args["colors"] * (1 - args["color_outlier_probability"])[:, None])
+#     latent_image_sum = latent_image_sum.at[
+#         pixels[..., 0], pixels[..., 1], 3
+#     ].add(transformed_points[..., 2] * (1 - args["depth_outlier_probability"]))
+
+#     projected_points_count = jnp.zeros((args["image_height"].const, args["image_width"].const))
+#     projected_points_count = projected_points_count.at[
+#         pixels[..., 0], pixels[..., 1]
+#     ].add(1)
+
+#     non_registration_probability = jnp.ones((args["image_height"].const, args["image_width"].const))
+#     non_registration_probability = non_registration_probability.at[
+#         pixels[..., 0], pixels[..., 1]
+#     ].multiply(args["color_outlier_probability"])
+
+#     latent_image_mean = latent_image_sum / (projected_points_count[..., None] + 1e-10)
+
+#     variances = jnp.array([args["color_variance"], args["color_variance"], args["color_variance"], args["depth_variance"]])
+
+#     # pixel_probability = jax.scipy.stats.laplace.logpdf(
+#     #     observed_rgbd, latent_image_mean, variances
+#     # ) + jnp.log(1 - non_registration_probability)[...,None]
+
+#     pixel_probability = jnp.logaddexp(
+#         jax.scipy.stats.laplace.logpdf(
+#             observed_rgbd, latent_image_mean, variances
+#         ) + jnp.log(1 - non_registration_probability)[...,None],
+#         (jnp.log(non_registration_probability) + jnp.log(1 / 1.0**3))[...,None] * jnp.ones_like(observed_rgbd)
+#     )
+
+#     return {
+#         "score": pixel_probability.sum(), "scores": pixel_probability, "latent_rgbd": latent_image_mean,
+#         "transformed_points": transformed_points,
+#         "observed_rgbd_masked": observed_rgbd[pixels[..., 0], pixels[..., 1]],
+#     }
+
+
+@Pytree.dataclass
+class ImageLikelihood(genjax.ExactDensity):
+    def sample(self, key, likelihood_args):
+        return sample_func(key, likelihood_args)
+
+    def logpdf(self, observed_rgbd, likelihood_args):
+        return likelihood_func(observed_rgbd, likelihood_args)["score"]
+
+
+image_likelihood = ImageLikelihood()
+
+
+@jax.jit
+def info_from_trace(trace):
+    return likelihood_func(
+        trace.get_choices()["rgbd"],
+        trace.get_retval()["likelihood_args"],
+    )
 
 
 @genjax.gen

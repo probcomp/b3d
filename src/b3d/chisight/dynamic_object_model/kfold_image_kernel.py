@@ -100,20 +100,83 @@ class TruncatedLaplace(genjax.ExactDensity):
 truncated_laplace = TruncatedLaplace()
 
 
+_FIXED_COLOR_UNIFORM_WINDOW = 1 / 255
+_FIXED_DEPTH_UNIFORM_WINDOW = 0.01
+
+
+@Pytree.dataclass
+class TruncatedColorLaplace(genjax.ExactDensity):
+    """
+    Args:
+    - loc: (3,) array (loc for R, G, B channels)
+    - shared_scale: float (scale, shared across R, G, B channels)
+    - uniform_window_size: float [optional; defaults to 1/255]
+
+    Support:
+    - rgb in [0, 1]^3 [a 3D array]
+    """
+
+    def sample(
+        self, key, loc, shared_scale, uniform_window_size=_FIXED_COLOR_UNIFORM_WINDOW
+    ):
+        return jax.vmap(
+            lambda k, lc: truncated_laplace.sample(
+                k, lc, shared_scale, 0.0, 1.0, uniform_window_size
+            ),
+            in_axes=(0, 0),
+        )(jax.random.split(key, loc.shape[0]), loc)
+
+    def logpdf(
+        self, obs, loc, shared_scale, uniform_window_size=_FIXED_COLOR_UNIFORM_WINDOW
+    ):
+        return jax.vmap(
+            lambda o, lc: truncated_laplace.logpdf(
+                o, lc, shared_scale, 0.0, 1.0, uniform_window_size
+            ),
+            in_axes=(0, 0),
+        )(obs, loc).sum()
+
+
+truncated_color_laplace = TruncatedColorLaplace()
+
+
 @Pytree.dataclass
 class PixelDistribution(genjax.ExactDensity):
     """
-    registered_point_indices: (K,)
-    all_rgbds: (N, 4)
-    color_outlier_probs: (N,)
-    depth_outlier_probs: (N,)
-    color_scale: float
-    depth_scale: float
-    near: float
-    far: float
+    Args:
+        registered_point_indices: (K,)
+        all_rgbds: (N, 4)
+        color_outlier_probs: (N,)
+        depth_outlier_probs: (N,)
+        color_scale: float
+        depth_scale: float
+        near: float
+        far: float
+
+    Support:
+    - rgbd in [0, 1]^3 x [near, far] [a 4D array]
 
     Where K is the max number of points registered at a pixel,
     N is the number of points in the scene.
+    Indices in registered_point_indices are in the range [-1, N-1];
+    -1 indicates that no point is registered in this slot.
+
+    The generative process is:
+    1. If there are no registered points, sample uniformly from the color and depth ranges.
+    2. Otherwise, sample an index idx from registered_point_indices s.t. idx > -1.
+    3. Get the rgbd, color_outlier_prob, and depth_outlier_prob for this index.
+    4. Sample is_depth_outlier ~ Bernoulli(depth_outlier_prob).
+    5. Sample is_color_outlier ~ Bernoulli(color_outlier_prob).
+    6. If is_depth_outlier, sample depth uniformly from [near, far].
+    7. Otherwise, sample depth from a truncated Laplace distribution centered at all_rgbds[idx, 3].
+    8. If is_color_outlier, sample color uniformly from [0, 1]^3.
+    9. Otherwise, sample color from a truncated Laplace distribution centered at all_rgbds[idx, :3].
+
+    The generative process for the truncated Laplace distribuitons
+    sample from a Laplace, and if the sample is outside the range [low, high]
+    (which is either [near, far] for depth or [0, 1] for color), the sample is replaced with a uniform sample
+    from the range [low, low + uniform_window_size] or [high - uniform_window_size, high].
+    The value `uniform_window_size` is currently fixed at 0.01 for depth and 1/255 for color.
     """
 
     def sample(
@@ -142,12 +205,17 @@ class PixelDistribution(genjax.ExactDensity):
             color_outlier_probs[registered_point_indices[idx]],
         )
         uniform_depth_sample = jax.random.uniform(k2, (), minval=near, maxval=far)
-        laplace_depth_sample = jax.scipy.stats.laplace.sample(
-            k3, all_rgbds[registered_point_indices, 3], color_scale
+        laplace_depth_sample = truncated_laplace.sample(
+            k3,
+            all_rgbds[registered_point_indices, 3],
+            depth_scale,
+            near,
+            far,
+            _FIXED_DEPTH_UNIFORM_WINDOW,
         )
         uniform_rgb_sample = jax.random.uniform(k4, (3,), minval=0.0, maxval=1.0)
-        laplace_rgb_sample = jax.scipy.stats.laplace.sample(
-            k5, all_rgbds[registered_point_indices, :3], depth_scale
+        laplace_rgb_sample = truncated_color_laplace.sample(
+            k5, all_rgbds[registered_point_indices, :3], color_scale
         )
         depth_is_outlier = jax.random.bernoulli(k6, depth_outlier_prob)
         color_is_outlier = jax.random.bernoulli(k7, color_outlier_prob)
@@ -155,7 +223,7 @@ class PixelDistribution(genjax.ExactDensity):
             depth_is_outlier, uniform_depth_sample, laplace_depth_sample
         )
         rgb_sample = jnp.where(color_is_outlier, uniform_rgb_sample, laplace_rgb_sample)
-        return jnp.concatenate([rgb_sample, depth_sample])
+        return jnp.concatenate([rgb_sample, jnp.array([depth_sample])])
 
     def logpdf(
         self,
@@ -175,12 +243,17 @@ class PixelDistribution(genjax.ExactDensity):
         def get_logpdf_given_idx(idx):
             depth_outlier_prob = depth_outlier_probs[registered_point_indices[idx]]
             color_outlier_prob = color_outlier_probs[registered_point_indices[idx]]
-            laplace_depth_logpdf = jax.scipy.stats.laplace.logpdf(
-                obs[3], all_rgbds[registered_point_indices[idx], 3], color_scale
+            laplace_depth_logpdf = truncated_laplace.logpdf(
+                obs[3],
+                all_rgbds[registered_point_indices[idx], 3],
+                depth_scale,
+                near,
+                far,
+                _FIXED_DEPTH_UNIFORM_WINDOW,
             )
-            laplace_rgb_logpdf = jax.scipy.stats.laplace.logpdf(
-                obs[:3], all_rgbds[registered_point_indices[idx], :3], depth_scale
-            ).sum()
+            laplace_rgb_logpdf = truncated_color_laplace.logpdf(
+                obs[:3], all_rgbds[registered_point_indices[idx], :3], color_scale
+            )
             log_p_depth = jnp.logaddexp(
                 jnp.log(depth_outlier_prob) + uniform_depth_logpdf,
                 jnp.log(1 - depth_outlier_prob) + laplace_depth_logpdf,
@@ -193,15 +266,18 @@ class PixelDistribution(genjax.ExactDensity):
 
         n_registered_points = jnp.sum(registered_point_indices != -1)
         logpdfs_given_each_idx = jax.vmap(get_logpdf_given_idx)(
-            registered_point_indices.shape[0]
+            jnp.arange(registered_point_indices.shape[0])
         )
         logpdf_of_choosing_each_idx = jnp.where(
-            registered_point_indices == -1, -jnp.inf, -jnp.log(n_registered_points)
+            registered_point_indices < 0, -jnp.inf, -jnp.log(n_registered_points)
+        )
+        assert (
+            len((logpdf_of_choosing_each_idx + logpdfs_given_each_idx).shape).shape == 1
         )
         return jnp.where(
             n_registered_points > 0,
             jax.scipy.special.logsumexp(
-                logpdfs_given_each_idx + logpdf_of_choosing_each_idx, axis=0
+                logpdf_of_choosing_each_idx + logpdfs_given_each_idx
             ),
             uniform_depth_logpdf + uniform_rgb_logpdf,
         )

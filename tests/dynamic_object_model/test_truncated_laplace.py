@@ -95,3 +95,20 @@ def test_truncated_laplace():
     )(x)
     pdfs = jnp.exp(logpdfs)
     assert jnp.sum(pdfs[: int(1e6 * 0.001)] * stepsize) > 0.98
+
+
+def test_color_truncated_logpdf():
+    s1 = kik.truncated_color_laplace.sample(
+        jax.random.PRNGKey(0), jnp.array([1.0, 0.0, 0.5]), 0.2
+    )
+    keys = jax.random.split(jax.random.PRNGKey(0), 3)
+    r = kik.truncated_laplace.sample(keys[0], 1.0, 0.2, 0.0, 1.0, 1 / 255)
+    g = kik.truncated_laplace.sample(keys[1], 0.0, 0.2, 0.0, 1.0, 1 / 255)
+    b = kik.truncated_laplace.sample(keys[2], 0.5, 0.2, 0.0, 1.0, 1 / 255)
+    assert jnp.allclose(s1, jnp.array([r, g, b]))
+
+    logpdf = kik.truncated_color_laplace.logpdf(s1, jnp.array([1.0, 0.0, 0.5]), 0.2)
+    logpdf_r = kik.truncated_laplace.logpdf(r, 1.0, 0.2, 0.0, 1.0, 1 / 255)
+    logpdf_g = kik.truncated_laplace.logpdf(g, 0.0, 0.2, 0.0, 1.0, 1 / 255)
+    logpdf_b = kik.truncated_laplace.logpdf(b, 0.5, 0.2, 0.0, 1.0, 1 / 255)
+    assert jnp.allclose(logpdf, logpdf_r + logpdf_g + logpdf_b)

@@ -2,6 +2,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 from genjax import Pytree
+from tensorflow_probability.substrates import jax as tfp
 
 import b3d
 
@@ -42,6 +43,44 @@ def raycast_to_image_nondeterministic(key, intrinsics, vertices_in_camera_frame,
 
 
 @Pytree.dataclass
+class TruncatedLaplace(genjax.ExactDensity):
+    def sample(self, key, loc, scale, low, high, uniform_window_size):
+        assert low < high
+        assert low + uniform_window_size < high - uniform_window_size
+        x = tfp.distributions.Laplace(loc, scale).sample(key)
+        u = jax.random.uniform(key, ()) * uniform_window_size
+        return jnp.where(
+            x > high, high - uniform_window_size + u, jnp.where(x < low, low + u, x)
+        )
+
+    def logpdf(self, obs, loc, scale, low, high, uniform_window_size):
+        assert low < high
+        assert low + uniform_window_size < high - uniform_window_size
+        laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
+        laplace_p_below_low = tfp.distributions.Laplace(loc, scale).cdf(low)
+        laplace_p_above_high = 1 - tfp.distributions.Laplace(loc, scale).cdf(high)
+
+        return jnp.where(
+            jnp.logical_and(
+                low + uniform_window_size < obs, obs < high - uniform_window_size
+            ),
+            laplace_logpdf,
+            jnp.where(
+                obs < low + uniform_window_size,
+                jnp.logaddexp(
+                    jnp.log(laplace_p_below_low / uniform_window_size), laplace_logpdf
+                ),
+                jnp.logaddexp(
+                    jnp.log(laplace_p_above_high / uniform_window_size), laplace_logpdf
+                ),
+            ),
+        )
+
+
+truncated_laplace = TruncatedLaplace()
+
+
+@Pytree.dataclass
 class PixelDistribution(genjax.ExactDensity):
     """
     registered_point_indices: (K,)
@@ -58,6 +97,7 @@ class PixelDistribution(genjax.ExactDensity):
     """
 
     def sample(
+        self,
         key,
         registered_point_indices,
         all_rgbds,
@@ -98,6 +138,7 @@ class PixelDistribution(genjax.ExactDensity):
         return jnp.concatenate([rgb_sample, depth_sample])
 
     def logpdf(
+        self,
         obs,
         registered_point_indices,
         all_rgbds,
@@ -132,7 +173,7 @@ class PixelDistribution(genjax.ExactDensity):
 
         n_registered_points = jnp.sum(registered_point_indices != -1)
         logpdfs_given_each_idx = jax.vmap(get_logpdf_given_idx)(
-            n_registered_points.shape[0]
+            registered_point_indices.shape[0]
         )
         logpdf_of_choosing_each_idx = jnp.where(
             registered_point_indices == -1, -jnp.inf, -jnp.log(n_registered_points)

@@ -322,7 +322,31 @@ mapped_pixel_distribution = ImageDistFromPixelDist(
 
 
 @Pytree.dataclass
-class ImageDistribution(genjax.Distribution):
+class KfoldMixturePointsToImageKernel(genjax.Distribution):
+    """
+    KfoldMixturePointsToImageKernel(K) is a kernel from a set of points to an image.
+    Each pixel in the image will register a random subset of up to K points from the
+    subset of the provided points which project directly to that pixel.
+
+    Given those up to K registered points per pixel, each pixel is independently
+    sampled from `PixelDistribution` (see docstring for `PixelDistribution` for details).
+
+    Constructor args:
+    - K: int
+
+    Distribution args:
+    - intrinsics: dict with keys "height", "width", "fx", "fy", "cx", "cy", "near", "far"
+    - vertices_in_camera_frame: (N, 3) array of points in camera frame
+    - point_rgbds: (N, 4) array of RGBD values for each point
+    - point_color_outlier_probs: (N,) array of color outlier probabilities for each point
+    - point_depth_outlier_probs: (N,) array of depth outlier probabilities for each point
+    - color_scale: float (shared)
+    - depth_scale: float (shared)
+
+    Distribution support:
+    - image: (height, width, 4) array of RGBD values (RGB values in [0, 1]^3; D values in [near, far])
+    """
+
     K: int
 
     def __init__(self, K):

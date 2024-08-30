@@ -44,6 +44,25 @@ def raycast_to_image_nondeterministic(key, intrinsics, vertices_in_camera_frame,
 
 @Pytree.dataclass
 class TruncatedLaplace(genjax.ExactDensity):
+    """
+    This is a distribution on the interval (low, high).
+    The generative process is:
+    1. Sample x ~ laplace(loc, scale).
+    2. If x < low, sample y ~ uniform(low, low + uniform_window_size) and return y.
+    3. If x > high, sample y ~ uniform(high - uniform_window_size, high) and return y.
+    4. Otherwise, return x.
+
+    Args:
+    - loc: float
+    - scale: float
+    - low: float
+    - high: float
+    - uniform_window_size: float
+
+    Support:
+    - x in (low, high) [a float]
+    """
+
     def sample(self, key, loc, scale, low, high, uniform_window_size):
         assert low < high
         assert low + uniform_window_size < high - uniform_window_size

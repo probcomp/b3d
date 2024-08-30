@@ -147,6 +147,16 @@ def _access(arr, idx):
 @Pytree.dataclass
 class PixelDistribution(genjax.ExactDensity):
     """
+    Distribution over the color observed at a pixel of an RGBD image,
+    given a set of points that may be registered at the pixel.
+    Each of the N points has an associated color_outlier_prob,
+    depth_outlier_prob, and RGBD value.
+    There is a global color_scale and depth_scale.
+    An array `registered_point_indices` of shape (K,)
+    is provided giving the indices of all the points registered at this pixel;
+    the value -1 indicates that no point is registered at this slot of the
+    `registered_point_indices` array.
+
     Args:
         registered_point_indices: (K,)
         all_rgbds: (N, 4)
@@ -158,9 +168,9 @@ class PixelDistribution(genjax.ExactDensity):
         far: float
 
     Support:
-    - rgbd in [0, 1]^3 x [near, far] [a 4D array]
+    - `rgbd` in [0, 1]^3 x [near, far] [a 4D array]
 
-    Where K is the max number of points registered at a pixel,
+    K is the max number of points registered at a pixel, and
     N is the number of points in the scene.
     Indices in registered_point_indices are in the range [-1, N-1];
     -1 indicates that no point is registered in this slot.
@@ -286,9 +296,7 @@ class PixelDistribution(genjax.ExactDensity):
         logpdf_of_choosing_each_idx = jnp.where(
             registered_point_indices < 0, -jnp.inf, -jnp.log(n_registered_points)
         )
-        assert (
-            len((logpdf_of_choosing_each_idx + logpdfs_given_each_idx).shape).shape == 1
-        )
+        assert len((logpdf_of_choosing_each_idx + logpdfs_given_each_idx).shape) == 1
         return jnp.where(
             n_registered_points > 0,
             jax.scipy.special.logsumexp(

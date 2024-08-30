@@ -204,3 +204,177 @@ def test_singleslot_pixel_distribution_sampling():
     )
     assert n_color_near_100_and_depth_near_2 > 40
     assert n_color_near_100_and_depth_near_2 < 60
+
+
+def test_pixel_distribution_logpdf_with_one_of_three_slots():
+    def test_logpdf_for_value(value, args):
+        logpdf = kik.pixel_distribution.logpdf(value, *args)
+        (
+            _,
+            all_rgbds,
+            color_outlier_probs,
+            depth_outlier_probs,
+            color_scale,
+            depth_scale,
+            near,
+            far,
+        ) = args
+        color_pdf_should_be = jnp.logaddexp(
+            jnp.log(1 - color_outlier_probs[0])
+            + kik.truncated_color_laplace.logpdf(
+                value[:3], all_rgbds[0][:3], color_scale
+            ),
+            jnp.log(color_outlier_probs[0]) + jnp.log(1.0**3),
+        )
+        depth_pdf_should_be = jnp.logaddexp(
+            jnp.log(1 - depth_outlier_probs[0])
+            + kik.truncated_laplace.logpdf(
+                value[3],
+                all_rgbds[0][3],
+                depth_scale,
+                near,
+                far,
+                kik._FIXED_DEPTH_UNIFORM_WINDOW,
+            ),
+            jnp.log(depth_outlier_probs[0]) + jnp.log(1 / (far - near)),
+        )
+        assert jnp.isclose(logpdf, color_pdf_should_be + depth_pdf_should_be, atol=1e-3)
+
+    registered_point_indices = jnp.array([0, -1, -1])
+    all_rgbds = jnp.array(
+        [[1.0, 0.0, 0.0, 2.0], [0.0, 1.0, 0.0, 3.0], [0.0, 0.0, 1.0, 4.0]]
+    )
+    near, far = 0.001, 100.0
+    color_outlier_probs = jnp.array([0.01, 0.5, 0.95])
+    depth_outlier_probs = jnp.array([0.5, 0.01, 0.1])
+    color_scale = 0.04
+    depth_scale = 0.01
+
+    args = (
+        registered_point_indices,
+        all_rgbds,
+        color_outlier_probs,
+        depth_outlier_probs,
+        color_scale,
+        depth_scale,
+        near,
+        far,
+    )
+
+    samples_10 = jax.vmap(lambda k: kik.pixel_distribution.sample(k, *args))(
+        jax.random.split(jax.random.PRNGKey(0), 10)
+    )
+    for sample in samples_10:
+        test_logpdf_for_value(sample, args)
+
+    ### 3 copies of the same idx shoudln't change this...
+    registered_point_indices = jnp.array([0, 0, 0])
+    args = (
+        registered_point_indices,
+        all_rgbds,
+        color_outlier_probs,
+        depth_outlier_probs,
+        color_scale,
+        depth_scale,
+        near,
+        far,
+    )
+    samples_10 = jax.vmap(lambda k: kik.pixel_distribution.sample(k, *args))(
+        jax.random.split(jax.random.PRNGKey(0), 10)
+    )
+    for sample in samples_10:
+        test_logpdf_for_value(sample, args)
+
+
+def test_logpdf_with_no_slot():
+    registered_point_indices = jnp.array([-1, -1, -1])
+    all_rgbds = jnp.array(
+        [[1.0, 0.0, 0.0, 2.0], [0.0, 1.0, 0.0, 3.0], [0.0, 0.0, 1.0, 4.0]]
+    )
+    near, far = 0.001, 100.0
+    color_outlier_probs = jnp.array([0.01, 0.5, 0.95])
+    depth_outlier_probs = jnp.array([0.5, 0.01, 0.1])
+    color_scale = 0.04
+    depth_scale = 0.01
+
+    args = (
+        registered_point_indices,
+        all_rgbds,
+        color_outlier_probs,
+        depth_outlier_probs,
+        color_scale,
+        depth_scale,
+        near,
+        far,
+    )
+
+    samples_10 = jax.vmap(lambda k: kik.pixel_distribution.sample(k, *args))(
+        jax.random.split(jax.random.PRNGKey(0), 10)
+    )
+
+    def assert_is_correct_logpdf(value):
+        logpdf = kik.pixel_distribution.logpdf(value, *args)
+        assert jnp.isclose(
+            logpdf, jnp.log(1.0**3) + jnp.log(1 / (far - near)), atol=1e-3
+        )
+
+    for sample in samples_10:
+        assert_is_correct_logpdf(sample)
+
+
+def test_pixel_distribution_logpdf_with_two_of_three_slots():
+    registered_point_indices = jnp.array([0, -1, 1])
+    all_rgbds = jnp.array(
+        [[1.0, 0.0, 0.0, 2.0], [0.0, 1.0, 0.0, 3.0], [0.0, 0.0, 1.0, 4.0]]
+    )
+    near, far = 0.001, 100.0
+    color_outlier_probs = jnp.array([0.01, 0.5, 0.95])
+    depth_outlier_probs = jnp.array([0.5, 0.01, 0.1])
+    color_scale = 0.04
+    depth_scale = 0.01
+
+    args = (
+        registered_point_indices,
+        all_rgbds,
+        color_outlier_probs,
+        depth_outlier_probs,
+        color_scale,
+        depth_scale,
+        near,
+        far,
+    )
+
+    def expected_logpdf_given_idx(value, i):
+        color_pdf_should_be = jnp.logaddexp(
+            jnp.log(1 - color_outlier_probs[i])
+            + kik.truncated_color_laplace.logpdf(
+                value[:3], all_rgbds[i][:3], color_scale
+            ),
+            jnp.log(color_outlier_probs[i]) + jnp.log(1.0**3),
+        )
+        depth_pdf_should_be = jnp.logaddexp(
+            jnp.log(1 - depth_outlier_probs[i])
+            + kik.truncated_laplace.logpdf(
+                value[3],
+                all_rgbds[i][3],
+                depth_scale,
+                near,
+                far,
+                kik._FIXED_DEPTH_UNIFORM_WINDOW,
+            ),
+            jnp.log(depth_outlier_probs[i]) + jnp.log(1 / (far - near)),
+        )
+        return color_pdf_should_be + depth_pdf_should_be
+
+    def expected_logpdf(value):
+        return jnp.logaddexp(
+            jnp.log(1 / 2) + expected_logpdf_given_idx(value, 0),
+            jnp.log(1 / 2) + expected_logpdf_given_idx(value, 1),
+        )
+
+    samples_10 = jax.vmap(lambda k: kik.pixel_distribution.sample(k, *args))(
+        jax.random.split(jax.random.PRNGKey(0), 10)
+    )
+    for sample in samples_10:
+        logpdf = kik.pixel_distribution.logpdf(sample, *args)
+        assert jnp.isclose(logpdf, expected_logpdf(sample), atol=1e-3)

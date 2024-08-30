@@ -23,7 +23,7 @@ def score_with_give_pose_and_then_color_update(
     info = info_from_trace(trace)
 
     color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
-    max_color_shift = trace.get_args()[0]["max_color_shift"].const
+    max_color_shift = trace.get_args()[0]["max_color_shift"].unwrap()
     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
 
     trace = b3d.update_choices(
@@ -68,7 +68,7 @@ def gaussian_vmf_enumerative_move_with_other_updates(
 
 @jax.jit
 def grid_move_on_outlier_probability(trace, address, sweep):
-    current_setting = trace.get_choices()[address.const]
+    current_setting = trace.get_choices()[address.unwrap()]
 
     potential_values = sweep[..., None] * jnp.ones_like(current_setting)
 
@@ -185,7 +185,7 @@ def inference_step(trace, key, observed_rgbd):
 
     info = info_from_trace(trace)
     color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
-    max_color_shift = trace.get_args()[0]["max_color_shift"].const
+    max_color_shift = trace.get_args()[0]["max_color_shift"].unwrap()
     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
     trace = b3d.update_choices(
         trace,

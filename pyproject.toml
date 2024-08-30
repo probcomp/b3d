@@ -183,7 +183,7 @@ system-requirements = { cuda = "12" }
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"
-genjax = "==0.5.1.post73.dev0+ca9e1188"
+genjax = "==0.5.1.post76.dev0+a0282776"
 torch = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]

@@ -16,8 +16,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         def f(key, likelihood_args):
             return jnp.zeros(
                 (
-                    likelihood_args["image_height"].const,
-                    likelihood_args["image_width"].const,
+                    likelihood_args["image_height"].unwrap(),
+                    likelihood_args["image_width"].unwrap(),
                     4,
                 )
             )
@@ -44,7 +44,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         likelihood_args["blur"] = blur
 
         all_poses = []
-        for i in range(num_objects.const):
+        for i in range(num_objects.unwrap()):
             object_pose = (
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
                 @ f"object_pose_{i}"

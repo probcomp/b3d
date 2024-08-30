@@ -8,7 +8,7 @@ from b3d import Mesh, Pose
 from b3d.chisight.sparse.gps_utils import add_dummy_var
 from b3d.pose import uniform_pose_in_ball
 
-unwrap = genjax.Pytree.tree_unwrap_const
+unwrap = genjax.Pytree.tree_const_unwrap
 
 dummy_mapped_uniform_pose = add_dummy_var(uniform_pose_in_ball).vmap(
     in_axes=(0, None, None, None)

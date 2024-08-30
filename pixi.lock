@@ -1762,7 +1762,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5c/ae/6570ae1b67007735229f10f2e1174d6e33c056ee9c0c1754d432acbede94/fastapi-0.112.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a3/61/8001b38461d751cd1a0c3a6ae84346796a5758123f3ed97a1b121dfbf4f3/gast-0.6.0-py3-none-any.whl
-      - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/genjax/genjax-0.5.1.post73.dev0+ca9e1188-py3-none-any.whl#sha256=cfed38561704badbfd9aacf1f32f310aebd4f5ffc4e97980a92269939e5fdf3d
+      - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/genjax/genjax-0.5.1.post76.dev0+a0282776-py3-none-any.whl#sha256=3bc46294ed4a25f6f17d504c55d5093afda2e4aa6fa3b3060da38631df34e66d
       - pypi: https://files.pythonhosted.org/packages/a9/59/b43a14494ecfbbee3227e52eb7e8c0a3f86062cf2ed2decc95c0d4f36d4a/jaxtyping-0.2.33-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/0a/4f6fed21aa246c6b49b561ca55facacc2a44b87d65b8b92362a8e99ba202/loguru-0.7.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/33/55/af02708f230eb77084a299d7b08175cff006dea4f2721074b92cdb0296c0/ordered_set-4.1.0-py3-none-any.whl
@@ -3235,7 +3235,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: 82411470bdf4ef51c9e5fdba173814c6d1c0624335f2b452152f94b8c90a1b4f
+  sha256: 225889e796f8524e6a7b96d756d1bb167831501edcda13606428d15f87a76d38
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -5678,9 +5678,9 @@ packages:
   requires_python: '>=3.10,<3.13'
 - kind: pypi
   name: genjax
-  version: 0.5.1.post73.dev0+ca9e1188
-  url: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/genjax/genjax-0.5.1.post73.dev0+ca9e1188-py3-none-any.whl#sha256=cfed38561704badbfd9aacf1f32f310aebd4f5ffc4e97980a92269939e5fdf3d
-  sha256: cfed38561704badbfd9aacf1f32f310aebd4f5ffc4e97980a92269939e5fdf3d
+  version: 0.5.1.post76.dev0+a0282776
+  url: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/genjax/genjax-0.5.1.post76.dev0+a0282776-py3-none-any.whl#sha256=3bc46294ed4a25f6f17d504c55d5093afda2e4aa6fa3b3060da38631df34e66d
+  sha256: 3bc46294ed4a25f6f17d504c55d5093afda2e4aa6fa3b3060da38631df34e66d
   requires_dist:
   - beartype>=0.18.5,<0.19.0
   - deprecated>=1.2.14,<2.0.0

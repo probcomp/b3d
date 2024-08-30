@@ -69,8 +69,8 @@ def laplace_no_rendering_likelihood_function(observed_rgbd, args):
 def sample_func(key, likelihood_args):
     return jnp.zeros(
         (
-            likelihood_args["image_height"].const,
-            likelihood_args["image_width"].const,
+            likelihood_args["image_height"].unwrap(),
+            likelihood_args["image_width"].unwrap(),
             4,
         )
     )
@@ -116,8 +116,8 @@ def info_from_trace(trace):
 
 @genjax.gen
 def dynamic_object_generative_model(hyperparams, previous_state):
-    max_color_shift = hyperparams["max_color_shift"].const
-    max_pose_position_shift = hyperparams["max_pose_position_shift"].const
+    max_color_shift = hyperparams["max_color_shift"].unwrap()
+    max_pose_position_shift = hyperparams["max_pose_position_shift"].unwrap()
     vertices = hyperparams["vertices"]
     num_vertices = vertices.shape[0]
 

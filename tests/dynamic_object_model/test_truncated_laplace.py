@@ -32,6 +32,21 @@ def confirm_logpdf_looks_valid(
     assert jnp.isclose(total_pmass, 1.0, atol=1e-3)
 
 
+def ensure_laplace_samples_have_sufficient_spread(
+    key, loc, scale, low, high, uniform_window_size, scale_mult=0.1
+):
+    samples = jax.vmap(
+        lambda k: kik.truncated_laplace.sample(
+            k, loc, scale, low, high, uniform_window_size
+        )
+    )(jax.random.split(key, 3))
+    assert (
+        jnp.abs(samples[0] - samples[1]) > scale * scale_mult
+        or jnp.abs(samples[0] - samples[2]) > scale * scale_mult
+        or jnp.abs(samples[1] - samples[2]) > scale * scale_mult
+    )
+
+
 def test_truncated_laplace():
     confirm_logpdf_looks_valid(0.5, 1.0, 0.0, 1.0, 0.1)
     confirm_logpdf_looks_valid(1.0, 1.0, 0.0, 1.0, 0.1)
@@ -44,3 +59,39 @@ def test_truncated_laplace():
     confirm_logpdf_looks_valid(1.99, 0.1, -1.0, 2.0, 0.2)
     confirm_logpdf_looks_valid(-0.99, 0.1, -1.0, 2.0, 0.2)
     confirm_logpdf_looks_valid(0.0, 5.0, -1.0, 2.0, 0.2)
+
+    ensure_laplace_samples_have_sufficient_spread(
+        jax.random.PRNGKey(0), 0.5, 0.1, 0.0, 1.0, 0.1
+    )
+
+    # TODO: the code below ehre could be cleaner.
+    # I think the functionality is right, though.
+
+    key = jax.random.PRNGKey(1)
+    for j in range(5):
+        key, _ = jax.random.split(key)
+        x = kik.truncated_laplace.sample(key, 0.01, 0.01, 0.0, 1.0, 0.001)
+        assert 0.0 < x < 0.05
+
+    # test that the logpdf function puts almost all mass to the left
+    x = jnp.linspace(0.0, 1.0, int(1e6))
+    stepsize = 1e-6
+    logpdfs = jax.vmap(
+        lambda x: kik.truncated_laplace.logpdf(x, 0.01, 0.01, 0.0, 1.0, 0.001)
+    )(x)
+    pdfs = jnp.exp(logpdfs)
+    assert jnp.sum(pdfs[: int(1e6 * 0.05)] * stepsize) > 0.98
+
+    for j in range(5):
+        key, _ = jax.random.split(key)
+        x = kik.truncated_laplace.sample(key, -0.04, 0.01, 0.0, 1.0, 0.001)
+        assert 0.0 < x < 0.001
+
+    # test that the logpdf function also puts almost all mass to the left of 0.001
+    x = jnp.linspace(0.0, 1.0, int(1e6))
+    stepsize = 1e-6
+    logpdfs = jax.vmap(
+        lambda x: kik.truncated_laplace.logpdf(x, -0.04, 0.01, 0.0, 1.0, 0.001)
+    )(x)
+    pdfs = jnp.exp(logpdfs)
+    assert jnp.sum(pdfs[: int(1e6 * 0.001)] * stepsize) > 0.98

@@ -140,6 +140,10 @@ class TruncatedColorLaplace(genjax.ExactDensity):
 truncated_color_laplace = TruncatedColorLaplace()
 
 
+def _access(arr, idx):
+    return jax.lax.dynamic_index_in_dim(arr, idx, axis=0, keepdims=False)
+
+
 @Pytree.dataclass
 class PixelDistribution(genjax.ExactDensity):
     """
@@ -193,21 +197,24 @@ class PixelDistribution(genjax.ExactDensity):
     ):
         k1, k2, k3, k4, k5, k6, k7 = jax.random.split(key, 7)
         n_registered_points = jnp.sum(registered_point_indices != -1)
-        idx = jax.random.randint(k1, (), 0, n_registered_points)
+        idxprobs = jnp.where(
+            registered_point_indices >= 0, 1.0 / n_registered_points, 0.0
+        )
+        idx = genjax.categorical.sample(k1, jnp.log(idxprobs))
         depth_outlier_prob = jnp.where(
             n_registered_points == 0,
             1.0,
-            depth_outlier_probs[registered_point_indices[idx]],
+            _access(depth_outlier_probs, _access(registered_point_indices, idx)),
         )
         color_outlier_prob = jnp.where(
             n_registered_points == 0,
             1.0,
-            color_outlier_probs[registered_point_indices[idx]],
+            _access(color_outlier_probs, _access(registered_point_indices, idx)),
         )
         uniform_depth_sample = jax.random.uniform(k2, (), minval=near, maxval=far)
         laplace_depth_sample = truncated_laplace.sample(
             k3,
-            all_rgbds[registered_point_indices, 3],
+            _access(all_rgbds, _access(registered_point_indices, idx))[3],
             depth_scale,
             near,
             far,
@@ -215,7 +222,9 @@ class PixelDistribution(genjax.ExactDensity):
         )
         uniform_rgb_sample = jax.random.uniform(k4, (3,), minval=0.0, maxval=1.0)
         laplace_rgb_sample = truncated_color_laplace.sample(
-            k5, all_rgbds[registered_point_indices, :3], color_scale
+            k5,
+            _access(all_rgbds, _access(registered_point_indices, idx))[:3],
+            color_scale,
         )
         depth_is_outlier = jax.random.bernoulli(k6, depth_outlier_prob)
         color_is_outlier = jax.random.bernoulli(k7, color_outlier_prob)
@@ -241,18 +250,24 @@ class PixelDistribution(genjax.ExactDensity):
         uniform_rgb_logpdf = -jnp.log(1.0**3)
 
         def get_logpdf_given_idx(idx):
-            depth_outlier_prob = depth_outlier_probs[registered_point_indices[idx]]
-            color_outlier_prob = color_outlier_probs[registered_point_indices[idx]]
+            depth_outlier_prob = _access(
+                depth_outlier_probs, _access(registered_point_indices, idx)
+            )
+            color_outlier_prob = _access(
+                color_outlier_probs, _access(registered_point_indices, idx)
+            )
             laplace_depth_logpdf = truncated_laplace.logpdf(
                 obs[3],
-                all_rgbds[registered_point_indices[idx], 3],
+                _access(all_rgbds, _access(registered_point_indices, idx))[3],
                 depth_scale,
                 near,
                 far,
                 _FIXED_DEPTH_UNIFORM_WINDOW,
             )
             laplace_rgb_logpdf = truncated_color_laplace.logpdf(
-                obs[:3], all_rgbds[registered_point_indices[idx], :3], color_scale
+                obs[:3],
+                _access(all_rgbds, _access(registered_point_indices, idx))[:3],
+                color_scale,
             )
             log_p_depth = jnp.logaddexp(
                 jnp.log(depth_outlier_prob) + uniform_depth_logpdf,
@@ -282,6 +297,8 @@ class PixelDistribution(genjax.ExactDensity):
             uniform_depth_logpdf + uniform_rgb_logpdf,
         )
 
+
+pixel_distribution = PixelDistribution()
 
 # @Pytree.dataclass
 # class ImageDistribution(genjax.Distribution):

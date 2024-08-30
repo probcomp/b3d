@@ -5,6 +5,9 @@ from genjax import Pytree
 from tensorflow_probability.substrates import jax as tfp
 
 import b3d
+from b3d.chisight.dense.likelihoods.other_likelihoods import (
+    ImageDistFromPixelDist,
+)
 
 
 def raycast_to_image_nondeterministic(key, intrinsics, vertices_in_camera_frame, K):
@@ -308,15 +311,93 @@ class PixelDistribution(genjax.ExactDensity):
 
 pixel_distribution = PixelDistribution()
 
-# @Pytree.dataclass
-# class ImageDistribution(genjax.Distribution):
-#     def random_weighted(key, args):
-#         raycasted_image = raycast_to_image_nondeterministic(key, args)
-#         value = mapped_pixel_distribution.sample(key, raycasted_image, args)
-#         pdf_estimate = mapped_pixel_distribution.logpdf(value, raycasted_image, args)
-#         return value, pdf_estimate
+mapped_pixel_distribution = ImageDistFromPixelDist(
+    # The only mapped arg is the first one; the others are shared across pixels.
+    pixel_distribution,
+    (True, False, False, False, False, False, False, False),
+)
+# ^ This distribution accepts (height, width, registered_pixel_indices, *args),
+# where `registered_pixel_indices` has shape (height, width, K),
+# and `args` is the list of all args to PixelDistribution after `registered_pixel_indices`.
 
-#     def estimate_logpdf(key, obs, args):
-#         raycasted_image = raycast_to_image_nondeterministic(key, args)
-#         pdf_estimate = mapped_pixel_distribution.logpdf(obs, raycasted_image, args)
-#         return pdf_estimate
+
+@Pytree.dataclass
+class ImageDistribution(genjax.Distribution):
+    K: int
+
+    def __init__(self, K):
+        self.K = K
+
+    def random_weighted(
+        self,
+        key,
+        intrinsics,
+        vertices_in_camera_frame,
+        point_rgbds,
+        point_color_outlier_probs,
+        point_depth_outlier_probs,
+        color_scale,
+        depth_scale,
+    ):
+        h, w = intrinsics["height"], intrinsics["width"]
+        raycasted_image = raycast_to_image_nondeterministic(
+            key, intrinsics, vertices_in_camera_frame, self.K
+        )
+        value = mapped_pixel_distribution.sample(
+            key,
+            h,
+            w,
+            raycasted_image,
+            point_rgbds,
+            point_color_outlier_probs,
+            point_depth_outlier_probs,
+            color_scale,
+            depth_scale,
+            intrinsics["near"],
+            intrinsics["far"],
+        )
+        logpdf_estimate = mapped_pixel_distribution.logpdf(
+            value,
+            h,
+            w,
+            raycasted_image,
+            point_rgbds,
+            point_color_outlier_probs,
+            point_depth_outlier_probs,
+            color_scale,
+            depth_scale,
+            intrinsics["near"],
+            intrinsics["far"],
+        )
+        return value, logpdf_estimate
+
+    def estimate_logpdf(
+        self,
+        key,
+        obs,
+        intrinsics,
+        vertices_in_camera_frame,
+        point_rgbds,
+        point_color_outlier_probs,
+        point_depth_outlier_probs,
+        color_scale,
+        depth_scale,
+    ):
+        h, w = intrinsics["height"], intrinsics["width"]
+        raycasted_image = raycast_to_image_nondeterministic(
+            key, intrinsics, vertices_in_camera_frame, self.K
+        )
+        logpdf_estimate = mapped_pixel_distribution.logpdf(
+            obs,
+            h,
+            w,
+            raycasted_image,
+            point_rgbds,
+            point_color_outlier_probs,
+            point_depth_outlier_probs,
+            color_scale,
+            depth_scale,
+            intrinsics["near"],
+            intrinsics["far"],
+        )
+        return logpdf_estimate

@@ -267,7 +267,7 @@ multi_uniform_rgb_depth_laplace.sample(
 
 
 @Pytree.dataclass
-class PythonMixturePixelModel(genjax.ExactDensity):
+class PythonMixtureModel(genjax.ExactDensity):
     """
     Mixture of different distributions.
     Constructor:
@@ -288,20 +288,21 @@ class PythonMixturePixelModel(genjax.ExactDensity):
             values.append(dist.sample(subkey, *args[i]))
         values = jnp.array(values)
         key, subkey = jax.random.split(key)
-        component = genjax.categorical.sample(subkey, jnp.log(probs))
+        component = genjax.categorical.sample(subkey, jnp.log(jnp.array(probs)))
         return values[component]
 
     def logpdf(self, observed, probs, args):
-        logprobs = []
+        logprobs_given_branch = []
         for i, dist in enumerate(self.dists):
             lp = dist.logpdf(observed, *args[i])
-            logprobs.append(lp)
-        logprobs = jnp.stack(logprobs)
-        # jax.debug.print("lps = {lps}", lps=logprobs)
+            logprobs_given_branch.append(lp)
+        logprobs_given_branch = jnp.stack(logprobs_given_branch)
         return jax.scipy.special.logsumexp(
-            logprobs
-        )  #  + jnp.log(probs + 1e-6), axis=0)
+            logprobs_given_branch + jnp.log(jnp.array(probs))
+        )
 
+
+PythonMixturePixelModel = PythonMixtureModel
 
 uniform_multilaplace_mixture = ArgMap(
     PythonMixturePixelModel([uniform_rgbd_pixel_model, multilaplace_pixel_model]),

@@ -5,6 +5,8 @@ import rerun as rr
 from genjax import Pytree
 
 import b3d
+import b3d.chisight.dense.likelihoods.other_likelihoods as ol
+import b3d.chisight.dynamic_object_model.kfold_image_kernel as kik
 from b3d import Pose
 
 ### Kernel from pointcloud -> image ###
@@ -156,7 +158,29 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         @ "depth_outlier_probability"
     )
 
-    depth_variance = genjax.uniform(0.0001, 100000.0) @ "depth_variance"
+    # TODO: move constants to hyperparams array?
+
+    depth_outlier_probability = (
+        ol.PythonMixtureModel([genjax.uniform, kik.truncated_laplace]).vmap(
+            in_axes=([None, None], [(None, None), (0, None, None, None, None)])
+        )
+    )(
+        [0.01, 0.99],  # probs for each branch
+        [
+            (0.0001, 100000.0),  # args for uniform branch
+            (previous_state["depth_outlier_probability"], 0.004, 0.0, 1.0, 0.02),
+        ],
+    ) @ "depth_outlier_probability"
+
+    depth_variance = (ol.PythonMixtureModel([genjax.uniform, kik.truncated_laplace]))(
+        [0.01, 0.99],  # probs for each branch
+        [
+            (0.0001, 100000.0),  # args for uniform branch
+            (previous_state["depth_variance"], 0.01, 0.0, 10000.0, 0.1),
+        ],
+    ) @ "depth_variance"
+
+    # depth_variance = genjax.uniform(0.0001, 100000.0) @ "depth_variance"
     color_variance = genjax.uniform(0.0001, 100000.0) @ "color_variance"
 
     likelihood_args = {
@@ -179,6 +203,8 @@ def dynamic_object_generative_model(hyperparams, previous_state):
     new_state = {
         "pose": pose,
         "colors": colors,
+        "depth_variance": depth_variance,
+        "color_variance": color_variance,
     }
     return {
         "new_state": new_state,

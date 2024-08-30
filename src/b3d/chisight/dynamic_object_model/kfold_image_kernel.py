@@ -67,8 +67,8 @@ class TruncatedLaplace(genjax.ExactDensity):
     """
 
     def sample(self, key, loc, scale, low, high, uniform_window_size):
-        assert low < high
-        assert low + uniform_window_size < high - uniform_window_size
+        # assert low < high
+        # assert low + uniform_window_size < high - uniform_window_size
         k1, k2 = jax.random.split(key, 2)
         x = tfp.distributions.Laplace(loc, scale).sample(seed=k1)
         u = jax.random.uniform(k2, ()) * uniform_window_size

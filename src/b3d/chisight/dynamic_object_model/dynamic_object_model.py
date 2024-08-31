@@ -100,7 +100,7 @@ def sample_func(key, likelihood_args):
 #     pixels = jnp.rint(
 #         b3d.xyz_to_pixel_coordinates(
 #             transformed_points, args["fx"], args["fy"], args["cx"], args["cy"]
-#         )
+#         ) - 0.5
 #     ).astype(jnp.int32)
 
 

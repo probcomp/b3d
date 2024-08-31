@@ -5,12 +5,13 @@ import os
 import subprocess
 from pathlib import Path
 
-import b3d
 import cv2
 import jax
 import jax.numpy as jnp
 import liblzfse  # https://pypi.org/project/pyliblzfse/
 from natsort import natsorted
+
+import b3d
 
 
 def load_depth(filepath):

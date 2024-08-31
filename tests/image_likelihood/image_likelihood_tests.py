@@ -1,11 +1,12 @@
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
+
+import b3d
 from b3d import Pose
 
 

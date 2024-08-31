@@ -6,10 +6,11 @@ def make_visual(scene=None, object=None, debug=False):
     import importlib
     import os
 
-    import b3d
     import jax.numpy as jnp
-    from b3d import Mesh, Pose
     from tqdm import tqdm
+
+    import b3d
+    from b3d import Mesh, Pose
 
     importlib.reload(b3d.mesh)
     importlib.reload(b3d.io.data_loader)

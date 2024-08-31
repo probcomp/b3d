@@ -2,14 +2,15 @@
 import os
 import time
 
-import b3d
-import b3d.nvdiffrast_original.torch as dr
 import pytorch3d.transforms
 import rerun as rr
 import torch
 import torch.utils._pytree as pytree_utils
 import trimesh
 from tqdm import tqdm
+
+import b3d
+import b3d.nvdiffrast_original.torch as dr
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 rr.init("demo")

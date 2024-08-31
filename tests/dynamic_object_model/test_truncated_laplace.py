@@ -1,6 +1,7 @@
-import b3d.chisight.dynamic_object_model.kfold_image_kernel as kik
 import jax
 import jax.numpy as jnp
+
+import b3d.chisight.dynamic_object_model.kfold_image_kernel as kik
 
 # importlib.reload(kik)
 # loc, scale, low, high, uniform_window_size = 0.0, 0.01, 0.0, 1.0, 0.1

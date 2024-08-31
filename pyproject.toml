@@ -153,6 +153,11 @@ description = "sync test data"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
 
+[tool.pixi.feature.core.tasks.sync-ci]
+description = "sync test data"
+cmd = "python b3d_pull.py"
+cwd = "src/b3d/bucket_utils"
+
 # No-CUDA feature (CPU-enabled)
 
 [tool.pixi.feature.no-cuda]
@@ -218,6 +223,12 @@ depends_on = ["gpu", "torch", "jax"]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
 depends_on = ["sync", "rerun"]
+env = { TEST_TARGETS = "tests" }
+
+[tool.pixi.feature.cuda.tasks.test-ci]
+description = "run tests (optionally set TEST_TARGETS)"
+cmd = "./scripts/pytest.sh"
+depends_on = ["sync-ci", "rerun"]
 env = { TEST_TARGETS = "tests" }
 
 # OpenGL dependencies (Linux only)

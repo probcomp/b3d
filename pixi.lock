@@ -1593,7 +1593,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/notebook-shim-0.2.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nsight-compute-2024.3.1.2-hce307c1_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nspr-4.35-h27087fc_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/nss-3.103-h593d115_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/nss-3.104-hd34e28f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-1.26.4-py312heda63a1_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ocl-icd-2.3.2-hd590300_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openexr-3.2.2-haf962dd_1.conda
@@ -3233,7 +3233,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: 1f6904ccf8e2b729e77dd6d2cd135612d88a2697702bc25b7f9129cc9a514fd0
+  sha256: 1023ccbf2b1aeee5c69816ac1224790bb679db5ca37abfe6ca403de52dc07ed2
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -12636,24 +12636,23 @@ packages:
   timestamp: 1669784948267
 - kind: conda
   name: nss
-  version: '3.103'
-  build: h593d115_0
+  version: '3.104'
+  build: hd34e28f_0
   subdir: linux-64
-  url: https://conda.anaconda.org/conda-forge/linux-64/nss-3.103-h593d115_0.conda
-  sha256: f69c027c056a620f06b5f69c3c2a437cc8768bbcbe48664cfdb46ffee7d7753d
-  md5: 233bfe41968d6fb04eba9258bb5061ad
+  url: https://conda.anaconda.org/conda-forge/linux-64/nss-3.104-hd34e28f_0.conda
+  sha256: 0beb64ae310a34537c41e43110ebc24352c4319e6348cebe3d8a89b02382212c
+  md5: 0664e59f6937a660eba9f3d2f9123fa8
   depends:
   - __glibc >=2.17,<3.0.a0
-  - libgcc-ng >=12
+  - libgcc >=13
   - libsqlite >=3.46.0,<4.0a0
-  - libstdcxx-ng >=12
+  - libstdcxx >=13
   - libzlib >=1.3.1,<2.0a0
   - nspr >=4.35,<5.0a0
   license: MPL-2.0
-  license_family: MOZILLA
   purls: []
-  size: 1976811
-  timestamp: 1722554596783
+  size: 1979701
+  timestamp: 1725079209552
 - kind: conda
   name: numpy
   version: 1.26.4

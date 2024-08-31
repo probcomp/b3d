@@ -229,7 +229,13 @@ env = { TEST_TARGETS = "tests" }
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
 depends_on = ["sync-ci"]
-env = { TEST_TARGETS = "tests" }
+
+[tool.pixi.feature.cuda.tasks.test-ci.env]
+TEST_TARGETS = "tests"
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
+CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
+LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 
 # OpenGL dependencies (Linux only)
 

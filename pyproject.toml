@@ -228,7 +228,7 @@ env = { TEST_TARGETS = "tests" }
 [tool.pixi.feature.cuda.tasks.test-ci]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
-depends_on = ["sync-ci", "rerun"]
+depends_on = ["sync-ci"]
 env = { TEST_TARGETS = "tests" }
 
 # OpenGL dependencies (Linux only)

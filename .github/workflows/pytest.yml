@@ -45,7 +45,7 @@ jobs:
           # install pixi
           curl -fsSL https://pixi.sh/install.sh | bash
           source ~/.bashrc
-          export PATH=/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH
+          export PATH=$HOME/.pixi/bin:$HOME/.local/bin:$PATH
 
           # install pipx and inject gcp backend
           pixi global install pipx

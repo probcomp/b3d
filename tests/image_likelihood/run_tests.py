@@ -1,20 +1,19 @@
 from functools import partial
 
+import b3d
 import jax
 import jax.numpy as jnp
+from b3d.chisight.dense.likelihoods.image_likelihoods import (
+    gaussian_iid_pix_likelihood,
+    kray_likelihood_intermediate,
+    threedp3_gmm_likelihood,
+)
 from image_likelihood_tests import (
     mug_posterior_peakiness_samples,
     test_distance_invariance,
     test_mode_volume,
     test_noise_invariance,
     test_resolution_invariance,
-)
-
-import b3d
-from b3d.chisight.dense.likelihoods.image_likelihoods import (
-    gaussian_iid_pix_likelihood,
-    kray_likelihood_intermediate,
-    threedp3_gmm_likelihood,
 )
 
 

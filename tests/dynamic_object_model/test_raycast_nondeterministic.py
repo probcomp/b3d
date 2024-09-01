@@ -1,7 +1,7 @@
 import importlib
 
 import b3d
-import b3d.chisight.dynamic_object_model.kfold_image_kernel as kfk
+import b3d.chisight.dynamic_object_model.likelihoods.kfold_image_kernel as kfk
 import jax.numpy as jnp
 from jax.random import PRNGKey, split
 

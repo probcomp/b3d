@@ -7,73 +7,21 @@ from genjax import Pytree
 import b3d
 from b3d import Pose
 
-### Kernel from pointcloud -> image ###
+LIKELIHOOD = "aggregate_mean"
+LIKELIHOOD = "project_no_occlusions"
 
-
-@jax.jit
-def laplace_no_rendering_likelihood_function(observed_rgbd, args):
-    transformed_points = args["pose"].apply(args["vertices"])
-
-    projected_pixel_coordinates = jnp.rint(
-        b3d.xyz_to_pixel_coordinates(
-            transformed_points, args["fx"], args["fy"], args["cx"], args["cy"]
-        )
-    ).astype(jnp.int32)
-
-    observed_rgbd_masked = observed_rgbd[
-        projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1]
-    ]
-
-    color_outlier_probability = args["color_outlier_probability"]
-    depth_outlier_probability = args["depth_outlier_probability"]
-
-    color_probability = jnp.logaddexp(
-        jax.scipy.stats.laplace.logpdf(
-            observed_rgbd_masked[..., :3], args["colors"], args["color_variance"]
-        ).sum(axis=-1)
-        + jnp.log(1 - color_outlier_probability),
-        jnp.log(color_outlier_probability) * jnp.log(1 / 1.0**3),  # <- log(1) == 0 tho
+if LIKELIHOOD == "project_no_occlusions":
+    from b3d.chisight.dynamic_object_model.likelihoods.project_no_occlusions_kernel import (
+        likelihood_func,
+        sample_func,
     )
-    depth_probability = jnp.logaddexp(
-        jax.scipy.stats.laplace.logpdf(
-            observed_rgbd_masked[..., 3],
-            transformed_points[..., 2],
-            args["depth_variance"],
-        )
-        + jnp.log(1 - depth_outlier_probability),
-        jnp.log(depth_outlier_probability) * jnp.log(1 / 1.0),
+elif LIKELIHOOD == "aggregate_mean":
+    from b3d.chisight.dynamic_object_model.likelihoods.aggreate_mean_image_kernel import (
+        likelihood_func,
+        sample_func,
     )
-
-    scores = color_probability + depth_probability
-
-    # Visualization
-    latent_rgbd = jnp.zeros_like(observed_rgbd)
-    latent_rgbd = latent_rgbd.at[
-        projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1], :3
-    ].set(args["colors"])
-    latent_rgbd = latent_rgbd.at[
-        projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1], 3
-    ].set(transformed_points[..., 2])
-
-    return {
-        "score": scores.sum(),
-        "scores": scores,
-        "transformed_points": transformed_points,
-        "observed_rgbd_masked": observed_rgbd_masked,
-        "color_probability": color_probability,
-        "depth_probability": depth_probability,
-        "latent_rgbd": latent_rgbd,
-    }
-
-
-def sample_func(key, likelihood_args):
-    return jnp.zeros(
-        (
-            likelihood_args["image_height"].const,
-            likelihood_args["image_width"].const,
-            4,
-        )
-    )
+else:
+    raise NotImplementedError(f"Unknown likelihood: {LIKELIHOOD}")
 
 
 @Pytree.dataclass
@@ -82,36 +30,18 @@ class ImageLikelihood(genjax.ExactDensity):
         return sample_func(key, likelihood_args)
 
     def logpdf(self, observed_rgbd, likelihood_args):
-        return laplace_no_rendering_likelihood_function(observed_rgbd, likelihood_args)[
-            "score"
-        ]
+        return likelihood_func(observed_rgbd, likelihood_args)["score"]
 
 
 image_likelihood = ImageLikelihood()
 
-# @genjax.gen
-# def likelihood(args):
-#     metadata = f()
-#     image = image_likelihood(metadata)
-
 
 @jax.jit
 def info_from_trace(trace):
-    return laplace_no_rendering_likelihood_function(
+    return likelihood_func(
         trace.get_choices()["rgbd"],
         trace.get_retval()["likelihood_args"],
     )
-
-
-### Step model ###
-
-# 1. (theta, z0) ~ P_0
-# 2. For t > 0:
-#     z_t ~ P_step(. ; theta, z_{t-1})
-
-# P_0 --> P*(hyperparams_0, dummy_z)
-# P_step -> P*(hyperparams_step, z_{t-1})
-# We are implementing P*.
 
 
 @genjax.gen

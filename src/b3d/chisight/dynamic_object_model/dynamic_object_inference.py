@@ -126,7 +126,7 @@ def inference_step(trace, key, observed_rgbd):
     trace = advance_time(key, trace, observed_rgbd)
 
     outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-
+    num_grid_points = 20000
     for _ in range(2):
         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
             trace,
@@ -134,7 +134,7 @@ def inference_step(trace, key, observed_rgbd):
             Pytree.const(("pose",)),
             0.04,
             200.0,
-            10000,
+            num_grid_points,
             outlier_probability_sweep,
         )
         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
@@ -143,7 +143,7 @@ def inference_step(trace, key, observed_rgbd):
             Pytree.const(("pose",)),
             0.01,
             500.0,
-            10000,
+            num_grid_points,
             outlier_probability_sweep,
         )
         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
@@ -152,7 +152,7 @@ def inference_step(trace, key, observed_rgbd):
             Pytree.const(("pose",)),
             0.005,
             1000.0,
-            10000,
+            num_grid_points,
             outlier_probability_sweep,
         )
         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
@@ -161,7 +161,7 @@ def inference_step(trace, key, observed_rgbd):
             Pytree.const(("pose",)),
             0.001,
             2000.0,
-            10000,
+            num_grid_points,
             outlier_probability_sweep,
         )
 

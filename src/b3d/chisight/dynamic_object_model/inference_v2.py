@@ -1,5 +1,6 @@
 ### TODO: pass PRNGKey through all these functions.
 
+
 def inference_step(old_trace, observation):
     advanced_trace = advance_time(old_trace, observation)
 
@@ -14,9 +15,7 @@ def inference_step(old_trace, observation):
     # the set of poses we consider, rather than proposing each
     # one independently at random, this can
     # be done soundly and with very little change to the code.
-    trs, weights = jax.vmap(
-        lambda _: update_trace(advanced_trace)
-    )(jnp.arange(N))
+    trs, weights = jax.vmap(lambda _: update_trace(advanced_trace))(jnp.arange(N))
 
     # Resample one of the traces proportionally to its weight.
     idx = genjax.categorical(weights)
@@ -32,10 +31,11 @@ def inference_step(old_trace, observation):
 
     return trs[idx], overall_incremental_weight
 
+
 def update_trace(advanced_trace):
     """
     This returns (tr, weight).
-    
+
     tr contains a full new state, s_T, as well
     as the observation o_T, and the previous latents (in
     the args), s_{T-1}.
@@ -51,6 +51,7 @@ def update_trace(advanced_trace):
     log_p = proposed_trace.get_score()
     return proposed_trace, log_p - log_q
 
+
 def propose_update(advanced_trace):
     total_logq = 0
 
@@ -64,8 +65,8 @@ def propose_update(advanced_trace):
     # Return the trace, updated to have this outlier value,
     # and the probability of the proposal having chosen
     # this value.
-    tr_with_depth_outlier, log_q_depth_outlier = (
-        propose_depth_outlier_probability(tr_with_pose)
+    tr_with_depth_outlier, log_q_depth_outlier = propose_depth_outlier_probability(
+        tr_with_pose
     )
     total_logq += log_q_depth_outlier
 
@@ -74,8 +75,8 @@ def propose_update(advanced_trace):
     # Return the trace, updated to have these new values,
     # and an estimate of the probability of the proposal
     # having chosen these values.
-    tr_with_colors, log_q_colors = (
-        propose_colors_and_color_outlier_probability(tr_with_depth_outlier)
+    tr_with_colors, log_q_colors = propose_colors_and_color_outlier_probability(
+        tr_with_depth_outlier
     )
     total_logq += log_q_colors
 
@@ -88,10 +89,12 @@ def propose_update(advanced_trace):
 
     return tr_with_color_var, total_logq
 
+
 def sample_pose(previous_pose):
     # Sample from gaussian VMF.
     # Return sampled value, and its logpdf.
     pass
+
 
 def propose_depth_var(tr):
     # Enumerative update.
@@ -102,6 +105,7 @@ def propose_depth_var(tr):
     # Return log q = log (weight of chosen trace / sum of update weights)
     pass
 
+
 def propose_color_var(tr):
     # Enumerative update.
     # For each possible depth variance value,
@@ -110,6 +114,7 @@ def propose_color_var(tr):
     # Return the chosen trace.
     # Return log q = log (weight of chosen trace / sum of update weights)
     pass
+
 
 def propose_depth_outlier_probability(tr):
     # Propose each point's outlier probability independently in parallel.
@@ -121,6 +126,7 @@ def propose_depth_outlier_probability(tr):
     new_tr = genjax.update(tr, chosen_values)
     return new_tr, log_q_scores.sum()
 
+
 def propose_colors_and_color_outlier_probability(tr):
     # Propose each point's outlier probability, and new color, independently
     # in parallel.
@@ -131,6 +137,7 @@ def propose_colors_and_color_outlier_probability(tr):
     )(jnp.arange(N_pts))
     new_tr = genjax.update(tr, chosen_outlier_values, chosen_color_values)
     return new_tr, log_q_scores.sum()
+
 
 def propose_depth_outlier_probability_for_point(tr, point_idx):
     # "dop" = "depth outlier prob"
@@ -150,13 +157,14 @@ def propose_depth_outlier_probability_for_point(tr, point_idx):
     loglikelihoods = jax.vmap(dop_to_log_likelihood)(all_possible_dop_values)
     log_prior_scores = jax.vmap(dop_to_prior_probability)(all_possible_dop_values)
     total_scores = loglikelihoods + log_prior_scores
-    
+
     # Resample one option based on its joint probability.
     normalized_scores = total_scores - logsumexp(total_scores)
     idx = genjax.categorical(normalized_scores)
     log_q = normalized_scores[idx]
 
     return all_possible_dop_values[idx], log_q
+
 
 def propose_color_and_color_outlier_probability_for_point(tr, point_idx):
     # "cop" = "color outlier prob"
@@ -180,7 +188,9 @@ def propose_color_and_color_outlier_probability_for_point(tr, point_idx):
     ## Now, compute the scores for each update, and resample one.
     prior_cop_probs = jax.vmap(cop_to_prior)(all_possible_cop_values)
     prior_color_probs = jax.vmap(color_to_prior)(colorvals)
-    likelihoods = jax.vmap(cop_color_to_likelihood, in_axes=(0, 0))(all_possible_cop_values, colorvals)
+    likelihoods = jax.vmap(cop_color_to_likelihood, in_axes=(0, 0))(
+        all_possible_cop_values, colorvals
+    )
     p_scores = prior_cop_probs + prior_color_probs + likelihoods
 
     resampling_weights = p_scores - logq_of_colorvals
@@ -194,6 +204,7 @@ def propose_color_and_color_outlier_probability_for_point(tr, point_idx):
     overall_logq = normalized_log_weights[idx] + logq_of_colorvals[idx]
 
     return (cop_to_return, color_to_return, overall_logq)
+
 
 def propose_color_for_point_given_color_outlier_probability(
     tr, point_idx, color_outlier_prob
@@ -228,11 +239,13 @@ def propose_depth_outlier_probability_for_point(tr, point_idx):
     loglikelihoods = jax.vmap(dop_to_log_likelihood)(all_possible_dop_values)
     log_prior_scores = jax.vmap(dop_to_prior_probability)(all_possible_dop_values)
     total_scores = loglikelihoods + log_prior_scores
-    
+
     # Resample one option based on its joint probability.
     normalized_scores = total_scores - logsumexp(total_scores)
     idx = genjax.categorical(normalized_scores)
     log_q = normalized_scores[idx]
 
     return all_possible_dop_values[idx], log_q
+
+
 ###

@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 import os
 
-import b3d
-import b3d.bayes3d as bayes3d
 import fire
 import genjax
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
-from b3d import Pose
 from genjax import Pytree
 from tqdm import tqdm
+
+import b3d
+import b3d.bayes3d as bayes3d
+from b3d import Pose
 
 
 def test_demo():

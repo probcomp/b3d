@@ -1,11 +1,11 @@
-import b3d
-import b3d.chisight.dense.patch_tracking as tracking
 import numpy as np
 import rerun as rr
-from b3d.chisight.dense.model import rr_log_uniformpose_meshes_to_image_model_trace
 from tqdm import tqdm
 
+import b3d
+import b3d.chisight.dense.patch_tracking as tracking
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
+from b3d.chisight.dense.model import rr_log_uniformpose_meshes_to_image_model_trace
 
 rr.init("multiple_patch_tracking_2")
 rr.connect("127.0.0.1:8812")

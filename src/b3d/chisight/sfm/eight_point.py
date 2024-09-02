@@ -201,7 +201,14 @@ def epipolar_errors(E: Matrix3x3, ys0: Point3D, ys1: Point3D) -> Array:
 
 def enforce_internal_constraint(E_est:Matrix3x3) -> Matrix3x3:
     """Enforce the fundamental matrix rank constraint."""
-    # > https://en.wikipedia.org/wiki/Eight-point_algorithm#Step_3:_Enforcing_the_internal_constraint
+    # Following the recipe in Section 11.1 in Hartley-Zisserman 
+    # we enforce the rank constraint by setting the smallest 
+    # singular value to zero. 
+    # 
+    # However that does not enforce the constraint 
+    #   `EE^T - 1/2 trace(EE^T)I = 0` (https://en.wikipedia.org/wiki/Essential_matrix#Properties).
+    # Alternativeley one can set the diag matrix to diag(1,1,0). 
+    # That ensures that the above constraint is satisfied.
     u, s, vt = jnp.linalg.svd(E_est)
     return u @ jnp.diag(jnp.array([s[0], s[1], 0.])) @ vt  
 

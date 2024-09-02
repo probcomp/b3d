@@ -44,12 +44,6 @@ jobs:
             --index-url \
             https://pypi.org/simple
 
-          # authenticate the read-only datasync package
-          # the token is scoped for read only on this package
-          # TODO: obviously move this into a ${{ secrets.XXX }}
-          export PREFIX_API_KEY=pfx-Fa1uiLkyxMhvSdcHtwi7GdUpwtumLDqkE4hr
-          pixi auth login prefix.dev --token $PREFIX_API_KEY
-
           # ensure all deps across all environments and platforms are solving
           pixi --version
           pixi clean && pixi clean cache --yes

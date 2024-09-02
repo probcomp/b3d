@@ -183,13 +183,12 @@ channels = ["conda-forge", "https://repo.prefix.dev/probcomp"]
 
 [tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
 carvekit = "==4.1.2"
-# datasync = { git = "ssh://git@github.com/probcomp/datasync" }
+datasync = "*"
 genjax = "*"
 torch = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]
 cuda-toolkit = "*"
-datasync = "*"
 gcc = "*"
 jax = "*"
 jaxlib = { version = "0.4.28", build = "cuda12*" }

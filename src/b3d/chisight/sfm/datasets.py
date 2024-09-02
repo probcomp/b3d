@@ -1,13 +1,15 @@
 import subprocess
 import os
+import glob
 from pathlib import Path
 import imageio.v3 as iio
 import re
-from b3d.camera import Intrinsics
+from b3d.camera import Intrinsics, camera_from_screen_and_depth, camera_from_depth
 from b3d.pose import Pose
 import numpy as np
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 
 
 _DOWNLOAD_BASH_SCRIPT = """#!/bin/bash
@@ -39,7 +41,7 @@ rm "$target_folder/$sequence"
 """
 
 
-class RgbdSlamSequenceData:
+class TumRgbdData:
     """"
     Helper class to handle RGB-D Sequences from the TUM RGBD SLAM benchmark dataset.
     The dataset can be downloaded from the following link:
@@ -55,8 +57,8 @@ class RgbdSlamSequenceData:
 
     # Download and extract the sequence data into 
     # a new folder under the target folder
-    sequence_folder = RgbdSlamSequenceData._download_from_url(sequence_url, target_folder)
-    data = RgbdSlamSequenceData(sequence_folder)
+    sequence_folder = TumRgbdData._download_from_url(sequence_url, target_folder)
+    data = TumRgbdData(sequence_folder)
 
     # Get the i'th RGB image
     # Note that rgb, depth, and pose sequences are not synchronized, so the i'th RGB image
@@ -83,6 +85,7 @@ class RgbdSlamSequenceData:
         """
 
         self.path = path
+        self.name = path.stem
 
         self.gt_data = np.loadtxt(path/"groundtruth.txt", comments='#', dtype = [
             ('timestamp', 'f8'), 
@@ -96,14 +99,30 @@ class RgbdSlamSequenceData:
             ("timestamp", 'f8'), ("filename", 'U50')])
     
     @staticmethod
+    def _list_datasets(root):
+        wildcard = f"{str(Path(root))}/rgbd_dataset_freiburg*"
+        datasets = [Path(s).stem 
+                        for s in glob.glob(wildcard) 
+                        if os.path.isdir(s)]
+        return datasets
+
+    @staticmethod
+    def _show_available_datasets(root):
+        datasets = TumRgbdData._list_datasets(root)
+        print(f"\033[1mAvailable datasets\033[0m in \033[94m{str(root)}/...\033[0m:")
+        for i,name in enumerate(datasets):
+            print(f"\033[95m({i}) {name}\033[0m")
+        return datasets
+    
+    @staticmethod
     def _download_from_url(sequence_url, target_folder):
 
         # Target folder for the sequence data
         sequence_folder = Path(target_folder)/Path(sequence_url).stem
-
+        sequence_name = Path(sequence_url).stem
         # Check if the target folder exists
         if os.path.exists(sequence_folder):
-            print(f"Sequence \n\t\"{Path(sequence_url).stem}\"\nalready exists here \n\t{sequence_folder}")
+            print(f"Sequence \033[1m{sequence_name}\033[0m already exists.")
             return sequence_folder
 
         try:
@@ -129,9 +148,10 @@ class RgbdSlamSequenceData:
         """Returns the number of (RGB) frames in the dataset."""
         return len(self.rgb_data)
     
+    @property
     def shape(self):
         """Returns the shape of the RGB images."""
-        return self.get_rgb(0).shape
+        return (self.len(),) + self.get_rgb(0).shape[:2]
 
     def get_rgb(self, i):
         """Returns the RGB image at index i."""
@@ -158,7 +178,20 @@ class RgbdSlamSequenceData:
     
     def __getitem__(self, i):
         """Returns the RGB, depth image, and pose at index i."""
-        return self.get_synced(i)
+        if isinstance(i, int):
+            return self.get_synced(i)
+        
+        if isinstance(i, slice):
+            i = range(*i.indices(len(self.rgb_data)))
+
+        rs, ds, ps = [], [], []
+        for j in i:
+            r, d, p = self.get_synced(j)
+            rs.append(r)
+            ds.append(d)
+            ps.append(p)
+
+        return np.array(rs), np.array(ds), Pose.stack_poses(ps)
 
     def get_intrinsics(self, index=0):
         """Returns the camera intrinsics."""
@@ -171,22 +204,66 @@ class RgbdSlamSequenceData:
 
         return [intr0, intr1, intr2, intr3][index]
 
+    @staticmethod
+    def _extract_number_after_freiburg(input_string):
+        match = re.search(r'freiburg(\d+)', input_string)
+        if match:
+            return int(match.group(1))
+        else:
+            return None
+        
+    def plot_multiple_frames(self, ids, axs=None):
+        n = len(ids)
+        if axs is None: 
+            fig, axs = plt.subplots(1, n, figsize=(n*3,5))
+        for t,i in enumerate(ids):
+            rgb = self.get_rgb(i)
+            axs[t].set_title(f"Frame: {i}")
+            axs[t].imshow(rgb)
+
+        return fig, axs
+    
+    def plot_synced(self, i, axs=None):
+        rgb, depth, pose = self.get_synced(i)
+        if axs is None:
+            fig, axs = plt.subplots(1, 3, figsize=(10,5))
+        axs[0].imshow(rgb)
+        axs[1].imshow(np.where(depth>0, depth, np.nan))
+        axs[2].imshow(rgb, alpha=1.)
+        axs[2].imshow(np.where(depth>0, depth, np.nan), alpha=0.75)
+        return fig, axs
+
+    @classmethod
+    def _sequence_url_from_sequence_name(cls, sequence_name):
+        n = cls._extract_number_after_freiburg(sequence_name)
+        return f"https://cvg.cit.tum.de/rgbd/dataset/freiburg{n}/{sequence_name}.tgz"
+
+    def _get_colored_world_points(self, i, intr=None):
+        """
+        Returns world points and their validity 
+        given for a given frame `i`.
+        """
+        intr = intr or self.get_intrinsics()
+        rgb_im, depth_im, cam = self.get_synced(i)
+        xs = camera_from_depth(depth_im, intr).reshape(-1, 3)
+        cs = rgb_im.reshape(-1, 3)
+        valid = (depth_im > 0).reshape(-1, 3)
+        return cam(xs), cs, valid
+
+    def _approxiate_world_points(self, uvs, i, intr=None):
+        """
+        Returns world points and their validity given 
+        2D sensor coordinates `uv` from a given frame `i`.
+        """
+        intr = intr or self.get_intrinsics()
+        _, depth_im, cam = self.get_synced(i)
+        zs = vals_from_im(uvs, jnp.array(depth_im))
+        xs = camera_from_screen_and_depth(uvs, zs, intr)
+        valid = zs > 0
+        return cam(xs), valid
 
 def val_from_im(uv, im):
-    return im[int(uv[1]), int(uv[0])]
-
+    return im[uv[1].astype(jnp.int32), uv[0].astype(jnp.int32)]
 
 vals_from_im = jax.vmap(val_from_im, in_axes=(0, None))
 
-
-def _extract_number_after_freiburg(input_string):
-    match = re.search(r'freiburg(\d+)', input_string)
-    if match:
-        return int(match.group(1))
-    else:
-        return None
-
-
-def _sequence_url_from_sequence_stem(sequence_stem):
-    n = _extract_number_after_freiburg(sequence_stem)
-    return f"https://cvg.cit.tum.de/rgbd/dataset/freiburg{n}/{sequence_stem}.tgz"

@@ -61,8 +61,7 @@ depends_on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
-cmd = "./rerun.sh"
-cwd = "scripts"
+cmd = "python scripts/rerun-task.py"
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"
@@ -236,6 +235,7 @@ XLA_PYTHON_CLIENT_PREALLOCATE = "false"
 XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
 CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
 LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+RERUN_HEADLESS = "1"
 
 # OpenGL dependencies (Linux only)
 

@@ -44,6 +44,7 @@ b3d = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 rerun-sdk = "==0.17.0"
+ipympl = ">=0.9.4,<0.10"
 
 [tool.pixi.activation.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"

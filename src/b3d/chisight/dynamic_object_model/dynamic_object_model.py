@@ -79,6 +79,8 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         )
         @ "color_outlier_probability"
     )
+    # depth_outlier_probability = depth_outlier_transition_kernel.vmap()(prev_state[""])
+
     depth_outlier_probability = (
         b3d.modeling_utils.uniform_broadcasted(
             0.0 * jnp.ones((num_vertices,)), 1.0 * jnp.ones((num_vertices,))

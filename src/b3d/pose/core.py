@@ -404,6 +404,7 @@ class Pose:
         jax.vmap(sample_uniform_pose, in_axes=(0, None, None))
     )
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
+    logpdf_gaussian_vmf_pose = logpdf_gaussian_vmf_pose
     sample_gaussian_vmf_pose_jit = jax.jit(sample_gaussian_vmf_pose)
     sample_gaussian_vmf_pose_vmap = jax.vmap(
         sample_gaussian_vmf_pose, in_axes=(0, None, None, None)

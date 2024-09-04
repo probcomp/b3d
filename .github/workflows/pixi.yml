@@ -12,14 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - name: Checkout probcomp/datasync
-      #   uses: actions/checkout@v4
-      #   with:
-      #     #token: ${{ secrets.GITHUB_TOKEN }}
-      #     repository: probcomp/datasync
-      #     ref: master
-      #     path: datasync
-
       - name: Authenticate gcloud
         id: auth
         uses: google-github-actions/auth@v2

@@ -108,7 +108,7 @@ cwd = "scripts"
 
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
-datasync = "*"
+datasync = "==0.0.2"
 genjax = "==0.5.1"
 pykitti = "==0.3.1"
 pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }

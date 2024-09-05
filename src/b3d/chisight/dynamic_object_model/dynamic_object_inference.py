@@ -253,6 +253,7 @@ def propose_color_and_color_outlier_probability(trace, key, outlier_probability_
         sampled_colors,
         sampled_color_outlier_probabilities,
         log_q_color_and_color_outlier_probability + log_q_for_the_color_proposal,
+        scores_per_sweep_point_and_vertex,
     )
 
 

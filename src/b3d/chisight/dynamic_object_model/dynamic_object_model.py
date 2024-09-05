@@ -8,7 +8,7 @@ from genjax import Pytree
 import b3d
 from b3d import Pose
 
-LIKELIHOOD = "aggregate_mean"
+# LIKELIHOOD = "aggregate_mean"
 LIKELIHOOD = "project_no_occlusions"
 
 if LIKELIHOOD == "project_no_occlusions":

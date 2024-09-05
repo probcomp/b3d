@@ -270,15 +270,19 @@ for T_observed_image in range(FINAL_T):
             np.flip(depth_arr[T_observed_image], 1),
         ),
     )
+    print("updated choices")
     trace, key = bayes3d.enumerate_and_select_best_move(
         trace, Pytree.const(("object_pose_0",)), key, all_deltas
     )
+    print("searched object_pose_0")
     trace, key = bayes3d.enumerate_and_select_best_move(
         trace, Pytree.const(("object_pose_1",)), key, all_deltas
     )
+    print("searched object_pose_1")
     trace, key = bayes3d.enumerate_and_select_best_move(
         trace, Pytree.const(("object_pose_2",)), key, all_deltas
     )
+    print("searched object_pose_2")
     with open(
         f"/home/hlwang_ipe_genjax/b3d/saved_traces/{T_observed_image}.pickle", "wb"
     ) as output_file:

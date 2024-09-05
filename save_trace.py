@@ -126,9 +126,21 @@ with h5py.File(hdf5_file_path, "r") as f:
     initial_rotation = np.array(f["static"]["initial_rotation"])
     scales = np.array(f["static"]["scale"])
 
-excluded_model_ids = np.concatenate(
-    (np.where(model_names == distractors), np.where(model_names == occluders)), axis=0
+distractor_ids = (
+    np.concatenate(
+        [np.where(model_names == distractor)[0] for distractor in distractors], axis=0
+    ).tolist()
+    if distractors
+    else []
 )
+occluder_ids = (
+    np.concatenate(
+        [np.where(model_names == occluder)[0] for occluder in occluders], axis=0
+    ).tolist()
+    if occluders
+    else []
+)
+excluded_model_ids = distractor_ids + occluder_ids
 included_model_ids = [
     idx for idx in range(len(object_ids)) if idx not in excluded_model_ids
 ]

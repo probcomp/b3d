@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Sequence
 
 import genjax
 import jax.numpy as jnp
@@ -6,6 +7,7 @@ from genjax import Pytree
 from genjax.typing import ArrayLike, PRNGKey
 from tensorflow_probability.substrates import jax as tfp
 
+from b3d.chisight.dense.likelihoods.other_likelihoods import PythonMixturePixelModel
 from b3d.chisight.dynamic_object_model.likelihoods.kfold_image_kernel import (
     _FIXED_COLOR_UNIFORM_WINDOW,
     truncated_color_laplace,
@@ -64,7 +66,7 @@ class UniformColorDriftKernel(UniformDriftKernel):
     def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
         # the summation at the end is to ensure that we get a single value for
         # the 3 channels (instead of 3 separate values)
-        return super().logpdf(new_value, prev_value).sum(axis=0)
+        return super().logpdf(new_value, prev_value).sum()
 
 
 @Pytree.dataclass
@@ -151,4 +153,26 @@ class GaussianColorDriftKernel(GaussianDriftKernel):
     def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
         # the summation at the end is to ensure that we get a single value for
         # the 3 channels (instead of 3 separate values)
-        return super().logpdf(new_value, prev_value).sum(axis=0)
+        return super().logpdf(new_value, prev_value).sum()
+
+
+@Pytree.dataclass
+class MixtureDriftKernel(DriftKernel):
+    """A drift kernel that samples from a mixture of distributions according to
+    the probabilities specified in the `mix_ratio`.
+    """
+
+    dists: Sequence[DriftKernel] = Pytree.static()
+    mix_ratio: ArrayLike = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_value: ArrayLike) -> ArrayLike:
+        return PythonMixturePixelModel(self.dists).sample(
+            key, self.mix_ratio, [(prev_value,)] * len(self.dists)
+        )
+
+    def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
+        return PythonMixturePixelModel(self.dists).logpdf(
+            new_value,
+            self.mix_ratio,
+            [(prev_value,)] * len(self.dists),
+        )

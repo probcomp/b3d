@@ -49,7 +49,6 @@ def advance_time(key, trace, observed_rgbd):
 @jax.jit
 def propose_depth_outlier_probability(trace, key):
     depth_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-    # depth_outlier_probability_sweep is (k.) shape array
 
     current_depth_outlier_probabilities = trace.get_choices()[
         "depth_outlier_probabilities", ...
@@ -95,7 +94,8 @@ def propose_depth_outlier_probability(trace, key):
     )
 
     sampled_indices = jax.random.categorical(key, normalized_log_probabilities, axis=0)
-    # sampled_indices = jnp.argmax(scores_per_sweep_point_and_vertex, axis=0)
+    sampled_indices = jnp.argmax(scores_per_sweep_point_and_vertex, axis=0)
+
     sampled_depth_outlier_probabilities = depth_outlier_probability_sweep[
         sampled_indices
     ]
@@ -110,21 +110,21 @@ def propose_depth_outlier_probability(trace, key):
     )
 
 
-@jax.jit
-def propose_pose(trace, key, pose_sample_variance, pose_sample_concentration):
-    pose = Pose.sample_gaussian_vmf_pose(
-        key,
-        trace.get_choices()["pose"],
-        pose_sample_variance,
-        pose_sample_concentration,
-    )
-    log_q_pose = Pose.logpdf_gaussian_vmf_pose(
-        pose,
-        trace.get_choices()["pose"],
-        pose_sample_variance,
-        pose_sample_concentration,
-    )
-    return pose, log_q_pose
+# @jax.jit
+# def propose_pose(trace, key, pose_sample_variance, pose_sample_concentration):
+#     pose = Pose.sample_gaussian_vmf_pose(
+#         key,
+#         trace.get_choices()["pose"],
+#         pose_sample_variance,
+#         pose_sample_concentration,
+#     )
+#     log_q_pose = Pose.logpdf_gaussian_vmf_pose(
+#         pose,
+#         trace.get_choices()["pose"],
+#         pose_sample_variance,
+#         pose_sample_concentration,
+#     )
+#     return pose, log_q_pose
 
 
 @jax.jit
@@ -151,17 +151,12 @@ def propose_color_and_color_outlier_probability(
     # onto the points at the end, to capture the fact that the posterior could allow
     # colors outside the considered interpolation window.
     color_interpolations_per_proposal = jnp.array([0.0, 0.5, 1.0])
-    num_color_grid_points = len(color_interpolations_per_proposal)
+    # num_color_grid_points = len(color_interpolations_per_proposal)
 
     color_outlier_probabilities_sweep_full = (
         color_outlier_probability_sweep[..., None]  # (k, 1)
         * jnp.ones_like(current_color_outlier_probability)  # (num_vertices,)
     )  # (k, num_vertices)
-    color_outlier_probabilities_sweep_full = jnp.tile(
-        color_outlier_probabilities_sweep_full[:, None, :],
-        (1, num_color_grid_points, 1),
-    )
-    # ^ is (k, num_color_grid_points, num_vertices)
 
     observed_colors = info_from_trace(trace)["observed_rgbd_masked"][
         ..., :3
@@ -178,7 +173,6 @@ def propose_color_and_color_outlier_probability(
     # Function takes in color and color outlier probabilities array of shapes (num_vertices,3) and (num_vertices,) respectively
     # and gives scores for each vertex (num_vertices,)
 
-    @partial(jnp.vectorize, signature="(n,3),(n)->(n)")
     def get_per_vertex_likelihoods_with_new_color_and_color_outlier_probabilities(
         colors, color_outlier_probabilities
     ):
@@ -223,7 +217,8 @@ def propose_color_and_color_outlier_probability(
 
     normalized_log_probabilities = jax.nn.log_softmax(unraveled_scores, axis=0)
 
-    sampled_indices = jax.random.categorical(key, normalized_log_probabilities, axis=0)
+    # sampled_indices = jax.random.categorical(key, normalized_log_probabilities, axis=0)
+    sampled_indices = jnp.argmax(unraveled_scores, axis=0)
 
     ii, jj = jnp.unravel_index(
         sampled_indices, scores_per_sweep_point_and_vertex.shape[:2]
@@ -360,157 +355,163 @@ def inference_step_without_advance(trace, key):
     return trace
 
 
-# ## Old Inference moves ###
+## Old Inference moves ###
+@jax.jit
+def update_colors(trace):
+    key = jax.random.PRNGKey(0)
+    info = info_from_trace(trace)
 
-# @jax.jit
-# def score_with_give_pose_and_then_color_update(
-#     trace, pose, outlier_probability_sweep
-# ):
-#     key = jax.random.PRNGKey(0)
-#     trace = trace.update(key, C["pose"].set(pose))[0]
+    color_delta = (
+        info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors", ...]
+    )
+    max_color_shift = trace.get_args()[0]["max_color_shift"]
+    color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
 
-#     info = info_from_trace(trace)
-
-#     color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
-#     max_color_shift = trace.get_args()[0]["max_color_shift"].const
-#     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
-
-#     trace = trace.update(
-#         key,
-#         make_colors_choicemap(trace.get_choices()["colors",...] + color_delta_clipped),
-#     )[0]
-
-#     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const("color_outlier_probability"), outlier_probability_sweep
-#     )
-#     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const("depth_outlier_probability"), outlier_probability_sweep
-#     )
-
-#     return trace.get_score()
+    trace = trace.update(
+        key,
+        make_colors_choicemap(trace.get_choices()["colors", ...] + color_delta_clipped),
+    )[0]
+    return trace
 
 
-# @jax.jit
-# def grid_move_on_outlier_probability(trace, address, sweep):
-#     current_setting = trace.get_choices()[address.const]
+@jax.jit
+def score_with_give_pose_and_then_color_update(trace, pose, outlier_probability_sweep):
+    key = jax.random.PRNGKey(0)
+    trace = trace.update(key, C["pose"].set(pose))[0]
 
-#     potential_values = sweep[..., None] * jnp.ones_like(current_setting)
+    trace = update_colors(trace)
 
-#     get_vertex_scores_vmap = jax.vmap(
-#         lambda x: info_from_trace(b3d.update_choices(trace, address, x))["scores"]
-#     )
-#     scores = get_vertex_scores_vmap(potential_values)
-#     best_setting = sweep[jnp.argmax(scores, axis=0)]
-#     return b3d.update_choices(trace, address, best_setting)
+    trace = grid_move_on_color_outlier_probability(trace, outlier_probability_sweep)
+    trace = grid_move_on_depth_outlier_probability(trace, outlier_probability_sweep)
 
-
-# @jax.jit
-# def update_address_with_sweep(trace, address, sweep):
-#     scores = b3d.enumerate_choices_get_scores(trace, address, sweep)
-#     best_setting = sweep[jnp.argmax(scores)]
-#     return b3d.update_choices(trace, address, best_setting)
+    return trace.get_score()
 
 
-# @partial(jax.jit, static_argnames=("number",))
-# def gaussian_vmf_enumerative_move_with_other_updates(
-#     trace, key, number, outlier_probability_sweep
-# ):
-#     keys = jax.random.split(key, number)
-#     poses = Pose.concatenate_poses(
-#         [
-#             Pose.sample_gaussian_vmf_pose_vmap(
-#                 keys, trace.get_choices()["pose"], 0.02, 2000.0
-#             ),
-#             trace.get_choices()["pose"][None, ...],
-#         ]
-#     )
-
-#     scores = jax.vmap(
-#         score_with_give_pose_and_then_color_update, in_axes=(None, 0, None)
-#     )(trace, poses, outlier_probability_sweep)
-
-#     key = b3d.split_key(keys[-1])
-#     sampled_pose = poses[scores.argmax()]
-#     trace = trace.update(key, C["pose"].set(sampled_pose))[0]
-#     return trace, key
-
-# def inference_step_old(trace, key, observed_rgbd):
-#     trace = advance_time(key, trace, observed_rgbd)
-
-#     outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-#     num_grid_points = 20000
-#     for _ in range(2):
-#         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
-#             trace,
-#             key,
-#             Pytree.const(("pose",)),
-#             0.04,
-#             200.0,
-#             num_grid_points,
-#             outlier_probability_sweep,
-#         )
-#         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
-#             trace,
-#             key,
-#             Pytree.const(("pose",)),
-#             0.01,
-#             500.0,
-#             num_grid_points,
-#             outlier_probability_sweep,
-#         )
-#         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
-#             trace,
-#             key,
-#             Pytree.const(("pose",)),
-#             0.005,
-#             1000.0,
-#             num_grid_points,
-#             outlier_probability_sweep,
-#         )
-#         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
-#             trace,
-#             key,
-#             Pytree.const(("pose",)),
-#             0.001,
-#             2000.0,
-#             num_grid_points,
-#             outlier_probability_sweep,
-#         )
-
-#     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const(("color_outlier_probability",)), outlier_probability_sweep
-#     )
-#     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const(("depth_outlier_probability",)), outlier_probability_sweep
-#     )
-
-#     trace = update_address_with_sweep(
-#         trace,
-#         Pytree.const(("color_variance",)),
-#         jnp.array([0.005, 0.01, 0.05, 0.1, 0.2]),
-#     )
-#     trace = update_address_with_sweep(
-#         trace,
-#         Pytree.const(("depth_variance",)),
-#         jnp.array([0.0005, 0.001, 0.0025, 0.005, 0.01]),
-#     )
+@jax.jit
+def grid_move_on_depth_outlier_probability(trace, sweep):
+    current_setting = trace.get_choices()["depth_outlier_probabilities", ...]
+    potential_values = sweep[..., None] * jnp.ones_like(current_setting)
+    key = jax.random.PRNGKey(0)
+    get_vertex_scores_vmap = jax.vmap(
+        lambda x: info_from_trace(
+            trace.update(key, make_depth_outlier_probabilities_choicemap(x))[0]
+        )["scores"]
+    )
+    scores = get_vertex_scores_vmap(potential_values)
+    best_setting = sweep[jnp.argmax(scores, axis=0)]
+    return trace.update(key, make_depth_outlier_probabilities_choicemap(best_setting))[
+        0
+    ]
 
 
-#     info = info_from_trace(trace)
+@jax.jit
+def grid_move_on_color_outlier_probability(trace, sweep):
+    current_setting = trace.get_choices()["color_outlier_probabilities", ...]
 
-#     color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
-#     max_color_shift = trace.get_args()[0]["max_color_shift"].const
-#     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
+    potential_values = sweep[..., None] * jnp.ones_like(current_setting)
+    key = jax.random.PRNGKey(0)
+    get_vertex_scores_vmap = jax.vmap(
+        lambda x: info_from_trace(
+            trace.update(key, make_color_outlier_probabilities_choicemap(x))[0]
+        )["scores"]
+    )
+    scores = get_vertex_scores_vmap(potential_values)
+    best_setting = sweep[jnp.argmax(scores, axis=0)]
+    return trace.update(key, make_color_outlier_probabilities_choicemap(best_setting))[
+        0
+    ]
 
-#     trace = trace.update(
-#         key,
-#         make_colors_choicemap(trace.get_choices()["colors",...] + color_delta_clipped),
-#     )[0]
 
-#     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const("color_outlier_probability"), outlier_probability_sweep
-#     )
-#     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const("depth_outlier_probability"), outlier_probability_sweep
-#     )
-#     return trace
+@jax.jit
+def update_address_with_sweep(trace, address, sweep):
+    scores = b3d.enumerate_choices_get_scores(trace, address, sweep)
+    best_setting = sweep[jnp.argmax(scores)]
+    return b3d.update_choices(trace, address, best_setting)
+
+
+@partial(jax.jit, static_argnames=("number",))
+def gaussian_vmf_enumerative_move_with_other_updates(
+    trace, key, address, varianc, conc, number, outlier_probability_sweep
+):
+    keys = jax.random.split(key, number)
+    poses = Pose.concatenate_poses(
+        [
+            Pose.sample_gaussian_vmf_pose_vmap(
+                keys, trace.get_choices()["pose"], 0.02, 2000.0
+            ),
+            trace.get_choices()["pose"][None, ...],
+        ]
+    )
+
+    scores = jax.vmap(
+        score_with_give_pose_and_then_color_update, in_axes=(None, 0, None)
+    )(trace, poses, outlier_probability_sweep)
+
+    key = b3d.split_key(keys[-1])
+    sampled_pose = poses[scores.argmax()]
+    trace = trace.update(key, C["pose"].set(sampled_pose))[0]
+    return trace, key
+
+
+def inference_step_old(trace, key, observed_rgbd):
+    trace = advance_time(key, trace, observed_rgbd)
+
+    outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
+    num_grid_points = 20000
+    for _ in range(2):
+        trace, key = gaussian_vmf_enumerative_move_with_other_updates(
+            trace,
+            key,
+            Pytree.const(("pose",)),
+            0.04,
+            200.0,
+            num_grid_points,
+            outlier_probability_sweep,
+        )
+        trace, key = gaussian_vmf_enumerative_move_with_other_updates(
+            trace,
+            key,
+            Pytree.const(("pose",)),
+            0.01,
+            500.0,
+            num_grid_points,
+            outlier_probability_sweep,
+        )
+        trace, key = gaussian_vmf_enumerative_move_with_other_updates(
+            trace,
+            key,
+            Pytree.const(("pose",)),
+            0.005,
+            1000.0,
+            num_grid_points,
+            outlier_probability_sweep,
+        )
+        trace, key = gaussian_vmf_enumerative_move_with_other_updates(
+            trace,
+            key,
+            Pytree.const(("pose",)),
+            0.001,
+            2000.0,
+            num_grid_points,
+            outlier_probability_sweep,
+        )
+
+    trace = grid_move_on_color_outlier_probability(trace, outlier_probability_sweep)
+    trace = grid_move_on_depth_outlier_probability(trace, outlier_probability_sweep)
+
+    trace = update_address_with_sweep(
+        trace,
+        Pytree.const(("color_variance",)),
+        jnp.array([0.005, 0.01, 0.05, 0.1, 0.2]),
+    )
+    trace = update_address_with_sweep(
+        trace,
+        Pytree.const(("depth_variance",)),
+        jnp.array([0.0005, 0.001, 0.0025, 0.005, 0.01]),
+    )
+
+    trace = update_colors(trace)
+
+    trace = grid_move_on_color_outlier_probability(trace, outlier_probability_sweep)
+    trace = grid_move_on_depth_outlier_probability(trace, outlier_probability_sweep)
+    return trace

@@ -2,6 +2,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import jax.random
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
@@ -46,7 +47,8 @@ def advance_time(key, trace, observed_rgbd):
 
 # Propose new depth outlier probabilities
 @jax.jit
-def propose_depth_outlier_probability(trace, key, depth_outlier_probability_sweep):
+def propose_depth_outlier_probability(trace, key):
+    depth_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
     # depth_outlier_probability_sweep is (k.) shape array
 
     current_depth_outlier_probabilities = trace.get_choices()[
@@ -101,7 +103,11 @@ def propose_depth_outlier_probability(trace, key, depth_outlier_probability_swee
         sampled_indices, jnp.arange(normalized_log_probabilities.shape[1])
     ].sum()
 
-    return sampled_depth_outlier_probabilities, log_q_depth_outlier_probability
+    return (
+        sampled_depth_outlier_probabilities,
+        log_q_depth_outlier_probability,
+        scores_per_sweep_point_and_vertex,
+    )
 
 
 @jax.jit
@@ -271,9 +277,8 @@ def propose_update(trace, key, pose):
     # total_log_q += log_q_pose
 
     # Update depth outlier probability
-    depth_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-    sampled_depth_outlier_probability, log_q_depth_outlier_probability = (
-        propose_depth_outlier_probability(trace, key, depth_outlier_probability_sweep)
+    sampled_depth_outlier_probability, log_q_depth_outlier_probability, _ = (
+        propose_depth_outlier_probability(trace, key)
     )
     trace = trace.update(
         key,
@@ -324,8 +329,13 @@ propose_update_get_score_vmap = jax.jit(
 
 
 def inference_step(trace, key, observed_rgbd):
-    number = 20000
     trace = advance_time(key, trace, observed_rgbd)
+    trace = inference_step_without_advance(trace, key)
+    return trace
+
+
+def inference_step_without_advance(trace, key):
+    number = 20000
 
     var_conc = [
         (0.04, 400.0),
@@ -350,14 +360,14 @@ def inference_step(trace, key, observed_rgbd):
     return trace
 
 
-### Inference moves ###
-
+# ## Old Inference moves ###
 
 # @jax.jit
 # def score_with_give_pose_and_then_color_update(
-#     trace, address, pose, outlier_probability_sweep
+#     trace, pose, outlier_probability_sweep
 # ):
-#     trace = b3d.update_choices(trace, address, pose)
+#     key = jax.random.PRNGKey(0)
+#     trace = trace.update(key, C["pose"].set(pose))[0]
 
 #     info = info_from_trace(trace)
 
@@ -365,44 +375,19 @@ def inference_step(trace, key, observed_rgbd):
 #     max_color_shift = trace.get_args()[0]["max_color_shift"].const
 #     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
 
-#     trace = b3d.update_choices(
-#         trace,
-#         Pytree.const(("colors",)),
-#         trace.get_choices()["colors"] + color_delta_clipped,
-#     )
+#     trace = trace.update(
+#         key,
+#         make_colors_choicemap(trace.get_choices()["colors",...] + color_delta_clipped),
+#     )[0]
 
 #     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const(("color_outlier_probability",)), outlier_probability_sweep
+#         trace, Pytree.const("color_outlier_probability"), outlier_probability_sweep
 #     )
 #     trace = grid_move_on_outlier_probability(
-#         trace, Pytree.const(("depth_outlier_probability",)), outlier_probability_sweep
+#         trace, Pytree.const("depth_outlier_probability"), outlier_probability_sweep
 #     )
 
 #     return trace.get_score()
-
-
-# @partial(jax.jit, static_argnames=("number",))
-# def gaussian_vmf_enumerative_move_with_other_updates(
-#     trace, key, address, variance, concentration, number, outlier_probability_sweep
-# ):
-#     keys = jax.random.split(key, number)
-#     poses = Pose.concatenate_poses(
-#         [
-#             Pose.sample_gaussian_vmf_pose_vmap(
-#                 keys, trace.get_choices()["pose"], 0.02, 2000.0
-#             ),
-#             trace.get_choices()["pose"][None, ...],
-#         ]
-#     )
-
-#     scores = jax.vmap(
-#         score_with_give_pose_and_then_color_update, in_axes=(None, None, 0, None)
-#     )(trace, Pytree.const(("pose",)), poses, outlier_probability_sweep)
-
-#     key = b3d.split_key(keys[-1])
-#     sampled_pose = poses[scores.argmax()]
-#     trace = b3d.update_choices(trace, Pytree.const(("pose",)), sampled_pose)
-#     return trace, key
 
 
 # @jax.jit
@@ -426,20 +411,30 @@ def inference_step(trace, key, observed_rgbd):
 #     return b3d.update_choices(trace, address, best_setting)
 
 
-# ### Inference step loop ###
+# @partial(jax.jit, static_argnames=("number",))
+# def gaussian_vmf_enumerative_move_with_other_updates(
+#     trace, key, number, outlier_probability_sweep
+# ):
+#     keys = jax.random.split(key, number)
+#     poses = Pose.concatenate_poses(
+#         [
+#             Pose.sample_gaussian_vmf_pose_vmap(
+#                 keys, trace.get_choices()["pose"], 0.02, 2000.0
+#             ),
+#             trace.get_choices()["pose"][None, ...],
+#         ]
+#     )
 
-# # def georges_proposed_inference_step(trace):
-# #     trace = advance_time(trace)
+#     scores = jax.vmap(
+#         score_with_give_pose_and_then_color_update, in_axes=(None, 0, None)
+#     )(trace, poses, outlier_probability_sweep)
 
-# #     for i in range(4):
-# #         trace = outlier_prob_sweep(trace)
-# #         trace = color_variance_sweep(trace)
-# #         trace = depth_variance_sweep(trace)
+#     key = b3d.split_key(keys[-1])
+#     sampled_pose = poses[scores.argmax()]
+#     trace = trace.update(key, C["pose"].set(sampled_pose))[0]
+#     return trace, key
 
-# #     # TODO
-
-
-# def inference_step(trace, key, observed_rgbd):
+# def inference_step_old(trace, key, observed_rgbd):
 #     trace = advance_time(key, trace, observed_rgbd)
 
 #     outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
@@ -500,13 +495,22 @@ def inference_step(trace, key, observed_rgbd):
 #         jnp.array([0.0005, 0.001, 0.0025, 0.005, 0.01]),
 #     )
 
+
 #     info = info_from_trace(trace)
+
 #     color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
 #     max_color_shift = trace.get_args()[0]["max_color_shift"].const
 #     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
-#     trace = b3d.update_choices(
-#         trace,
-#         Pytree.const(("colors",)),
-#         trace.get_choices()["colors"] + color_delta_clipped,
+
+#     trace = trace.update(
+#         key,
+#         make_colors_choicemap(trace.get_choices()["colors",...] + color_delta_clipped),
+#     )[0]
+
+#     trace = grid_move_on_outlier_probability(
+#         trace, Pytree.const("color_outlier_probability"), outlier_probability_sweep
+#     )
+#     trace = grid_move_on_outlier_probability(
+#         trace, Pytree.const("depth_outlier_probability"), outlier_probability_sweep
 #     )
 #     return trace

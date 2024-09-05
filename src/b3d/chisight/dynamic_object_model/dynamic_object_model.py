@@ -79,14 +79,13 @@ vectorized_outlier_probability_transition_kernel_logpdf = jnp.vectorize(
 
 @genjax.gen
 def dynamic_object_generative_model(hyperparams, previous_state):
-    max_pose_position_shift = hyperparams["max_pose_position_shift"]
     vertices = hyperparams["vertices"]
 
     pose = (
         Pose.uniform_pose_centered(
             previous_state["pose"],
-            -max_pose_position_shift * jnp.ones(3),
-            max_pose_position_shift * jnp.ones(3),
+            -hyperparams["max_pose_position_shift"] * jnp.ones(3),
+            hyperparams["max_pose_position_shift"] * jnp.ones(3),
         )
         @ "pose"
     )

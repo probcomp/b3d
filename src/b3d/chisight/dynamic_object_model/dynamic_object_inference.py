@@ -22,14 +22,14 @@ def score_with_give_pose_and_then_color_update(
 
     info = info_from_trace(trace)
 
-    color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
+    color_delta = (
+        info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors", ...]
+    )
     max_color_shift = trace.get_args()[0]["max_color_shift"].const
     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
 
-    trace = b3d.update_choices(
-        trace,
-        Pytree.const(("colors",)),
-        trace.get_choices()["colors"] + color_delta_clipped,
+    trace = update_vmapped_address(
+        trace, "colors", trace.get_choices()["colors", ...] + color_delta_clipped
     )
 
     trace = grid_move_on_outlier_probability(
@@ -122,11 +122,22 @@ def advance_time(key, trace, observed_rgbd):
 #     # TODO
 
 
+@partial(jax.jit, static_argnames=("address",))
+def update_vmapped_address(trace, address, value):
+    trace = trace.update(
+        jax.random.PRNGKey(0),
+        jax.vmap(lambda idx, val: C[address, idx].set(val))(
+            jnp.arange(value.shape[0]), value
+        ),
+    )[0]
+    return trace
+
+
 def inference_step(trace, key, observed_rgbd):
     trace = advance_time(key, trace, observed_rgbd)
 
     outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-    num_grid_points = 20000
+    num_grid_points = 10000
     for _ in range(2):
         trace, key = gaussian_vmf_enumerative_move_with_other_updates(
             trace,
@@ -184,12 +195,13 @@ def inference_step(trace, key, observed_rgbd):
     )
 
     info = info_from_trace(trace)
-    color_delta = info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors"]
+    color_delta = (
+        info["observed_rgbd_masked"][..., :3] - trace.get_choices()["colors", ...]
+    )
     max_color_shift = trace.get_args()[0]["max_color_shift"].const
     color_delta_clipped = jnp.clip(color_delta, -max_color_shift, max_color_shift)
-    trace = b3d.update_choices(
-        trace,
-        Pytree.const(("colors",)),
-        trace.get_choices()["colors"] + color_delta_clipped,
+    trace = update_vmapped_address(
+        trace, "colors", trace.get_choices()["colors", ...] + color_delta_clipped
     )
+
     return trace

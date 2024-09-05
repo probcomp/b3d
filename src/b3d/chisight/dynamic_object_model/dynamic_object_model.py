@@ -46,8 +46,8 @@ def info_from_trace(trace):
 
 @genjax.gen
 def dynamic_object_generative_model(hyperparams, previous_state):
-    max_color_shift = hyperparams["max_color_shift"].const
     max_pose_position_shift = hyperparams["max_pose_position_shift"].const
+    color_transition_kernel = hyperparams["color_transition_kernel"]
     vertices = hyperparams["vertices"]
     num_vertices = vertices.shape[0]
 
@@ -60,14 +60,7 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         @ "pose"
     )
 
-    # TODO: change this to a mixture of 0.02 * this distribution + 0.98 * a very tight laplace around the old colors
-    colors = (
-        b3d.modeling_utils.uniform_broadcasted(
-            previous_state["colors"] - max_color_shift,
-            previous_state["colors"] + max_color_shift,
-        )
-        @ "colors"
-    )
+    colors = color_transition_kernel.vmap()(previous_state["colors"]) @ "colors"
 
     # TODO: gradual change on the outlier probabilities and variance values
     # One way: mixture of 1% switch to a uniformly new value, and 99% sample
@@ -140,7 +133,7 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_log_cloud(
         info["transformed_points"],
         "scene/latent",
-        trace.get_choices()["colors"],
+        trace.get_choices()["colors", ...],
     )
     b3d.rr_log_cloud(
         b3d.xyz_from_depth(
@@ -157,7 +150,7 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_log_cloud(
         vertices,
         "object/model",
-        trace.get_choices()["colors"],
+        trace.get_choices()["colors", ...],
     )
     b3d.rr_log_cloud(
         vertices,

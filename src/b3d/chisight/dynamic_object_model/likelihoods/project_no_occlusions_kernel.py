@@ -18,15 +18,16 @@ def likelihood_func(observed_rgbd, args):
         projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1]
     ]
 
-    color_outlier_probability = args["color_outlier_probability"]
-    depth_outlier_probability = args["depth_outlier_probability"]
+    color_outlier_probabilities = args["color_outlier_probabilities"]
+    depth_outlier_probabilities = args["depth_outlier_probabilities"]
 
     color_probability = jnp.logaddexp(
         jax.scipy.stats.laplace.logpdf(
             observed_rgbd_masked[..., :3], args["colors"], args["color_variance"]
         ).sum(axis=-1)
-        + jnp.log(1 - color_outlier_probability),
-        jnp.log(color_outlier_probability) + jnp.log(1 / 1.0**3),  # <- log(1) == 0 tho
+        + jnp.log(1 - color_outlier_probabilities),
+        jnp.log(color_outlier_probabilities)
+        + jnp.log(1 / 1.0**3),  # <- log(1) == 0 tho
     )
     depth_probability = jnp.logaddexp(
         jax.scipy.stats.laplace.logpdf(
@@ -34,8 +35,8 @@ def likelihood_func(observed_rgbd, args):
             transformed_points[..., 2],
             args["depth_variance"],
         )
-        + jnp.log(1 - depth_outlier_probability),
-        jnp.log(depth_outlier_probability) + jnp.log(1 / 1.0),
+        + jnp.log(1 - depth_outlier_probabilities),
+        jnp.log(depth_outlier_probabilities) + jnp.log(1 / 1.0),
     )
 
     scores = color_probability + depth_probability

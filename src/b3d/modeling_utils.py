@@ -19,7 +19,7 @@ def sample_uniform_broadcasted(key, low, high):
 def logpdf_uniform_broadcasted(values, low, high):
     valid = (low <= values) & (values <= high)
     position_score = jnp.log((valid * 1.0) * (jnp.ones_like(values) / (high - low)))
-    return position_score.sum() + jnp.pi**2
+    return position_score.sum()
 
 
 uniform_broadcasted = genjax.exact_density(

@@ -2,12 +2,13 @@ import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
+from genjax import ChoiceMapBuilder as C
 from genjax import Pytree
 
 import b3d
 from b3d import Pose
 
-LIKELIHOOD = "aggregate_mean"
+# LIKELIHOOD = "aggregate_mean"
 LIKELIHOOD = "project_no_occlusions"
 
 if LIKELIHOOD == "project_no_occlusions":
@@ -44,46 +45,72 @@ def info_from_trace(trace):
     )
 
 
+@Pytree.dataclass
+class ColorTransitionKernel(genjax.ExactDensity):
+    def sample(self, key, color, scale):
+        return genjax.laplace.sample(key, color, scale)
+
+    def logpdf(self, new_color, color, scale):
+        return jax.scipy.stats.laplace.logpdf(new_color, color, scale).sum()
+
+
+color_transition_kernel = ColorTransitionKernel()
+vectorized_color_transition_kernel_logpdf = jnp.vectorize(
+    color_transition_kernel.logpdf, signature="(3),(3),()->()"
+)
+
+
+@Pytree.dataclass
+class OutlierProbabilityTransitionKernel(genjax.ExactDensity):
+    def sample(self, key, outlier_probability, scale):
+        return genjax.laplace.sample(key, outlier_probability, scale)
+
+    def logpdf(self, new_outlier_probability, outlier_probability, scale):
+        return jax.scipy.stats.laplace.logpdf(
+            new_outlier_probability, outlier_probability, scale
+        ).sum()
+
+
+outlier_probability_transition_kernel = OutlierProbabilityTransitionKernel()
+vectorized_outlier_probability_transition_kernel_logpdf = jnp.vectorize(
+    outlier_probability_transition_kernel.logpdf, signature="(),(),()->()"
+)
+
+
 @genjax.gen
 def dynamic_object_generative_model(hyperparams, previous_state):
-    max_color_shift = hyperparams["max_color_shift"].const
-    max_pose_position_shift = hyperparams["max_pose_position_shift"].const
     vertices = hyperparams["vertices"]
-    num_vertices = vertices.shape[0]
 
     pose = (
         Pose.uniform_pose_centered(
             previous_state["pose"],
-            -max_pose_position_shift * jnp.ones(3),
-            max_pose_position_shift * jnp.ones(3),
+            -hyperparams["max_pose_position_shift"] * jnp.ones(3),
+            hyperparams["max_pose_position_shift"] * jnp.ones(3),
         )
         @ "pose"
     )
 
     # TODO: change this to a mixture of 0.02 * this distribution + 0.98 * a very tight laplace around the old colors
     colors = (
-        b3d.modeling_utils.uniform_broadcasted(
-            previous_state["colors"] - max_color_shift,
-            previous_state["colors"] + max_color_shift,
+        color_transition_kernel.vmap(in_axes=(0, None))(
+            previous_state["colors"], hyperparams["color_shift_scale"]
         )
         @ "colors"
     )
 
-    # TODO: gradual change on the outlier probabilities and variance values
-    # One way: mixture of 1% switch to a uniformly new value, and 99% sample
-    # from a tight laplace/normal around the old value
-
-    color_outlier_probability = (
-        b3d.modeling_utils.uniform_broadcasted(
-            0.0 * jnp.ones((num_vertices,)), 1.0 * jnp.ones((num_vertices,))
+    color_outlier_probabilities = (
+        outlier_probability_transition_kernel.vmap(in_axes=(0, None))(
+            previous_state["color_outlier_probabilities"],
+            hyperparams["color_outlier_probability_shift_scale"],
         )
-        @ "color_outlier_probability"
+        @ "color_outlier_probabilities"
     )
-    depth_outlier_probability = (
-        b3d.modeling_utils.uniform_broadcasted(
-            0.0 * jnp.ones((num_vertices,)), 1.0 * jnp.ones((num_vertices,))
+    depth_outlier_probabilities = (
+        outlier_probability_transition_kernel.vmap(in_axes=(0, None))(
+            previous_state["depth_outlier_probabilities"],
+            hyperparams["depth_outlier_probability_shift_scale"],
         )
-        @ "depth_outlier_probability"
+        @ "depth_outlier_probabilities"
     )
 
     depth_variance = genjax.uniform(0.0001, 100000.0) @ "depth_variance"
@@ -99,8 +126,8 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         "vertices": vertices,
         "pose": pose,
         "colors": colors,
-        "color_outlier_probability": color_outlier_probability,
-        "depth_outlier_probability": depth_outlier_probability,
+        "color_outlier_probabilities": color_outlier_probabilities,
+        "depth_outlier_probabilities": depth_outlier_probabilities,
         "depth_variance": depth_variance,
         "color_variance": color_variance,
     }
@@ -109,12 +136,36 @@ def dynamic_object_generative_model(hyperparams, previous_state):
     new_state = {
         "pose": pose,
         "colors": colors,
+        "color_outlier_probabilities": color_outlier_probabilities,
+        "depth_outlier_probabilities": depth_outlier_probabilities,
     }
     return {
         "new_state": new_state,
         "rgbd": rgbd,
         "likelihood_args": likelihood_args,
     }
+
+
+def make_colors_choicemap(colors):
+    return jax.vmap(lambda idx: C["colors", idx].set(colors[idx]))(
+        jnp.arange(len(colors))
+    )
+
+
+def make_color_outlier_probabilities_choicemap(color_outlier_probabilities):
+    return jax.vmap(
+        lambda idx: C["color_outlier_probabilities", idx].set(
+            color_outlier_probabilities[idx]
+        )
+    )(jnp.arange(len(color_outlier_probabilities)))
+
+
+def make_depth_outlier_probabilities_choicemap(depth_outlier_probabilities):
+    return jax.vmap(
+        lambda idx: C["depth_outlier_probabilities", idx].set(
+            depth_outlier_probabilities[idx]
+        )
+    )(jnp.arange(len(depth_outlier_probabilities)))
 
 
 ### Viz ###
@@ -140,7 +191,7 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_log_cloud(
         info["transformed_points"],
         "scene/latent",
-        trace.get_choices()["colors"],
+        trace.get_choices()["colors", ...],
     )
     b3d.rr_log_cloud(
         b3d.xyz_from_depth(
@@ -157,19 +208,19 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_log_cloud(
         vertices,
         "object/model",
-        trace.get_choices()["colors"],
+        trace.get_choices()["colors", ...],
     )
     b3d.rr_log_cloud(
         vertices,
-        "object/color_outlier_probability",
+        "object/color_outlier_probabilities",
         jnp.array([[1.0, 0.0, 0.0]])
-        * trace.get_choices()["color_outlier_probability"][:, None],
+        * trace.get_choices()["color_outlier_probabilities", ...][:, None],
     )
     b3d.rr_log_cloud(
         vertices,
-        "object/depth_outlier_probability",
+        "object/depth_outlier_probabilities",
         jnp.array([[0.0, 1.0, 0.0]])
-        * trace.get_choices()["depth_outlier_probability"][:, None],
+        * trace.get_choices()["depth_outlier_probabilities", ...][:, None],
     )
 
     if ground_truth_vertices is not None:

@@ -52,12 +52,13 @@ jobs:
           pixi clean && pixi clean cache --yes
           pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
 
-
-          # pixi run -e gpu test
-          # pixi run -e gpu python -m pytest tests/test_render_ycb_model.py::test_renderer_full
-          # pixi run -e gpu gpu-test
+          # run tests
           pixi run -e gpu test-ci
 
+  cleanup:
+    runs-on: [self-hosted, b3d]
+    needs: [test]
+    steps:
       - name: Cleanup
         run: |
           pixi clean && pixi clean cache --yes

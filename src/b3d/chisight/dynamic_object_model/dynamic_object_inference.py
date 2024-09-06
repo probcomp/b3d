@@ -12,8 +12,6 @@ from .dynamic_object_model import (
     make_color_outlier_probabilities_choicemap,
     make_colors_choicemap,
     make_depth_outlier_probabilities_choicemap,
-    vectorized_color_transition_kernel_logpdf,
-    vectorized_outlier_probability_transition_kernel_logpdf,
 )
 
 
@@ -74,11 +72,17 @@ def propose_depth_outlier_probability(trace, key):
     )(depth_outlier_probability_sweep_full)  # (k, num_vertices)
     # P(pixel / nothing  |  depth outlier prob, latent point)
 
+    depth_outlier_probability_transition_kernel = trace.get_args()[0][
+        "depth_outlier_probability_transition_kernel"
+    ]
+    vectorized_outlier_probability_transition_kernel_logpdf = jnp.vectorize(
+        depth_outlier_probability_transition_kernel.logpdf, signature="(),()->()"
+    )
+
     transition_scores_per_sweep_point_and_vertex = (
         vectorized_outlier_probability_transition_kernel_logpdf(
             depth_outlier_probability_sweep_full,  # (k, num_vertices)
             current_depth_outlier_probabilities,  # (num_vertices, )
-            trace.get_args()[0]["depth_outlier_probability_shift_scale"],
         )
     )  # (k, num_vertices)
 
@@ -190,16 +194,23 @@ def propose_color_and_color_outlier_probability(trace, key, outlier_probability_
     )  # (num_color_grid_points, num_outlier_grid_points, num_vertices)
 
     # Color outlier transition scores
+    color_outlier_probability_transition_kernel = trace.get_args()[0][
+        "color_outlier_probability_transition_kernel"
+    ]
+    vectorized_outlier_probability_transition_kernel_logpdf = jnp.vectorize(
+        color_outlier_probability_transition_kernel.logpdf, signature="(),()->()"
+    )
     color_outlier_transition_scores_per_sweep_point_and_vertex = vectorized_outlier_probability_transition_kernel_logpdf(
         color_outlier_probabilities_sweep,  # (num_outlier_grid_points, num_vertices)
         current_color_outlier_probabilities,
-        trace.get_args()[0]["color_outlier_probability_shift_scale"],
     )  # (num_outlier_grid_points, num_vertices)
 
+    color_transition_kernel = trace.get_args()[0]["color_transition_kernel"]
+    vectorized_color_transition_kernel_logpdf = jnp.vectorize(
+        color_transition_kernel.logpdf, signature="(3),(3)->()"
+    )
     color_transition_scores_per_sweep_point_and_vertex = (
-        vectorized_color_transition_kernel_logpdf(
-            color_sweep, current_colors, trace.get_args()[0]["color_shift_scale"]
-        )
+        vectorized_color_transition_kernel_logpdf(color_sweep, current_colors)
     )  # (num_color_grid_points, num_vertices)
 
     scores_per_sweep_point_and_vertex = (

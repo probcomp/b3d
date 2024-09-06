@@ -15,6 +15,7 @@ env:
 jobs:
   test:
     runs-on: [self-hosted, b3d]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

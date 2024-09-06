@@ -47,8 +47,8 @@ def advance_time(key, trace, observed_rgbd):
 def propose_depth_outlier_probability(trace, key):
     depth_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])  # (k, )
 
-    current_depth_outlier_probabilities = trace.get_choices()[
-        "depth_outlier_probabilities", ...
+    current_depth_outlier_probabilities = trace.get_args()[1][
+        "depth_outlier_probabilities"
     ]  # (num_vertices, )
 
     depth_outlier_probability_sweep_full = (
@@ -130,10 +130,10 @@ def propose_depth_outlier_probability(trace, key):
 def propose_color_and_color_outlier_probability(trace, key, outlier_probability_sweep):
     # color_outlier_probability_sweep is (k,) shape array
 
-    current_color_outlier_probabilities = trace.get_choices()[
-        "color_outlier_probabilities", ...
+    current_color_outlier_probabilities = trace.get_args()[1][
+        "color_outlier_probabilities"
     ]
-    current_colors = trace.get_choices()["colors", ...]
+    current_colors = trace.get_args()[1]["colors"]
 
     # num_vertices = current_colors.shape[0]
     # num_outlier_grid_points = outlier_probability_sweep.shape[0]
@@ -246,7 +246,9 @@ def propose_color_and_color_outlier_probability(trace, key, outlier_probability_
 
     # We will treat this like the case where each sweep is uniform, so the q scores
     # are each (oldr - obsr)/3 * (oldg - obsg)/3 * (oldb - obsb)/3.
-    q_prob_per_vertex = (jnp.abs(current_colors - observed_colors) / 3).prod(-1)
+    q_prob_per_vertex = (
+        1.0 / ((jnp.abs(current_colors - observed_colors) / 3) + 0.001)
+    ).prod(-1)
     log_q_for_the_color_proposal = jnp.log(q_prob_per_vertex).sum()
 
     return (
@@ -308,7 +310,7 @@ def propose_update(trace, key, pose):
 
     # Update color and color outlier probability
     color_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-    colors, color_outlier_probability, log_q_color_color_outlier_probability = (
+    colors, color_outlier_probability, log_q_color_color_outlier_probability, _ = (
         propose_color_and_color_outlier_probability(
             trace, key, color_outlier_probability_sweep
         )
@@ -335,12 +337,14 @@ def propose_update(trace, key, pose):
     # )
     # trace.update(key, C["color_variance"].set(color_variance))[0]
     # total_log_q += log_q_color_variance
-    return trace
+    return trace, total_log_q
 
 
 @jax.jit
 def propose_update_get_score(trace, key, pose):
-    return propose_update(trace, key, pose).get_score()
+    new_trace, log_q = propose_update(trace, key, pose)
+    # score is an estimate of P(data, pose | previous state)
+    return new_trace.get_score() - log_q
 
 
 propose_update_get_score_vmap = jax.jit(
@@ -354,6 +358,7 @@ def inference_step_without_advance(trace, key):
     var, conc = 0.02, 2000.0
 
     for _ in range(10):
+        key = jax.random.split(key, 2)[-1]
         keys = jax.random.split(key, number)
         poses = Pose.concatenate_poses(
             [
@@ -367,9 +372,12 @@ def inference_step_without_advance(trace, key):
             poses, trace.get_choices()["pose"], var, conc
         )
         scores = propose_update_get_score_vmap(trace, key, poses)
-        scores = scores + pose_scores
+        scores = (
+            scores - pose_scores
+        )  # After this, scores are fair estimates of P(data | previous state)
+        #                               and can be used to resample the choice sets.
         index = jax.random.categorical(key, scores)
-        trace = propose_update(trace, key, poses[index])
+        trace = propose_update(trace, key, poses[index])[0]
 
     return trace
 

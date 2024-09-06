@@ -33,6 +33,8 @@ class UniformDriftKernel(DriftKernel):
     """A drift kernel that samples a new value from a uniform distribution centered
     around the previous value. The range of the uniform distribution may shrink
     to ensure that the new value is within the bounds of [min_val, max_val].
+
+    Support: [max(min_val, prev_value - max_shift), min(max_val, prev_value + max_shift)]
     """
 
     max_shift: float = Pytree.static()
@@ -57,6 +59,8 @@ class UniformDriftKernel(DriftKernel):
 class UniformColorDriftKernel(UniformDriftKernel):
     """A specialized uniform drift kernel with fixed min_val and max_val, with
     additional logics to handle the color channels jointly.
+
+    Support: [max(0.0, prev_value - max_shift), min(1.0, prev_value + max_shift)]
     """
 
     max_shift: float = Pytree.static()
@@ -76,6 +80,8 @@ class LaplaceDriftKernel(DriftKernel):
     small uniform window at the boundary. This is a thin wrapper around the
     truncated_laplace distribution to provide a consistent interface with other
     drift kernels.
+
+    Support: [min_val, max_val]
     """
 
     scale: float = Pytree.static()
@@ -101,6 +107,8 @@ class LaplaceColorDriftKernel(DriftKernel):
     of the bounds will be resampled from a small uniform window at the boundary.
     This is a thin wrapper around the truncated_color_laplace distribution to
     provide a consistent interface with other drift kernels.
+
+    Support: [0.0, 1.0]
     """
 
     scale: float = Pytree.static()
@@ -121,6 +129,8 @@ class LaplaceColorDriftKernel(DriftKernel):
 class GaussianDriftKernel(DriftKernel):
     """A drift kernel that samples from a truncated Gaussian distribution centered
     at the previous value. Values outside of the bounds will be renormalized.
+
+    Support: [min_val, max_val]
     """
 
     scale: float = Pytree.static()
@@ -144,6 +154,8 @@ class GaussianColorDriftKernel(GaussianDriftKernel):
     """A specialized Gaussian drift kernel that samples from a truncated Gaussian
     distribution centered at the previous value. Values outside of the bounds
     will be renormalized.
+
+    Support: [0.0, 1.0]
     """
 
     scale: float = Pytree.static()

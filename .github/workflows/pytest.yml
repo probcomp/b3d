@@ -52,5 +52,5 @@ jobs:
           pixi clean && pixi clean cache --yes
           pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
 
-          # run tests
+          # run test in gpu environment
           pixi run -e gpu test-ci

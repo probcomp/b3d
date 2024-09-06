@@ -33,14 +33,7 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      # - name: ssh
-      #   uses: ryanchapman/gha-ssh@v1
-      #   timeout-minutes: 20
-      #   with:
-      #     authorized_github_users: 'eightysteele'
-      #     debug: true
-
-      - name: Run pixi test
+      - name: Run tests
         run: |
           # install pixi
           curl -fsSL https://pixi.sh/install.sh | bash
@@ -64,3 +57,8 @@ jobs:
           # pixi run -e gpu python -m pytest tests/test_render_ycb_model.py::test_renderer_full
           # pixi run -e gpu gpu-test
           pixi run -e gpu test-ci
+
+      - name: Cleanup
+        run: |
+          pixi clean && pixi clean cache --yes
+          rm -rf $HOME/actions-runner/_work/b3d

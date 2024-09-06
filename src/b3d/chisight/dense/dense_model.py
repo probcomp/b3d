@@ -66,12 +66,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         color_noise_variance = genjax.uniform(0.0001, 100000.0) @ "color_noise_variance"
         likelihood_args["color_noise_variance"] = color_noise_variance
 
-        num_vertices = scene_mesh.vertices.shape[0]
-
-        outlier_probability = (
-            genjax.uniform(jnp.zeros(num_vertices), jnp.ones(num_vertices))
-            @ "outlier_probability"
-        )
+        outlier_probability = genjax.uniform(0.01, 1.0) @ "outlier_probability"
         likelihood_args["outlier_probability"] = outlier_probability
 
         if renderer is not None:

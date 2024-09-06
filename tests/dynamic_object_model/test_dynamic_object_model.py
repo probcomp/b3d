@@ -8,8 +8,7 @@ from b3d import Pose
 from genjax import ChoiceMapBuilder as C
 from genjax import Pytree
 
-b3d.reload(b3d.chisight.dynamic_object_model.dynamic_object_model)
-b3d.reload(b3d.chisight.dynamic_object_model.dynamic_object_inference)
+b3d.reload(b3d.chisight.dynamic_object_model)
 
 
 def make_trace_and_condition_values():

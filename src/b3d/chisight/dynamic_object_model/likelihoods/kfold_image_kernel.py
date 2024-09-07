@@ -82,9 +82,9 @@ class TruncatedLaplace(genjax.ExactDensity):
         assert low + uniform_window_size < high - uniform_window_size
         laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
         laplace_logp_below_low = tfp.distributions.Laplace(loc, scale).log_cdf(low)
-        laplace_logp_above_high = 1 - tfp.distributions.Laplace(loc, scale).log_cdf(
-            high
-        )
+        laplace_logp_above_high = tfp.distributions.Laplace(
+            loc, scale
+        ).log_survival_function(high)
         log_window_size = jnp.log(uniform_window_size)
 
         return jnp.where(

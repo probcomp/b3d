@@ -15,6 +15,7 @@ def raycast_to_image_nondeterministic(key, intrinsics, vertices_in_camera_frame,
     Returns an array of shape (H, W, K) containing K point indices, or -1 to indicate no point was registered.
     """
     N_pts = vertices_in_camera_frame.shape[0]
+    key1, key2 = jax.random.split(key, 2)
 
     projected_pixel_coordinates = jnp.rint(
         b3d.xyz_to_pixel_coordinates(
@@ -26,12 +27,12 @@ def raycast_to_image_nondeterministic(key, intrinsics, vertices_in_camera_frame,
         )
         - 0.5
     ).astype(jnp.int32)
-    permutation = jax.random.permutation(key, N_pts)
+    permutation = jax.random.permutation(key1, N_pts)
     shuffled_pixel_coordinates = projected_pixel_coordinates[permutation]
     # shuffled_pixel_coordinates = projected_pixel_coordinates # = jax.random.permutation(key, projected_pixel_coordinates)
 
     random_indices = jax.random.randint(
-        key, (N_pts,), 0, K
+        key2, (N_pts,), 0, K
     )  # (N_pts,) array of random indices from 0 to K-1
     registered_pixel_indices = -jnp.ones(
         (intrinsics["height"], intrinsics["width"], K), dtype=int
@@ -80,8 +81,11 @@ class TruncatedLaplace(genjax.ExactDensity):
         assert low < high
         assert low + uniform_window_size < high - uniform_window_size
         laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
-        laplace_p_below_low = tfp.distributions.Laplace(loc, scale).cdf(low)
-        laplace_p_above_high = 1 - tfp.distributions.Laplace(loc, scale).cdf(high)
+        laplace_logp_below_low = tfp.distributions.Laplace(loc, scale).log_cdf(low)
+        laplace_logp_above_high = 1 - tfp.distributions.Laplace(loc, scale).log_cdf(
+            high
+        )
+        log_window_size = jnp.log(uniform_window_size)
 
         return jnp.where(
             jnp.logical_and(
@@ -90,11 +94,9 @@ class TruncatedLaplace(genjax.ExactDensity):
             laplace_logpdf,
             jnp.where(
                 obs < low + uniform_window_size,
+                jnp.logaddexp(laplace_logp_below_low - log_window_size, laplace_logpdf),
                 jnp.logaddexp(
-                    jnp.log(laplace_p_below_low / uniform_window_size), laplace_logpdf
-                ),
-                jnp.logaddexp(
-                    jnp.log(laplace_p_above_high / uniform_window_size), laplace_logpdf
+                    laplace_logp_above_high - log_window_size, laplace_logpdf
                 ),
             ),
         )

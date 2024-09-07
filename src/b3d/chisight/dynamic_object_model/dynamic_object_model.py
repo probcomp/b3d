@@ -45,38 +45,6 @@ def info_from_trace(trace):
     )
 
 
-@Pytree.dataclass
-class ColorTransitionKernel(genjax.ExactDensity):
-    def sample(self, key, color, scale):
-        return genjax.laplace.sample(key, color, scale)
-
-    def logpdf(self, new_color, color, scale):
-        return jax.scipy.stats.laplace.logpdf(new_color, color, scale).sum()
-
-
-color_transition_kernel = ColorTransitionKernel()
-vectorized_color_transition_kernel_logpdf = jnp.vectorize(
-    color_transition_kernel.logpdf, signature="(3),(3),()->()"
-)
-
-
-@Pytree.dataclass
-class OutlierProbabilityTransitionKernel(genjax.ExactDensity):
-    def sample(self, key, outlier_probability, scale):
-        return genjax.laplace.sample(key, outlier_probability, scale)
-
-    def logpdf(self, new_outlier_probability, outlier_probability, scale):
-        return jax.scipy.stats.laplace.logpdf(
-            new_outlier_probability, outlier_probability, scale
-        ).sum()
-
-
-outlier_probability_transition_kernel = OutlierProbabilityTransitionKernel()
-vectorized_outlier_probability_transition_kernel_logpdf = jnp.vectorize(
-    outlier_probability_transition_kernel.logpdf, signature="(),(),()->()"
-)
-
-
 @genjax.gen
 def dynamic_object_generative_model(hyperparams, previous_state):
     vertices = hyperparams["vertices"]
@@ -90,25 +58,25 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         @ "pose"
     )
 
-    # TODO: change this to a mixture of 0.02 * this distribution + 0.98 * a very tight laplace around the old colors
-    colors = (
-        color_transition_kernel.vmap(in_axes=(0, None))(
-            previous_state["colors"], hyperparams["color_shift_scale"]
-        )
-        @ "colors"
-    )
+    color_transition_kernel = hyperparams["color_transition_kernel"]
+    colors = color_transition_kernel.vmap()(previous_state["colors"]) @ "colors"
 
+    color_outlier_probability_transition_kernel = hyperparams[
+        "color_outlier_probability_transition_kernel"
+    ]
     color_outlier_probabilities = (
-        outlier_probability_transition_kernel.vmap(in_axes=(0, None))(
-            previous_state["color_outlier_probabilities"],
-            hyperparams["color_outlier_probability_shift_scale"],
+        color_outlier_probability_transition_kernel.vmap()(
+            previous_state["color_outlier_probabilities"]
         )
         @ "color_outlier_probabilities"
     )
+
+    depth_outlier_probability_transition_kernel = hyperparams[
+        "depth_outlier_probability_transition_kernel"
+    ]
     depth_outlier_probabilities = (
-        outlier_probability_transition_kernel.vmap(in_axes=(0, None))(
-            previous_state["depth_outlier_probabilities"],
-            hyperparams["depth_outlier_probability_shift_scale"],
+        depth_outlier_probability_transition_kernel.vmap()(
+            previous_state["depth_outlier_probabilities"]
         )
         @ "depth_outlier_probabilities"
     )

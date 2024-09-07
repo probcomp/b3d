@@ -2,6 +2,9 @@
 
 import os
 
+import b3d
+import b3d.chisight.dense.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as l
 import genjax
 import jax
 import jax.numpy as jnp
@@ -9,14 +12,11 @@ import numpy as np
 import optax
 import rerun as rr
 import trimesh
+from b3d import Pose
 from tqdm import tqdm
 
-import b3d
-import b3d.chisight.dense.differentiable_renderer as r
-import b3d.chisight.dense.likelihoods as l
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
-from b3d import Pose
 
 rr.init("multiple_patch_tracking")
 rr.connect("127.0.0.1:8812")

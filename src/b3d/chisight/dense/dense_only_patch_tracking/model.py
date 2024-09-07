@@ -1,11 +1,10 @@
+import b3d.chisight.dense.differentiable_renderer as rendering
+import b3d.utils as utils
 import genjax
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
-
-import b3d.chisight.dense.differentiable_renderer as rendering
-import b3d.utils as utils
 from b3d import Pose
 from b3d.modeling_utils import uniform_pose
 

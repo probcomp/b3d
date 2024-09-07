@@ -1,6 +1,7 @@
 import os
 from functools import partial
 
+import b3d
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -8,8 +9,6 @@ import optax
 import rerun as rr
 from matplotlib import colormaps
 from tqdm import tqdm
-
-import b3d
 
 
 def map_nested_fn(fn):

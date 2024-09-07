@@ -1,6 +1,5 @@
-import jax.numpy as jnp
-
 import b3d
+import jax.numpy as jnp
 
 
 def test_renderer_full(renderer):

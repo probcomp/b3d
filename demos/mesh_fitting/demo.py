@@ -1,5 +1,6 @@
 import os
 
+import b3d
 import genjax
 import jax
 import jax.numpy as jnp
@@ -7,7 +8,6 @@ import optax
 import rerun as rr
 from tqdm import tqdm
 
-import b3d
 import demos.mesh_fitting.model as m
 import demos.mesh_fitting.tessellation as t
 

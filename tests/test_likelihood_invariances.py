@@ -1,12 +1,11 @@
 import os
 
+import b3d
+import b3d.bayes3d as bayes3d
 import jax
 import jax.numpy as jnp
 import rerun as rr
 import trimesh
-
-import b3d
-import b3d.bayes3d as bayes3d
 
 PORT = 8812
 rr.init("real")

@@ -1,11 +1,11 @@
 from typing import Callable
 
+import b3d
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-import b3d
 from tests.common.task import Task
 
 

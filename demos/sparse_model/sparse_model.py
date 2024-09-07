@@ -1,14 +1,13 @@
 import os
 from functools import partial
 
+import b3d
 import jax
 import jax.numpy as jnp
 import optax
 import rerun as rr
 import trimesh
 from tqdm import tqdm
-
-import b3d
 
 
 def map_nested_fn(fn):

@@ -1,5 +1,6 @@
 import os
 
+import b3d
 import genjax
 import jax
 import jax.numpy as jnp
@@ -8,10 +9,8 @@ import numpy as np
 # from b3d.utils import unproject_depth
 import rerun as rr
 import trimesh
-from tqdm import tqdm
-
-import b3d
 from b3d import Pose
+from tqdm import tqdm
 
 rr.init("demo.py")
 rr.connect("127.0.0.1:8812")

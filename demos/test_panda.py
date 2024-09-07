@@ -1,15 +1,14 @@
 import os
 import pickle
 
+import b3d
 import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
 import trimesh
-from tqdm import tqdm
-
-import b3d
 from b3d import Pose
+from tqdm import tqdm
 
 PORT = 8812
 rr.init("mug sm2c inference")

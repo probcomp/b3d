@@ -1,10 +1,9 @@
+import b3d
+import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import rerun as rr
-
-import b3d
-import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
 
 from ...common.task import Task
 

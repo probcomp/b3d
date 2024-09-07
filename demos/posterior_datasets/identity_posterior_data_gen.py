@@ -1,12 +1,11 @@
 import os
 
+import b3d
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 import trimesh
-
-import b3d
 
 width = 200
 height = 200

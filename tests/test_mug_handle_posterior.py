@@ -1,15 +1,14 @@
 import os
 
+import b3d
+import b3d.bayes3d as bayes3d
 import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
 import trimesh
-from genjax import Pytree
-
-import b3d
-import b3d.bayes3d as bayes3d
 from b3d import Pose
+from genjax import Pytree
 
 PORT = 8812
 rr.init("233")

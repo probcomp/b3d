@@ -1,10 +1,9 @@
 import os
 
-import jax.numpy as jnp
-import trimesh
-
 import b3d
 import b3d.bayes3d as bayes3d
+import jax.numpy as jnp
+import trimesh
 
 
 def test_renderer_full(renderer):

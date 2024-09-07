@@ -1,13 +1,12 @@
 import importlib
 
-import jax
-import jax.numpy as jnp
-from genjax import ChoiceMapBuilder as C
-from genjax import Pytree
-
 import b3d
 import b3d.chisight.particle_system as ps
+import jax
+import jax.numpy as jnp
 from b3d import Pose
+from genjax import ChoiceMapBuilder as C
+from genjax import Pytree
 
 importlib.reload(ps)
 

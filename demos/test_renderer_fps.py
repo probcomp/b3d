@@ -1,15 +1,14 @@
 import os
 import time
 
+import b3d
+import b3d.nvdiffrast_original.torch as dr
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 import torch
 import trimesh
-
-import b3d
-import b3d.nvdiffrast_original.torch as dr
 from b3d.renderer_original import Renderer as RendererOriginal
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

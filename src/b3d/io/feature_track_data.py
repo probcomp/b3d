@@ -134,24 +134,24 @@ class FeatureTrackData:
         return self.visibility
 
     @property
-    def rgb_float(self): 
-        rgb = self.rgbd_images[...,:3]
-        if rgb.max() > 1.: 
-            rgb = rgb/255
-        return rgb
-    
-    @property
-    def rgb_uint(self): 
-        rgb = self.rgbd_images[...,:3]
-        if rgb.max() <= 1.: 
-            rgb = (rgb*255).astype(jnp.uint8)
+    def rgb_float(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() > 1.0:
+            rgb = rgb / 255
         return rgb
 
     @property
-    def rgb(self): 
-        rgb = self.rgbd_images[...,:3]
-        if rgb.max() > 1.: 
-            rgb = rgb/255
+    def rgb_uint(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() <= 1.0:
+            rgb = (rgb * 255).astype(jnp.uint8)
+        return rgb
+
+    @property
+    def rgb(self):
+        rgb = self.rgbd_images[..., :3]
+        if rgb.max() > 1.0:
+            rgb = rgb / 255
         return self.rgb_float
 
     @property
@@ -469,7 +469,9 @@ class FeatureTrackData:
         distances = jnp.where(jnp.eye(distances.shape[0]) == 1.0, jnp.inf, distances)
         return jnp.min(distances)
 
-    def quick_plot(self, t=None, fname=None, ax=None, figsize=(3, 3), downsize=10, ids=None):
+    def quick_plot(
+        self, t=None, fname=None, ax=None, figsize=(3, 3), downsize=10, ids=None
+    ):
         if t is None:
             figsize = (figsize[0] * self.num_frames, figsize[1])
 
@@ -478,8 +480,7 @@ class FeatureTrackData:
             ax.set_aspect(1)
             ax.axis("off")
 
-        rgb  = downsize_images(self.rgb_float, downsize)
-
+        rgb = downsize_images(self.rgb_float, downsize)
 
         if ids is None:
             ids = np.where(self.vis[t])[0]
@@ -490,8 +491,7 @@ class FeatureTrackData:
             ax.scatter(
                 *np.concatenate(
                     [
-                        self.uv[t, ids] / downsize
-                        + np.array([t * w, 0]) / downsize
+                        self.uv[t, ids] / downsize + np.array([t * w, 0]) / downsize
                         for t in range(self.num_frames)
                     ]
                 ).T,

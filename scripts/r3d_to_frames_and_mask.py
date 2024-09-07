@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
+import b3d
 import cv2
 import fire
 import jax
@@ -8,8 +9,6 @@ import jax.numpy as jnp
 import numpy as np
 import trimesh
 from r3d_to_video_input import load_r3d_video_input
-
-import b3d
 
 
 def get_masks(rgb_imgs: jax.Array) -> jax.Array:

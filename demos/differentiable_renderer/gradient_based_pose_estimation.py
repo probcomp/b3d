@@ -1,15 +1,14 @@
 import os
 from functools import partial
 
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
 import jax
 import jax.numpy as jnp
 import optax
 import rerun as rr
-from tqdm import tqdm
-
-import b3d
-import b3d.chisight.dense.differentiable_renderer as rendering
 from b3d import Mesh, Pose
+from tqdm import tqdm
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")

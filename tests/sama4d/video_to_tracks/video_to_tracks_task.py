@@ -1,13 +1,13 @@
 import warnings
 from typing import Callable
 
+import b3d
 import jax.numpy as jnp
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 
-import b3d
 from tests.common.task import Task
 
 

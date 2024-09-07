@@ -6,13 +6,12 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 import rerun as rr
-from jax.scipy.spatial.transform import Rotation as Rot
-from sklearn.utils import Bunch
-
 from b3d.chisight.sparse.gps_utils import cov_from_dq_composition
 from b3d.io import MeshData
 from b3d.pose import Pose
 from b3d.utils import keysplit
+from jax.scipy.spatial.transform import Rotation as Rot
+from sklearn.utils import Bunch
 
 
 # **************************

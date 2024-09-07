@@ -1,13 +1,12 @@
 import os
 import time
 
+import b3d
 import jax
 import jax.numpy as jnp
 import trimesh
-from scipy.spatial.transform import Rotation as R
-
-import b3d
 from b3d import Pose
+from scipy.spatial.transform import Rotation as R
 
 height = 100
 width = 100

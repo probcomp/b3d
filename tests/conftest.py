@@ -1,6 +1,5 @@
-import pytest
-
 import b3d
+import pytest
 
 
 # Arrange

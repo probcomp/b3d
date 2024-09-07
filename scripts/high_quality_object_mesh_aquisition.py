@@ -1,6 +1,5 @@
-import jax.numpy as jnp
-
 import b3d
+import jax.numpy as jnp
 
 b3d.rr_init("high_quality")
 

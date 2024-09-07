@@ -2,18 +2,18 @@
 
 import time
 
+import b3d
+import b3d.chisight.dense.differentiable_renderer as r
+import b3d.chisight.dense.likelihoods as l
 import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
+from b3d import Pose
 from tqdm import tqdm
 
-import b3d
-import b3d.chisight.dense.differentiable_renderer as r
-import b3d.chisight.dense.likelihoods as l
 import demos.differentiable_renderer.patch_tracking.demo_utils as du
 import demos.differentiable_renderer.patch_tracking.model as m
-from b3d import Pose
 
 rr.init("single_patch_tracking-mh")
 rr.connect("127.0.0.1:8812")

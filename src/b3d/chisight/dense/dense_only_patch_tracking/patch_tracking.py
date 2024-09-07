@@ -1,15 +1,14 @@
-import genjax
-import jax
-import jax.numpy as jnp
-import optax
-from genjax import ChoiceMapBuilder as C
-
 import b3d
 import b3d.chisight.dense.dense_only_patch_tracking.model as m
 import b3d.chisight.dense.differentiable_renderer
 import b3d.chisight.dense.differentiable_renderer as r
 import b3d.chisight.dense.likelihoods as likelihoods
+import genjax
+import jax
+import jax.numpy as jnp
+import optax
 from b3d import Pose
+from genjax import ChoiceMapBuilder as C
 
 
 def get_patches(centers, rgbds, X_WC, fx, fy, cx, cy):

@@ -1,11 +1,10 @@
 import os
 import time
 
+import b3d
 import jax
 import jax.numpy as jnp
 import trimesh
-
-import b3d
 from b3d.renderer_original import RendererOriginal
 
 width = 200

@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 import os
 
+import b3d
 import genjax
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
-from tqdm import tqdm
-
-import b3d
 from b3d import Pose
+from tqdm import tqdm
 
 PORT = 8812
 rr.init("mug sm2c inference")

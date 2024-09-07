@@ -108,7 +108,8 @@ cwd = "scripts"
 
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
-genjax = "*"
+datasync = "==0.0.2"
+genjax = "==0.5.1"
 pykitti = "==0.3.1"
 pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
 pyransac3d = ">=0.6.0,<0.7"
@@ -184,11 +185,6 @@ PDOC_ALLOW_EXEC = "1"
 [tool.pixi.feature.cuda]
 platforms = ["linux-64", "osx-arm64"]
 system-requirements = { cuda = "12" }
-
-[tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
-carvekit = "==4.1.2"
-genjax = "*"
-torch = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]
 cuda-toolkit = "*"

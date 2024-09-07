@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - eightysteele/gen-469-integrate-datasync-package-with-b3d
+      - main
 
 jobs:
   pixi-update:

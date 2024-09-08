@@ -17,6 +17,12 @@ Matrix = Array
 Vector = Array
 Direction = Array
 GaussianParticle = Any
+Matrix3x3 = Matrix
+Matrix3x4 = Matrix
+Matrix4x4 = Matrix
+Matrix3 = Matrix
+Point3D = Array
+Point2D = Array
 
 Key: TypeAlias = jax.Array
 Pytree = Any

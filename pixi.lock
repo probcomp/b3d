@@ -467,6 +467,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -856,6 +857,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/10/5f9eed00b1186921e447960443f03cda6374cba8cd5cf7aff2b42ecb8a0e/dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -1816,6 +1818,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -2205,6 +2208,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
+      - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/10/5f9eed00b1186921e447960443f03cda6374cba8cd5cf7aff2b42ecb8a0e/dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/08/0f/1d22866c1ff666766b2c207487bef3f06edae096df2f6b4176d5f7072a10/equinox-0.11.5-py3-none-any.whl
@@ -3299,7 +3303,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: 7a4acbc4a69a301f63051dd5000f53900ec3cbe63534f65ecac0505782a1e196
+  sha256: 63f36af25b2ae0f7d79f2f6cfeeea22faa310a4894a075c8ae9c013e9a1ab514
   requires_python: '>=3.10'
   editable: true
 - kind: conda
@@ -4996,6 +5000,12 @@ packages:
   - pkg:pypi/cycler?source=project-defined-mapping
   size: 13458
   timestamp: 1696677888423
+- kind: pypi
+  name: datasync
+  version: 0.0.2
+  url: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
+  sha256: ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
+  requires_python: '>=3.10'
 - kind: conda
   name: dav1d
   version: 1.2.1

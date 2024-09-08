@@ -1,4 +1,4 @@
-name: pixi
+name: Codebase tests (GPU)
 
 on:
   pull_request:
@@ -6,11 +6,24 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_ALLOCATOR: "platform"
+
 jobs:
-  pixi-update:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: [self-hosted, b3d]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
+      - name: install curl
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl
+          version: 1.0
 
       - name: Authenticate gcloud
         id: auth
@@ -21,12 +34,12 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: pixi install locked
+      - name: Run tests
         run: |
           # install pixi
           curl -fsSL https://pixi.sh/install.sh | bash
-          export PATH=/home/runner/.pixi/bin:/home/runner/.local/bin:$PATH
           source ~/.bashrc
+          export PATH=$HOME/.pixi/bin:$HOME/.local/bin:$PATH
 
           # install pipx and inject gcp backend
           pixi global install pipx
@@ -36,9 +49,9 @@ jobs:
             --index-url \
             https://pypi.org/simple
 
-          # ensure all deps across all environments and platforms are solving
-          pixi --version
+          # install gpu environment
           pixi clean && pixi clean cache --yes
-          pixi install --locked -e default -v --pypi-keyring-provider subprocess
-          pixi install --locked -e cpu -v --pypi-keyring-provider subprocess
           pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
+
+          # run tests
+          pixi run -e gpu test-ci

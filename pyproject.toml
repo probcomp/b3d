@@ -64,8 +64,7 @@ depends_on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
-cmd = "./rerun.sh"
-cwd = "scripts"
+cmd = "python scripts/rerun-task.py"
 
 [tool.pixi.tasks.gcp-help]
 description = "help with gcp tasks"
@@ -112,7 +111,8 @@ cwd = "scripts"
 
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
-genjax = "*"
+datasync = "==0.0.2"
+genjax = "==0.5.1"
 pykitti = "==0.3.1"
 pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
 pyransac3d = ">=0.6.0,<0.7"
@@ -157,6 +157,11 @@ description = "sync test data"
 cmd = "python b3d_pull.py -ow"
 cwd = "src/b3d/bucket_utils"
 
+[tool.pixi.feature.core.tasks.sync-ci]
+description = "sync test data"
+cmd = "python b3d_pull.py"
+cwd = "src/b3d/bucket_utils"
+
 # No-CUDA feature (CPU-enabled)
 
 [tool.pixi.feature.no-cuda]
@@ -184,11 +189,6 @@ PDOC_ALLOW_EXEC = "1"
 [tool.pixi.feature.cuda]
 platforms = ["linux-64", "osx-arm64"]
 system-requirements = { cuda = "12" }
-
-[tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
-carvekit = "==4.1.2"
-genjax = "*"
-torch = "*"
 
 [tool.pixi.feature.cuda.target.linux-64.dependencies]
 cuda-toolkit = "*"
@@ -223,6 +223,19 @@ description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
 depends_on = ["sync", "rerun"]
 env = { TEST_TARGETS = "tests" }
+
+[tool.pixi.feature.cuda.tasks.test-ci]
+description = "run tests (optionally set TEST_TARGETS)"
+cmd = "./scripts/pytest.sh"
+depends_on = ["sync-ci"]
+
+[tool.pixi.feature.cuda.tasks.test-ci.env]
+TEST_TARGETS = "tests"
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
+CPLUS_INCLUDE_PATH = "$CONDA_PREFIX/targets/x86_64-linux/include"
+LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
+RERUN_HEADLESS = "1"
 
 # OpenGL dependencies (Linux only)
 

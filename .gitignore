@@ -14,6 +14,7 @@ assets/*
 assets/kitti/*
 **/**.pth
 .pixi/envs/*
+.pixi/solve-group-envs/*
 .#*
 __pycache__/
 *.py[cod]

@@ -69,16 +69,17 @@ def test_model_no_likelihood():
         [trace.get_choices()["colors", ...] for trace in traces]
     )
 
-    from IPython import embed
-
-    embed()
-    # Subplots
-
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(4, 1, sharex=True, figsize=(10, 15))
     point_index = 0
-    fig.suptitle(f"Properities of vertex {point_index} over time")
+
+    fig.suptitle(f"""pose_kernel max_shift: {hyperparams['pose_kernel'].max_shift},
+                   color_kernel scale: {hyperparams['color_kernel'].scale},
+                   visibility_prob_kernel resample_probability: {hyperparams['visibility_prob_kernel'].resample_probability},
+                   depth_nonreturn_prob_kernel resample_probability: {hyperparams['depth_nonreturn_prob_kernel'].resample_probability},
+                   depth_scale_kernel resample_probability: {hyperparams['depth_scale_kernel'].resample_probability},
+                   color_scale_kernel resample_probability: {hyperparams['color_scale_kernel'].resample_probability}""")
     ax[0].set_title(f"Color of vertex {point_index}")
     ax[0].plot(colors_over_time[..., point_index, 0], color="r")
     ax[0].plot(colors_over_time[..., point_index, 1], color="g")
@@ -106,7 +107,7 @@ def test_model_no_likelihood():
     ax[3].plot([trace.get_choices()["color_scale"] for trace in traces], label="color")
     ax[3].legend()
     fig.supxlabel("Time")
-    fig.savefig("test_dynamic_object_model.png")
+    fig.savefig("test_gen3d_model.png")
 
 
 if __name__ == "__main__":

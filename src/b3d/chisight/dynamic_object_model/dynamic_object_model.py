@@ -35,44 +35,51 @@ def info_from_trace(trace):
 @genjax.gen
 def dynamic_object_generative_model(hyperparams, previous_state):
     hyperparams["vertices"]
-    pose_transition_kernel = hyperparams["pose_transition_kernel"]
-    color_transition_kernel = hyperparams["color_transition_kernel"]
 
-    visiblity_values = hyperparams["visibility_values"]
-    visibility_transition_kernel = hyperparams["visibility_transition_kernel"]
+    pose_kernel = hyperparams["pose_kernel"]
+    color_kernel = hyperparams["color_kernel"]
+    visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
+    depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
+    depth_scale_kernel = hyperparams["depth_scale_kernel"]
+    color_scale_kernel = hyperparams["color_scale_transition_kernel"]
 
-    depth_nonreturn_values = hyperparams["depth_nonreturn_values"]
-    depth_nonreturn_transition_kernel = hyperparams["depth_nonreturn_transition_kernel"]
-
+    visiblity_prob_values = hyperparams["visiblity_prob_values"]
+    depth_nonreturn_prob_values = hyperparams["depth_nonreturn_prob_values"]
     depth_scale_values = hyperparams["depth_scale_values"]
-    depth_scale_transition_kernel = hyperparams["depth_scale_transition_kernel"]
-
     color_scale_values = hyperparams["color_scale_values"]
-    color_scale_transition_kernel = hyperparams["color_scale_transition_kernel"]
 
-    pose = pose_transition_kernel(previous_state["pose"]) @ "pose"
-    colors = color_transition_kernel.vmap()(previous_state["colors"]) @ "colors"
+    pose = pose_kernel(previous_state["pose"]) @ "pose"
+    colors = color_kernel.vmap()(previous_state["colors"]) @ "colors"
 
-    visibility = (
-        visibility_transition_kernel.vmap(in_axes=(0, None))(
-            previous_state["visibility"], visiblity_values
+    visibility_prob = (
+        visibility_prob_kernel.vmap(in_axes=(0, None))(
+            previous_state["visibility"], visiblity_prob_values
         )
-        @ "visibility"
+        @ "visibility_prob"
     )
-    depth_nonreturn = (
-        depth_nonreturn_transition_kernel.vmap(in_axes=(0, None))(
-            previous_state["depth_nonreturn"], depth_nonreturn_values
+    depth_nonreturn_prob = (
+        depth_nonreturn_prob_kernel.vmap(in_axes=(0, None))(
+            previous_state["depth_nonreturn"], depth_nonreturn_prob_values
         )
-        @ "depth_nonreturn"
+        @ "depth_nonreturn_prob"
     )
     depth_scale = (
-        depth_scale_transition_kernel(previous_state["depth_scale"], depth_scale_values)
+        depth_scale_kernel(previous_state["depth_scale"], depth_scale_values)
         @ "depth_scale"
     )
     color_scale = (
-        color_scale_transition_kernel(previous_state["color_scale"], color_scale_values)
+        color_scale_kernel(previous_state["color_scale"], color_scale_values)
         @ "color_scale"
     )
+
+    new_state = {
+        "pose": pose,
+        "colors": colors,
+        "visibility_prob": visibility_prob,
+        "depth_nonreturn_prob": depth_nonreturn_prob,
+        "depth_scale": depth_scale,
+        "color_scale": color_scale,
+    }
 
     if "image_likelihood" in hyperparams:
         likelihood_args = {
@@ -87,22 +94,14 @@ def dynamic_object_generative_model(hyperparams, previous_state):
             "pose": pose,
             "color_scale": color_scale,
             "depth_scale": depth_scale,
-            "visibility": visibility,
-            "depth_nonreturn": depth_nonreturn,
+            "visibility": visibility_prob,
+            "depth_nonreturn": depth_nonreturn_prob,
         }
         rgbd = hyperparams["image_likelihood"](likelihood_args) @ "rgbd"
     else:
         rgbd = None
         likelihood_args = None
 
-    new_state = {
-        "pose": pose,
-        "colors": colors,
-        "visibility": visibility,
-        "depth_nonreturn": depth_nonreturn,
-        "depth_scale": depth_scale,
-        "color_scale": color_scale,
-    }
     return {
         "new_state": new_state,
         "rgbd": rgbd,

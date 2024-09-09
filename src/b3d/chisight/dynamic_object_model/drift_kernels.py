@@ -267,6 +267,7 @@ class DiscreteKernel(genjax.ExactDensity):
 @Pytree.dataclass
 class DiscreteFlipKernel(DiscreteKernel):
     resample_probability: float = Pytree.static()
+    # TODO: maybe add possible_values
 
     def sample(self, key: PRNGKey, prev_value, possible_values):
         should_resample = jax.random.bernoulli(key, self.resample_probability)

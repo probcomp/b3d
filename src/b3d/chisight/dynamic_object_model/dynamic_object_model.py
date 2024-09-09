@@ -202,3 +202,15 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
             "scene/observed",
             output["rgbd"][..., :3].reshape(-1, 3),
         )
+
+    if ground_truth_vertices is not None:
+        b3d.rr_log_cloud(
+            trace.get_choices()["pose"].apply(ground_truth_vertices),
+            "scene/full_object_model",
+        )
+
+        if ground_truth_pose:
+            b3d.rr_log_cloud(
+                ground_truth_pose.apply(ground_truth_vertices),
+                "scene/ground_truth_object_mesh",
+            )

@@ -208,36 +208,33 @@ propose_update_get_score_vmap = jax.jit(
 
 
 def inference_step_without_advance(trace, key):
-    number = 20000
-
-    var, conc = 0.02, 2000.0
-
-    for _ in range(10):
+    number = 15000
+    current_pose = trace.get_choices()["pose"]
+    var_conc = [(0.04, 1000.0), (0.02, 1500.0), (0.005, 2000.0)]
+    for var, conc in var_conc:
         key = jax.random.split(key, 2)[-1]
         keys = jax.random.split(key, number)
         poses = Pose.concatenate_poses(
             [
-                Pose.sample_gaussian_vmf_pose_vmap(
-                    keys, trace.get_choices()["pose"], var, conc
-                ),
-                trace.get_choices()["pose"][None, ...],
+                Pose.sample_gaussian_vmf_pose_vmap(keys, current_pose, var, conc),
+                current_pose[None, ...],
             ]
         )
         pose_scores = Pose.logpdf_gaussian_vmf_pose_vmap(
             poses, trace.get_choices()["pose"], var, conc
         )
         scores = propose_update_get_score_vmap(trace, key, poses)
-        scores = (
+        scores_pose_q_correction = (
             scores - pose_scores
         )  # After this, scores are fair estimates of P(data | previous state)
         #                               and can be used to resample the choice sets.
         index = jax.random.categorical(key, scores)
-        trace = propose_update(trace, key, poses[index])[0]
-
-    return trace
+        current_pose = poses[index]
+    trace = propose_update(trace, key, current_pose)[0]
+    return trace, scores, scores_pose_q_correction
 
 
 def inference_step(trace, key, observed_rgbd):
     trace = advance_time(key, trace, observed_rgbd)
-    trace = inference_step_without_advance(trace, key)
+    trace = inference_step_without_advance(trace, key)[0]
     return trace

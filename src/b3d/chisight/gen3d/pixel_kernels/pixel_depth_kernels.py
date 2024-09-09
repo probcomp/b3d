@@ -8,12 +8,12 @@ from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
 from tensorflow_probability.substrates import jax as tfp
 
-from b3d.chisight.dense.likelihoods.other_likelihoods import PythonMixturePixelModel
-from b3d.chisight.dynamic_object_model.likelihoods.kfold_image_kernel import (
+from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import is_unexplained
+from b3d.modeling_utils import (
     _FIXED_DEPTH_UNIFORM_WINDOW,
+    PythonMixtureDistribution,
     truncated_laplace,
 )
-from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import is_unexplained
 
 if TYPE_CHECKING:
     import tensorflow_probability.python.distributions.distribution as dist
@@ -139,8 +139,8 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
         )
 
     @property
-    def _mixture_dist(self) -> PythonMixturePixelModel:
-        return PythonMixturePixelModel(
+    def _mixture_dist(self) -> PythonMixtureDistribution:
+        return PythonMixtureDistribution(
             (self._nonreturn_dist, self._outlier_dist, self._inlier_dist)
         )
 
@@ -213,8 +213,8 @@ class UnexplainedPixelDepthDistribution(PixelDepthDistribution):
         return UniformPixelDepthDistribution(self.near, self.far)
 
     @property
-    def _mixture_dist(self) -> PythonMixturePixelModel:
-        return PythonMixturePixelModel((self._nonreturn_dist, self._uniform_dist))
+    def _mixture_dist(self) -> PythonMixtureDistribution:
+        return PythonMixtureDistribution((self._nonreturn_dist, self._uniform_dist))
 
     @property
     def _mix_ratio(self) -> FloatArray:

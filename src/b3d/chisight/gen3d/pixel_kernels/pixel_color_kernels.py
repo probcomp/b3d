@@ -160,7 +160,7 @@ class MixturePixelColorDistribution(PixelColorDistribution):
         **kwargs,
     ) -> FloatArray:
         return PythonMixtureDistribution(self._mixture_dists).sample(
-            key, self.get_mix_ratio(outlier_prob), [(latent_color,), ()]
+            key, self._get_mix_ratio(outlier_prob), [(), (latent_color,)]
         )
 
     def logpdf_per_channel(

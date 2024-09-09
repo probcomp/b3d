@@ -15,7 +15,7 @@ from genjax import ChoiceMapBuilder as C
 b3d.rr_init("test_dynamic_object_model")
 
 
-def test_dynamic_object_generative_model_no_likelihood():
+def test_dynamic_object_generative_model():
     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
     id = 0
     mesh = Mesh.from_obj_file(

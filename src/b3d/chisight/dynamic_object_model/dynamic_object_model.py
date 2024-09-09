@@ -3,14 +3,37 @@ import jax
 import jax.numpy as jnp
 import rerun as rr
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff
-from genjax import UpdateProblemBuilder as U
+from genjax import Pytree
 
 import b3d
+from b3d.chisight.dynamic_object_model.likelihoods.project_no_occlusions_kernel import (
+    likelihood_func,
+    sample_func,
+)
+
+
+@Pytree.dataclass
+class ImageLikelihood(genjax.ExactDensity):
+    def sample(self, key, likelihood_args):
+        return sample_func(key, likelihood_args)
+
+    def logpdf(self, observed_rgbd, likelihood_args):
+        return likelihood_func(observed_rgbd, likelihood_args)["score"]
+
+
+image_likelihood = ImageLikelihood()
+
+
+@jax.jit
+def info_from_trace(trace):
+    return likelihood_func(
+        trace.get_choices()["rgbd"],
+        trace.get_retval()["likelihood_args"],
+    )
 
 
 @genjax.gen
-def dynamic_object_generative_model_no_likelihood(hyperparams, previous_state):
+def dynamic_object_generative_model(hyperparams, previous_state):
     hyperparams["vertices"]
     pose_transition_kernel = hyperparams["pose_transition_kernel"]
     color_transition_kernel = hyperparams["color_transition_kernel"]
@@ -51,6 +74,26 @@ def dynamic_object_generative_model_no_likelihood(hyperparams, previous_state):
         @ "color_scale"
     )
 
+    likelihood_args = {
+        "fx": hyperparams["fx"],
+        "fy": hyperparams["fy"],
+        "cx": hyperparams["cx"],
+        "cy": hyperparams["cy"],
+        "image_width": hyperparams["image_width"],
+        "image_height": hyperparams["image_height"],
+        "vertices": hyperparams["vertices"],
+        "colors": colors,
+        "pose": pose,
+        "color_scale": color_scale,
+        "depth_scale": depth_scale,
+        "visibility": visibility,
+        "depth_nonreturn": depth_nonreturn,
+    }
+    if hyperparams["image_likelihood"] is not None:
+        rgbd = hyperparams["image_likelihood"](likelihood_args) @ "rgbd"
+    else:
+        rgbd = None
+
     new_state = {
         "pose": pose,
         "colors": colors,
@@ -61,7 +104,27 @@ def dynamic_object_generative_model_no_likelihood(hyperparams, previous_state):
     }
     return {
         "new_state": new_state,
+        "rgbd": rgbd,
+        "likelihood_args": likelihood_args,
     }
+
+
+def make_colors_choicemap(colors):
+    return jax.vmap(lambda idx: C["colors", idx].set(colors[idx]))(
+        jnp.arange(len(colors))
+    )
+
+
+def make_visibiliy_choicemap(visibility):
+    return jax.vmap(lambda idx: C["visbility", idx].set(visibility[idx]))(
+        jnp.arange(len(visibility))
+    )
+
+
+def make_depth_nonreturn_choicemap(depth_nonreturn):
+    return jax.vmap(lambda idx: C["depth_nonreturn", idx].set(depth_nonreturn[idx]))(
+        jnp.arange(len(depth_nonreturn))
+    )
 
 
 ### Viz ###
@@ -70,13 +133,12 @@ def viz_trace(trace, t=0):
     hyperparams, _ = trace.get_args()
     new_state = trace.get_retval()["new_state"]
 
-    # pose = new_state["pose"]
+    pose = new_state["pose"]
     colors = new_state["colors"]
     visibility = new_state["visibility"]
     depth_nonreturn = new_state["depth_nonreturn"]
 
     vertices = hyperparams["vertices"]
-    # vertices_transformed = pose.apply(vertices)
     b3d.rr_log_cloud(
         vertices,
         "object/model",
@@ -104,24 +166,39 @@ def viz_trace(trace, t=0):
         ),
     )
 
-
-@jax.jit
-def advance_time(key, trace, observed_rgbd):
-    """
-    Advance to the next timestep, setting the new latent state to the
-    same thing as the previous latent state, and setting the new
-    observed RGBD value.
-
-    Returns a trace where previous_state (stored in the arguments)
-    and new_state (sampled in the choices and returned) are identical.
-    """
-    hyperparams, _ = trace.get_args()
-    previous_state = trace.get_retval()["new_state"]
-    trace, _, _, _ = trace.update(
-        key,
-        U.g(
-            (Diff.no_change(hyperparams), Diff.unknown_change(previous_state)),
-            C.kw(rgbd=observed_rgbd),
-        ),
+    vertices_transformed = pose.apply(vertices)
+    b3d.rr_log_cloud(
+        vertices_transformed,
+        "scene/model",
+        colors,
     )
-    return trace
+
+    output = trace.get_retval()
+    if output["rgbd"] is not None:
+        info = info_from_trace(trace)
+        b3d.rr_log_rgb(output["rgbd"][..., :3], "image")
+        b3d.rr_log_rgb(output["rgbd"][..., :3], "image/rgb/observed")
+        b3d.rr_log_depth(output["rgbd"][..., 3], "image/depth/observed")
+
+        latent_rgbd = info["latent_rgbd"]
+        b3d.rr_log_rgb(latent_rgbd[..., :3], "image/rgb/latent")
+        b3d.rr_log_depth(latent_rgbd[..., 3], "image/depth/latent")
+
+        likelihood_args = trace.get_retval()["likelihood_args"]
+        fx, fy, cx, cy = (
+            likelihood_args["fx"],
+            likelihood_args["fy"],
+            likelihood_args["cx"],
+            likelihood_args["cy"],
+        )
+        b3d.rr_log_cloud(
+            b3d.xyz_from_depth(
+                output["rgbd"][..., 3],
+                fx,
+                fy,
+                cx,
+                cy,
+            ),
+            "scene/observed",
+            output["rgbd"][..., :3].reshape(-1, 3),
+        )

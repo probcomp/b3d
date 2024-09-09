@@ -1,3 +1,4 @@
+import functools
 import inspect
 import os
 import subprocess
@@ -150,10 +151,20 @@ xyz_from_depth_vectorized = jnp.vectorize(
 )
 
 
+@functools.partial(
+    jnp.vectorize,
+    signature="(3)->(2)",
+    excluded=(
+        1,
+        2,
+        3,
+        4,
+    ),
+)
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
-    x = fx * xyz[..., 0] / (xyz[..., 2]) + cx
-    y = fy * xyz[..., 1] / (xyz[..., 2]) + cy
-    return jnp.stack([y, x], axis=-1)
+    x = fx * xyz[0] / (xyz[2]) + cx
+    y = fy * xyz[1] / (xyz[2]) + cy
+    return jnp.array([y, x])
 
 
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):

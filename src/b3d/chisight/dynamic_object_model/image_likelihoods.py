@@ -5,7 +5,7 @@ import b3d
 
 
 @jax.jit
-def likelihood_func(observed_rgbd, args):
+def simple_projection_image_likelihood_function(observed_rgbd, args):
     transformed_points = args["pose"].apply(args["vertices"])
 
     projected_pixel_coordinates = jnp.rint(
@@ -23,8 +23,8 @@ def likelihood_func(observed_rgbd, args):
     ).sum(axis=-1)
     color_not_visible_score = jnp.log(1 / 1.0**3)
     color_score = jnp.logaddexp(
-        color_visible_branch_score + jnp.log(args["visibility"]),
-        color_not_visible_score + jnp.log(1 - args["visibility"]),
+        color_visible_branch_score + jnp.log(args["is_visible_probabilities"]),
+        color_not_visible_score + jnp.log(1 - args["is_visible_probabilities"]),
     )
 
     depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
@@ -32,8 +32,8 @@ def likelihood_func(observed_rgbd, args):
     )
     depth_not_visible_score = jnp.log(1 / 1.0)
     _depth_score = jnp.logaddexp(
-        depth_visible_branch_score + jnp.log(args["visibility"]),
-        depth_not_visible_score + jnp.log(1 - args["visibility"]),
+        depth_visible_branch_score + jnp.log(args["is_visible_probabilities"]),
+        depth_not_visible_score + jnp.log(1 - args["is_visible_probabilities"]),
     )
     is_depth_non_return = observed_rgbd_masked[..., 3] < 0.0001
 
@@ -62,20 +62,3 @@ def likelihood_func(observed_rgbd, args):
         "observed_rgbd_masked": observed_rgbd_masked,
         "latent_rgbd": latent_rgbd,
     }
-
-
-@jax.jit
-def sample_func(key, likelihood_args):
-    return jnp.zeros(
-        (
-            likelihood_args["image_height"].const,
-            likelihood_args["image_width"].const,
-            4,
-        )
-    )
-
-
-project_no_occlusions_kernel_likelihood_func_and_sample_func = (
-    likelihood_func,
-    sample_func,
-)

@@ -5,7 +5,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 from genjax import Pytree
-from genjax.typing import FloatArray, PRNGKey, ScalarBool, ScalarFloat
+from genjax.typing import FloatArray, PRNGKey
 from tensorflow_probability.substrates import jax as tfp
 
 from b3d.chisight.dense.likelihoods.other_likelihoods import PythonMixturePixelModel
@@ -21,7 +21,7 @@ COLOR_MIN_VAL: float = 0.0
 COLOR_MAX_VAL: float = 1.0
 
 
-def is_unexplained(latent_color: FloatArray) -> ScalarBool:
+def is_unexplained(latent_color: FloatArray) -> bool:
     """A heuristic to check if a pixel does not have any latent point that hits
     it.
 
@@ -46,7 +46,7 @@ class PixelColorDistribution(genjax.ExactDensity):
 
     def logpdf(
         self, observed_color: FloatArray, latent_color: FloatArray, *args, **kwargs
-    ) -> ScalarFloat:
+    ) -> float:
         return self.logpdf_per_channel(
             observed_color, latent_color, *args, **kwargs
         ).sum()
@@ -67,12 +67,10 @@ class TruncatedLaplacePixelColorDistribution(PixelColorDistribution):
     controlled by color_scale. The support of the distribution is ([0, 1]^3).
     """
 
-    color_scale: ScalarFloat
+    color_scale: float
     # the uniform window is used to wrapped the truncated laplace distribution
     # to ensure that the color generated is within the range of [0, 1]
-    uniform_window_size: ScalarFloat = Pytree.static(
-        default=_FIXED_COLOR_UNIFORM_WINDOW
-    )
+    uniform_window_size: float = Pytree.static(default=_FIXED_COLOR_UNIFORM_WINDOW)
 
     def sample(
         self, key: PRNGKey, latent_color: FloatArray, *args, **kwargs
@@ -133,7 +131,7 @@ class MixturePixelColorDistribution(PixelColorDistribution):
     distribution is ([0, 1]^3).
     """
 
-    color_scale: ScalarFloat
+    color_scale: float
 
     @property
     def _inlier_dist(self) -> PixelColorDistribution:
@@ -147,14 +145,14 @@ class MixturePixelColorDistribution(PixelColorDistribution):
     def _mixture_dists(self) -> tuple[PixelColorDistribution, PixelColorDistribution]:
         return (self._inlier_dist, self._outlier_dist)
 
-    def get_mix_ratio(self, color_outlier_prob: ScalarFloat) -> FloatArray:
+    def get_mix_ratio(self, color_outlier_prob: float) -> FloatArray:
         return jnp.array((1 - color_outlier_prob, color_outlier_prob))
 
     def sample(
         self,
         key: PRNGKey,
         latent_color: FloatArray,
-        color_outlier_prob: ScalarFloat,
+        color_outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
@@ -166,7 +164,7 @@ class MixturePixelColorDistribution(PixelColorDistribution):
         self,
         observed_color: FloatArray,
         latent_color: FloatArray,
-        color_outlier_prob: ScalarFloat,
+        color_outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
@@ -197,7 +195,7 @@ class FullPixelColorDistribution(PixelColorDistribution):
         )
     """
 
-    color_scale: ScalarFloat
+    color_scale: float
 
     @property
     def _color_from_latent(self) -> PixelColorDistribution:
@@ -232,7 +230,7 @@ class FullPixelColorDistribution(PixelColorDistribution):
         self,
         observed_color: FloatArray,
         latent_color: FloatArray,
-        color_outlier_prob: ScalarFloat,
+        color_outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:

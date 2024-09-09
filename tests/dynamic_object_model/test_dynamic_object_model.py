@@ -15,7 +15,7 @@ from genjax import ChoiceMapBuilder as C
 b3d.rr_init("test_dynamic_object_model")
 
 
-def test_dynamic_object_generative_model():
+def test_dynamic_object_generative_model_no_likelihood():
     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
     id = 0
     mesh = Mesh.from_obj_file(
@@ -62,7 +62,7 @@ def test_dynamic_object_generative_model():
 
     key = jax.random.PRNGKey(0)
     importance = jax.jit(
-        b3d.chisight.dynamic_object_model.dynamic_object_model.dynamic_object_generative_model_no_likelihood.importance
+        b3d.chisight.dynamic_object_model.dynamic_object_model.dynamic_object_generative_model.importance
     )
 
     trace, _ = importance(key, C.n(), (hyperparams, previous_state))

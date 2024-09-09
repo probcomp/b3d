@@ -74,25 +74,26 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         @ "color_scale"
     )
 
-    likelihood_args = {
-        "fx": hyperparams["fx"],
-        "fy": hyperparams["fy"],
-        "cx": hyperparams["cx"],
-        "cy": hyperparams["cy"],
-        "image_width": hyperparams["image_width"],
-        "image_height": hyperparams["image_height"],
-        "vertices": hyperparams["vertices"],
-        "colors": colors,
-        "pose": pose,
-        "color_scale": color_scale,
-        "depth_scale": depth_scale,
-        "visibility": visibility,
-        "depth_nonreturn": depth_nonreturn,
-    }
-    if hyperparams["image_likelihood"] is not None:
+    if "image_likelihood" in hyperparams:
+        likelihood_args = {
+            "fx": hyperparams["fx"],
+            "fy": hyperparams["fy"],
+            "cx": hyperparams["cx"],
+            "cy": hyperparams["cy"],
+            "image_width": hyperparams["image_width"],
+            "image_height": hyperparams["image_height"],
+            "vertices": hyperparams["vertices"],
+            "colors": colors,
+            "pose": pose,
+            "color_scale": color_scale,
+            "depth_scale": depth_scale,
+            "visibility": visibility,
+            "depth_nonreturn": depth_nonreturn,
+        }
         rgbd = hyperparams["image_likelihood"](likelihood_args) @ "rgbd"
     else:
         rgbd = None
+        likelihood_args = None
 
     new_state = {
         "pose": pose,

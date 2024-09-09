@@ -116,7 +116,7 @@ def make_colors_choicemap(colors):
 
 
 def make_visibiliy_choicemap(visibility):
-    return jax.vmap(lambda idx: C["visbility", idx].set(visibility[idx]))(
+    return jax.vmap(lambda idx: C["visibility", idx].set(visibility[idx]))(
         jnp.arange(len(visibility))
     )
 
@@ -128,7 +128,7 @@ def make_depth_nonreturn_choicemap(depth_nonreturn):
 
 
 ### Viz ###
-def viz_trace(trace, t=0):
+def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_set_time(t)
     hyperparams, _ = trace.get_args()
     new_state = trace.get_retval()["new_state"]

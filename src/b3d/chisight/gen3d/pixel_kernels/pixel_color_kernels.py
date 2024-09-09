@@ -8,9 +8,9 @@ from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
 from tensorflow_probability.substrates import jax as tfp
 
-from b3d.chisight.dense.likelihoods.other_likelihoods import PythonMixturePixelModel
-from b3d.chisight.dynamic_object_model.likelihoods.kfold_image_kernel import (
+from b3d.modeling_utils import (
     _FIXED_COLOR_UNIFORM_WINDOW,
+    PythonMixtureDistribution,
     truncated_laplace,
 )
 
@@ -22,8 +22,11 @@ COLOR_MAX_VAL: float = 1.0
 
 
 def is_unexplained(latent_color: FloatArray) -> bool:
-    """A heuristic to check if a pixel does not have any latent point that hits
-    it.
+    """
+    Check if a given `latent_color` value given to a pixel
+    indicates that no latent point hits a pixel.
+    This is done by checking if any of the latent color values
+    are negative.
 
     Args:
         latent_color (FloatArray): The latent color of the pixel.
@@ -156,7 +159,7 @@ class MixturePixelColorDistribution(PixelColorDistribution):
         *args,
         **kwargs,
     ) -> FloatArray:
-        return PythonMixturePixelModel(self._mixture_dists).sample(
+        return PythonMixtureDistribution(self._mixture_dists).sample(
             key, self.get_mix_ratio(color_outlier_prob), [(latent_color,), ()]
         )
 
@@ -193,6 +196,21 @@ class FullPixelColorDistribution(PixelColorDistribution):
             [truncated_laplace(latent_color; color_scale), uniform(0, 1)],
             [1 - color_outlier_prob, color_outlier_prob]
         )
+
+    Constructor args:
+    - color_scale: float.  The scale of the truncated Laplace distribution
+        centered around the latent color used for inlier color observations.
+
+    Distribution args:
+    - `latent_color`: 3-array.  If no latent point hits the pixel, should contain
+        3 negative values.  If a latent point hits the pixel, should contain the point's
+        color as an RGB value in [0, 1]^3.
+    - `color_outlier_prob`: float.  If a latent point hits the pixel, should contain
+        the probability associated with that point that the generated color is
+        an outlier.  If no latent point hits the pixel, this value is ignored.
+
+    Distribution support:
+        - An RGB value in [0, 1]^3.
     """
 
     color_scale: float

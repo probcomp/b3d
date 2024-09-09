@@ -36,8 +36,8 @@ def generate_color_grid(n_grid_steps: int):
 sample_kernels_to_test = [
     (UniformPixelColorDistribution(), ()),
     (TruncatedLaplacePixelColorDistribution(0.1), ()),
-    (MixturePixelColorDistribution(0.3), (0.5,)),  # color_outlier_prob
-    (FullPixelColorDistribution(0.5), (0.3,)),  # color_outlier_prob
+    (MixturePixelColorDistribution(0.3), (0.5,)),  # outlier_prob
+    (FullPixelColorDistribution(0.5), (0.3,)),  # outlier_prob
 ]
 
 

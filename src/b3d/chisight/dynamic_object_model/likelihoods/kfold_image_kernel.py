@@ -88,15 +88,21 @@ class TruncatedLaplace(genjax.ExactDensity):
         log_window_size = jnp.log(uniform_window_size)
 
         return jnp.where(
-            jnp.logical_and(
-                low + uniform_window_size < obs, obs < high - uniform_window_size
-            ),
-            laplace_logpdf,
+            jnp.logical_or(obs < low, obs > high),
+            -jnp.inf,
             jnp.where(
-                obs < low + uniform_window_size,
-                jnp.logaddexp(laplace_logp_below_low - log_window_size, laplace_logpdf),
-                jnp.logaddexp(
-                    laplace_logp_above_high - log_window_size, laplace_logpdf
+                jnp.logical_and(
+                    low + uniform_window_size < obs, obs < high - uniform_window_size
+                ),
+                laplace_logpdf,
+                jnp.where(
+                    obs < low + uniform_window_size,
+                    jnp.logaddexp(
+                        laplace_logp_below_low - log_window_size, laplace_logpdf
+                    ),
+                    jnp.logaddexp(
+                        laplace_logp_above_high - log_window_size, laplace_logpdf
+                    ),
                 ),
             ),
         )

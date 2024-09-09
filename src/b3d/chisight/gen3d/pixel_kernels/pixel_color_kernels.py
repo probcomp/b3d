@@ -21,20 +21,20 @@ COLOR_MIN_VAL: float = 0.0
 COLOR_MAX_VAL: float = 1.0
 
 
-def is_unexplained(latent_color: FloatArray) -> bool:
+def is_unexplained(latent_value: FloatArray) -> bool:
     """
-    Check if a given `latent_color` value given to a pixel
+    Check if a given `latent_value` value given to a pixel
     indicates that no latent point hits a pixel.
     This is done by checking if any of the latent color values
     are negative.
 
     Args:
-        latent_color (FloatArray): The latent color of the pixel.
+        latent_value (FloatArray): The latent color of the pixel.
 
     Returns:
         bool: True is none of the latent point hits the pixel, False otherwise.
     """
-    return jnp.any(latent_color < 0.0)
+    return jnp.any(latent_value < 0.0)
 
 
 @Pytree.dataclass
@@ -130,53 +130,51 @@ class MixturePixelColorDistribution(PixelColorDistribution):
     """A distribution that generates the color of a pixel from a mixture of a
     truncated Laplace distribution centered around the latent color (inlier
     branch) and a uniform distribution (outlier branch). The mixture is
-    controlled by the color_outlier_prob parameter. The support of the
+    controlled by the outlier_prob parameter. The support of the
     distribution is ([0, 1]^3).
     """
 
     color_scale: float
 
     @property
-    def _inlier_dist(self) -> PixelColorDistribution:
-        return TruncatedLaplacePixelColorDistribution(self.color_scale)
-
-    @property
     def _outlier_dist(self) -> PixelColorDistribution:
         return UniformPixelColorDistribution()
 
     @property
-    def _mixture_dists(self) -> tuple[PixelColorDistribution, PixelColorDistribution]:
-        return (self._inlier_dist, self._outlier_dist)
+    def _inlier_dist(self) -> PixelColorDistribution:
+        return TruncatedLaplacePixelColorDistribution(self.color_scale)
 
-    def get_mix_ratio(self, color_outlier_prob: float) -> FloatArray:
-        return jnp.array((1 - color_outlier_prob, color_outlier_prob))
+    @property
+    def _mixture_dists(self) -> tuple[PixelColorDistribution, PixelColorDistribution]:
+        return (self._outlier_dist, self._inlier_dist)
+
+    def _get_mix_ratio(self, outlier_prob: float) -> FloatArray:
+        return jnp.array((outlier_prob, 1 - outlier_prob))
 
     def sample(
         self,
         key: PRNGKey,
         latent_color: FloatArray,
-        color_outlier_prob: float,
+        outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
         return PythonMixtureDistribution(self._mixture_dists).sample(
-            key, self.get_mix_ratio(color_outlier_prob), [(latent_color,), ()]
+            key, self._get_mix_ratio(outlier_prob), [(), (latent_color,)]
         )
 
     def logpdf_per_channel(
         self,
         observed_color: FloatArray,
         latent_color: FloatArray,
-        color_outlier_prob: float,
+        outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
         # Since the mixture model class does not keep the per-channel information,
         # we have to redefine this method to allow for testing
         logprobs = []
-        for dist, prob in zip(
-            self._mixture_dists, self.get_mix_ratio(color_outlier_prob)
-        ):
+        for dist, prob in zip(self._mixture_dists, self._get_mix_ratio(outlier_prob)):
             logprobs.append(
                 dist.logpdf_per_channel(observed_color, latent_color) + jnp.log(prob)
             )
@@ -193,8 +191,8 @@ class FullPixelColorDistribution(PixelColorDistribution):
         color ~ uniform(0, 1)
     else:
         color ~ mixture(
-            [truncated_laplace(latent_color; color_scale), uniform(0, 1)],
-            [1 - color_outlier_prob, color_outlier_prob]
+            [uniform(0, 1), truncated_laplace(latent_color; color_scale)],
+            [outlier_prob, 1 - outlier_prob]
         )
 
     Constructor args:
@@ -227,40 +225,34 @@ class FullPixelColorDistribution(PixelColorDistribution):
         self,
         key: PRNGKey,
         latent_color: FloatArray,
-        color_outlier_prob: FloatArray,
+        outlier_prob: FloatArray,
         *args,
         **kwargs,
     ) -> FloatArray:
-        # Check if any of the latent point hits the current pixel
-        is_explained = ~is_unexplained(latent_color)
-
         return jax.lax.cond(
-            is_explained,
-            self._color_from_latent.sample,  # if pixel is being hit by a latent point
+            is_unexplained(latent_color),
             self._unexplained_color.sample,  # if no point hits current pixel
+            self._color_from_latent.sample,  # if pixel is being hit by a latent point
             # sample args
             key,
             latent_color,
-            color_outlier_prob,
+            outlier_prob,
         )
 
     def logpdf_per_channel(
         self,
         observed_color: FloatArray,
         latent_color: FloatArray,
-        color_outlier_prob: float,
+        outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
-        # Check if any of the latent point hits the current pixel
-        is_explained = ~is_unexplained(latent_color)
-
         return jax.lax.cond(
-            is_explained,
-            self._color_from_latent.logpdf_per_channel,  # if pixel is being hit by a latent point
+            is_unexplained(latent_color),
             self._unexplained_color.logpdf_per_channel,  # if no point hits current pixel
+            self._color_from_latent.logpdf_per_channel,  # if pixel is being hit by a latent point
             # logpdf args
             observed_color,
             latent_color,
-            color_outlier_prob,
+            outlier_prob,
         )

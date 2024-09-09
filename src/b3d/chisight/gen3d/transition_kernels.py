@@ -197,6 +197,26 @@ class LaplaceDriftKernel(DriftKernel):
 
 
 @Pytree.dataclass
+class LaplaceNotTruncatedDriftKernel(DriftKernel):
+    """A drift kernel that samples the 3 channels of the color from a specialized
+    truncated Laplace distribution, centered at the previous color. Values outside
+    of the bounds will be resampled from a small uniform window at the boundary.
+    This is a thin wrapper around the truncated_color_laplace distribution to
+    provide a consistent interface with other drift kernels.
+
+    Support: [0.0, 1.0]
+    """
+
+    scale: float = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_value: ArrayLike) -> ArrayLike:
+        return genjax.laplace.sample(key, prev_value, self.scale)
+
+    def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
+        return jax.scipy.stats.laplace.logpdf(new_value, prev_value, self.scale).sum()
+
+
+@Pytree.dataclass
 class LaplaceColorDriftKernel(DriftKernel):
     """A drift kernel that samples the 3 channels of the color from a specialized
     truncated Laplace distribution, centered at the previous color. Values outside
@@ -365,7 +385,9 @@ class DiscreteFlipKernel(DiscreteKernel):
         should_resample = jax.random.bernoulli(key, self.resample_probability)
         return (
             should_resample
-            * self.possible_values[jax.random.choice(key, len(self.possible_values))]
+            * self.possible_values.at[
+                jax.random.choice(key, len(self.possible_values))
+            ].get()
             + (1 - should_resample) * prev_value
         )
 

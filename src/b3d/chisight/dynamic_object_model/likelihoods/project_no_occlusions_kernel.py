@@ -18,28 +18,32 @@ def likelihood_func(observed_rgbd, args):
         projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1]
     ]
 
-    color_outlier_probabilities = args["color_outlier_probabilities"]
-    depth_outlier_probabilities = args["depth_outlier_probabilities"]
-
-    color_probability = jnp.logaddexp(
-        jax.scipy.stats.laplace.logpdf(
-            observed_rgbd_masked[..., :3], args["colors"], args["color_variance"]
-        ).sum(axis=-1)
-        + jnp.log(1 - color_outlier_probabilities),
-        jnp.log(color_outlier_probabilities)
-        + jnp.log(1 / 1.0**3),  # <- log(1) == 0 tho
-    )
-    depth_probability = jnp.logaddexp(
-        jax.scipy.stats.laplace.logpdf(
-            observed_rgbd_masked[..., 3],
-            transformed_points[..., 2],
-            args["depth_variance"],
-        )
-        + jnp.log(1 - depth_outlier_probabilities),
-        jnp.log(depth_outlier_probabilities) + jnp.log(1 / 1.0),
+    color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
+        observed_rgbd_masked[..., :3], args["colors"], args["color_scale"]
+    ).sum(axis=-1)
+    color_not_visible_score = jnp.log(1 / 1.0**3)
+    color_score = jnp.logaddexp(
+        color_visible_branch_score + jnp.log(args["is_visible_probabilities"]),
+        color_not_visible_score + jnp.log(1 - args["is_visible_probabilities"]),
     )
 
-    scores = color_probability + depth_probability
+    depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
+        observed_rgbd_masked[..., 3], transformed_points[..., 2], args["depth_scale"]
+    )
+    depth_not_visible_score = jnp.log(1 / 1.0)
+    _depth_score = jnp.logaddexp(
+        depth_visible_branch_score + jnp.log(args["is_visible_probabilities"]),
+        depth_not_visible_score + jnp.log(1 - args["is_visible_probabilities"]),
+    )
+    is_depth_non_return = observed_rgbd_masked[..., 3] < 0.0001
+
+    non_return_probability = 0.05
+    depth_score = jnp.where(
+        is_depth_non_return, jnp.log(non_return_probability), _depth_score
+    )
+
+    lmbda = 0.5
+    scores = lmbda * color_score + (1.0 - lmbda) * depth_score
 
     # Visualization
     latent_rgbd = jnp.zeros_like(observed_rgbd)
@@ -53,10 +57,9 @@ def likelihood_func(observed_rgbd, args):
     return {
         "score": scores.sum(),
         "scores": scores,
+        "pixel_coordinates": projected_pixel_coordinates,
         "transformed_points": transformed_points,
         "observed_rgbd_masked": observed_rgbd_masked,
-        "color_probability": color_probability,
-        "depth_probability": depth_probability,
         "latent_rgbd": latent_rgbd,
     }
 

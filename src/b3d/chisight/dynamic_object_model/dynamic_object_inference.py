@@ -9,9 +9,8 @@ from b3d import Pose
 
 from .dynamic_object_model import (
     info_from_trace,
-    make_color_outlier_probabilities_choicemap,
     make_colors_choicemap,
-    make_depth_outlier_probabilities_choicemap,
+    make_is_visible_probabilities_choicemap,
     vectorized_color_transition_kernel_logpdf,
     vectorized_outlier_probability_transition_kernel_logpdf,
 )
@@ -45,68 +44,71 @@ def advance_time(key, trace, observed_rgbd):
 # Propose new depth outlier probabilities
 @jax.jit
 def propose_depth_outlier_probability(trace, key):
-    depth_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])  # (k, )
+    raise NotImplementedError
 
-    current_depth_outlier_probabilities = trace.get_args()[1][
-        "depth_outlier_probabilities"
-    ]  # (num_vertices, )
 
-    depth_outlier_probability_sweep_full = (
-        depth_outlier_probability_sweep[..., None]
-        * jnp.ones_like(current_depth_outlier_probabilities)
-    )  # (k, num_vertices) where the values in row i are all depth_outlier_probability_sweep[i]
+#     depth_outlier_probability_sweep = jnp.array([0, 1])  # (k, )
 
-    # Function takes in depth outlier probability array of shape (num_vertices,) and gives scores for each vertex (num_vertices,)
+#     current_depth_outlier_probabilities = trace.get_args()[1][
+#         "depth_outlier_probabilities"
+#     ]  # (num_vertices, )
 
-    def get_per_vertex_likelihoods_with_new_depth_outlier_probabilities(
-        depth_outlier_probabilities,
-    ):
-        return info_from_trace(
-            trace.update(
-                key,
-                make_depth_outlier_probabilities_choicemap(depth_outlier_probabilities),
-            )[0]
-        )["scores"]
+#     depth_outlier_probability_sweep_full = (
+#         depth_outlier_probability_sweep[..., None]
+#         * jnp.ones_like(current_depth_outlier_probabilities)
+#     )  # (k, num_vertices) where the values in row i are all depth_outlier_probability_sweep[i]
 
-    # Vmap over the depth_outlier_probability_sweep_full array to get scores for each vertex for each depth_outlier_probability in the sweep
-    likelihood_scores_per_sweep_point_and_vertex = jax.vmap(
-        get_per_vertex_likelihoods_with_new_depth_outlier_probabilities
-    )(depth_outlier_probability_sweep_full)  # (k, num_vertices)
-    # P(pixel / nothing  |  depth outlier prob, latent point)
+#     # Function takes in depth outlier probability array of shape (num_vertices,) and gives scores for each vertex (num_vertices,)
 
-    transition_scores_per_sweep_point_and_vertex = (
-        vectorized_outlier_probability_transition_kernel_logpdf(
-            depth_outlier_probability_sweep_full,  # (k, num_vertices)
-            current_depth_outlier_probabilities,  # (num_vertices, )
-            trace.get_args()[0]["depth_outlier_probability_shift_scale"],
-        )
-    )  # (k, num_vertices)
+#     def get_per_vertex_likelihoods_with_new_depth_outlier_probabilities(
+#         depth_outlier_probabilities,
+#     ):
+#         return info_from_trace(
+#             trace.update(
+#                 key,
+#                 make_depth_outlier_probabilities_choicemap(depth_outlier_probabilities),
+#             )[0]
+#         )["scores"]
 
-    scores_per_sweep_point_and_vertex = (
-        likelihood_scores_per_sweep_point_and_vertex
-        + transition_scores_per_sweep_point_and_vertex
-    )
-    normalized_log_probabilities = jax.nn.log_softmax(
-        scores_per_sweep_point_and_vertex, axis=0
-    )
+#     # Vmap over the depth_outlier_probability_sweep_full array to get scores for each vertex for each depth_outlier_probability in the sweep
+#     likelihood_scores_per_sweep_point_and_vertex = jax.vmap(
+#         get_per_vertex_likelihoods_with_new_depth_outlier_probabilities
+#     )(depth_outlier_probability_sweep_full)  # (k, num_vertices)
+#     # P(pixel / nothing  |  depth outlier prob, latent point)
 
-    sampled_indices = jax.random.categorical(key, normalized_log_probabilities, axis=0)
-    # sampled_indices = jnp.argmax(scores_per_sweep_point_and_vertex, axis=0)
+#     transition_scores_per_sweep_point_and_vertex = (
+#         vectorized_outlier_probability_transition_kernel_logpdf(
+#             depth_outlier_probability_sweep_full,  # (k, num_vertices)
+#             current_depth_outlier_probabilities,  # (num_vertices, )
+#             trace.get_args()[0]["depth_outlier_probability_shift_scale"],
+#         )
+#     )  # (k, num_vertices)
 
-    sampled_depth_outlier_probabilities = depth_outlier_probability_sweep[
-        sampled_indices
-    ]
+#     scores_per_sweep_point_and_vertex = (
+#         likelihood_scores_per_sweep_point_and_vertex
+#         + transition_scores_per_sweep_point_and_vertex
+#     )
+#     normalized_log_probabilities = jax.nn.log_softmax(
+#         scores_per_sweep_point_and_vertex, axis=0
+#     )
 
-    # normalized_log_probabilities is (k, num_vertices)
-    log_q_depth_outlier_probability = normalized_log_probabilities[
-        sampled_indices, jnp.arange(normalized_log_probabilities.shape[1])
-    ].sum()
+#     sampled_indices = jax.random.categorical(key, normalized_log_probabilities, axis=0)
+#     # sampled_indices = jnp.argmax(scores_per_sweep_point_and_vertex, axis=0)
 
-    return (
-        sampled_depth_outlier_probabilities,
-        log_q_depth_outlier_probability,
-        scores_per_sweep_point_and_vertex,
-    )
+#     sampled_depth_outlier_probabilities = depth_outlier_probability_sweep[
+#         sampled_indices
+#     ]
+
+#     # normalized_log_probabilities is (k, num_vertices)
+#     log_q_depth_outlier_probability = normalized_log_probabilities[
+#         sampled_indices, jnp.arange(normalized_log_probabilities.shape[1])
+#     ].sum()
+
+#     return (
+#         sampled_depth_outlier_probabilities,
+#         log_q_depth_outlier_probability,
+#         scores_per_sweep_point_and_vertex,
+#     )
 
 
 # @jax.jit
@@ -127,19 +129,17 @@ def propose_depth_outlier_probability(trace, key):
 
 
 @jax.jit
-def propose_color_and_color_outlier_probability(trace, key, outlier_probability_sweep):
+def propose_color_and_visibility_probability(trace, key, outlier_probability_sweep):
     # color_outlier_probability_sweep is (k,) shape array
 
-    current_color_outlier_probabilities = trace.get_args()[1][
-        "color_outlier_probabilities"
-    ]
+    current_is_visible_probabilities = trace.get_args()[1]["is_visible_probabilities"]
     current_colors = trace.get_args()[1]["colors"]
 
     # num_vertices = current_colors.shape[0]
     # num_outlier_grid_points = outlier_probability_sweep.shape[0]
     color_outlier_probabilities_sweep = (
         outlier_probability_sweep[..., None]  # (num_outlier_grid_points, 1)
-        * jnp.ones_like(current_color_outlier_probabilities)  # (num_vertices,)
+        * jnp.ones_like(current_is_visible_probabilities)  # (num_vertices,)
     )  # (num_outlier_grid_points, num_vertices)
 
     # We will grid over color values, using a grid that mixes the old and observed
@@ -171,7 +171,7 @@ def propose_color_and_color_outlier_probability(trace, key, outlier_probability_
         return info_from_trace(
             trace.update(
                 key,
-                make_color_outlier_probabilities_choicemap(color_outlier_probabilities)
+                make_is_visible_probabilities_choicemap(color_outlier_probabilities)
                 ^ make_colors_choicemap(colors),
             )[0]
         )["scores"]
@@ -192,8 +192,8 @@ def propose_color_and_color_outlier_probability(trace, key, outlier_probability_
     # Color outlier transition scores
     color_outlier_transition_scores_per_sweep_point_and_vertex = vectorized_outlier_probability_transition_kernel_logpdf(
         color_outlier_probabilities_sweep,  # (num_outlier_grid_points, num_vertices)
-        current_color_outlier_probabilities,
-        trace.get_args()[0]["color_outlier_probability_shift_scale"],
+        current_is_visible_probabilities,
+        trace.get_args()[0]["is_visible_transition_scale"],
     )  # (num_outlier_grid_points, num_vertices)
 
     color_transition_scores_per_sweep_point_and_vertex = (
@@ -246,8 +246,15 @@ def propose_color_and_color_outlier_probability(trace, key, outlier_probability_
 
     # We will treat this like the case where each sweep is uniform, so the q scores
     # are each (oldr - obsr)/3 * (oldg - obsg)/3 * (oldb - obsb)/3.
+
+    hyperparams = trace.get_args()[0]
+    color_shift_scale = hyperparams["color_shift_scale"]
+    color_scale = trace.get_choices()["color_scale"]
+
+    d = 1 / (1 / color_shift_scale + 1 / color_scale)
+
     q_prob_per_vertex = (
-        1.0 / ((jnp.abs(current_colors - observed_colors) / 3) + 0.001)
+        1.0 / ((jnp.abs(current_colors - observed_colors) / 3) + 4 * d)
     ).prod(-1)
     log_q_for_the_color_proposal = jnp.log(q_prob_per_vertex).sum()
 
@@ -299,26 +306,24 @@ def propose_update(trace, key, pose):
     # total_log_q += log_q_pose
 
     # Update depth outlier probability
-    sampled_depth_outlier_probability, log_q_depth_outlier_probability, _ = (
-        propose_depth_outlier_probability(trace, key)
-    )
-    trace = trace.update(
-        key,
-        make_depth_outlier_probabilities_choicemap(sampled_depth_outlier_probability),
-    )[0]
-    total_log_q += log_q_depth_outlier_probability
+    # sampled_depth_outlier_probability, log_q_depth_outlier_probability, _ = (
+    #     propose_depth_outlier_probability(trace, key)
+    # )
+    # trace = trace.update(
+    #     key,
+    #     make_depth_outlier_probabilities_choicemap(sampled_depth_outlier_probability),
+    # )[0]
+    # total_log_q += log_q_depth_outlier_probability
 
     # Update color and color outlier probability
-    color_outlier_probability_sweep = jnp.array([0.01, 0.5, 1.0])
-    colors, color_outlier_probability, log_q_color_color_outlier_probability, _ = (
-        propose_color_and_color_outlier_probability(
-            trace, key, color_outlier_probability_sweep
-        )
+    is_visible_probabilities = jnp.array([0.01, 0.99])
+    colors, is_visible_probabilities, log_q_color_color_outlier_probability, _ = (
+        propose_color_and_visibility_probability(trace, key, is_visible_probabilities)
     )
     trace = trace.update(
         key,
         make_colors_choicemap(colors)
-        ^ make_color_outlier_probabilities_choicemap(color_outlier_probability),
+        ^ make_is_visible_probabilities_choicemap(is_visible_probabilities),
     )[0]
     total_log_q += log_q_color_color_outlier_probability
 
@@ -353,38 +358,35 @@ propose_update_get_score_vmap = jax.jit(
 
 
 def inference_step_without_advance(trace, key):
-    number = 20000
-
-    var, conc = 0.02, 2000.0
-
-    for _ in range(10):
+    number = 15000
+    current_pose = trace.get_choices()["pose"]
+    var_conc = [(0.04, 1000.0), (0.02, 1500.0), (0.005, 2000.0)]
+    for var, conc in var_conc:
         key = jax.random.split(key, 2)[-1]
         keys = jax.random.split(key, number)
         poses = Pose.concatenate_poses(
             [
-                Pose.sample_gaussian_vmf_pose_vmap(
-                    keys, trace.get_choices()["pose"], var, conc
-                ),
-                trace.get_choices()["pose"][None, ...],
+                Pose.sample_gaussian_vmf_pose_vmap(keys, current_pose, var, conc),
+                current_pose[None, ...],
             ]
         )
         pose_scores = Pose.logpdf_gaussian_vmf_pose_vmap(
             poses, trace.get_choices()["pose"], var, conc
         )
         scores = propose_update_get_score_vmap(trace, key, poses)
-        scores = (
+        scores_pose_q_correction = (
             scores - pose_scores
         )  # After this, scores are fair estimates of P(data | previous state)
         #                               and can be used to resample the choice sets.
         index = jax.random.categorical(key, scores)
-        trace = propose_update(trace, key, poses[index])[0]
-
-    return trace
+        current_pose = poses[index]
+    trace = propose_update(trace, key, current_pose)[0]
+    return trace, scores, scores_pose_q_correction
 
 
 def inference_step(trace, key, observed_rgbd):
     trace = advance_time(key, trace, observed_rgbd)
-    trace = inference_step_without_advance(trace, key)
+    trace = inference_step_without_advance(trace, key)[0]
     return trace
 
 

@@ -10,7 +10,7 @@ from tensorflow_probability.substrates import jax as tfp
 
 from b3d.modeling_utils import (
     _FIXED_COLOR_UNIFORM_WINDOW,
-    PythonMixturePixelModel,
+    PythonMixtureDistribution,
     truncated_laplace,
 )
 
@@ -159,7 +159,7 @@ class MixturePixelColorDistribution(PixelColorDistribution):
         *args,
         **kwargs,
     ) -> FloatArray:
-        return PythonMixturePixelModel(self._mixture_dists).sample(
+        return PythonMixtureDistribution(self._mixture_dists).sample(
             key, self.get_mix_ratio(color_outlier_prob), [(latent_color,), ()]
         )
 

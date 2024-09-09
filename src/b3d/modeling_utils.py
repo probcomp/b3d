@@ -78,16 +78,16 @@ normal = tfp_distribution(tfp.distributions.Normal)
 
 
 @Pytree.dataclass
-class PythonMixtureModel(genjax.ExactDensity):
+class PythonMixtureDistribution(genjax.ExactDensity):
     """
     Mixture of different distributions.
     Constructor:
-    - dists : list of genjax.ExactDensity
+    - dists : python list of N genjax.ExactDensity objects
 
     Distribution args:
-    - probs : (N,) array of probabilities
-    - args : list of argument tuples, so that `dists[i].sample(key, *args[i])` is valid
-        for each i
+    - probs : (N,) array of branch probabilities
+    - args : python list of argument tuples, so that
+        `dists[i].sample(key, *args[i])` is valid for each i
     """
 
     dists: any = genjax.Pytree.static()

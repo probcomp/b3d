@@ -1,10 +1,13 @@
 ### IMPORTS ###
+import os
+
 import b3d
 import b3d.chisight.gen3d.model
 import b3d.chisight.gen3d.transition_kernels as transition_kernels
+import b3d.io.data_loader
 import jax
 import jax.numpy as jnp
-from b3d import Pose
+from b3d import Mesh, Pose
 from b3d.chisight.gen3d.model import (
     make_colors_choicemap,
     make_depth_nonreturn_prob_choicemap,
@@ -12,20 +15,29 @@ from b3d.chisight.gen3d.model import (
 )
 from genjax import ChoiceMapBuilder as C
 
-b3d.rr_init("test_dynamic_object_model")
+b3d.rr_init("test_gen3d_model")
 
 
 def test_model_no_likelihood():
     importance = jax.jit(
         b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
     )
-    num_vertices = 100
-    vertices = jax.random.uniform(
-        jax.random.PRNGKey(0), (num_vertices, 3), minval=-1, maxval=1
-    )
-    colors = jax.random.uniform(
-        jax.random.PRNGKey(1), (num_vertices, 3), minval=0, maxval=1
-    )
+
+    # num_vertices = 100
+    # vertices = jax.random.uniform(
+    #     jax.random.PRNGKey(0), (num_vertices, 3), minval=-1, maxval=1
+    # )
+    # colors = jax.random.uniform(
+    #     jax.random.PRNGKey(1), (num_vertices, 3), minval=0, maxval=1
+    # )
+    ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
+    id = 0
+    mesh = Mesh.from_obj_file(
+        os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+    ).scale(0.001)
+    vertices = mesh.vertices
+    colors = mesh.vertex_attributes
+    num_vertices = vertices.shape[0]
 
     key = jax.random.PRNGKey(0)
     hyperparams = {
@@ -77,7 +89,7 @@ def test_model_no_likelihood():
 
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(4, 1, sharex=True, figsize=(10, 15))
+    fig, ax = plt.subplots(4, 1, sharex=True, figsize=(10, 20))
     point_index = 0
 
     fig.suptitle(

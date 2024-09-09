@@ -44,38 +44,18 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         "color_scale": color_scale,
     }
 
-    rgbd = None
-    likelihood_args = None
-    # if not ("image_likelihood" in hyperparams):
-
-    # else:
-    #     likelihood_args = {
-    #         "fx": hyperparams["fx"],
-    #         "fy": hyperparams["fy"],
-    #         "cx": hyperparams["cx"],
-    #         "cy": hyperparams["cy"],
-    #         "image_width": hyperparams["image_width"],
-    #         "image_height": hyperparams["image_height"],
-    #         "vertices": hyperparams["vertices"],
-    #         "colors": colors,
-    #         "pose": pose,
-    #         "color_scale": color_scale,
-    #         "depth_scale": depth_scale,
-    #         "visibility": visibility_prob,
-    #         "depth_nonreturn": depth_nonreturn_prob,
-    #     }
-    #     rgbd = hyperparams["image_likelihood"](likelihood_args) @ "rgbd"
+    if "image_likelihood" not in hyperparams:
+        rgbd = None
+    else:
+        rgbd = hyperparams["image_likelihood"](new_state, hyperparams) @ "rgbd"
 
     return {
         "new_state": new_state,
         "rgbd": rgbd,
-        "likelihood_args": likelihood_args,
     }
 
 
 ### Helpers ###
-
-
 def make_colors_choicemap(colors):
     return jax.vmap(lambda idx: C["colors", idx].set(colors[idx]))(
         jnp.arange(len(colors))

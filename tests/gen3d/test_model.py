@@ -1,17 +1,24 @@
 ### IMPORTS ###
-
 import b3d
 import b3d.chisight.gen3d.model
 import b3d.chisight.gen3d.transition_kernels as transition_kernels
 import jax
 import jax.numpy as jnp
 from b3d import Pose
+from b3d.chisight.gen3d.model import (
+    make_colors_choicemap,
+    make_depth_nonreturn_prob_choicemap,
+    make_visibility_prob_choicemap,
+)
 from genjax import ChoiceMapBuilder as C
 
 b3d.rr_init("test_dynamic_object_model")
 
 
 def test_model_no_likelihood():
+    importance = jax.jit(
+        b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
+    )
     num_vertices = 100
     vertices = jax.random.uniform(
         jax.random.PRNGKey(0), (num_vertices, 3), minval=-1, maxval=1
@@ -51,12 +58,10 @@ def test_model_no_likelihood():
     }
 
     key = jax.random.PRNGKey(0)
-    importance = jax.jit(
-        b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
-    )
+    trace = importance(key, C.n(), (hyperparams, previous_state))[0]
 
-    trace, _ = importance(key, C.n(), (hyperparams, previous_state))
-    assert trace.get_score().shape == ()
+    key = jax.random.PRNGKey(0)
+    hyperparams, previous_state = trace.get_args()
 
     traces = [trace]
     for t in range(100):
@@ -65,6 +70,7 @@ def test_model_no_likelihood():
         trace, _ = importance(key, C.n(), (hyperparams, previous_state))
         b3d.chisight.gen3d.model.viz_trace(trace, t)
         traces.append(trace)
+
     colors_over_time = jnp.array(
         [trace.get_choices()["colors", ...] for trace in traces]
     )
@@ -74,12 +80,15 @@ def test_model_no_likelihood():
     fig, ax = plt.subplots(4, 1, sharex=True, figsize=(10, 15))
     point_index = 0
 
-    fig.suptitle(f"""pose_kernel max_shift: {hyperparams['pose_kernel'].max_shift},
-                   color_kernel scale: {hyperparams['color_kernel'].scale},
-                   visibility_prob_kernel resample_probability: {hyperparams['visibility_prob_kernel'].resample_probability},
-                   depth_nonreturn_prob_kernel resample_probability: {hyperparams['depth_nonreturn_prob_kernel'].resample_probability},
-                   depth_scale_kernel resample_probability: {hyperparams['depth_scale_kernel'].resample_probability},
-                   color_scale_kernel resample_probability: {hyperparams['color_scale_kernel'].resample_probability}""")
+    fig.suptitle(
+        f"""
+pose_kernel max_shift: {hyperparams['pose_kernel'].max_shift},
+color_kernel scale: {hyperparams['color_kernel'].scale},
+visibility_prob_kernel resample_probability: {hyperparams['visibility_prob_kernel'].resample_probability},
+depth_nonreturn_prob_kernel resample_probability: {hyperparams['depth_nonreturn_prob_kernel'].resample_probability},
+depth_scale_kernel resample_probability: {hyperparams['depth_scale_kernel'].resample_probability},
+color_scale_kernel resample_probability: {hyperparams['color_scale_kernel'].resample_probability}"""
+    )
     ax[0].set_title(f"Color of vertex {point_index}")
     ax[0].plot(colors_over_time[..., point_index, 0], color="r")
     ax[0].plot(colors_over_time[..., point_index, 1], color="g")
@@ -108,6 +117,30 @@ def test_model_no_likelihood():
     ax[3].legend()
     fig.supxlabel("Time")
     fig.savefig("test_gen3d_model.png")
+
+    colors = trace.get_choices()["colors", ...]
+    new_colors = colors + 0.01
+    new_colors_choicemap = make_colors_choicemap(new_colors)
+    new_trace = trace.update(key, new_colors_choicemap)[0]
+    assert jnp.allclose(new_trace.get_choices()["colors", ...], new_colors)
+
+    visibility_prob = trace.get_choices()["visibility_prob", ...]
+    new_visibility_prob = visibility_prob + 0.01
+    new_visibility_prob_choicemap = make_visibility_prob_choicemap(new_visibility_prob)
+    new_trace = trace.update(key, new_visibility_prob_choicemap)[0]
+    assert jnp.allclose(
+        new_trace.get_choices()["visibility_prob", ...], new_visibility_prob
+    )
+
+    depth_nonreturn_prob = trace.get_choices()["depth_nonreturn_prob", ...]
+    new_depth_nonreturn_prob = depth_nonreturn_prob + 0.01
+    new_depth_nonreturn_prob_choicemap = make_depth_nonreturn_prob_choicemap(
+        new_depth_nonreturn_prob
+    )
+    new_trace = trace.update(key, new_depth_nonreturn_prob_choicemap)[0]
+    assert jnp.allclose(
+        new_trace.get_choices()["depth_nonreturn_prob", ...], new_depth_nonreturn_prob
+    )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 import genjax
+import jax
 import jax.numpy as jnp
 import rerun as rr
+from genjax import ChoiceMapBuilder as C
 
 import b3d
 
@@ -71,7 +73,28 @@ def dynamic_object_generative_model(hyperparams, previous_state):
     }
 
 
-### Viz ###
+### Helpers ###
+
+
+def make_colors_choicemap(colors):
+    return jax.vmap(lambda idx: C["colors", idx].set(colors[idx]))(
+        jnp.arange(len(colors))
+    )
+
+
+def make_visibility_prob_choicemap(visibility_prob):
+    return jax.vmap(lambda idx: C["visibility_prob", idx].set(visibility_prob[idx]))(
+        jnp.arange(len(visibility_prob))
+    )
+
+
+def make_depth_nonreturn_prob_choicemap(depth_nonreturn_prob):
+    return jax.vmap(
+        lambda idx: C["depth_nonreturn_prob", idx].set(depth_nonreturn_prob[idx])
+    )(jnp.arange(len(depth_nonreturn_prob)))
+
+
+### Visualization Code ###
 def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_set_time(t)
     hyperparams, _ = trace.get_args()

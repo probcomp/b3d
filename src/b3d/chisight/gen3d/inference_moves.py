@@ -46,9 +46,9 @@ def propose_other_latents_given_pose(key, pose, advanced_trace, inference_hyperp
         k6,
         trace_with_pose,
         [
-            "depth_nonreturn_probs",
+            "depth_nonreturn_prob",
             "colors",
-            "visibility_probs",
+            "visibility_prob",
             "depth_scale",
             "color_scale",
         ],
@@ -103,13 +103,15 @@ def propose_vertex_depth_nonreturn_prob(
     previous_dnrp = previous_state["depth_nonreturn_prob"][vertex_index]
     visibility_prob = new_state["visibility_prob"][vertex_index]
     latent_depth = new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2]
+    depth_scale = new_state["depth_scale"]
+    obs_depth_kernel = hyperparams["image_kernel"].get_depth_vertex_kernel()
 
     def score_dnrp_value(dnrp_value):
         transition_score = hyperparams["depth_nonreturn_prob_kernel"].logpdf(
             dnrp_value, previous_dnrp
         )
-        likelihood_score = hyperparams["depth_pixel_kernel"].logpdf(
-            observed_depth, latent_depth, visibility_prob, dnrp_value
+        likelihood_score = obs_depth_kernel.logpdf(
+            observed_depth, latent_depth, visibility_prob, dnrp_value, depth_scale
         )
         return transition_score + likelihood_score
 

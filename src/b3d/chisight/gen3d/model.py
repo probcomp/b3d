@@ -44,10 +44,10 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         "color_scale": color_scale,
     }
 
-    if "image_likelihood" not in hyperparams:
+    if "image_kernel" not in hyperparams:
         rgbd = None
     else:
-        rgbd = hyperparams["image_likelihood"](new_state, hyperparams) @ "rgbd"
+        rgbd = hyperparams["image_kernel"](new_state, hyperparams) @ "rgbd"
 
     return {
         "new_state": new_state,

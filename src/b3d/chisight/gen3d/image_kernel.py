@@ -34,7 +34,7 @@ class ImageKernel(genjax.ExactDensity):
     ) -> PixelsPointsAssociation:
         return PixelsPointsAssociation.from_points_and_intrinsics(
             transformed_points,
-            hyperparams,  # should include fx, fy, cx, cy
+            hyperparams["intrinsics"],
             self.image_height,
             self.image_width,
         )
@@ -71,7 +71,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         points_to_pixels = self.get_pixels_points_association(
             transformed_points, hyperparams
         )
-        vertex_kernel = self.get_vertex_kernel(state)
+        vertex_kernel = self.get_vertex_kernel()
         observed_rgbd_per_point = observed_rgbd.at[
             points_to_pixels.x, points_to_pixels.y
         ].get(mode="drop", fill_value=-1.0)
@@ -82,15 +82,17 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         scores = jax.vmap(vertex_kernel.logpdf)(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
-            1 - state["visibility_prob"],
+            state["color_scale"],
+            state["depth_scale"],
+            state["visibility_prob"],
             state["depth_nonreturn_prob"],
         )
         return scores.sum()
 
-    def get_vertex_kernel(self, state: Mapping) -> PixelRGBDDistribution:
+    def get_vertex_kernel(self) -> PixelRGBDDistribution:
         # Note: The distributions were originally defined for per-pixel computation,
         # but they should work for per-vertex computation as well
         return PixelRGBDDistribution(
-            FullPixelColorDistribution(state["color_scale"]),
-            FullPixelDepthDistribution(self.near, self.far, state["depth_scale"]),
+            FullPixelColorDistribution(),
+            FullPixelDepthDistribution(self.near, self.far),
         )

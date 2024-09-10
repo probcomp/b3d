@@ -20,7 +20,8 @@ from .model import (
 
 # Use namedtuple rather than dict so we can hash this, and use it as a static arg to a jitted function.
 InferenceHyperparams = namedtuple(
-    "InferenceHyperparams", ["n_poses", "pose_proposal_std", "pose_proposal_conc"]
+    "InferenceHyperparams",
+    ["n_poses", "pose_proposal_std", "pose_proposal_conc", "color_proposal_params"],
 )
 
 
@@ -66,7 +67,7 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     )
 
     param_generation_keys = split(k3, inference_hyperparams.n_poses)
-    proposed_traces, log_q_nonpose_latents = jax.vmap(
+    proposed_traces, log_q_nonpose_latents, other_latents_metadata = jax.vmap(
         propose_other_latents_given_pose, in_axes=(0, None, 0, None)
     )(param_generation_keys, trace, proposed_poses, inference_hyperparams)
     p_scores = jax.vmap(lambda tr: tr.get_score())(proposed_traces)
@@ -75,7 +76,18 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     chosen_index = jax.random.categorical(k4, scores)
     new_trace = jax.tree.map(lambda x: x[chosen_index], proposed_traces)
 
-    return new_trace, logmeanexp(scores), {"proposed_poses": proposed_poses}
+    return (
+        new_trace,
+        logmeanexp(scores),
+        {
+            "proposed_poses": proposed_poses,
+            "chosen_pose_index": chosen_index,
+            "p_scores": p_scores,
+            "log_q_poses": log_q_poses,
+            "log_q_nonpose_latents": log_q_nonpose_latents,
+            "other_latents_metadata": other_latents_metadata,
+        },
+    )
 
 
 def inference_step_noweight(*args):

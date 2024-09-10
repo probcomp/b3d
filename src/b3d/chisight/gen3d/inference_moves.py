@@ -19,14 +19,29 @@ from .projection import PixelsPointsAssociation
 
 
 def propose_pose(key, advanced_trace, inference_hyperparams):
+    """
+    Propose a random pose near the previous timestep's pose.
+    Returns (proposed_pose, log_proposal_density).
+    """
     previous_pose = get_prev_state(advanced_trace)["pose"]
-    hp = inference_hyperparams["pose_proposal"]
-    pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, hp["std"], hp["conc"])
-    log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, hp["std"], hp["conc"])
+    ih = inference_hyperparams
+    pose = Pose.sample_gaussian_vmf_pose(
+        key, previous_pose, ih.pose_proposal_std, ih.pose_proposal_conc
+    )
+    log_q = Pose.logpdf_gaussian_vmf_pose(
+        pose, previous_pose, ih.pose_proposal_std, ih.pose_proposal_conc
+    )
     return pose, log_q
 
 
 def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperparams):
+    """
+    Proposes all latents other than the pose, conditional upon the pose and observed RGBD
+    in `advanced_trace`.
+    Returns (proposed_trace, log_q) where `propose_trace` is the new trace with the
+    proposed latents (and the same pose and observed rgbd as in the given trace).
+    `log_q` is (a fair estimate of) the log proposal density.
+    """
     k1, k2, k3, k4, k5, k6 = split(key, 6)
 
     trace_with_pose = update_field(k1, advanced_trace, "pose", pose)
@@ -58,6 +73,13 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
 
 
 def propose_depth_nonreturn_probs(key, trace):
+    """
+    Propose a new depth nonreturn probability for every vertex, conditioned
+    upon the other values in `trace`.
+    Returns (depth_nonreturn_probs, log_q) where `depth_nonreturn_probs` is
+    a vector of shape (n_vertices,) and `log_q` is (a fair estimate of)
+    the log proposal density of this list of values.
+    """
     observed_depths_per_points = PixelsPointsAssociation.from_hyperparams_and_pose(
         get_hypers(trace), get_new_state(trace)["pose"]
     ).get_point_depths(get_observed_rgbd(trace))
@@ -77,6 +99,14 @@ def propose_depth_nonreturn_probs(key, trace):
 
 
 def propose_colors_and_visibility_probs(key, trace):
+    """
+    Propose a new color and visibility probability for every vertex, conditioned
+    upon the other values in `trace`.
+    Returns (colors, visibility_probs, log_q) where `colors` has shape
+    (n_vertices, 3), `visibility_probs` is a vector of shape (n_vertices,)
+    and `log_q` is (a fair estimate of) the log proposal density of these
+    values.
+    """
     observed_rgbds_per_points = PixelsPointsAssociation.from_hyperparams_and_pose(
         get_hypers(trace), get_new_state(trace)["pose"]
     ).get_point_rgbds(get_observed_rgbd(trace))
@@ -98,6 +128,17 @@ def propose_colors_and_visibility_probs(key, trace):
 def propose_vertex_depth_nonreturn_prob(
     key, vertex_index, observed_depth, previous_state, new_state, hyperparams
 ):
+    """
+    Propose a new depth nonreturn probability for the single vertex
+    with index `vertex_index`.
+    Returns (depth_nonreturn_prob, log_q) where `depth_nonreturn_prob` is
+    the proposed value and `log_q` is (a fair estimate of) the log proposal density.
+    """
+
+    # TODO: could factor into a sub-function that just receives the values
+    # we pull out of the previous and new state here, if that facilitates
+    # unit testing.
+
     previous_dnrp = previous_state["depth_nonreturn_prob"][vertex_index]
     visibility_prob = new_state["visibility_prob"][vertex_index]
     latent_depth = new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2]
@@ -127,6 +168,12 @@ def propose_vertex_depth_nonreturn_prob(
 def propose_vertex_color_and_visibility_prob(
     key, vertex_index, observed_rgbd, previous_state, new_state, hyperparams
 ):
+    """
+    Propose a new color and visibility probability for the single vertex
+    with index `vertex_index`.
+    Returns (color, visibility_prob, log_q) where `color` and `visibility_prob`
+    are the proposed values and `log_q` is (a fair estimate of) the log proposal density.
+    """
     # Placeholder
     return (
         previous_state["colors"][vertex_index],
@@ -136,21 +183,39 @@ def propose_vertex_color_and_visibility_prob(
 
 
 def propose_depth_scale(key, trace):
+    """
+    Propose a new global depth scale, conditioned upon the other values in `trace`.
+    Returns (depth_scale, log_q) where `depth_scale` is the proposed value and
+    `log_q` is (a fair estimate of) the log proposal density.
+    """
     # Placeholder
     return get_prev_state(trace)["depth_scale"], 0.0
 
 
 def propose_color_scale(key, trace):
+    """
+    Propose a new global color scale, conditioned upon the other values in `trace`.
+    Returns (color_scale, log_q) where `color_scale` is the proposed value and
+    `log_q` is (a fair estimate of) the log proposal density.
+    """
     # Placeholder
     return get_prev_state(trace)["color_scale"], 0.0
 
 
 ### Utils ###
 def update_field(key, trace, fieldname, value):
+    """
+    Update `trace` by changing the value at address `fieldname` to `value`.
+    Returns a new trace.
+    """
     return update_fields(key, trace, [fieldname], [value])
 
 
 def update_fields(key, trace, fieldnames, values):
+    """
+    Update `trace` by changing the values at the addresses in `fieldnames` to the
+    corresponding values in `values`.  Returns a new trace.
+    """
     hyperparams, previous_state = trace.get_args()
     trace, _, _, _ = trace.update(
         key,

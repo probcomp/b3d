@@ -1,3 +1,6 @@
+from collections import namedtuple
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import jax.random
@@ -13,6 +16,11 @@ from .inference_moves import (
 from .model import (
     get_hypers,
     get_prev_state,
+)
+
+# Use namedtuple rather than dict so we can hash this, and use it as a static arg to a jitted function.
+InferenceHyperparams = namedtuple(
+    "InferenceHyperparams", ["n_poses", "pose_proposal_std", "pose_proposal_conc"]
 )
 
 
@@ -39,7 +47,7 @@ def advance_time(key, trace, observed_rgbd):
     return trace
 
 
-# @partial(jax.jit, static_argnums=(3,))
+@partial(jax.jit, static_argnums=(3,))
 def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     """
     Perform over the latent state at time T, given the observed
@@ -52,12 +60,12 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
 
     trace = advance_time(k1, old_trace, observed_rgbd)
 
-    pose_generation_keys = split(k2, inference_hyperparams["n_poses"])
+    pose_generation_keys = split(k2, inference_hyperparams.n_poses)
     proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
         pose_generation_keys, trace, inference_hyperparams
     )
 
-    param_generation_keys = split(k3, inference_hyperparams["n_poses"])
+    param_generation_keys = split(k3, inference_hyperparams.n_poses)
     proposed_traces, log_q_nonpose_latents = jax.vmap(
         propose_other_latents_given_pose, in_axes=(0, None, 0, None)
     )(param_generation_keys, trace, proposed_poses, inference_hyperparams)

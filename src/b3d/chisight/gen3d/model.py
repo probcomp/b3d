@@ -44,10 +44,10 @@ def dynamic_object_generative_model(hyperparams, previous_state):
         "color_scale": color_scale,
     }
 
-    if "image_likelihood" not in hyperparams:
+    if "image_kernel" not in hyperparams:
         rgbd = None
     else:
-        rgbd = hyperparams["image_likelihood"](new_state, hyperparams) @ "rgbd"
+        rgbd = hyperparams["image_kernel"](new_state, hyperparams) @ "rgbd"
 
     return {
         "new_state": new_state,
@@ -72,6 +72,26 @@ def make_depth_nonreturn_prob_choicemap(depth_nonreturn_prob):
     return jax.vmap(
         lambda idx: C["depth_nonreturn_prob", idx].set(depth_nonreturn_prob[idx])
     )(jnp.arange(len(depth_nonreturn_prob)))
+
+
+def get_hypers(trace):
+    return trace.get_args()[0]
+
+
+def get_prev_state(trace):
+    return trace.get_args()[1]
+
+
+def get_new_state(trace):
+    return trace.get_retval()["new_state"]
+
+
+def get_n_vertices(trace):
+    return get_hypers(trace)["vertices"].shape[0]
+
+
+def get_observed_rgbd(trace):
+    return trace.get_retval()["rgbd"]
 
 
 ### Visualization Code ###
@@ -122,20 +142,18 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
 
     output = trace.get_retval()
     if output["rgbd"] is not None:
-        info = hyperparams["image_likelihood"].info_from_trace(trace)
         b3d.rr_log_rgb(output["rgbd"][..., :3], "image")
         b3d.rr_log_rgb(output["rgbd"][..., :3], "image/rgb/observed")
         b3d.rr_log_depth(output["rgbd"][..., 3], "image/depth/observed")
 
-        latent_rgbd = info["latent_rgbd"]
-        b3d.rr_log_rgb(latent_rgbd[..., :3], "image/rgb/latent")
-        b3d.rr_log_depth(latent_rgbd[..., 3], "image/depth/latent")
+        # TODO: should we add in a way to visualize a noise-free projection
+        # of the points to the camera plane?
 
         fx, fy, cx, cy = (
-            hyperparams["fx"],
-            hyperparams["fy"],
-            hyperparams["cx"],
-            hyperparams["cy"],
+            hyperparams["intrinsics"]["fx"],
+            hyperparams["intrinsics"]["fy"],
+            hyperparams["intrinsics"]["cx"],
+            hyperparams["intrinsics"]["cy"],
         )
         b3d.rr_log_cloud(
             b3d.xyz_from_depth(

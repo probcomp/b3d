@@ -24,7 +24,17 @@ UNEXPLAINED_DEPTH_NONRETURN_PROB = 0.02
 
 @Pytree.dataclass
 class PixelDepthDistribution(genjax.ExactDensity):
-    """An abstract class that defines the common interface for pixel depth kernels."""
+    """
+    An abstract class that defines the common interface for pixel depth kernels.
+
+    Distribution args:
+    - latent_depth
+    - depth_scale
+    - visibility_prob
+    - depth_nonreturn_prob
+
+    Support: depth value in [near, far], or DEPTH_NONRETURN_VAL.
+    """
 
     @abstractmethod
     def sample(self, key: PRNGKey, latent_depth: float, *args, **kwargs) -> float:
@@ -46,28 +56,34 @@ class TruncatedLaplacePixelDepthDistribution(PixelDepthDistribution):
 
     near: float = Pytree.static()
     far: float = Pytree.static()
-    depth_scale: float
     # the uniform window is used to wrapped the truncated laplace distribution
     # to ensure that the depth generated is within the range of [near, far]
     uniform_window_size: float = Pytree.static(default=_FIXED_DEPTH_UNIFORM_WINDOW)
 
-    def sample(self, key: PRNGKey, latent_depth: float, *args, **kwargs) -> float:
+    def sample(
+        self, key: PRNGKey, latent_depth: float, depth_scale: float, *args, **kwargs
+    ) -> float:
         return truncated_laplace.sample(
             key,
             latent_depth,
-            self.depth_scale,
+            depth_scale,
             self.near,
             self.far,
             self.uniform_window_size,
         )
 
     def logpdf(
-        self, observed_depth: float, latent_depth: float, *args, **kwargs
+        self,
+        observed_depth: float,
+        latent_depth: float,
+        depth_scale: float,
+        *args,
+        **kwargs,
     ) -> float:
         return truncated_laplace.logpdf(
             observed_depth,
             latent_depth,
-            self.depth_scale,
+            depth_scale,
             self.near,
             self.far,
             self.uniform_window_size,
@@ -113,7 +129,7 @@ class DeltaDistribution(genjax.ExactDensity):
 class MixturePixelDepthDistribution(PixelDepthDistribution):
     """A distribution that generates the depth of a pixel from
     mixture(
-        [delta(-1), uniform(near, far), laplace(latent_depth; depth_scale)],
+        [delta(DEPTH_NONRETURN_VAL), uniform(near, far), laplace(latent_depth; depth_scale)],
         [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * occluded_prob, remaining_prob]
     )
 
@@ -122,7 +138,6 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
 
     near: float = Pytree.static()
     far: float = Pytree.static()
-    depth_scale: float
 
     @property
     def _nonreturn_dist(self) -> PixelDepthDistribution:
@@ -134,9 +149,7 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
 
     @property
     def _inlier_dist(self) -> PixelDepthDistribution:
-        return TruncatedLaplacePixelDepthDistribution(
-            self.near, self.far, self.depth_scale
-        )
+        return TruncatedLaplacePixelDepthDistribution(self.near, self.far)
 
     @property
     def _mixture_dist(self) -> PythonMixtureDistribution:
@@ -145,13 +158,13 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
         )
 
     def _get_mix_ratio(
-        self, occluded_prob: float, depth_nonreturn_prob: float
+        self, visibility_prob: float, depth_nonreturn_prob: float
     ) -> FloatArray:
         return jnp.array(
             (
                 depth_nonreturn_prob,
-                (1 - depth_nonreturn_prob) * occluded_prob,
-                (1 - depth_nonreturn_prob) * (1 - occluded_prob),
+                (1 - depth_nonreturn_prob) * (1 - visibility_prob),
+                (1 - depth_nonreturn_prob) * visibility_prob,
             )
         )
 
@@ -159,30 +172,32 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
         self,
         key: PRNGKey,
         latent_depth: float,
-        occluded_prob: float,
+        depth_scale: float,
+        visibility_prob: float,
         depth_nonreturn_prob: float,
         *args,
         **kwargs,
     ) -> float:
         return self._mixture_dist.sample(
             key,
-            self._get_mix_ratio(occluded_prob, depth_nonreturn_prob),
-            [(), (), (latent_depth,)],
+            self._get_mix_ratio(visibility_prob, depth_nonreturn_prob),
+            [(), (), (latent_depth, depth_scale)],
         )
 
     def logpdf(
         self,
         observed_depth: float,
         latent_depth: float,
-        occluded_prob: float,
+        depth_scale: float,
+        visibility_prob: float,
         depth_nonreturn_prob: float,
         *args,
         **kwargs,
     ) -> float:
         return self._mixture_dist.logpdf(
             observed_depth,
-            self._get_mix_ratio(occluded_prob, depth_nonreturn_prob),
-            [(), (), (latent_depth,)],
+            self._get_mix_ratio(visibility_prob, depth_nonreturn_prob),
+            [(), (), (latent_depth, depth_scale)],
         )
 
 
@@ -190,7 +205,7 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
 class UnexplainedPixelDepthDistribution(PixelDepthDistribution):
     """A distribution that generates the depth of a pixel from
     mixture(
-        [delta(-1), uniform(near, far)],
+        [delta(DEPTH_NONRETURN_VAL), uniform(near, far)],
         [unexplained_depth_nonreturn_prob, 1 - unexplained_depth_nonreturn_prob]
     ),
     for pixels that are not explained by the latent points.
@@ -249,23 +264,22 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
 
     if no latent point hits the pixel:
         depth ~ mixture(
-            [delta(-1), uniform(near, far)],
+            [delta(DEPTH_NONRETURN_VAL), uniform(near, far)],
             [unexplained_depth_nonreturn_prob, 1 - unexplained_depth_nonreturn_prob]
         )
     else:
         mixture(
-            [delta(-1), uniform(near, far), laplace(latent_depth; depth_scale)],
-            [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * occluded_prob, remaining_prob]
+            [delta(DEPTH_NONRETURN_VAL), uniform(near, far), laplace(latent_depth; depth_scale)],
+            [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * (1 - visibility_prob), remaining_prob]
         )
     """
 
     near: float = Pytree.static()
     far: float = Pytree.static()
-    depth_scale: float
 
     @property
     def _depth_from_latent(self) -> PixelDepthDistribution:
-        return MixturePixelDepthDistribution(self.near, self.far, self.depth_scale)
+        return MixturePixelDepthDistribution(self.near, self.far)
 
     @property
     def _unexplained_depth(self) -> PixelDepthDistribution:
@@ -275,7 +289,8 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
         self,
         key: PRNGKey,
         latent_depth: FloatArray,
-        occluded_prob: FloatArray,
+        depth_scale: FloatArray,
+        visibility_prob: FloatArray,
         depth_nonreturn_prob: float,
         *args,
         **kwargs,
@@ -287,7 +302,8 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
             # sample args
             key,
             latent_depth,
-            occluded_prob,
+            depth_scale,
+            visibility_prob,
             depth_nonreturn_prob,
         )
 
@@ -295,7 +311,8 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
         self,
         observed_depth: FloatArray,
         latent_depth: FloatArray,
-        occluded_prob: float,
+        depth_scale: FloatArray,
+        visibility_prob: float,
         depth_nonreturn_prob: float,
         *args,
         **kwargs,
@@ -307,6 +324,7 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
             # logpdf args
             observed_depth,
             latent_depth,
-            occluded_prob,
+            depth_scale,
+            visibility_prob,
             depth_nonreturn_prob,
         )

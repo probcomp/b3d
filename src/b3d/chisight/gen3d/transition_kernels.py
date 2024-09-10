@@ -362,32 +362,21 @@ class UniformPoseDriftKernel(DriftKernel):
 
 # Discrete Kernels
 
-
-@Pytree.dataclass
-class DiscreteKernel(genjax.ExactDensity):
-    """An abstract class that defines the common interface for drift kernels."""
-
-    @abstractmethod
-    def sample(self, key: PRNGKey, prev_value, possible_values):
-        raise NotImplementedError
-
-    @abstractmethod
-    def logpdf(self, new_value, prev_value, possible_values):
-        raise NotImplementedError
+# TODO: add back in the base class for discretekernel.
+# I removed it since its listed interface had become
+# out of sync with `DiscreteFlipKernel`.
 
 
 @Pytree.dataclass
-class DiscreteFlipKernel(DiscreteKernel):
+class DiscreteFlipKernel(genjax.ExactDensity):
     resample_probability: float = Pytree.static()
-    possible_values: ArrayLike = Pytree.static()
+    support: ArrayLike = Pytree.static()
 
     def sample(self, key: PRNGKey, prev_value):
         should_resample = jax.random.bernoulli(key, self.resample_probability)
         return (
             should_resample
-            * self.possible_values.at[
-                jax.random.choice(key, len(self.possible_values))
-            ].get()
+            * self.support.at[jax.random.choice(key, len(self.support))].get()
             + (1 - should_resample) * prev_value
         )
 
@@ -396,6 +385,6 @@ class DiscreteFlipKernel(DiscreteKernel):
         return jnp.logaddexp(
             jnp.log(1.0 - self.resample_probability) + jnp.log(1.0 * match),
             jnp.log(self.resample_probability)
-            - jnp.log(len(self.possible_values) - 1)
+            - jnp.log(len(self.support) - 1)
             + jnp.log(1.0 * (1 - match)),
         )

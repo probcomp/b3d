@@ -9,7 +9,7 @@ def test_discrete_flip_kernel():
     possible_values = jnp.linspace(0, 1, num_values)
     flip_probability = 0.1
     kernel = transition_kernels.DiscreteFlipKernel(
-        resample_probability=flip_probability, possible_values=possible_values
+        resample_probability=flip_probability, support=possible_values
     )
 
     assert jnp.isclose(

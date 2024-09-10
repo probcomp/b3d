@@ -53,6 +53,7 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
         k3, trace_with_pose
     )
+    log_q_cvp = 0.0
     depth_scale, log_q_ds = propose_depth_scale(k4, trace_with_pose)
     color_scale, log_q_cs = propose_color_scale(k5, trace_with_pose)
 
@@ -317,7 +318,7 @@ def propose_vertex_color_given_visibility(
     normalized_scores = scores - jax.scipy.special.logsumexp(scores)
     sampled_index = jax.random.categorical(key, normalized_scores)
     sampled_rgb = proposed_rgbs[sampled_index]
-    log_K_score = normalized_scores[sampled_index]
+    log_K_score = log_qs.sum() + normalized_scores[sampled_index]
 
     ## "L proposal": given the sampled rgb, estimate the probability that
     # it came from the one of the 3 proposals that actually was used.

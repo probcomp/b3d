@@ -119,6 +119,9 @@ def propose_vertex_depth_nonreturn_prob(
     log_pscores = jax.vmap(score_dnrp_value)(support)
     log_normalized_scores = log_pscores - jax.scipy.special.logsumexp(log_pscores)
     index = jax.random.categorical(key, log_normalized_scores)
+    # ^ since we are enumerating over every value in the domain, it is unnecessary
+    # to add a 1/q score when resampling.  (Equivalently, we could include
+    # q = 1/len(support), which does not change the resampling distribuiton at all.)
 
     return support[index], log_normalized_scores[index]
 

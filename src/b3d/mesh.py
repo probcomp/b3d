@@ -183,10 +183,10 @@ class Mesh:
     def rr_visualize(self, channel):
         rr_visualize_mesh(channel, self)
 
-    def scale(self, scale):
-        self.vertices = self.vertices.at[:, 0].set(self.vertices[:, 0] * scale[0])
-        self.vertices = self.vertices.at[:, 1].set(self.vertices[:, 1] * scale[1])
-        self.vertices = self.vertices.at[:, 2].set(self.vertices[:, 2] * scale[2])
+    def scale(self, scale) -> "Mesh":
+        self.vertices = self.vertices.at[:, 0].multiply(scale[0])
+        self.vertices = self.vertices.at[:, 1].multiply(scale[1])
+        self.vertices = self.vertices.at[:, 2].multiply(scale[2])
         return Mesh(self.vertices, self.faces, self.vertex_attributes)
 
     @staticmethod

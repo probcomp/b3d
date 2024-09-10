@@ -184,7 +184,10 @@ class Mesh:
         rr_visualize_mesh(channel, self)
 
     def scale(self, scale):
-        return Mesh(self.vertices * scale, self.faces, self.vertex_attributes)
+        self.vertices = self.vertices.at[:, 0].set(self.vertices[:, 0] * scale[0])
+        self.vertices = self.vertices.at[:, 1].set(self.vertices[:, 1] * scale[1])
+        self.vertices = self.vertices.at[:, 2].set(self.vertices[:, 2] * scale[2])
+        return Mesh(self.vertices, self.faces, self.vertex_attributes)
 
     @staticmethod
     def cube_mesh(dimensions=jnp.ones(3), color=jnp.array([1.0, 0.0, 0.0])):

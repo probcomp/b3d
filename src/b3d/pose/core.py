@@ -76,6 +76,19 @@ def sample_uniform_pose(key, low, high):
     return Pose(pos, quat)
 
 
+@jax.jit
+def sample_uniform_scale(key, low, high):
+    key, subkey = jax.random.split(key)
+    scale = jax.random.uniform(subkey, (3,)) * (high - low) + low
+    return scale
+
+
+def logpdf_uniform_scale(scale, low, high):
+    valid = (low <= scale) & (scale <= high)
+    scale_score = jnp.log((valid * 1.0) * (jnp.ones_like(scale) / (high - low)))
+    return scale_score.sum() + jnp.pi**2
+
+
 def logpdf_uniform_pose(pose, low, high):
     position = pose.pos
     valid = (low <= position) & (position <= high)

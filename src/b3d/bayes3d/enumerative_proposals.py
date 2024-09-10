@@ -31,6 +31,18 @@ enumerate_and_select_best_move = jax.jit(
 )
 
 
+def _enumerate_and_select_best_move_scale(trace, addressses, key, all_deltas):
+    potential_scores = b3d.enumerate_choices_get_scores(trace, addressses, all_deltas)
+    best_scale = all_deltas[potential_scores.argmax()]
+    trace = b3d.update_choices(trace, addressses, best_scale)
+    return trace, key
+
+
+enumerate_and_select_best_move_scale = jax.jit(
+    _enumerate_and_select_best_move_scale, static_argnames=["addressses"]
+)
+
+
 def _gvmf_and_select_best_move(trace, key, variance, concentration, address, number):
     test_poses = Pose.concatenate_poses(
         [

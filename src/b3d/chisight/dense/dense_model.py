@@ -7,7 +7,7 @@ from genjax import Pytree
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
-from b3d.modeling_utils import uniform_pose
+from b3d.modeling_utils import uniform_pose, uniform_scale
 
 
 def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
@@ -44,11 +44,16 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         likelihood_args["blur"] = blur
 
         all_poses = []
+        scaled_meshes = []
         for i in range(num_objects.const):
             object_pose = (
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
                 @ f"object_pose_{i}"
             )
+            object_scale = (
+                uniform_scale(jnp.ones(3) * 0, jnp.ones(3) * 10.0) @ f"object_scale_{i}"
+            )
+            scaled_meshes.append(meshes[i].scale(object_scale))
             all_poses.append(object_pose)
         all_poses = Pose.stack_poses(all_poses)
 
@@ -56,9 +61,9 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
         )
 
-        scene_mesh = Mesh.transform_and_merge_meshes(meshes, all_poses).transform(
-            camera_pose.inv()
-        )
+        scene_mesh = Mesh.transform_and_merge_meshes(
+            scaled_meshes, all_poses
+        ).transform(camera_pose.inv())
         likelihood_args["scene_mesh"] = scene_mesh
 
         depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"

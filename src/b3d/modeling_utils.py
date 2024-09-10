@@ -6,8 +6,10 @@ from tensorflow_probability.substrates import jax as tfp
 from b3d.pose import (
     logpdf_gaussian_vmf_pose,
     logpdf_uniform_pose,
+    logpdf_uniform_scale,
     sample_gaussian_vmf_pose,
     sample_uniform_pose,
+    sample_uniform_scale,
 )
 
 
@@ -32,6 +34,7 @@ uniform_discrete = genjax.exact_density(
     lambda sampled_val, vals: jnp.log(1.0 / (vals.shape[0])),
 )
 uniform_pose = genjax.exact_density(sample_uniform_pose, logpdf_uniform_pose)
+uniform_scale = genjax.exact_density(sample_uniform_scale, logpdf_uniform_scale)
 
 vmf = genjax.exact_density(
     lambda key, mean, concentration: tfp.distributions.VonMisesFisher(

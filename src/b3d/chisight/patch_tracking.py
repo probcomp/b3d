@@ -90,7 +90,7 @@ def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity())
     """
 
     def allidx_chm(x):
-        return genjax.ChoiceMap.idx(jnp.arange(x.shape[0], dtype=int), x)
+        return C[jnp.arange(x.shape[0], dtype=int)].set(x)
 
     @jax.jit
     def importance_from_pos_quat(positions, quaternions, observed_rgbd):

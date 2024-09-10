@@ -74,6 +74,26 @@ def make_depth_nonreturn_prob_choicemap(depth_nonreturn_prob):
     )(jnp.arange(len(depth_nonreturn_prob)))
 
 
+def get_hypers(trace):
+    return trace.get_args()[0]
+
+
+def get_prev_state(trace):
+    return trace.get_args()[1]
+
+
+def get_new_state(trace):
+    return trace.get_retval()["new_state"]
+
+
+def get_n_vertices(trace):
+    return get_hypers(trace)["vertices"].shape[0]
+
+
+def get_observed_rgbd(trace):
+    return trace.get_retval()["rgbd"]
+
+
 ### Visualization Code ###
 def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_set_time(t)

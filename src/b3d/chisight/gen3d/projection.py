@@ -20,6 +20,18 @@ class PixelsPointsAssociation(Pytree):
     image_width: int
 
     @classmethod
+    def from_hyperparams_and_pose(cls, hyperparams, pose_CO):
+        """`pose_CO` is the same thing as `pose` in the model."""
+        vertices_O = hyperparams["vertices"]
+        vertices_C = pose_CO.apply(vertices_O)
+        return cls.from_points_and_intrinsics(
+            vertices_C,
+            hyperparams["intrinsics"],
+            hyperparams["image_height"],
+            hyperparams["image_width"],
+        )
+
+    @classmethod
     def from_points_and_intrinsics(
         cls,
         points: FloatArray,
@@ -74,6 +86,30 @@ class PixelsPointsAssociation(Pytree):
     @property
     def y(self) -> IntArray:
         return self.projected_pixel_coordinates[:, 1]
+
+    def get_point_rgbds(self, rgbd_image: FloatArray) -> FloatArray:
+        """
+        Get a (num_vertices, 4) array of RGBD values for each vertex
+        by indexing into the given image.
+        Vertices that don't hit a pixel will have a value of (-1, -1, -1, -1).
+        """
+        unfiltered = rgbd_image[self.x, self.y]
+        invalid_indices = jnp.logical_or(self.x == INVALID_IDX, self.y == INVALID_IDX)
+        return jnp.where(invalid_indices, -jnp.ones(4), unfiltered)
+
+    def get_point_depths(self, rgbd_image: FloatArray) -> FloatArray:
+        """
+        Get a (num_vertices,) array of depth values for each vertex
+        by indexing into the given image, or -1 if the vertex doesn't hit a pixel.
+        """
+        return self.get_point_rgbds(rgbd_image)[..., 3]
+
+    def get_point_rgbs(self, rgbd: FloatArray) -> FloatArray:
+        """
+        Get a (num_vertices, 3) array of RGB values for each vertex
+        by indexing into the given image, or [-1, -1, -1] if the vertex doesn't hit a pixel.
+        """
+        return self.get_point_rgbds(rgbd)[..., :3]
 
     @cached_property
     def num_point_per_pixel(self) -> IntArray:

@@ -28,6 +28,7 @@ def test_model_no_likelihood():
     # colors = jax.random.uniform(
     #     jax.random.PRNGKey(1), (num_vertices, 3), minval=0, maxval=1
     # )
+
     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
     id = 0
     mesh = Mesh.from_obj_file(
@@ -152,69 +153,6 @@ color_scale_kernel resample_probability: {hyperparams['color_scale_kernel'].resa
     assert jnp.allclose(
         new_trace.get_choices()["depth_nonreturn_prob", ...], new_depth_nonreturn_prob
     )
-
-
-# def test_model():
-#     importance = b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
-
-
-#     # num_vertices = 100
-#     # vertices = jax.random.uniform(
-#     #     jax.random.PRNGKey(0), (num_vertices, 3), minval=-1, maxval=1
-#     # )
-#     # colors = jax.random.uniform(
-#     #     jax.random.PRNGKey(1), (num_vertices, 3), minval=0, maxval=1
-#     # )
-#     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
-#     id = 0
-#     mesh = Mesh.from_obj_file(
-#         os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
-#     ).scale(0.001)
-#     vertices = mesh.vertices
-#     colors = mesh.vertex_attributes
-#     num_vertices = vertices.shape[0]
-
-#     key = jax.random.PRNGKey(0)
-#     hyperparams = {
-#         "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.1),
-#         "color_kernel": transition_kernels.LaplaceColorDriftKernel(scale=0.05),
-#         "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-#             resample_probability=0.1, possible_values=jnp.array([0.01, 0.99])
-#         ),
-#         "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-#             resample_probability=0.1, possible_values=jnp.array([0.01, 0.99])
-#         ),
-#         "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
-#             resample_probability=0.1, possible_values=jnp.array([0.005, 0.01, 0.02])
-#         ),
-#         "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-#             resample_probability=0.1, possible_values=jnp.array([0.05, 0.1, 0.15])
-#         ),
-
-#         "image_likelihood": image_kernel.SimpleNoRenderImageLikelihood(),
-
-#         "vertices": vertices,
-#         "fx": 1,
-#         "fy": 1,
-#         "cx": 0,
-#         "cy": 0,
-#         "image_height": Pytree.const(100),
-#         "image_width": Pytree.const(100),
-#     }
-
-#     previous_state = {
-#         "pose": Pose.identity(),
-#         "colors": colors,
-#         "visibility_prob": jnp.ones(num_vertices)
-#         * hyperparams["visibility_prob_kernel"].possible_values[-1],
-#         "depth_nonreturn_prob": jnp.ones(num_vertices)
-#         * hyperparams["depth_nonreturn_prob_kernel"].possible_values[0],
-#         "depth_scale": hyperparams["depth_scale_kernel"].possible_values[0],
-#         "color_scale": hyperparams["color_scale_kernel"].possible_values[0],
-#     }
-
-#     key = jax.random.PRNGKey(0)
-#     trace =  b3d.chisight.gen3d.model.dynamic_object_and_image_generative_model.importance(key, C.n(), (hyperparams, previous_state))[0]
 
 
 if __name__ == "__main__":

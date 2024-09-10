@@ -141,7 +141,7 @@ class UniformDriftKernel(DriftKernel):
         return self._base_dist(prev_value).sample(seed=key)
 
     def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
-        return self._base_dist(prev_value).log_prob(new_value)
+        return self._base_dist(prev_value).log_prob(new_value).sum()
 
     def _base_dist(self, prev_value: ArrayLike):
         """Returns a uniform distribution centered around prev_value, bounded by

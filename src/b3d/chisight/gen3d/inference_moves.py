@@ -284,7 +284,7 @@ def propose_vertex_color_and_visibility_prob(
             score_visprob_rgb,
             previous_rgb,
             new_state,
-            hyperparams,
+            inference_hyperparams,
         )
     )(split(k1, len(all_vis_probs)), all_vis_probs)
 
@@ -312,7 +312,7 @@ def propose_vertex_color_given_visibility(
     score_visprob_and_rgb,
     previous_rgb,
     new_state,
-    hyperparams,
+    inference_hyperparams,
 ):
     """
     This samples an rgb value from a proposal which first proposes 3 different rgb values,
@@ -340,7 +340,7 @@ def propose_vertex_color_given_visibility(
     In practice this means if the posterior ever assigns mass to RGB values outside this range, we can't
     propose traces that match that part of the posterior.
     """
-    color_shift_scale = hyperparams["color_kernel"].scale
+    color_shift_scale = inference_hyperparams.effective_color_transition_scale
     color_scale = new_state["color_scale"]
     d = 1 / (1 / color_shift_scale + 1 / color_scale)
 
@@ -421,8 +421,21 @@ def propose_depth_scale(key, trace):
     Returns (depth_scale, log_q) where `depth_scale` is the proposed value and
     `log_q` is (a fair estimate of) the log proposal density.
     """
-    # Placeholder
-    return get_prev_state(trace)["depth_scale"], 0.0
+    k1, k2 = split(key, 2)
+
+    def score_depth_scale(k, depth_scale):
+        newtr = update_field(k, trace, "depth_scale", depth_scale)
+        return newtr.get_score()
+
+    support = get_hypers(trace)["depth_scale_kernel"].support
+    scores = jax.vmap(score_depth_scale, in_axes=(0, 0))(
+        split(k1, len(support)), support
+    )
+
+    normalized_scores = normalize_log_scores(scores)
+    index = jax.random.categorical(k2, normalized_scores)
+
+    return support[index], normalized_scores[index]
 
 
 def propose_color_scale(key, trace):
@@ -431,8 +444,21 @@ def propose_color_scale(key, trace):
     Returns (color_scale, log_q) where `color_scale` is the proposed value and
     `log_q` is (a fair estimate of) the log proposal density.
     """
-    # Placeholder
-    return get_prev_state(trace)["color_scale"], 0.0
+    k1, k2 = split(key, 2)
+
+    def score_color_scale(k, color_scale):
+        newtr = update_field(k, trace, "color_scale", color_scale)
+        return newtr.get_score()
+
+    support = get_hypers(trace)["color_scale_kernel"].support
+    scores = jax.vmap(score_color_scale, in_axes=(0, 0))(
+        split(k1, len(support)), support
+    )
+
+    normalized_scores = normalize_log_scores(scores)
+    index = jax.random.categorical(k2, normalized_scores)
+
+    return support[index], normalized_scores[index]
 
 
 ### Utils ###

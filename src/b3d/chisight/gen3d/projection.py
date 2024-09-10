@@ -55,7 +55,7 @@ class PixelsPointsAssociation(Pytree):
                 intrinsics["fy"],
                 intrinsics["cx"],
                 intrinsics["cy"],
-            )
+            ) - 0.5
         )
         # handle NaN before converting to int (otherwise NaN will be converted
         # to 0)

@@ -48,30 +48,33 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     trace = update_field(k1, advanced_trace, "pose", pose)
 
     k2a, k2b = split(k2)
-    depth_nonreturn_probs, log_q_dnrps = propose_depth_nonreturn_probs(k2a, trace)
+    depth_nonreturn_probs, log_q_dnrps, dnrp_metadata = propose_depth_nonreturn_probs(k2a, trace)
     trace = update_vmapped_field(
         k2b, trace, "depth_nonreturn_prob", depth_nonreturn_probs
     )
 
-    k3a, k3b = split(k3)
-    colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
-        k3a, trace
-    )
-    trace = update_vmapped_fields(
-        k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
-    )
-    log_q_cvp = 0.0
+    # k3a, k3b = split(k3)
+    # colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
+    #     k3a, trace
+    # )
+    # trace = update_vmapped_fields(
+    #     k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
+    # )
+    # log_q_cvp = 0.0
 
-    k4a, k4b = split(k4)
-    depth_scale, log_q_ds = propose_depth_scale(k4a, trace)
-    trace = update_field(k4b, trace, "depth_scale", depth_scale)
+    # k4a, k4b = split(k4)
+    # depth_scale, log_q_ds = propose_depth_scale(k4a, trace)
+    # trace = update_field(k4b, trace, "depth_scale", depth_scale)
 
-    k5a, k5b = split(k5)
-    color_scale, log_q_cs = propose_color_scale(k5a, trace)
-    trace = update_field(k5b, trace, "color_scale", color_scale)
+    # k5a, k5b = split(k5)
+    # color_scale, log_q_cs = propose_color_scale(k5a, trace)
+    # trace = update_field(k5b, trace, "color_scale", color_scale)
 
-    log_q = log_q_dnrps + log_q_cvp + log_q_ds + log_q_cs
-    return trace, log_q
+    log_q = log_q_dnrps # + log_q_cvp + log_q_ds + log_q_cs
+    return trace, log_q, {
+        "depth_nonreturn_proposal": dnrp_metadata,
+        "dnrps": depth_nonreturn_probs
+    }
 
 
 def propose_depth_nonreturn_probs(key, trace):
@@ -86,7 +89,7 @@ def propose_depth_nonreturn_probs(key, trace):
         get_hypers(trace), get_new_state(trace)["pose"]
     ).get_point_depths(get_observed_rgbd(trace))
 
-    depth_nonreturn_probs, per_vertex_log_qs = jax.vmap(
+    depth_nonreturn_probs, per_vertex_log_qs, metadata = jax.vmap(
         propose_vertex_depth_nonreturn_prob, in_axes=(0, 0, 0, None, None, None)
     )(
         split(key, get_n_vertices(trace)),
@@ -97,7 +100,7 @@ def propose_depth_nonreturn_probs(key, trace):
         get_hypers(trace),
     )
 
-    return depth_nonreturn_probs, per_vertex_log_qs.sum()
+    return depth_nonreturn_probs, per_vertex_log_qs.sum(), metadata
 
 
 def propose_colors_and_visibility_probs(key, trace):
@@ -136,27 +139,45 @@ def propose_vertex_depth_nonreturn_prob(
     Returns (depth_nonreturn_prob, log_q) where `depth_nonreturn_prob` is
     the proposed value and `log_q` is (a fair estimate of) the log proposal density.
     """
-
-    # TODO: could factor into a sub-function that just receives the values
-    # we pull out of the previous and new state here, if that facilitates
-    # unit testing.
-
     previous_dnrp = previous_state["depth_nonreturn_prob"][vertex_index]
     visibility_prob = new_state["visibility_prob"][vertex_index]
     latent_depth = new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2]
-    depth_scale = new_state["depth_scale"]
-    obs_depth_kernel = hyperparams["image_kernel"].get_depth_vertex_kernel()
+    return _propose_vertex_depth_nonreturn_prob(
+        key,
+        observed_depth,
+        latent_depth,
+        visibility_prob,
+        new_state["depth_scale"],
+        previous_dnrp,
+        hyperparams["depth_nonreturn_prob_kernel"],
+        hyperparams["image_kernel"].get_depth_vertex_kernel()
+    )
 
+def _propose_vertex_depth_nonreturn_prob(
+    key,
+    observed_depth,
+    latent_depth,
+    visibility_prob,
+    depth_scale,
+    previous_dnrp,
+    dnrp_transition_kernel,
+    obs_depth_kernel,
+    return_metadata=False
+):
     def score_dnrp_value(dnrp_value):
-        transition_score = hyperparams["depth_nonreturn_prob_kernel"].logpdf(
+        transition_score = dnrp_transition_kernel.logpdf(
             dnrp_value, previous_dnrp
         )
         likelihood_score = obs_depth_kernel.logpdf(
-            observed_depth, latent_depth, visibility_prob, dnrp_value, depth_scale
+            observed_depth=observed_depth,
+            latent_depth=latent_depth,
+            depth_scale=depth_scale,
+            visibility_prob=visibility_prob,
+            depth_nonreturn_prob=dnrp_value
         )
         return transition_score + likelihood_score
 
-    support = hyperparams["depth_nonreturn_prob_kernel"].support
+    support = dnrp_transition_kernel.support
     log_pscores = jax.vmap(score_dnrp_value)(support)
     log_normalized_scores = log_pscores - jax.scipy.special.logsumexp(log_pscores)
     index = jax.random.categorical(key, log_normalized_scores)
@@ -164,7 +185,25 @@ def propose_vertex_depth_nonreturn_prob(
     # to add a 1/q score when resampling.  (Equivalently, we could include
     # q = 1/len(support), which does not change the resampling distribuiton at all.)
 
-    return support[index], log_normalized_scores[index]
+    if return_metadata:
+        metadata = {
+            "support": support,
+            "log_normalized_scores": log_normalized_scores,
+            "index": index,
+            "observed_depth": observed_depth,
+            "latent_depth": latent_depth,
+            "prev_dnrp": previous_dnrp,
+            "transition_score": jax.vmap(lambda dnrp_value: dnrp_transition_kernel.logpdf(
+                dnrp_value, previous_dnrp
+            ))(support),
+            "likelihood_score": jax.vmap(lambda dnrp_value: obs_depth_kernel.logpdf(
+                observed_depth, latent_depth, visibility_prob, dnrp_value, depth_scale
+            ))(support)
+        }
+    else:
+        metadata = {}
+
+    return support[index], log_normalized_scores[index], metadata
 
 
 def propose_vertex_color_and_visibility_prob(

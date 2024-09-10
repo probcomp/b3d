@@ -19,9 +19,7 @@ b3d.rr_init("test_gen3d_model")
 
 
 def test_model_no_likelihood():
-    importance = jax.jit(
-        b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
-    )
+    importance = b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
 
     # num_vertices = 100
     # vertices = jax.random.uniform(
@@ -30,6 +28,7 @@ def test_model_no_likelihood():
     # colors = jax.random.uniform(
     #     jax.random.PRNGKey(1), (num_vertices, 3), minval=0, maxval=1
     # )
+
     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
     id = 0
     mesh = Mesh.from_obj_file(
@@ -70,6 +69,7 @@ def test_model_no_likelihood():
     }
 
     key = jax.random.PRNGKey(0)
+    trace = importance(key, C.n(), (hyperparams, previous_state))[0]
     trace = importance(key, C.n(), (hyperparams, previous_state))[0]
 
     key = jax.random.PRNGKey(0)

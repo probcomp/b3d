@@ -120,44 +120,43 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
         colors,
     )
 
-    # output = trace.get_retval()
-    # if output["rgbd"] is not None:
-    #     info = info_from_trace(trace)
-    #     b3d.rr_log_rgb(output["rgbd"][..., :3], "image")
-    #     b3d.rr_log_rgb(output["rgbd"][..., :3], "image/rgb/observed")
-    #     b3d.rr_log_depth(output["rgbd"][..., 3], "image/depth/observed")
+    output = trace.get_retval()
+    if output["rgbd"] is not None:
+        info = hyperparams["image_likelihood"].info_from_trace(trace)
+        b3d.rr_log_rgb(output["rgbd"][..., :3], "image")
+        b3d.rr_log_rgb(output["rgbd"][..., :3], "image/rgb/observed")
+        b3d.rr_log_depth(output["rgbd"][..., 3], "image/depth/observed")
 
-    #     latent_rgbd = info["latent_rgbd"]
-    #     b3d.rr_log_rgb(latent_rgbd[..., :3], "image/rgb/latent")
-    #     b3d.rr_log_depth(latent_rgbd[..., 3], "image/depth/latent")
+        latent_rgbd = info["latent_rgbd"]
+        b3d.rr_log_rgb(latent_rgbd[..., :3], "image/rgb/latent")
+        b3d.rr_log_depth(latent_rgbd[..., 3], "image/depth/latent")
 
-    #     likelihood_args = trace.get_retval()["likelihood_args"]
-    #     fx, fy, cx, cy = (
-    #         likelihood_args["fx"],
-    #         likelihood_args["fy"],
-    #         likelihood_args["cx"],
-    #         likelihood_args["cy"],
-    #     )
-    #     b3d.rr_log_cloud(
-    #         b3d.xyz_from_depth(
-    #             output["rgbd"][..., 3],
-    #             fx,
-    #             fy,
-    #             cx,
-    #             cy,
-    #         ),
-    #         "scene/observed",
-    #         output["rgbd"][..., :3].reshape(-1, 3),
-    #     )
+        fx, fy, cx, cy = (
+            hyperparams["fx"],
+            hyperparams["fy"],
+            hyperparams["cx"],
+            hyperparams["cy"],
+        )
+        b3d.rr_log_cloud(
+            b3d.xyz_from_depth(
+                output["rgbd"][..., 3],
+                fx,
+                fy,
+                cx,
+                cy,
+            ),
+            "scene/observed",
+            output["rgbd"][..., :3].reshape(-1, 3),
+        )
 
-    # if ground_truth_vertices is not None:
-    #     b3d.rr_log_cloud(
-    #         trace.get_choices()["pose"].apply(ground_truth_vertices),
-    #         "scene/full_object_model",
-    #     )
+    if ground_truth_vertices is not None:
+        b3d.rr_log_cloud(
+            trace.get_choices()["pose"].apply(ground_truth_vertices),
+            "scene/full_object_model",
+        )
 
-    #     if ground_truth_pose:
-    #         b3d.rr_log_cloud(
-    #             ground_truth_pose.apply(ground_truth_vertices),
-    #             "scene/ground_truth_object_mesh",
-    #         )
+        if ground_truth_pose:
+            b3d.rr_log_cloud(
+                ground_truth_pose.apply(ground_truth_vertices),
+                "scene/ground_truth_object_mesh",
+            )

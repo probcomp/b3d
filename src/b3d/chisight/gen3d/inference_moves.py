@@ -321,19 +321,22 @@ def propose_vertex_color_given_visibility(
     as in SMCP3 or RAVI.
     Returns (sampled_rgb, log_q_score).
 
-    Specifically, this proposes 3 RGB values:
+    Specifically, this proposal works by proposing 3 RGB values:
     - One from a tight uniform around previous_rgb
     - One from a tight uniform around observed_rgb
     - One from a potentially broader uniform around the midpoint of the two.
 
-    One of these 3 RGB values is then resampled.
+    Then, one of these 3 RGB values is resampled and return.
 
-    This creates a "forward" ("K") proposal, which has sampled (1) the chosen RGB value,
+    This process is a "forward" ("K") proposal, which has sampled (1) the chosen RGB value,
     (2) the index amoung [0, 1, 2] for which of the 3 proposals generated it, and (3)
     two additional RGB values.
 
     We then imagine having an "L" proposal which, given (1), proposes (2) and (3).
-    To estimate the probability of having proposed (1) alone, we return log_K - log_L.
+    To estimate the _marginal_ probability of K having proposed (1), marginalizing
+    over the choice of (2) and (3), we can return the value log_K - log_L
+    (where these terms are the log densities of the K and L proposals, respectively,
+    evaluated at the values we sampled out of the K proposal).
 
     One remaining TODO: this proposal has no probability of generating a value that is far outside
     the range of the previous and observed values.  This means we technically do not have absolute continuity.

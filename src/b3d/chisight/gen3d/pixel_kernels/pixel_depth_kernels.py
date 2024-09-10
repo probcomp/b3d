@@ -114,7 +114,7 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
     """A distribution that generates the depth of a pixel from
     mixture(
         [delta(-1), uniform(near, far), laplace(latent_depth; depth_scale)],
-        [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * outlier_prob, remaining_prob]
+        [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * occluded_prob, remaining_prob]
     )
 
     The support of the distribution is [near, far] ∪ { "nonreturn" }.
@@ -129,7 +129,7 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
         return DeltaDistribution(DEPTH_NONRETURN_VAL)
 
     @property
-    def _outlier_dist(self) -> PixelDepthDistribution:
+    def _occluded_dist(self) -> PixelDepthDistribution:
         return UniformPixelDepthDistribution(self.near, self.far)
 
     @property
@@ -141,17 +141,17 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
     @property
     def _mixture_dist(self) -> PythonMixtureDistribution:
         return PythonMixtureDistribution(
-            (self._nonreturn_dist, self._outlier_dist, self._inlier_dist)
+            (self._nonreturn_dist, self._occluded_dist, self._inlier_dist)
         )
 
     def _get_mix_ratio(
-        self, depth_nonreturn_prob: float, outlier_prob: float
+        self, occluded_prob: float, depth_nonreturn_prob: float
     ) -> FloatArray:
         return jnp.array(
             (
                 depth_nonreturn_prob,
-                (1 - depth_nonreturn_prob) * outlier_prob,
-                (1 - depth_nonreturn_prob) * (1 - outlier_prob),
+                (1 - depth_nonreturn_prob) * occluded_prob,
+                (1 - depth_nonreturn_prob) * (1 - occluded_prob),
             )
         )
 
@@ -159,14 +159,14 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
         self,
         key: PRNGKey,
         latent_depth: float,
+        occluded_prob: float,
         depth_nonreturn_prob: float,
-        outlier_prob: float,
         *args,
         **kwargs,
     ) -> float:
         return self._mixture_dist.sample(
             key,
-            self._get_mix_ratio(depth_nonreturn_prob, outlier_prob),
+            self._get_mix_ratio(occluded_prob, depth_nonreturn_prob),
             [(), (), (latent_depth,)],
         )
 
@@ -174,14 +174,14 @@ class MixturePixelDepthDistribution(PixelDepthDistribution):
         self,
         observed_depth: float,
         latent_depth: float,
+        occluded_prob: float,
         depth_nonreturn_prob: float,
-        outlier_prob: float,
         *args,
         **kwargs,
     ) -> float:
         return self._mixture_dist.logpdf(
             observed_depth,
-            self._get_mix_ratio(depth_nonreturn_prob, outlier_prob),
+            self._get_mix_ratio(occluded_prob, depth_nonreturn_prob),
             [(), (), (latent_depth,)],
         )
 
@@ -255,7 +255,7 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
     else:
         mixture(
             [delta(-1), uniform(near, far), laplace(latent_depth; depth_scale)],
-            [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * outlier_prob, remaining_prob]
+            [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * occluded_prob, remaining_prob]
         )
     """
 
@@ -275,8 +275,8 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
         self,
         key: PRNGKey,
         latent_depth: FloatArray,
+        occluded_prob: FloatArray,
         depth_nonreturn_prob: float,
-        outlier_prob: FloatArray,
         *args,
         **kwargs,
     ) -> FloatArray:
@@ -287,16 +287,16 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
             # sample args
             key,
             latent_depth,
+            occluded_prob,
             depth_nonreturn_prob,
-            outlier_prob,
         )
 
     def logpdf(
         self,
         observed_depth: FloatArray,
         latent_depth: FloatArray,
+        occluded_prob: float,
         depth_nonreturn_prob: float,
-        outlier_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
@@ -307,6 +307,6 @@ class FullPixelDepthDistribution(PixelDepthDistribution):
             # logpdf args
             observed_depth,
             latent_depth,
+            occluded_prob,
             depth_nonreturn_prob,
-            outlier_prob,
         )

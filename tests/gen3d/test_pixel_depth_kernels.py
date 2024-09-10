@@ -22,15 +22,15 @@ sample_kernels_to_test = [
     (
         MixturePixelDepthDistribution(near, far, 0.15),
         (
+            0.5,  # occluded_prob
             0.23,  # depth_nonreturn_prob
-            0.5,  # outlier_prob
         ),
     ),
     (
         FullPixelDepthDistribution(near, far, 0.5),
         (
+            0.3,  # occluded_prob
             0.1,  # depth_nonreturn_prob
-            0.3,  # outlier_prob
         ),
     ),
 ]
@@ -81,26 +81,26 @@ def test_relative_logpdf():
     obs_depth = DEPTH_NONRETURN_VAL
     latent_depth = DEPTH_NONRETURN_VAL
     depth_nonreturn_prob = 0.2
-    logpdf_1 = kernel.logpdf(obs_depth, latent_depth, depth_nonreturn_prob, 0.8)
+    logpdf_1 = kernel.logpdf(obs_depth, latent_depth, 0.8, depth_nonreturn_prob)
     assert logpdf_1 == jnp.log(depth_nonreturn_prob)
 
     latent_depth = -1.0  # no depth information from latent
-    logpdf_2 = kernel.logpdf(obs_depth, latent_depth, depth_nonreturn_prob, 0.8)
+    logpdf_2 = kernel.logpdf(obs_depth, latent_depth, 0.8, depth_nonreturn_prob)
     # nonreturn obs cannot be generates from latent that is not nonreturn
     assert logpdf_2 == jnp.log(UNEXPLAINED_DEPTH_NONRETURN_PROB)
 
     # case 2: valid depth is observed, but latent depth is far from the observed depth
     obs_depth = 10.0
     latent_depth = 0.01
-    logpdf_3 = kernel.logpdf(obs_depth, latent_depth, depth_nonreturn_prob, 0.9)
-    logpdf_4 = kernel.logpdf(obs_depth, latent_depth, depth_nonreturn_prob, 0.1)
-    # the pixel should be more likely to be an outlier
+    logpdf_3 = kernel.logpdf(obs_depth, latent_depth, 0.9, depth_nonreturn_prob)
+    logpdf_4 = kernel.logpdf(obs_depth, latent_depth, 0.1, depth_nonreturn_prob)
+    # the pixel should be more likely to be an occluded
     assert logpdf_3 > logpdf_4
 
     # case 3: valid depth is observed, but latent depth is close from the observed depth
     obs_depth = 6.0
     latent_depth = 6.01
-    logpdf_5 = kernel.logpdf(obs_depth, latent_depth, depth_nonreturn_prob, 0.9)
-    logpdf_6 = kernel.logpdf(obs_depth, latent_depth, depth_nonreturn_prob, 0.1)
+    logpdf_5 = kernel.logpdf(obs_depth, latent_depth, 0.9, depth_nonreturn_prob)
+    logpdf_6 = kernel.logpdf(obs_depth, latent_depth, 0.1, depth_nonreturn_prob)
     # the pixel should be more likely to be an inliner
     assert logpdf_5 < logpdf_6

@@ -129,15 +129,15 @@ class UniformPixelColorDistribution(PixelColorDistribution):
 class MixturePixelColorDistribution(PixelColorDistribution):
     """A distribution that generates the color of a pixel from a mixture of a
     truncated Laplace distribution centered around the latent color (inlier
-    branch) and a uniform distribution (outlier branch). The mixture is
-    controlled by the outlier_prob parameter. The support of the
+    branch) and a uniform distribution (occluded branch). The mixture is
+    controlled by the occluded_prob parameter. The support of the
     distribution is ([0, 1]^3).
     """
 
     color_scale: float
 
     @property
-    def _outlier_dist(self) -> PixelColorDistribution:
+    def _occluded_dist(self) -> PixelColorDistribution:
         return UniformPixelColorDistribution()
 
     @property
@@ -146,35 +146,35 @@ class MixturePixelColorDistribution(PixelColorDistribution):
 
     @property
     def _mixture_dists(self) -> tuple[PixelColorDistribution, PixelColorDistribution]:
-        return (self._outlier_dist, self._inlier_dist)
+        return (self._occluded_dist, self._inlier_dist)
 
-    def _get_mix_ratio(self, outlier_prob: float) -> FloatArray:
-        return jnp.array((outlier_prob, 1 - outlier_prob))
+    def _get_mix_ratio(self, occluded_prob: float) -> FloatArray:
+        return jnp.array((occluded_prob, 1 - occluded_prob))
 
     def sample(
         self,
         key: PRNGKey,
         latent_color: FloatArray,
-        outlier_prob: float,
+        occluded_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
         return PythonMixtureDistribution(self._mixture_dists).sample(
-            key, self._get_mix_ratio(outlier_prob), [(), (latent_color,)]
+            key, self._get_mix_ratio(occluded_prob), [(), (latent_color,)]
         )
 
     def logpdf_per_channel(
         self,
         observed_color: FloatArray,
         latent_color: FloatArray,
-        outlier_prob: float,
+        occluded_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
         # Since the mixture model class does not keep the per-channel information,
         # we have to redefine this method to allow for testing
         logprobs = []
-        for dist, prob in zip(self._mixture_dists, self._get_mix_ratio(outlier_prob)):
+        for dist, prob in zip(self._mixture_dists, self._get_mix_ratio(occluded_prob)):
             logprobs.append(
                 dist.logpdf_per_channel(observed_color, latent_color) + jnp.log(prob)
             )
@@ -192,7 +192,7 @@ class FullPixelColorDistribution(PixelColorDistribution):
     else:
         color ~ mixture(
             [uniform(0, 1), truncated_laplace(latent_color; color_scale)],
-            [outlier_prob, 1 - outlier_prob]
+            [occluded_prob, 1 - occluded_prob]
         )
 
     Constructor args:
@@ -203,9 +203,9 @@ class FullPixelColorDistribution(PixelColorDistribution):
     - `latent_color`: 3-array.  If no latent point hits the pixel, should contain
         3 negative values.  If a latent point hits the pixel, should contain the point's
         color as an RGB value in [0, 1]^3.
-    - `color_outlier_prob`: float.  If a latent point hits the pixel, should contain
+    - `color_occluded_prob`: float.  If a latent point hits the pixel, should contain
         the probability associated with that point that the generated color is
-        an outlier.  If no latent point hits the pixel, this value is ignored.
+        an occluded.  If no latent point hits the pixel, this value is ignored.
 
     Distribution support:
         - An RGB value in [0, 1]^3.
@@ -225,7 +225,7 @@ class FullPixelColorDistribution(PixelColorDistribution):
         self,
         key: PRNGKey,
         latent_color: FloatArray,
-        outlier_prob: FloatArray,
+        occluded_prob: FloatArray,
         *args,
         **kwargs,
     ) -> FloatArray:
@@ -236,14 +236,14 @@ class FullPixelColorDistribution(PixelColorDistribution):
             # sample args
             key,
             latent_color,
-            outlier_prob,
+            occluded_prob,
         )
 
     def logpdf_per_channel(
         self,
         observed_color: FloatArray,
         latent_color: FloatArray,
-        outlier_prob: float,
+        occluded_prob: float,
         *args,
         **kwargs,
     ) -> FloatArray:
@@ -254,5 +254,5 @@ class FullPixelColorDistribution(PixelColorDistribution):
             # logpdf args
             observed_color,
             latent_color,
-            outlier_prob,
+            occluded_prob,
         )

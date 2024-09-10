@@ -511,7 +511,7 @@ def multivmap(f, args=None):
 def update_choices(trace, addresses, *values):
     return trace.update(
         jax.random.PRNGKey(0),
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)}),
+        genjax.ChoiceMap.from_mapping(zip(addresses.const, values)),
     )[0]
 
 

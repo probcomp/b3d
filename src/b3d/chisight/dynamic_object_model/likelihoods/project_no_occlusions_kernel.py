@@ -65,8 +65,8 @@ def likelihood_func(observed_rgbd, args):
 def sample_func(key, likelihood_args):
     return jnp.zeros(
         (
-            likelihood_args["image_height"].const,
-            likelihood_args["image_width"].const,
+            likelihood_args["image_height"].unwrap(),
+            likelihood_args["image_width"].unwrap(),
             4,
         )
     )

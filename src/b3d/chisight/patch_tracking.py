@@ -118,14 +118,14 @@ def get_adam_optimization_patch_tracker(model, patches, pose_WC=Pose.identity())
         )
 
         particle_poses = jax.tree.map(
-            lambda arr: jnp.tile(arr, (num_particles.const, 1)), Pose.identity()
+            lambda arr: jnp.tile(arr, (num_particles.unwrap(), 1)), Pose.identity()
         )
-        object_assignments = jnp.arange(num_particles.const, dtype=int)
+        object_assignments = jnp.arange(num_particles.unwrap(), dtype=int)
         object_poses = jax.vmap(
             lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])),
             in_axes=(0, 0),
         )(positions, quaternions)
-        vis_mask = jnp.ones((num_particles.const,), dtype=int)
+        vis_mask = jnp.ones((num_particles.unwrap(),), dtype=int)
 
         constraints = C.d(
             {

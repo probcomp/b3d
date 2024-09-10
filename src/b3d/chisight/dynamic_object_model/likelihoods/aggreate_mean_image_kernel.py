@@ -24,7 +24,7 @@ def sample_func(key, args):
     ).astype(jnp.int32)
 
     latent_image_sum = jnp.zeros(
-        (args["image_height"].const, args["image_width"].const, 4)
+        (args["image_height"].unwrap(), args["image_width"].unwrap(), 4)
     )
     latent_image_sum = latent_image_sum.at[pixels[..., 0], pixels[..., 1], :3].add(
         args["colors"] * (1 - args["color_outlier_probability"])[:, None]
@@ -34,14 +34,14 @@ def sample_func(key, args):
     )
 
     projected_points_count = jnp.zeros(
-        (args["image_height"].const, args["image_width"].const)
+        (args["image_height"].unwrap(), args["image_width"].unwrap())
     )
     projected_points_count = projected_points_count.at[
         pixels[..., 0], pixels[..., 1]
     ].add(1)
 
     non_registration_probability = jnp.ones(
-        (args["image_height"].const, args["image_width"].const)
+        (args["image_height"].unwrap(), args["image_width"].unwrap())
     )
     non_registration_probability = non_registration_probability.at[
         pixels[..., 0], pixels[..., 1]
@@ -81,7 +81,7 @@ def likelihood_func(observed_rgbd, args):
     ).astype(jnp.int32)
 
     latent_image_sum = jnp.zeros(
-        (args["image_height"].const, args["image_width"].const, 4)
+        (args["image_height"].unwrap(), args["image_width"].unwrap(), 4)
     )
     latent_image_sum = latent_image_sum.at[pixels[..., 0], pixels[..., 1], :3].add(
         args["colors"] * (1 - args["color_outlier_probability"])[:, None]
@@ -91,14 +91,14 @@ def likelihood_func(observed_rgbd, args):
     )
 
     projected_points_count = jnp.zeros(
-        (args["image_height"].const, args["image_width"].const)
+        (args["image_height"].unwrap(), args["image_width"].unwrap())
     )
     projected_points_count = projected_points_count.at[
         pixels[..., 0], pixels[..., 1]
     ].add(1)
 
     non_registration_probability = jnp.ones(
-        (args["image_height"].const, args["image_width"].const)
+        (args["image_height"].unwrap(), args["image_width"].unwrap())
     )
     non_registration_probability = non_registration_probability.at[
         pixels[..., 0], pixels[..., 1]

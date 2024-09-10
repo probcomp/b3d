@@ -108,11 +108,11 @@ def run_tracking(scene=None, object=None, debug=False):
                         Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None)
                     )(
                         jax.random.split(key, number),
-                        trace.get_choices()[address.const],
+                        trace.get_choices()[address.unwrap()],
                         variance,
                         concentration,
                     ),
-                    trace.get_choices()[address.const][None, ...],
+                    trace.get_choices()[address.unwrap()][None, ...],
                 ]
             )
             scores = jax.vmap(update_pose_and_color, in_axes=(None, None, 0))(

@@ -6,7 +6,7 @@ from genjax import Diff
 from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
-import b3d
+from b3d import Pose
 
 from .model import (
     get_hypers,
@@ -21,14 +21,12 @@ from .projection import PixelsPointsAssociation
 def propose_pose(key, advanced_trace, inference_hyperparams):
     previous_pose = get_prev_state(advanced_trace)["pose"]
     hp = inference_hyperparams["pose_proposal"]
-    pose = b3d.sample_gaussian_vmf_pose(key, previous_pose, hp["std"], hp["conc"])
-    log_q = b3d.logpdf_gaussian_vmf_pose_vmap(
-        pose, previous_pose, hp["std"], hp["conc"]
-    )
+    pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, hp["std"], hp["conc"])
+    log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, hp["std"], hp["conc"])
     return pose, log_q
 
 
-def propose_other_latents_given_pose(key, pose, advanced_trace, inference_hyperparams):
+def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperparams):
     k1, k2, k3, k4, k5, k6 = split(key, 6)
 
     trace_with_pose = update_field(k1, advanced_trace, "pose", pose)

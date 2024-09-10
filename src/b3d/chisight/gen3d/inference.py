@@ -39,7 +39,7 @@ def advance_time(key, trace, observed_rgbd):
     return trace
 
 
-@jax.jit
+# @partial(jax.jit, static_argnums=(3,))
 def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     """
     Perform over the latent state at time T, given the observed
@@ -65,14 +65,22 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
 
     scores = p_scores - log_q_poses - log_q_nonpose_latents
     chosen_index = jax.random.categorical(k4, scores)
+    new_trace = jax.tree.map(lambda x: x[chosen_index], proposed_traces)
 
-    return proposed_traces[chosen_index], jnp.logmeanexp(scores)
+    return new_trace, logmeanexp(scores)
 
 
-@jax.jit
 def inference_step_noweight(*args):
     """
     Same as inference_step, but only returns the new trace
     (not the weight).
     """
     return inference_step(*args)[0]
+
+
+### Utils ###
+
+
+def logmeanexp(vec):
+    vec = jnp.where(jnp.isnan(vec), -jnp.inf, vec)
+    return jax.scipy.special.logsumexp(vec) - jnp.log(len(vec))

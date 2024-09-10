@@ -27,9 +27,13 @@ class PixelDepthDistribution(genjax.ExactDensity):
     """
     An abstract class that defines the common interface for pixel depth kernels.
 
-    The interface that these must satisfy is that they take args
-    (latent_depth, depth_scale, visibility_prob, depth_nonreturn_prob)
-    and return a depth value in [near, far] or DEPTH_NONRETURN_VAL.
+    Distribution args:
+    - latent_depth
+    - depth_scale
+    - visibility_prob
+    - depth_nonreturn_prob
+
+    Support: depth value in [near, far], or DEPTH_NONRETURN_VAL.
     """
 
     @abstractmethod

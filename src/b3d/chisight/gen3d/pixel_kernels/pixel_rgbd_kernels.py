@@ -19,6 +19,8 @@ class PixelRGBDDistribution(genjax.ExactDensity):
     - depth_nonreturn_prob: float
 
     The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
+
+    If the logpdf of [-1, -1, -1, -1] is requested, this will return 0.0.
     """
 
     color_kernel: PixelColorDistribution

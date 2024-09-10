@@ -27,8 +27,8 @@ class PixelsPointsAssociation(Pytree):
         return cls.from_points_and_intrinsics(
             vertices_C,
             hyperparams["intrinsics"],
-            hyperparams["image_height"],
-            hyperparams["image_width"],
+            hyperparams["image_height"].const,
+            hyperparams["image_width"].const,
         )
 
     @classmethod
@@ -95,7 +95,9 @@ class PixelsPointsAssociation(Pytree):
         """
         unfiltered = rgbd_image[self.x, self.y]
         invalid_indices = jnp.logical_or(self.x == INVALID_IDX, self.y == INVALID_IDX)
-        return jnp.where(invalid_indices, -jnp.ones(4), unfiltered)
+        return jnp.where(
+            invalid_indices[:, None], -jnp.ones_like(unfiltered), unfiltered
+        )
 
     def get_point_depths(self, rgbd_image: FloatArray) -> FloatArray:
         """

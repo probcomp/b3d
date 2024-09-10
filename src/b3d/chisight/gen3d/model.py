@@ -142,20 +142,18 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
 
     output = trace.get_retval()
     if output["rgbd"] is not None:
-        info = hyperparams["image_likelihood"].info_from_trace(trace)
         b3d.rr_log_rgb(output["rgbd"][..., :3], "image")
         b3d.rr_log_rgb(output["rgbd"][..., :3], "image/rgb/observed")
         b3d.rr_log_depth(output["rgbd"][..., 3], "image/depth/observed")
 
-        latent_rgbd = info["latent_rgbd"]
-        b3d.rr_log_rgb(latent_rgbd[..., :3], "image/rgb/latent")
-        b3d.rr_log_depth(latent_rgbd[..., 3], "image/depth/latent")
+        # TODO: should we add in a way to visualize a noise-free projection
+        # of the points to the camera plane?
 
         fx, fy, cx, cy = (
-            hyperparams["fx"],
-            hyperparams["fy"],
-            hyperparams["cx"],
-            hyperparams["cy"],
+            hyperparams["intrinsics"]["fx"],
+            hyperparams["intrinsics"]["fy"],
+            hyperparams["intrinsics"]["cx"],
+            hyperparams["intrinsics"]["cy"],
         )
         b3d.rr_log_cloud(
             b3d.xyz_from_depth(

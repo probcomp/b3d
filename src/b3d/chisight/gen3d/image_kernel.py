@@ -10,6 +10,7 @@ from genjax.typing import FloatArray, PRNGKey
 from b3d.chisight.gen3d.pixel_kernels import (
     FullPixelColorDistribution,
     FullPixelDepthDistribution,
+    PixelDepthDistribution,
     PixelRGBDDistribution,
 )
 from b3d.chisight.gen3d.projection import PixelsPointsAssociation
@@ -49,6 +50,12 @@ class ImageKernel(genjax.ExactDensity):
     ) -> FloatArray:
         raise NotImplementedError
 
+    def get_depth_vertex_kernel(self) -> PixelDepthDistribution:
+        raise NotImplementedError
+
+    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
+        raise NotImplementedError
+
 
 @Pytree.dataclass
 class NoOcclusionPerVertexImageKernel(ImageKernel):
@@ -71,7 +78,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         points_to_pixels = self.get_pixels_points_association(
             transformed_points, hyperparams
         )
-        vertex_kernel = self.get_vertex_kernel()
+        vertex_kernel = self.get_rgbd_vertex_kernel()
         observed_rgbd_per_point = observed_rgbd.at[
             points_to_pixels.x, points_to_pixels.y
         ].get(mode="drop", fill_value=-1.0)
@@ -79,7 +86,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             (state["colors"], transformed_points[..., 2, None]), axis=-1
         )
 
-        scores = jax.vmap(vertex_kernel.logpdf)(
+        scores = jax.vmap(vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0))(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
             state["color_scale"],
@@ -89,10 +96,13 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         )
         return scores.sum()
 
-    def get_vertex_kernel(self) -> PixelRGBDDistribution:
+    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
         # Note: The distributions were originally defined for per-pixel computation,
         # but they should work for per-vertex computation as well
         return PixelRGBDDistribution(
             FullPixelColorDistribution(),
             FullPixelDepthDistribution(self.near, self.far),
         )
+
+    def get_depth_vertex_kernel(self) -> PixelDepthDistribution:
+        return self.get_rgbd_vertex_kernel().depth_kernel

@@ -18,18 +18,18 @@ from .model import (
 )
 from .projection import PixelsPointsAssociation
 
+
 def normalize_log_scores(scores):
     """
     Util for constructing log resampling distributions, avoiding NaN issues.
-    
+
     (Conversely, since there will be no NaNs, this could make it harder to debug.)
     """
     val = scores - jax.scipy.special.logsumexp(scores)
     return jnp.where(
-        jnp.any(jnp.isnan(val)),
-        -jnp.log(len(val)) * jnp.ones_like(val),
-        val
+        jnp.any(jnp.isnan(val)), -jnp.log(len(val)) * jnp.ones_like(val), val
     )
+
 
 def propose_pose(key, advanced_trace, inference_hyperparams):
     """
@@ -66,26 +66,25 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     trace = update_vmapped_field(
         k2b, trace, "depth_nonreturn_prob", depth_nonreturn_probs
     )
-    # log_q_dnrps = 0.0
 
-    # k3a, k3b = split(k3)
-    # colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
-    #     k3a, trace
-    # )
-    # trace = update_vmapped_fields(
-    #     k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
-    # )
-    # log_q_cvp = 0.0
+    k3a, k3b = split(k3)
+    colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
+        k3a, trace
+    )
+    trace = update_vmapped_fields(
+        k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
+    )
+    log_q_cvp = 0.0
 
-    # k4a, k4b = split(k4)
-    # depth_scale, log_q_ds = propose_depth_scale(k4a, trace)
-    # trace = update_field(k4b, trace, "depth_scale", depth_scale)
+    k4a, k4b = split(k4)
+    depth_scale, log_q_ds = propose_depth_scale(k4a, trace)
+    trace = update_field(k4b, trace, "depth_scale", depth_scale)
 
-    # k5a, k5b = split(k5)
-    # color_scale, log_q_cs = propose_color_scale(k5a, trace)
-    # trace = update_field(k5b, trace, "color_scale", color_scale)
+    k5a, k5b = split(k5)
+    color_scale, log_q_cs = propose_color_scale(k5a, trace)
+    trace = update_field(k5b, trace, "color_scale", color_scale)
 
-    log_q = log_q_dnrps # + log_q_cvp + log_q_ds + log_q_cs
+    log_q = log_q_dnrps + log_q_cvp + log_q_ds + log_q_cs
     return (
         trace,
         log_q,

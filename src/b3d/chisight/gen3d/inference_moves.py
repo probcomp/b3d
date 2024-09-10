@@ -18,6 +18,18 @@ from .model import (
 )
 from .projection import PixelsPointsAssociation
 
+def normalize_log_scores(scores):
+    """
+    Util for constructing log resampling distributions, avoiding NaN issues.
+    
+    (Conversely, since there will be no NaNs, this could make it harder to debug.)
+    """
+    val = scores - jax.scipy.special.logsumexp(scores)
+    return jnp.where(
+        jnp.any(jnp.isnan(val)),
+        -jnp.log(len(val)) * jnp.ones_like(val),
+        val
+    )
 
 def propose_pose(key, advanced_trace, inference_hyperparams):
     """
@@ -48,10 +60,13 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     trace = update_field(k1, advanced_trace, "pose", pose)
 
     k2a, k2b = split(k2)
-    depth_nonreturn_probs, log_q_dnrps, dnrp_metadata = propose_depth_nonreturn_probs(k2a, trace)
+    depth_nonreturn_probs, log_q_dnrps, dnrp_metadata = propose_depth_nonreturn_probs(
+        k2a, trace
+    )
     trace = update_vmapped_field(
         k2b, trace, "depth_nonreturn_prob", depth_nonreturn_probs
     )
+    # log_q_dnrps = 0.0
 
     # k3a, k3b = split(k3)
     # colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
@@ -71,10 +86,11 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     # trace = update_field(k5b, trace, "color_scale", color_scale)
 
     log_q = log_q_dnrps # + log_q_cvp + log_q_ds + log_q_cs
-    return trace, log_q, {
-        "depth_nonreturn_proposal": dnrp_metadata,
-        "dnrps": depth_nonreturn_probs
-    }
+    return (
+        trace,
+        log_q,
+        {"depth_nonreturn_proposal": dnrp_metadata, "dnrps": depth_nonreturn_probs},
+    )
 
 
 def propose_depth_nonreturn_probs(key, trace):
@@ -150,8 +166,9 @@ def propose_vertex_depth_nonreturn_prob(
         new_state["depth_scale"],
         previous_dnrp,
         hyperparams["depth_nonreturn_prob_kernel"],
-        hyperparams["image_kernel"].get_depth_vertex_kernel()
+        hyperparams["image_kernel"].get_depth_vertex_kernel(),
     )
+
 
 def _propose_vertex_depth_nonreturn_prob(
     key,
@@ -162,24 +179,22 @@ def _propose_vertex_depth_nonreturn_prob(
     previous_dnrp,
     dnrp_transition_kernel,
     obs_depth_kernel,
-    return_metadata=False
+    return_metadata=True,
 ):
     def score_dnrp_value(dnrp_value):
-        transition_score = dnrp_transition_kernel.logpdf(
-            dnrp_value, previous_dnrp
-        )
+        transition_score = dnrp_transition_kernel.logpdf(dnrp_value, previous_dnrp)
         likelihood_score = obs_depth_kernel.logpdf(
             observed_depth=observed_depth,
             latent_depth=latent_depth,
             depth_scale=depth_scale,
             visibility_prob=visibility_prob,
-            depth_nonreturn_prob=dnrp_value
+            depth_nonreturn_prob=dnrp_value,
         )
         return transition_score + likelihood_score
 
     support = dnrp_transition_kernel.support
     log_pscores = jax.vmap(score_dnrp_value)(support)
-    log_normalized_scores = log_pscores - jax.scipy.special.logsumexp(log_pscores)
+    log_normalized_scores = normalize_log_scores(log_pscores)
     index = jax.random.categorical(key, log_normalized_scores)
     # ^ since we are enumerating over every value in the domain, it is unnecessary
     # to add a 1/q score when resampling.  (Equivalently, we could include
@@ -193,12 +208,20 @@ def _propose_vertex_depth_nonreturn_prob(
             "observed_depth": observed_depth,
             "latent_depth": latent_depth,
             "prev_dnrp": previous_dnrp,
-            "transition_score": jax.vmap(lambda dnrp_value: dnrp_transition_kernel.logpdf(
-                dnrp_value, previous_dnrp
-            ))(support),
-            "likelihood_score": jax.vmap(lambda dnrp_value: obs_depth_kernel.logpdf(
-                observed_depth, latent_depth, visibility_prob, dnrp_value, depth_scale
-            ))(support)
+            "transition_score": jax.vmap(
+                lambda dnrp_value: dnrp_transition_kernel.logpdf(
+                    dnrp_value, previous_dnrp
+                )
+            )(support),
+            "likelihood_score": jax.vmap(
+                lambda dnrp_value: obs_depth_kernel.logpdf(
+                    observed_depth,
+                    latent_depth,
+                    visibility_prob,
+                    dnrp_value,
+                    depth_scale,
+                )
+            )(support),
         }
     else:
         metadata = {}
@@ -238,12 +261,12 @@ def propose_vertex_color_and_visibility_prob(
             hyperparams["image_kernel"]
             .get_rgbd_vertex_kernel()
             .logpdf(
-                observed_rgbd_for_this_vertex,
-                jnp.append(rgb, latent_depth),
-                new_state["color_scale"],
-                new_state["depth_scale"],
-                visprob,
-                new_state["depth_nonreturn_prob"][vertex_index],
+                observed_rgbd=observed_rgbd_for_this_vertex,
+                latent_rgbd=jnp.append(rgb, latent_depth),
+                rgb_scale=new_state["color_scale"],
+                depth_scale=new_state["depth_scale"],
+                visibility_prob=visprob,
+                depth_nonreturn_prob=new_state["depth_nonreturn_prob"][vertex_index],
             )
         )
         return rgb_transition_score + visprob_transition_score + likelihood_score
@@ -270,7 +293,7 @@ def propose_vertex_color_and_visibility_prob(
     # we are enumerating over every value in the domain.  (Equivalently,
     # we could subtract a log q score of log(1/len(support)) for each value.)
     log_weights = log_pscores - log_qs_rgb
-    log_normalized_scores = log_weights - jax.scipy.special.logsumexp(log_weights)
+    log_normalized_scores = normalize_log_scores(log_weights)
     index = jax.random.categorical(k2, log_normalized_scores)
 
     rgb = rgbs[index]
@@ -354,7 +377,7 @@ def propose_vertex_color_given_visibility(
         jax.vmap(lambda rgb: score_visprob_and_rgb(visprob, rgb))(proposed_rgbs)
         - log_qs
     )
-    normalized_scores = scores - jax.scipy.special.logsumexp(scores)
+    normalized_scores = normalize_log_scores(scores)
     sampled_index = jax.random.categorical(key, normalized_scores)
     sampled_rgb = proposed_rgbs[sampled_index]
     log_K_score = log_qs.sum() + normalized_scores[sampled_index]
@@ -368,9 +391,7 @@ def propose_vertex_color_given_visibility(
             uniform.logpdf(sampled_rgb, min_rgbs3, max_rgbs3),
         ]
     )
-    normalized_L_logprobs = log_qs_for_this_rgb - jax.scipy.special.logsumexp(
-        log_qs_for_this_rgb
-    )
+    normalized_L_logprobs = normalize_log_scores(log_qs_for_this_rgb)
 
     # L score for proposing the index
     log_L_score = normalized_L_logprobs[sampled_index]

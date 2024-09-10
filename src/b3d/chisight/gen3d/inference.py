@@ -75,11 +75,18 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     chosen_index = jax.random.categorical(k4, scores)
     new_trace = jax.tree.map(lambda x: x[chosen_index], proposed_traces)
 
-    return new_trace, logmeanexp(scores), {
-        "proposed_poses": proposed_poses,
-        "chosen_pose_index": chosen_index,
-        "other_latents_metadata": other_latents_metadata,
-    }
+    return (
+        new_trace,
+        logmeanexp(scores),
+        {
+            "proposed_poses": proposed_poses,
+            "chosen_pose_index": chosen_index,
+            "p_scores": p_scores,
+            "log_q_poses": log_q_poses,
+            "log_q_nonpose_latents": log_q_nonpose_latents,
+            "other_latents_metadata": other_latents_metadata,
+        },
+    )
 
 
 def inference_step_noweight(*args):

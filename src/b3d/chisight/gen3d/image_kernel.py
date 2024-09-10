@@ -76,7 +76,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             points_to_pixels.x, points_to_pixels.y
         ].get(mode="drop", fill_value=-1.0)
         latent_rgbd_per_point = jnp.concatenate(
-            (state["colors"], transformed_points[..., 2]), axis=-1
+            (state["colors"], transformed_points[..., 2, None]), axis=-1
         )
 
         scores = jax.vmap(vertex_kernel.logpdf)(

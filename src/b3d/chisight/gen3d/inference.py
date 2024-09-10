@@ -20,7 +20,8 @@ from .model import (
 
 # Use namedtuple rather than dict so we can hash this, and use it as a static arg to a jitted function.
 InferenceHyperparams = namedtuple(
-    "InferenceHyperparams", ["n_poses", "pose_proposal_std", "pose_proposal_conc"]
+    "InferenceHyperparams",
+    ["n_poses", "pose_proposal_std", "pose_proposal_conc", "color_proposal_params"],
 )
 
 

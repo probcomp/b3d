@@ -69,7 +69,7 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
 
     k3a, k3b = split(k3)
     colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
-        k3a, trace
+        k3a, trace, inference_hyperparams
     )
     trace = update_vmapped_fields(
         k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
@@ -118,7 +118,7 @@ def propose_depth_nonreturn_probs(key, trace):
     return depth_nonreturn_probs, per_vertex_log_qs.sum(), metadata
 
 
-def propose_colors_and_visibility_probs(key, trace):
+def propose_colors_and_visibility_probs(key, trace, inference_hyperparams):
     """
     Propose a new color and visibility probability for every vertex, conditioned
     upon the other values in `trace`.
@@ -132,7 +132,8 @@ def propose_colors_and_visibility_probs(key, trace):
     ).get_point_rgbds(get_observed_rgbd(trace))
 
     colors, visibility_probs, per_vertex_log_qs = jax.vmap(
-        propose_vertex_color_and_visibility_prob, in_axes=(0, 0, 0, None, None, None)
+        propose_vertex_color_and_visibility_prob,
+        in_axes=(0, 0, 0, None, None, None, None),
     )(
         split(key, get_n_vertices(trace)),
         jnp.arange(get_n_vertices(trace)),
@@ -140,6 +141,7 @@ def propose_colors_and_visibility_probs(key, trace):
         get_prev_state(trace),
         get_new_state(trace),
         get_hypers(trace),
+        inference_hyperparams,
     )
 
     return colors, visibility_probs, per_vertex_log_qs.sum()
@@ -235,6 +237,7 @@ def propose_vertex_color_and_visibility_prob(
     previous_state,
     new_state,
     hyperparams,
+    inference_hyperparams,
 ):
     """
     Propose a new color and visibility probability for the single vertex
@@ -349,21 +352,21 @@ def propose_vertex_color_given_visibility(
     (k1, k2, k3) = split(key, 3)
 
     ## Proposal 1: near the previous value.
-    min_rgbs1 = previous_rgb - diffs / 10 - 2 * d
-    max_rgbs1 = previous_rgb + diffs / 10 + 2 * d
+    min_rgbs1 = jnp.maximum(0.0, previous_rgb - diffs / 10 - 2 * d)
+    max_rgbs1 = jnp.minimum(1.0, previous_rgb + diffs / 10 + 2 * d)
     proposed_rgb_1 = uniform.sample(k1, min_rgbs1, max_rgbs1)
     log_q_rgb_1 = uniform.logpdf(proposed_rgb_1, min_rgbs1, max_rgbs1)
 
     ## Proposal 2: near the observed value.
-    min_rgbs2 = observed_rgb - diffs / 10 - 2 * d
-    max_rgbs2 = observed_rgb + diffs / 10 + 2 * d
+    min_rgbs2 = jnp.maximum(0.0, observed_rgb - diffs / 10 - 2 * d)
+    max_rgbs2 = jnp.minimum(1.0, observed_rgb + diffs / 10 + 2 * d)
     proposed_rgb_2 = uniform.sample(k2, min_rgbs2, max_rgbs2)
     log_q_rgb_2 = uniform.logpdf(proposed_rgb_2, min_rgbs2, max_rgbs2)
 
     ## Proposal 3: somewhere in the middle
     mean_rgb = (previous_rgb + observed_rgb) / 2
-    min_rgbs3 = mean_rgb - 8 / 10 * diffs - 2 * d
-    max_rgbs3 = mean_rgb + 8 / 10 * diffs + 2 * d
+    min_rgbs3 = jnp.maximum(0.0, mean_rgb - 8 / 10 * diffs - 2 * d)
+    max_rgbs3 = jnp.minimum(1.0, mean_rgb + 8 / 10 * diffs + 2 * d)
     proposed_rgb_3 = uniform.sample(k3, min_rgbs3, max_rgbs3)
     log_q_rgb_3 = uniform.logpdf(proposed_rgb_3, min_rgbs3, max_rgbs3)
 

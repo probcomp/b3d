@@ -43,35 +43,35 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     proposed latents (and the same pose and observed rgbd as in the given trace).
     `log_q` is (a fair estimate of) the log proposal density.
     """
-    k1, k2, k3, k4, k5, k6 = split(key, 6)
+    k1, k2, k3, k4, k5 = split(key, 5)
 
-    trace_with_pose = update_field(k1, advanced_trace, "pose", pose)
+    trace = update_field(k1, advanced_trace, "pose", pose)
 
-    depth_nonreturn_probs, log_q_dnrps = propose_depth_nonreturn_probs(
-        k2, trace_with_pose
+    k2a, k2b = split(k2)
+    depth_nonreturn_probs, log_q_dnrps = propose_depth_nonreturn_probs(k2a, trace)
+    trace = update_vmapped_field(
+        k2b, trace, "depth_nonreturn_prob", depth_nonreturn_probs
     )
+
+    k3a, k3b = split(k3)
     colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
-        k3, trace_with_pose
+        k3a, trace
+    )
+    trace = update_vmapped_fields(
+        k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
     )
     log_q_cvp = 0.0
-    depth_scale, log_q_ds = propose_depth_scale(k4, trace_with_pose)
-    color_scale, log_q_cs = propose_color_scale(k5, trace_with_pose)
 
-    proposed_trace = update_fields(
-        k6,
-        trace_with_pose,
-        [
-            "depth_nonreturn_prob",
-            "colors",
-            "visibility_prob",
-            "depth_scale",
-            "color_scale",
-        ],
-        [depth_nonreturn_probs, colors, visibility_probs, depth_scale, color_scale],
-    )
+    k4a, k4b = split(k4)
+    depth_scale, log_q_ds = propose_depth_scale(k4a, trace)
+    trace = update_field(k4b, trace, "depth_scale", depth_scale)
+
+    k5a, k5b = split(k5)
+    color_scale, log_q_cs = propose_color_scale(k5a, trace)
+    trace = update_field(k5b, trace, "color_scale", color_scale)
+
     log_q = log_q_dnrps + log_q_cvp + log_q_ds + log_q_cs
-
-    return proposed_trace, log_q
+    return trace, log_q
 
 
 def propose_depth_nonreturn_probs(key, trace):
@@ -385,8 +385,38 @@ def update_fields(key, trace, fieldnames, values):
     trace, _, _, _ = trace.update(
         key,
         U.g(
-            (Diff.no_change(hyperparams), Diff.unknown_change(previous_state)),
+            (Diff.no_change(hyperparams), Diff.no_change(previous_state)),
             C.kw(**dict(zip(fieldnames, values))),
         ),
     )
     return trace
+
+
+def update_vmapped_fields(key, trace, fieldnames, values):
+    """
+    For each `fieldname` in fieldnames, and each array `arr` in the
+    corresponding slot in `values`, updates `trace` at addresses
+    (0, fieldname) through (len(arr) - 1, fieldname) to the corresponding
+    values in `arr`.
+    (That is, this assumes for each fieldname, there is a vmap combinator
+    sampled at that address in the trace.)
+    """
+    c = C.n()
+    for addr, val in zip(fieldnames, values):
+        c = c ^ jax.vmap(lambda idx: C[addr, idx].set(val[idx]))(
+            jnp.arange(val.shape[0])
+        )
+
+    hyperparams, previous_state = trace.get_args()
+    trace, _, _, _ = trace.update(
+        key,
+        U.g((Diff.no_change(hyperparams), Diff.no_change(previous_state)), c),
+    )
+    return trace
+
+
+def update_vmapped_field(key, trace, fieldname, value):
+    """
+    For information, see `update_vmapped_fields`.
+    """
+    return update_vmapped_fields(key, trace, [fieldname], [value])

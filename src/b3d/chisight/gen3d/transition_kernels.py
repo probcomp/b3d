@@ -370,13 +370,12 @@ class UniformPoseDriftKernel(DriftKernel):
 @Pytree.dataclass
 class DiscreteFlipKernel(genjax.ExactDensity):
     resample_probability: float = Pytree.static()
-    support: ArrayLike = Pytree.static()
+    support: ArrayLike
 
     def sample(self, key: PRNGKey, prev_value):
         should_resample = jax.random.bernoulli(key, self.resample_probability)
         return (
-            should_resample
-            * self.support.at[jax.random.choice(key, len(self.support))].get()
+            should_resample * jax.random.choice(key, self.support)
             + (1 - should_resample) * prev_value
         )
 

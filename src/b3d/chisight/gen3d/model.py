@@ -133,6 +133,9 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
         ),
     )
 
+    rr.log("color_scale", rr.Scalar(new_state["color_scale"]))
+    rr.log("depth_scale", rr.Scalar(new_state["depth_scale"]))
+
     vertices_transformed = pose.apply(vertices)
     b3d.rr_log_cloud(
         vertices_transformed,

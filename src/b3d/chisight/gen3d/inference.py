@@ -21,8 +21,26 @@ from .model import (
 # Use namedtuple rather than dict so we can hash this, and use it as a static arg to a jitted function.
 InferenceHyperparams = namedtuple(
     "InferenceHyperparams",
-    ["n_poses", "pose_proposal_std", "pose_proposal_conc", "color_proposal_params"],
+    [
+        "n_poses",
+        "pose_proposal_std",
+        "pose_proposal_conc",
+        "effective_color_transition_scale",
+    ],
 )
+"""
+Parameters for the inference algorithm.
+- n_poses: Number of poses to propose at each timestep.
+- pose_proposal_std: Standard deviation of the position distribution for the pose.
+- pose_proposal_conc: Concentration parameter for the orientation distribution for the pose.
+- effective_color_transition_scale: This parameter is used in the color proposal.
+    When the color transition kernel is a laplace, this should be its scale.
+    When the color transition kernel is a different distribution, set this to something
+    that would make a laplace transition kernel propose with a somewhat similar spread
+    to the kernel you are using.  (This parameter is used to decide
+    the size of the proposal in the color proposal, using a simple analysis
+    we conducted in the laplace case.)
+"""
 
 
 @jax.jit

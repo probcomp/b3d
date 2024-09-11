@@ -55,263 +55,194 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     proposed latents (and the same pose and observed rgbd as in the given trace).
     `log_q` is (a fair estimate of) the log proposal density.
     """
-    k1, k2, k3, k4, k5 = split(key, 5)
+    k1, k2, k3, k4 = split(key, 4)
 
     trace = update_field(k1, advanced_trace, "pose", pose)
 
     k2a, k2b = split(k2)
-    depth_nonreturn_probs, log_q_dnrps, dnrp_metadata = propose_depth_nonreturn_probs(
-        k2a, trace
+    (
+        colors,
+        visibility_probs,
+        depth_nonreturn_probs,
+        log_q_point_attributes,
+        point_proposal_metadata,
+    ) = propose_all_pointlevel_attributes(k2a, trace, inference_hyperparams)
+    trace = update_vmapped_fields(
+        k2b,
+        trace,
+        ["colors", "visibility_prob", "depth_nonreturn_prob"],
+        [colors, visibility_probs, depth_nonreturn_probs],
     )
-    trace = update_vmapped_field(
-        k2b, trace, "depth_nonreturn_prob", depth_nonreturn_probs
-    )
+    # TODO: debug these scores -- right now they are causing bad behavior
+    log_q_point_attributes = 0.0
 
     k3a, k3b = split(k3)
-    colors, visibility_probs, log_q_cvp = propose_colors_and_visibility_probs(
-        k3a, trace, inference_hyperparams
-    )
-    trace = update_vmapped_fields(
-        k3b, trace, ["colors", "visibility_prob"], [colors, visibility_probs]
-    )
-    log_q_cvp = 0.0
+    depth_scale, log_q_ds = propose_depth_scale(k3a, trace)
+    trace = update_field(k3b, trace, "depth_scale", depth_scale)
 
     k4a, k4b = split(k4)
-    depth_scale, log_q_ds = propose_depth_scale(k4a, trace)
-    trace = update_field(k4b, trace, "depth_scale", depth_scale)
+    color_scale, log_q_cs = propose_color_scale(k4a, trace)
+    trace = update_field(k4b, trace, "color_scale", color_scale)
 
-    k5a, k5b = split(k5)
-    color_scale, log_q_cs = propose_color_scale(k5a, trace)
-    trace = update_field(k5b, trace, "color_scale", color_scale)
-
-    log_q = log_q_dnrps + log_q_cvp + log_q_ds + log_q_cs
+    log_q = log_q_point_attributes + log_q_ds + log_q_cs
     return (
         trace,
         log_q,
-        {"depth_nonreturn_proposal": dnrp_metadata, "dnrps": depth_nonreturn_probs},
+        {"point_attribute_proposal_metadata": point_proposal_metadata},
     )
 
 
-def propose_depth_nonreturn_probs(key, trace):
+def propose_all_pointlevel_attributes(key, trace, inference_hyperparams):
     """
-    Propose a new depth nonreturn probability for every vertex, conditioned
-    upon the other values in `trace`.
-    Returns (depth_nonreturn_probs, log_q) where `depth_nonreturn_probs` is
-    a vector of shape (n_vertices,) and `log_q` is (a fair estimate of)
-    the log proposal density of this list of values.
+    Propose a new color, visibility probability, and depth non-return probability
+    for every vertex, conditioned upon the other values in `trace`.
+
+    Returns (colors, visibility_probs, depth_nonreturn_probs, log_q, metadata),
+    where colors has shape (n_vertices, 3), visibility_probs and depth_nonreturn_probs
+    have shape (n_vertices,), log_q (a float) is (an estimate of)
+    the overall log proposal density, and metadata is a dict.
     """
-    observed_depths_per_points = PixelsPointsAssociation.from_hyperparams_and_pose(
-        get_hypers(trace), get_new_state(trace)["pose"]
-    ).get_point_depths(get_observed_rgbd(trace))
-
-    depth_nonreturn_probs, per_vertex_log_qs, metadata = jax.vmap(
-        propose_vertex_depth_nonreturn_prob, in_axes=(0, 0, 0, None, None, None)
-    )(
-        split(key, get_n_vertices(trace)),
-        jnp.arange(get_n_vertices(trace)),
-        observed_depths_per_points,
-        get_prev_state(trace),
-        get_new_state(trace),
-        get_hypers(trace),
-    )
-
-    return depth_nonreturn_probs, per_vertex_log_qs.sum(), metadata
-
-
-def propose_colors_and_visibility_probs(key, trace, inference_hyperparams):
-    """
-    Propose a new color and visibility probability for every vertex, conditioned
-    upon the other values in `trace`.
-    Returns (colors, visibility_probs, log_q) where `colors` has shape
-    (n_vertices, 3), `visibility_probs` is a vector of shape (n_vertices,)
-    and `log_q` is (a fair estimate of) the log proposal density of these
-    values.
-    """
-    observed_rgbds_per_points = PixelsPointsAssociation.from_hyperparams_and_pose(
+    observed_rgbds_per_point = PixelsPointsAssociation.from_hyperparams_and_pose(
         get_hypers(trace), get_new_state(trace)["pose"]
     ).get_point_rgbds(get_observed_rgbd(trace))
 
-    colors, visibility_probs, per_vertex_log_qs = jax.vmap(
-        propose_vertex_color_and_visibility_prob,
-        in_axes=(0, 0, 0, None, None, None, None),
+    colors, visibility_probs, depth_nonreturn_probs, log_qs, metadata = jax.vmap(
+        propose_a_points_attributes, in_axes=(0, 0, 0, None, None, None, None)
     )(
         split(key, get_n_vertices(trace)),
         jnp.arange(get_n_vertices(trace)),
-        observed_rgbds_per_points,
+        observed_rgbds_per_point,
         get_prev_state(trace),
         get_new_state(trace),
         get_hypers(trace),
         inference_hyperparams,
     )
 
-    return colors, visibility_probs, per_vertex_log_qs.sum()
+    return colors, visibility_probs, depth_nonreturn_probs, log_qs.sum(), metadata
 
 
-def propose_vertex_depth_nonreturn_prob(
-    key, vertex_index, observed_depth, previous_state, new_state, hyperparams
-):
-    """
-    Propose a new depth nonreturn probability for the single vertex
-    with index `vertex_index`.
-    Returns (depth_nonreturn_prob, log_q) where `depth_nonreturn_prob` is
-    the proposed value and `log_q` is (a fair estimate of) the log proposal density.
-    """
-    previous_dnrp = previous_state["depth_nonreturn_prob"][vertex_index]
-    visibility_prob = new_state["visibility_prob"][vertex_index]
-    latent_depth = new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2]
-    return _propose_vertex_depth_nonreturn_prob(
-        key,
-        observed_depth,
-        latent_depth,
-        visibility_prob,
-        new_state["depth_scale"],
-        previous_dnrp,
-        hyperparams["depth_nonreturn_prob_kernel"],
-        hyperparams["image_kernel"].get_depth_vertex_kernel(),
-    )
-
-
-def _propose_vertex_depth_nonreturn_prob(
-    key,
-    observed_depth,
-    latent_depth,
-    visibility_prob,
-    depth_scale,
-    previous_dnrp,
-    dnrp_transition_kernel,
-    obs_depth_kernel,
-    return_metadata=True,
-):
-    def score_dnrp_value(dnrp_value):
-        transition_score = dnrp_transition_kernel.logpdf(dnrp_value, previous_dnrp)
-        likelihood_score = obs_depth_kernel.logpdf(
-            observed_depth=observed_depth,
-            latent_depth=latent_depth,
-            depth_scale=depth_scale,
-            visibility_prob=visibility_prob,
-            depth_nonreturn_prob=dnrp_value,
-        )
-        return transition_score + likelihood_score
-
-    support = dnrp_transition_kernel.support
-    log_pscores = jax.vmap(score_dnrp_value)(support)
-    log_normalized_scores = normalize_log_scores(log_pscores)
-    index = jax.random.categorical(key, log_normalized_scores)
-    # ^ since we are enumerating over every value in the domain, it is unnecessary
-    # to add a 1/q score when resampling.  (Equivalently, we could include
-    # q = 1/len(support), which does not change the resampling distribuiton at all.)
-
-    if return_metadata:
-        metadata = {
-            "support": support,
-            "log_normalized_scores": log_normalized_scores,
-            "index": index,
-            "observed_depth": observed_depth,
-            "latent_depth": latent_depth,
-            "prev_dnrp": previous_dnrp,
-            "transition_score": jax.vmap(
-                lambda dnrp_value: dnrp_transition_kernel.logpdf(
-                    dnrp_value, previous_dnrp
-                )
-            )(support),
-            "likelihood_score": jax.vmap(
-                lambda dnrp_value: obs_depth_kernel.logpdf(
-                    observed_depth,
-                    latent_depth,
-                    visibility_prob,
-                    dnrp_value,
-                    depth_scale,
-                )
-            )(support),
-        }
-    else:
-        metadata = {}
-
-    return support[index], log_normalized_scores[index], metadata
-
-
-def propose_vertex_color_and_visibility_prob(
+def propose_a_points_attributes(
     key,
     vertex_index,
-    observed_rgbd_for_this_vertex,
-    previous_state,
+    observed_rgbd_for_point,
+    prev_state,
     new_state,
     hyperparams,
     inference_hyperparams,
 ):
     """
-    Propose a new color and visibility probability for the single vertex
-    with index `vertex_index`.
-    Returns (color, visibility_prob, log_q) where `color` and `visibility_prob`
-    are the proposed values and `log_q` is (a fair estimate of) the log proposal density.
-    """
-    k1, k2 = split(key, 2)
-    previous_rgb = previous_state["colors"][vertex_index]
-    previous_visibility_prob = previous_state["visibility_prob"][vertex_index]
-    latent_depth = new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2]
-    all_vis_probs = hyperparams["visibility_prob_kernel"].support
+    Propose a new color, visibility probability, and depth non-return probability
+    for the vertex with index `vertex_index`.
 
-    def score_visprob_rgb(visprob, rgb):
-        """
-        Compute P(visprob, rgb, observed_rgbd_for_this_vertex | previous_visprob, previous_rgb).
-        """
-        rgb_transition_score = hyperparams["color_kernel"].logpdf(rgb, previous_rgb)
-        visprob_transition_score = hyperparams["visibility_prob_kernel"].logpdf(
+    Returns (color, visibility_prob, depth_nonreturn_prob, log_q, metadata),
+    where color is a 3-array, visibility_prob and depth_nonreturn_prob are floats,
+    log_q (a float) is (a fair estimate of) the log proposal density,
+    and metadata is a dict.
+    """
+    return _propose_a_points_attributes(
+        key,
+        observed_rgbd=observed_rgbd_for_point,
+        latent_depth=new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2],
+        previous_color=prev_state["colors"][vertex_index],
+        previous_visibility_prob=prev_state["visibility_prob"][vertex_index],
+        previous_dnrp=prev_state["depth_nonreturn_prob"][vertex_index],
+        dnrp_transition_kernel=hyperparams["depth_nonreturn_prob_kernel"],
+        visibility_transition_kernel=hyperparams["visibility_prob_kernel"],
+        color_kernel=hyperparams["color_kernel"],
+        obs_rgbd_kernel=hyperparams["image_kernel"].get_rgbd_vertex_kernel(),
+        color_scale=new_state["color_scale"],
+        depth_scale=new_state["depth_scale"],
+        inference_hyperparams=inference_hyperparams,
+    )
+
+
+def _propose_a_points_attributes(
+    key,
+    observed_rgbd,
+    latent_depth,
+    previous_color,
+    previous_visibility_prob,
+    previous_dnrp,
+    dnrp_transition_kernel,
+    visibility_transition_kernel,
+    color_kernel,
+    obs_rgbd_kernel,
+    color_scale,
+    depth_scale,
+    inference_hyperparams,
+    return_metadata=True,
+):
+    k1, k2 = split(key, 2)
+
+    def score_attribute_assignment(color, visprob, dnrprob):
+        visprob_transition_score = visibility_transition_kernel.logpdf(
             visprob, previous_visibility_prob
         )
-        likelihood_score = (
-            hyperparams["image_kernel"]
-            .get_rgbd_vertex_kernel()
-            .logpdf(
-                observed_rgbd=observed_rgbd_for_this_vertex,
-                latent_rgbd=jnp.append(rgb, latent_depth),
-                color_scale=new_state["color_scale"],
-                depth_scale=new_state["depth_scale"],
-                visibility_prob=visprob,
-                depth_nonreturn_prob=new_state["depth_nonreturn_prob"][vertex_index],
-            )
+        dnrprob_transition_score = dnrp_transition_kernel.logpdf(dnrprob, previous_dnrp)
+        color_transition_score = color_kernel.logpdf(color, previous_color)
+        likelihood_score = obs_rgbd_kernel.logpdf(
+            observed_rgbd=observed_rgbd,
+            latent_rgbd=jnp.append(color, latent_depth),
+            color_scale=color_scale,
+            depth_scale=depth_scale,
+            visibility_prob=visprob,
+            depth_nonreturn_prob=dnrprob,
         )
-        return rgb_transition_score + visprob_transition_score + likelihood_score
+        return (
+            visprob_transition_score
+            + dnrprob_transition_score
+            + color_transition_score
+            + likelihood_score
+        )
 
-    # Propose a rgb value for each visprob.
-    # `rgbs` has shape (len(all_vis_probs), 3).
-    # `log_qs_rgb` has shape (len(all_vis_probs),).
+    # Say there are V values in visibility_transition_kernel.support
+    # and D values in dnrp_transition_kernel.support.
+
+    # (D*V, 2) array of all pairs of values in the support of the two kernels.
+    all_visprob_dnrprob_pairs = all_pairs(
+        visibility_transition_kernel.support, dnrp_transition_kernel.support
+    )
+
+    # Propose a color for each visprob-dnrprob pair.
     rgbs, log_qs_rgb = jax.vmap(
-        lambda k, visprob: propose_vertex_color_given_visibility(
-            k,
-            visprob,
-            observed_rgbd_for_this_vertex[:3],
-            score_visprob_rgb,
-            previous_rgb,
-            new_state,
-            inference_hyperparams,
+        lambda k, visprob_dnrprob_pair: propose_vertex_color_given_other_attributes(
+            key=k,
+            visprob=visprob_dnrprob_pair[0],
+            dnrprob=visprob_dnrprob_pair[1],
+            observed_rgb=observed_rgbd[:3],
+            score_attribute_assignment=score_attribute_assignment,
+            previous_rgb=previous_color,
+            color_scale=color_scale,
+            inference_hyperparams=inference_hyperparams,
         )
-    )(split(k1, len(all_vis_probs)), all_vis_probs)
+    )(split(k1, len(all_visprob_dnrprob_pairs)), all_visprob_dnrprob_pairs)
 
-    # shape: (len(all_vis_probs),)
-    log_pscores = jax.vmap(score_visprob_rgb, in_axes=(0, 0))(all_vis_probs, rgbs)
+    log_pscores = jax.vmap(
+        lambda visprob_dnrprob_pair, rgb: score_attribute_assignment(
+            rgb, visprob_dnrprob_pair[0], visprob_dnrprob_pair[1]
+        ),
+        in_axes=(0, 0),
+    )(all_visprob_dnrprob_pairs, rgbs)
 
-    # We don't need to subtract a q score for the visibility probability, since
-    # we are enumerating over every value in the domain.  (Equivalently,
-    # we could subtract a log q score of log(1/len(support)) for each value.)
     log_weights = log_pscores - log_qs_rgb
     log_normalized_scores = normalize_log_scores(log_weights)
     index = jax.random.categorical(k2, log_normalized_scores)
 
     rgb = rgbs[index]
-    visibility_prob = all_vis_probs[index]
+    visibility_prob, dnr_prob = all_visprob_dnrprob_pairs[index]
     log_q_score = log_normalized_scores[index] + log_qs_rgb[index]
 
-    return rgb, visibility_prob, log_q_score
+    return rgb, visibility_prob, dnr_prob, log_q_score, {}
 
 
-def propose_vertex_color_given_visibility(
+def propose_vertex_color_given_other_attributes(
     key,
     visprob,
+    dnrprob,
     observed_rgb,
-    score_visprob_and_rgb,
+    score_attribute_assignment,
     previous_rgb,
-    new_state,
+    color_scale,
     inference_hyperparams,
 ):
     """
@@ -344,7 +275,6 @@ def propose_vertex_color_given_visibility(
     propose traces that match that part of the posterior.
     """
     color_shift_scale = inference_hyperparams.effective_color_transition_scale
-    color_scale = new_state["color_scale"]
     d = 1 / (1 / color_shift_scale + 1 / color_scale)
 
     r_diff = jnp.abs(previous_rgb[0] - observed_rgb[0])
@@ -379,7 +309,9 @@ def propose_vertex_color_given_visibility(
     log_qs = jnp.array([log_q_rgb_1, log_q_rgb_2, log_q_rgb_3])
 
     scores = (
-        jax.vmap(lambda rgb: score_visprob_and_rgb(visprob, rgb))(proposed_rgbs)
+        jax.vmap(lambda rgb: score_attribute_assignment(rgb, visprob, dnrprob))(
+            proposed_rgbs
+        )
         - log_qs
     )
     normalized_scores = normalize_log_scores(scores)
@@ -517,3 +449,12 @@ def update_vmapped_field(key, trace, fieldname, value):
     For information, see `update_vmapped_fields`.
     """
     return update_vmapped_fields(key, trace, [fieldname], [value])
+
+
+def all_pairs(X, Y):
+    """
+    Return an array `ret` of shape (|X| * |Y|, 2) where each row
+    is a pair of values from X and Y.
+    That is, `ret[i, :]` is a pair [x, y] for some x in X and y in Y.
+    """
+    return jnp.swapaxes(jnp.stack(jnp.meshgrid(X, Y), axis=-1), 0, 1).reshape(-1, 2)

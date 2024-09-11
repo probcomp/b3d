@@ -3,8 +3,6 @@ import jax.numpy as jnp
 import pytest
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
     DEPTH_NONRETURN_VAL,
-    UNEXPLAINED_DEPTH_NONRETURN_PROB,
-    FullPixelDepthDistribution,
     MixturePixelDepthDistribution,
     RenormalizedGaussianPixelDepthDistribution,
     RenormalizedLaplacePixelDepthDistribution,
@@ -29,14 +27,6 @@ sample_kernels_to_test = [
             0.15,  # scale
             0.5,  # visibility_prob
             0.23,  # depth_nonreturn_prob
-        ),
-    ),
-    (
-        FullPixelDepthDistribution(near, far),
-        (
-            0.5,  # scale
-            1 - 0.3,  # visibility_prob
-            0.1,  # depth_nonreturn_prob
         ),
     ),
 ]
@@ -80,34 +70,34 @@ def test_sample_in_valid_depth_range(kernel_spec, latent_depth):
     assert jnp.all((depths <= far) | (depths == DEPTH_NONRETURN_VAL))
 
 
-def test_relative_logpdf():
-    kernel = FullPixelDepthDistribution(near, far)
-    scale = 0.1
+# def test_relative_logpdf():
+#     kernel = FullPixelDepthDistribution(near, far)
+#     scale = 0.1
 
-    # case 1: depth is missing in observation (nonreturn)
-    obs_depth = DEPTH_NONRETURN_VAL
-    latent_depth = DEPTH_NONRETURN_VAL
-    depth_nonreturn_prob = 0.2
-    logpdf_1 = kernel.logpdf(obs_depth, latent_depth, scale, 0.8, depth_nonreturn_prob)
-    assert logpdf_1 == jnp.log(depth_nonreturn_prob)
+#     # case 1: depth is missing in observation (nonreturn)
+#     obs_depth = DEPTH_NONRETURN_VAL
+#     latent_depth = DEPTH_NONRETURN_VAL
+#     depth_nonreturn_prob = 0.2
+#     logpdf_1 = kernel.logpdf(obs_depth, latent_depth, scale, 0.8, depth_nonreturn_prob)
+#     assert logpdf_1 == jnp.log(depth_nonreturn_prob)
 
-    latent_depth = -1.0  # no depth information from latent
-    logpdf_2 = kernel.logpdf(obs_depth, latent_depth, scale, 0.8, depth_nonreturn_prob)
-    # nonreturn obs cannot be generates from latent that is not nonreturn
-    assert logpdf_2 == jnp.log(UNEXPLAINED_DEPTH_NONRETURN_PROB)
+#     latent_depth = -1.0  # no depth information from latent
+#     logpdf_2 = kernel.logpdf(obs_depth, latent_depth, scale, 0.8, depth_nonreturn_prob)
+#     # nonreturn obs cannot be generates from latent that is not nonreturn
+#     assert logpdf_2 == jnp.log(UNEXPLAINED_DEPTH_NONRETURN_PROB)
 
-    # case 2: valid depth is observed, but latent depth is far from the observed depth
-    obs_depth = 10.0
-    latent_depth = 0.01
-    logpdf_3 = kernel.logpdf(obs_depth, latent_depth, scale, 0.1, depth_nonreturn_prob)
-    logpdf_4 = kernel.logpdf(obs_depth, latent_depth, scale, 0.9, depth_nonreturn_prob)
-    # the pixel should be more likely to be an occluded
-    assert logpdf_3 > logpdf_4
+#     # case 2: valid depth is observed, but latent depth is far from the observed depth
+#     obs_depth = 10.0
+#     latent_depth = 0.01
+#     logpdf_3 = kernel.logpdf(obs_depth, latent_depth, scale, 0.1, depth_nonreturn_prob)
+#     logpdf_4 = kernel.logpdf(obs_depth, latent_depth, scale, 0.9, depth_nonreturn_prob)
+#     # the pixel should be more likely to be an occluded
+#     assert logpdf_3 > logpdf_4
 
-    # case 3: valid depth is observed, but latent depth is close from the observed depth
-    obs_depth = 6.0
-    latent_depth = 6.01
-    logpdf_5 = kernel.logpdf(obs_depth, latent_depth, scale, 0.1, depth_nonreturn_prob)
-    logpdf_6 = kernel.logpdf(obs_depth, latent_depth, scale, 0.9, depth_nonreturn_prob)
-    # the pixel should be more likely to be an inliner
-    assert logpdf_5 < logpdf_6
+#     # case 3: valid depth is observed, but latent depth is close from the observed depth
+#     obs_depth = 6.0
+#     latent_depth = 6.01
+#     logpdf_5 = kernel.logpdf(obs_depth, latent_depth, scale, 0.1, depth_nonreturn_prob)
+#     logpdf_6 = kernel.logpdf(obs_depth, latent_depth, scale, 0.9, depth_nonreturn_prob)
+#     # the pixel should be more likely to be an inliner
+#     assert logpdf_5 < logpdf_6

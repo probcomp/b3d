@@ -2,13 +2,11 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
 import genjax
-import jax
 import jax.numpy as jnp
 from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
 from tensorflow_probability.substrates import jax as tfp
 
-from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import is_unexplained
 from b3d.modeling_utils import (
     _FIXED_DEPTH_UNIFORM_WINDOW,
     PythonMixtureDistribution,
@@ -316,76 +314,3 @@ class UnexplainedPixelDepthDistribution(PixelDepthDistribution):
         **kwargs,
     ) -> float:
         return self._mixture_dist.logpdf(observed_depth, self._mix_ratio, [(), ()])
-
-
-@Pytree.dataclass
-class FullPixelDepthDistribution(PixelDepthDistribution):
-    """A distribution that generates the depth of the pixel according to the
-    following rule:
-
-    if no latent point hits the pixel:
-        depth ~ mixture(
-            [delta(DEPTH_NONRETURN_VAL), uniform(near, far)],
-            [unexplained_depth_nonreturn_prob, 1 - unexplained_depth_nonreturn_prob]
-        )
-    else:
-        mixture(
-            [delta(DEPTH_NONRETURN_VAL), uniform(near, far), laplace(latent_depth; depth_scale)],
-            [depth_nonreturn_prob, (1 - depth_nonreturn_prob) * (1 - visibility_prob), remaining_prob]
-        )
-    """
-
-    near: float = Pytree.static()
-    far: float = Pytree.static()
-
-    @property
-    def _depth_from_latent(self) -> PixelDepthDistribution:
-        return MixturePixelDepthDistribution(self.near, self.far)
-
-    @property
-    def _unexplained_depth(self) -> PixelDepthDistribution:
-        return UnexplainedPixelDepthDistribution(self.near, self.far)
-
-    def sample(
-        self,
-        key: PRNGKey,
-        latent_depth: FloatArray,
-        depth_scale: FloatArray,
-        visibility_prob: FloatArray,
-        depth_nonreturn_prob: float,
-        *args,
-        **kwargs,
-    ) -> FloatArray:
-        return jax.lax.cond(
-            is_unexplained(latent_depth),
-            self._unexplained_depth.sample,  # if no point hits current pixel
-            self._depth_from_latent.sample,  # if pixel is being hit by a latent point
-            # sample args
-            key,
-            latent_depth,
-            depth_scale,
-            visibility_prob,
-            depth_nonreturn_prob,
-        )
-
-    def logpdf(
-        self,
-        observed_depth: FloatArray,
-        latent_depth: FloatArray,
-        depth_scale: FloatArray,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        *args,
-        **kwargs,
-    ) -> FloatArray:
-        return jax.lax.cond(
-            is_unexplained(latent_depth),
-            self._unexplained_depth.logpdf,  # if no point hits current pixel
-            self._depth_from_latent.logpdf,  # if pixel is being hit by a latent point
-            # logpdf args
-            observed_depth,
-            latent_depth,
-            depth_scale,
-            visibility_prob,
-            depth_nonreturn_prob,
-        )

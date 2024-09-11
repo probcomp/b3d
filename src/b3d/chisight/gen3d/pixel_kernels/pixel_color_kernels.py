@@ -87,14 +87,20 @@ class RenormalizedGaussianPixelColorDistribution(PixelColorDistribution):
     def sample(self, key, latent_color, color_scale, *args, **kwargs):
         return jax.vmap(
             genjax.truncated_normal.sample, in_axes=(0, 0, None, None, None)
-        )(split(key, latent_color.shape[0]), latent_color, color_scale, 0.0, 1.0)
+        )(
+            split(key, latent_color.shape[0]),
+            latent_color,
+            color_scale,
+            COLOR_MIN_VAL,
+            COLOR_MAX_VAL,
+        )
 
     def logpdf_per_channel(
         self, observed_color, latent_color, color_scale, *args, **kwargs
     ):
         return jax.vmap(
             genjax.truncated_normal.logpdf, in_axes=(0, 0, None, None, None)
-        )(observed_color, latent_color, color_scale, 0.0, 1.0)
+        )(observed_color, latent_color, color_scale, COLOR_MIN_VAL, COLOR_MAX_VAL)
 
 
 @Pytree.dataclass
@@ -108,14 +114,18 @@ class RenormalizedLaplacePixelColorDistribution(PixelColorDistribution):
 
     def sample(self, key, latent_color, color_scale, *args, **kwargs):
         return jax.vmap(renormalized_laplace.sample, in_axes=(0, 0, None, None, None))(
-            split(key, latent_color.shape[0]), latent_color, color_scale, 0.0, 1.0
+            split(key, latent_color.shape[0]),
+            latent_color,
+            color_scale,
+            COLOR_MIN_VAL,
+            COLOR_MAX_VAL,
         )
 
     def logpdf_per_channel(
         self, observed_color, latent_color, color_scale, *args, **kwargs
     ):
         return jax.vmap(renormalized_laplace.logpdf, in_axes=(0, 0, None, None, None))(
-            observed_color, latent_color, color_scale, 0.0, 1.0
+            observed_color, latent_color, color_scale, COLOR_MIN_VAL, COLOR_MAX_VAL
         )
 
 

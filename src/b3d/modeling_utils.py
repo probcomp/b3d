@@ -93,11 +93,11 @@ class RenormalizedLaplace(genjax.ExactDensity):
         laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
         p_below_low = tfp.distributions.Laplace(loc, scale).cdf(low)
         p_below_high = tfp.distributions.Laplace(loc, scale).cdf(high)
-        log_integral_of_laplace_pdf_over_this_range = jnp.log(
+        log_integral_of_laplace_pdf_within_this_range = jnp.log(
             p_below_high - p_below_low
         )
         logpdf_if_in_range = (
-            laplace_logpdf - log_integral_of_laplace_pdf_over_this_range
+            laplace_logpdf - log_integral_of_laplace_pdf_within_this_range
         )
 
         return jnp.where(

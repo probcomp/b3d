@@ -69,8 +69,41 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         """Generate latent RGBD image by projecting the vertices directly to the image
         plane, without checking for occlusions.
         """
-        # TODO: to be finished...
-        return jnp.zeros((self.image_height, self.image_width, 4))
+        transformed_points = state["pose"].apply(hyperparams["vertices"])
+        points_to_pixels = self.get_pixels_points_association(
+            transformed_points, hyperparams
+        )
+        vertex_kernel = self.get_rgbd_vertex_kernel()
+
+        # assuming that at most one vertex hit the pixel, we can convert the
+        # per-vertex attributes into per-pixel attributes, then vmap the
+        # RGBD pixel kernel over the pixels to generate the image.
+        pixel_visibility_prob = points_to_pixels.get_pixel_attributes(
+            state["visibility_prob"]
+        )
+        pixel_depth_nonreturn_prob = points_to_pixels.get_pixel_attributes(
+            state["depth_nonreturn_prob"]
+        )
+        pixel_latent_rgbd = points_to_pixels.get_pixel_attributes(state["colors"])
+        pixel_latent_depth = points_to_pixels.get_pixel_attributes(
+            transformed_points[..., 2]
+        )
+        pixel_latent_rgbd = jnp.concatenate(
+            [pixel_latent_rgbd, pixel_latent_depth[..., None]], axis=-1
+        )
+
+        keys = jax.random.split(key, (self.image_height, self.image_width))
+        return jax.vmap(
+            jax.vmap(vertex_kernel.sample, in_axes=(0, 0, None, None, 0, 0)),
+            in_axes=(0, 0, None, None, 0, 0),
+        )(
+            keys,
+            pixel_latent_rgbd,
+            state["color_scale"],
+            state["depth_scale"],
+            pixel_visibility_prob,
+            pixel_depth_nonreturn_prob,
+        )
 
     def logpdf(
         self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping

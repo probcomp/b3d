@@ -6,6 +6,8 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
     UNEXPLAINED_DEPTH_NONRETURN_PROB,
     FullPixelDepthDistribution,
     MixturePixelDepthDistribution,
+    RenormalizedGaussianPixelDepthDistribution,
+    RenormalizedLaplacePixelDepthDistribution,
     TruncatedLaplacePixelDepthDistribution,
     UnexplainedPixelDepthDistribution,
     UniformPixelDepthDistribution,
@@ -19,6 +21,8 @@ sample_kernels_to_test = [
     (UniformPixelDepthDistribution(near, far), ()),
     (TruncatedLaplacePixelDepthDistribution(near, far), (0.25,)),
     (UnexplainedPixelDepthDistribution(near, far), ()),
+    (RenormalizedLaplacePixelDepthDistribution(near, far), (0.25,)),
+    (RenormalizedGaussianPixelDepthDistribution(near, far), (0.25,)),
     (
         MixturePixelDepthDistribution(near, far),
         (
@@ -72,8 +76,8 @@ def test_sample_in_valid_depth_range(kernel_spec, latent_depth):
         keys
     )
     assert depths.shape == (num_samples,)
-    assert jnp.all((depths > near) | (depths == DEPTH_NONRETURN_VAL))
-    assert jnp.all((depths < far) | (depths == DEPTH_NONRETURN_VAL))
+    assert jnp.all((depths >= near) | (depths == DEPTH_NONRETURN_VAL))
+    assert jnp.all((depths <= far) | (depths == DEPTH_NONRETURN_VAL))
 
 
 def test_relative_logpdf():

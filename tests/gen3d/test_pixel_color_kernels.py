@@ -8,6 +8,8 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     COLOR_MIN_VAL,
     FullPixelColorDistribution,
     MixturePixelColorDistribution,
+    RenormalizedGaussianPixelColorDistribution,
+    RenormalizedLaplacePixelColorDistribution,
     TruncatedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
 )
@@ -36,6 +38,8 @@ def generate_color_grid(n_grid_steps: int):
 sample_kernels_to_test = [
     (UniformPixelColorDistribution(), ()),
     (TruncatedLaplacePixelColorDistribution(), (0.1,)),
+    (RenormalizedLaplacePixelColorDistribution(), (0.1,)),
+    (RenormalizedGaussianPixelColorDistribution(), (0.1,)),
     (
         MixturePixelColorDistribution(),
         (
@@ -80,8 +84,8 @@ def test_sample_in_valid_color_range(kernel_spec, latent_color):
         keys
     )
     assert colors.shape == (num_samples, 3)
-    assert jnp.all(colors > 0)
-    assert jnp.all(colors < 1)
+    assert jnp.all(colors >= 0)
+    assert jnp.all(colors <= 1)
 
 
 def test_relative_logpdf():

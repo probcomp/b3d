@@ -1,5 +1,5 @@
-from collections import namedtuple
-from functools import partial
+from functools import partial, wraps
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -9,38 +9,36 @@ from genjax import Diff
 from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
-from .inference_moves import (
+from b3d.chisight.gen3d.inference_moves import (
     propose_other_latents_given_pose,
     propose_pose,
 )
-from .model import (
+from b3d.chisight.gen3d.model import (
     get_hypers,
     get_prev_state,
 )
 
+
 # Use namedtuple rather than dict so we can hash this, and use it as a static arg to a jitted function.
-InferenceHyperparams = namedtuple(
-    "InferenceHyperparams",
-    [
-        "n_poses",
-        "pose_proposal_std",
-        "pose_proposal_conc",
-        "effective_color_transition_scale",
-    ],
-)
-"""
-Parameters for the inference algorithm.
-- n_poses: Number of poses to propose at each timestep.
-- pose_proposal_std: Standard deviation of the position distribution for the pose.
-- pose_proposal_conc: Concentration parameter for the orientation distribution for the pose.
-- effective_color_transition_scale: This parameter is used in the color proposal.
-    When the color transition kernel is a laplace, this should be its scale.
-    When the color transition kernel is a different distribution, set this to something
-    that would make a laplace transition kernel propose with a somewhat similar spread
-    to the kernel you are using.  (This parameter is used to decide
-    the size of the proposal in the color proposal, using a simple analysis
-    we conducted in the laplace case.)
-"""
+class InferenceHyperparams(NamedTuple):
+    """
+    Parameters for the inference algorithm.
+    - n_poses: Number of poses to propose at each timestep.
+    - pose_proposal_std: Standard deviation of the position distribution for the pose.
+    - pose_proposal_conc: Concentration parameter for the orientation distribution for the pose.
+    - effective_color_transition_scale: This parameter is used in the color proposal.
+        When the color transition kernel is a laplace, this should be its scale.
+        When the color transition kernel is a different distribution, set this to something
+        that would make a laplace transition kernel propose with a somewhat similar spread
+        to the kernel you are using.  (This parameter is used to decide
+        the size of the proposal in the color proposal, using a simple analysis
+        we conducted in the laplace case.)
+    """
+
+    n_poses: int
+    pose_proposal_std: float
+    pose_proposal_conc: float
+    effective_color_transition_scale: float
 
 
 @jax.jit
@@ -108,6 +106,7 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     )
 
 
+@wraps(inference_step)
 def inference_step_noweight(*args):
     """
     Same as inference_step, but only returns the new trace

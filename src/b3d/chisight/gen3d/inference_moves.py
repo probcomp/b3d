@@ -265,7 +265,7 @@ def propose_vertex_color_and_visibility_prob(
             .logpdf(
                 observed_rgbd=observed_rgbd_for_this_vertex,
                 latent_rgbd=jnp.append(rgb, latent_depth),
-                rgb_scale=new_state["color_scale"],
+                color_scale=new_state["color_scale"],
                 depth_scale=new_state["depth_scale"],
                 visibility_prob=visprob,
                 depth_nonreturn_prob=new_state["depth_nonreturn_prob"][vertex_index],

@@ -300,7 +300,36 @@ def propose_vertex_color_and_visibility_prob(
 
     rgb = rgbs[index]
     visibility_prob = all_vis_probs[index]
-    log_q_score = log_normalized_scores[index] + log_qs_rgb[index]
+
+    log_k_score = log_normalized_scores[index] + log_qs_rgb.sum()
+    log_l_score = log_qs_rgb.sum() - log_qs_rgb[index]
+    log_q_score = log_k_score - log_l_score
+
+    # Explanation of the math above:
+
+    # K(rgb1, rgb2, idx) -> sample rgb1 ~ k1, sample rgb2 ~ k2, sample idx ~ k3
+    # L(rgb_other ; rgb_observed, idx) -> sample rgb_other ~ k_{2 - idx}
+    # Log_q = Log (marginal of K on [rgb1, rgb2][idx], idx), marginalizing over the unchosen rgb.
+    # Can estimate log_q via log_q = log_K - log_L
+
+    #####
+
+    # K(2 rgb values, 1 index) -> returned rgbs[idx], visprob_support[idx] | 1 "auxiliary value", rgb[1-idx]
+    # log_q = K_marginal(rgbs[idx], idx) -- need to marginalize over the other rgb
+    # Ok, let's have a kernel L(other rgb ; observed rgb, idx).
+    # Then let's say K_marginal(observed_rgb, idx) ~~  [ w = K(observed_rgb, other_rgb, idx) / L(other_rgb ; observed_rgb, idx) ]
+    # E[1 / w] = 1 / K_marginal(observed_rgb, idx)
+
+    # E[1 / w] = 1 / Q
+    # E[p / w] = E[p] * E[1 / w] = p / Q
+
+    # E[X] = x
+    # !-> E[1/X] = 1/x
+
+    # P(x, y)
+    # q(x ; y)
+    # x ~ q(. ; y), and then compute w = P(x, y) / q(x ; y)
+    # w ~~ P(y)   ----> E[w] = P(y)
 
     return rgb, visibility_prob, log_q_score
 

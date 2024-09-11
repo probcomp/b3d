@@ -88,6 +88,15 @@ class PixelsPointsAssociation(Pytree):
     def y(self) -> IntArray:
         return self.projected_pixel_coordinates[:, 1]
 
+    def get_pixel_attributes(self, point_attributes: FloatArray) -> FloatArray:
+        """Given a (num_vertices, attribute_length) array of point attributes,
+        return a (image_height, image_width, attribute_length) array of attributes.
+        Pixels that don't hit a vertex will have a value filled with -1.
+        """
+        return point_attributes.at[self.pixel_to_point_idx].get(
+            mode="drop", fill_value=-1
+        )
+
     def get_point_rgbds(self, rgbd_image: FloatArray) -> FloatArray:
         """
         Get a (num_vertices, 4) array of RGBD values for each vertex
@@ -140,7 +149,7 @@ class PixelsPointsAssociation(Pytree):
     def get_pixel_idx(self, point_idx: int) -> IntArray:
         return self.projected_pixel_coordinates[point_idx]
 
-    def pixels_with_multiple_points(self) -> tuple[IntArray, IntArray]:
+    def get_pixels_with_multiple_points(self) -> tuple[IntArray, IntArray]:
         """Return a tuple of (x_coords, y_coords) of pixels that have more than
         one vertices associated with them. Note that this method is not JIT-compatible
         because the return values are not of fixed shape.

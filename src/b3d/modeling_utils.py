@@ -1,3 +1,5 @@
+import warnings
+
 import genjax
 import jax
 import jax.numpy as jnp
@@ -73,6 +75,39 @@ categorical = tfp_distribution(
 )
 bernoulli = tfp_distribution(lambda logits: tfp.distributions.Bernoulli(logits=logits))
 normal = tfp_distribution(tfp.distributions.Normal)
+
+
+###
+
+
+@Pytree.dataclass
+class RenormalizedLaplace(genjax.ExactDensity):
+    def sample(self, key, loc, scale, low, high):
+        warnings.warn(
+            "RenormalizedLaplace sampling is currently not implemented correctly."
+        )
+        x = tfp.distributions.Laplace(loc, scale).sample(seed=key)
+        return jnp.clip(x, low, high)
+
+    def logpdf(self, obs, loc, scale, low, high):
+        laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
+        p_below_low = tfp.distributions.Laplace(loc, scale).cdf(low)
+        p_below_high = tfp.distributions.Laplace(loc, scale).cdf(high)
+        log_integral_of_laplace_pdf_within_this_range = jnp.log(
+            p_below_high - p_below_low
+        )
+        logpdf_if_in_range = (
+            laplace_logpdf - log_integral_of_laplace_pdf_within_this_range
+        )
+
+        return jnp.where(
+            jnp.logical_and(obs >= low, obs <= high),
+            logpdf_if_in_range,
+            -jnp.inf,
+        )
+
+
+renormalized_laplace = RenormalizedLaplace()
 
 ### Mixture distribution combinator ###
 

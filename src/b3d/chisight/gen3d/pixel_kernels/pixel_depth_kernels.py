@@ -10,6 +10,7 @@ from tensorflow_probability.substrates import jax as tfp
 from b3d.modeling_utils import (
     _FIXED_DEPTH_UNIFORM_WINDOW,
     PythonMixtureDistribution,
+    renormalized_laplace,
     truncated_laplace,
 )
 
@@ -43,6 +44,66 @@ class PixelDepthDistribution(genjax.ExactDensity):
         self, observed_depth: float, latent_depth: float, *args, **kwargs
     ) -> float:
         raise NotImplementedError
+
+
+@Pytree.dataclass
+class RenormalizedGaussianPixelDepthDistribution(PixelDepthDistribution):
+    """A distribution that generates the depth of a pixel from a Gaussian
+    distribution centered around the latent depth, with the spread controlled
+    by depth_scale. The support of the distribution is [near, far].
+    """
+
+    near: float = Pytree.static()
+    far: float = Pytree.static()
+
+    def sample(
+        self, key: PRNGKey, latent_depth: float, depth_scale: float, *args, **kwargs
+    ) -> float:
+        return genjax.truncated_normal.sample(
+            key, latent_depth, depth_scale, self.near, self.far
+        )
+
+    def logpdf(
+        self,
+        observed_depth: float,
+        latent_depth: float,
+        depth_scale: float,
+        *args,
+        **kwargs,
+    ) -> float:
+        return genjax.truncated_normal.logpdf(
+            observed_depth, latent_depth, depth_scale, self.near, self.far
+        )
+
+
+@Pytree.dataclass
+class RenormalizedLaplacePixelDepthDistribution(PixelDepthDistribution):
+    """A distribution that generates the depth of a pixel from a Laplace
+    distribution centered around the latent depth, with the spread controlled
+    by depth_scale. The support of the distribution is [near, far].
+    """
+
+    near: float = Pytree.static()
+    far: float = Pytree.static()
+
+    def sample(
+        self, key: PRNGKey, latent_depth: float, depth_scale: float, *args, **kwargs
+    ) -> float:
+        return renormalized_laplace.sample(
+            key, latent_depth, depth_scale, self.near, self.far
+        )
+
+    def logpdf(
+        self,
+        observed_depth: float,
+        latent_depth: float,
+        depth_scale: float,
+        *args,
+        **kwargs,
+    ) -> float:
+        return renormalized_laplace.logpdf(
+            observed_depth, latent_depth, depth_scale, self.near, self.far
+        )
 
 
 @Pytree.dataclass

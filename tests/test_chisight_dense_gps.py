@@ -53,8 +53,8 @@ def test_dense_gps_model():
         return mesh
 
     meshes = jax.vmap(cube_mesh_with_size_and_color)(
-        jnp.ones((num_particles.const, 3)) * jnp.array([[0.1, 0.1, 0.01]]),
-        jax.random.uniform(key, (num_particles.const, 3)),
+        jnp.ones((num_particles.unwrap(), 3)) * jnp.array([[0.1, 0.1, 0.01]]),
+        jax.random.uniform(key, (num_particles.unwrap(), 3)),
     )
 
     likelihood = make_krays_image_observation_model(renderer)

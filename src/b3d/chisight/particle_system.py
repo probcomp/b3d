@@ -26,14 +26,14 @@ def initial_particle_system_state(
 ):
     relative_particle_poses = (
         dummy_mapped_uniform_pose(
-            jnp.arange(num_particles.const), *relative_particle_poses_prior_params
+            jnp.arange(num_particles.unwrap()), *relative_particle_poses_prior_params
         )
         @ "particle_poses"
     )
 
     object_assignments = (
         b3d.modeling_utils.categorical.vmap(in_axes=(0,))(
-            jnp.zeros((num_particles.const, num_clusters.const))
+            jnp.zeros((num_particles.unwrap(), num_clusters.unwrap()))
         )
         @ "object_assignments"
     )
@@ -41,7 +41,7 @@ def initial_particle_system_state(
     # Cluster pose in world coordinates
     initial_object_poses = (
         dummy_mapped_uniform_pose(
-            jnp.arange(num_clusters.const), *initial_object_poses_prior_params
+            jnp.arange(num_clusters.unwrap()), *initial_object_poses_prior_params
         )
         @ "object_poses"
     )
@@ -59,7 +59,7 @@ def initial_particle_system_state(
     # Initial visibility mask
     initial_vis_mask = (
         b3d.modeling_utils.bernoulli.vmap(in_axes=(0,))(
-            jnp.repeat(jax.scipy.special.logit(0.5), num_particles.const)
+            jnp.repeat(jax.scipy.special.logit(0.5), num_particles.unwrap())
         )
         @ "initial_visibility"
     )
@@ -101,7 +101,7 @@ def particle_system_state_step(carried_state, _):
     # Visibility mask
     vis_mask = (
         b3d.modeling_utils.bernoulli.vmap(in_axes=(0,))(
-            jnp.repeat(jax.scipy.special.logit(0.5), num_particles.const)
+            jnp.repeat(jax.scipy.special.logit(0.5), num_particles.unwrap())
         )
         @ "visibility"
     )
@@ -146,7 +146,7 @@ def latent_particle_model(
     )
 
     final_state, scan_retvals = (
-        particle_system_state_step.scan(n=(num_timesteps.const - 1))(state0, None)
+        particle_system_state_step.scan(n=(num_timesteps.unwrap() - 1))(state0, None)
         @ "states1+"
     )
 
@@ -164,7 +164,7 @@ def sparse_observation_model(
 ):
     # TODO: add visibility
     uv = b3d.camera.screen_from_world(
-        particle_absolute_poses.pos, camera_pose, instrinsics.const
+        particle_absolute_poses.pos, camera_pose, instrinsics.unwrap()
     )
     uv_ = (
         b3d.modeling_utils.normal(uv, jnp.tile(sigma, uv.shape)) @ "sensor_coordinates"
@@ -248,7 +248,7 @@ def visualize_particle_system(
     camera_pose = particle_dynamics_summary["camera_pose"]
     object_assignments = static_state[0]
 
-    cluster_colors = jnp.array(b3d.distinct_colors(num_clusters.const))
+    cluster_colors = jnp.array(b3d.distinct_colors(num_clusters.unwrap()))
 
     rr.log(
         f"{viz_prefix}/3D",
@@ -266,7 +266,7 @@ def visualize_particle_system(
         timeless=True,
     )
 
-    for t in range(num_timesteps.const):
+    for t in range(num_timesteps.unwrap()):
         rr.set_time_sequence("time", t)
 
         cam_pose = camera_pose[t]
@@ -286,7 +286,7 @@ def visualize_particle_system(
             ),
         )
 
-        for i in range(num_clusters.const):
+        for i in range(num_clusters.unwrap()):
             b3d.rr_log_pose(f"{viz_prefix}/3D/cluster/{i}", object_poses[t][i])
 
 
@@ -302,7 +302,7 @@ def particle_2d_pixel_coordinates_to_image(pixel_coords, image_height, image_wid
 def visualize_sparse_observation(sparse_model_args, observations):
     import rerun as rr
 
-    intrinsics = sparse_model_args[0].const
+    intrinsics = sparse_model_args[0].unwrap()
 
     for t in range(observations.shape[0]):
         rr.set_time_sequence("time", t)
@@ -338,7 +338,7 @@ def visualize_dense_gps(
             timeless=True,
         )
 
-    for t in range(num_timesteps.const):
+    for t in range(num_timesteps.unwrap()):
         rr.set_time_sequence("time", t)
         poses = particle_dynamics_summary["absolute_particle_poses"][t]
         for i in range(len(meshes)):

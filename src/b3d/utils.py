@@ -511,7 +511,7 @@ def multivmap(f, args=None):
 def update_choices(trace, addresses, *values):
     return trace.update(
         jax.random.PRNGKey(0),
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)}),
+        genjax.ChoiceMap.from_mapping(zip(addresses.unwrap(), values)),
     )[0]
 
 
@@ -549,13 +549,13 @@ grid4 = multivmap(update_choices_get_score, (False, False, True, True, True, Tru
 
 @jax.jit
 def grid_trace(trace, addresses_const, values):
-    if len(addresses_const.const) == 1:
+    if len(addresses_const.unwrap()) == 1:
         return grid1(trace, addresses_const, *values)
-    elif len(addresses_const.const) == 2:
+    elif len(addresses_const.unwrap()) == 2:
         return grid2(trace, addresses_const, *values)
-    elif len(addresses_const.const) == 3:
+    elif len(addresses_const.unwrap()) == 3:
         return grid3(trace, addresses_const, *values)
-    elif len(addresses_const.const) == 4:
+    elif len(addresses_const.unwrap()) == 4:
         return grid4(trace, addresses_const, *values)
     else:
         raise ValueError("Too many addresses")

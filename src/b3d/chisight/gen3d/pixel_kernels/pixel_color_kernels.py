@@ -21,22 +21,6 @@ COLOR_MIN_VAL: float = 0.0
 COLOR_MAX_VAL: float = 1.0
 
 
-def is_unexplained(latent_value: FloatArray) -> bool:
-    """
-    Check if a given `latent_value` value given to a pixel
-    indicates that no latent point hits a pixel.
-    This is done by checking if any of the latent color values
-    are negative.
-
-    Args:
-        latent_value (FloatArray): The latent color of the pixel.
-
-    Returns:
-        bool: True is none of the latent point hits the pixel, False otherwise.
-    """
-    return jnp.any(latent_value < 0.0)
-
-
 @Pytree.dataclass
 class PixelColorDistribution(genjax.ExactDensity):
     """
@@ -202,77 +186,3 @@ class MixturePixelColorDistribution(PixelColorDistribution):
             )
 
         return jnp.logaddexp(*logprobs)
-
-
-@Pytree.dataclass
-class FullPixelColorDistribution(PixelColorDistribution):
-    """A distribution that generates the color of the pixel according to the
-    following rule:
-
-    if no latent point hits the pixel:
-        color ~ uniform(0, 1)
-    else:
-        color ~ mixture(
-            [uniform(0, 1), truncated_laplace(latent_color; color_scale)],
-            [occluded_prob, 1 - occluded_prob]
-        )
-
-    Constructor args:
-
-    Distribution args:
-    - `latent_color`: 3-array.  If no latent point hits the pixel, should contain
-        3 negative values.  If a latent point hits the pixel, should contain the point's
-        color as an RGB value in [0, 1]^3.
-    - color_scale: float.  The scale of the truncated Laplace distribution
-        centered around the latent color used for inlier color observations.
-    - `color_visibility_prob`: float.  If a latent point hits the pixel, should contain
-        the probability associated with that point that the generated color is
-        visible (non-occluded).  If no latent point hits the pixel, this value is ignored.
-
-    Distribution support:
-        - An RGB value in [0, 1]^3.
-    """
-
-    @property
-    def _color_from_latent(self) -> PixelColorDistribution:
-        return MixturePixelColorDistribution()
-
-    @property
-    def _unexplained_color(self) -> PixelColorDistribution:
-        return UniformPixelColorDistribution()
-
-    def sample(
-        self,
-        key: PRNGKey,
-        latent_color: FloatArray,
-        color_scale: FloatArray,
-        visibility_prob: FloatArray,
-    ) -> FloatArray:
-        return jax.lax.cond(
-            is_unexplained(latent_color),
-            self._unexplained_color.sample,  # if no point hits current pixel
-            self._color_from_latent.sample,  # if pixel is being hit by a latent point
-            # sample args
-            key,
-            latent_color,
-            color_scale,
-            visibility_prob,
-        )
-
-    def logpdf_per_channel(
-        self,
-        observed_color: FloatArray,
-        latent_color: FloatArray,
-        color_scale: FloatArray,
-        visibility_prob: float,
-    ) -> FloatArray:
-        return jax.lax.cond(
-            is_unexplained(latent_color),
-            self._unexplained_color.logpdf_per_channel,  # if no point hits current pixel
-            self._color_from_latent.logpdf_per_channel,  # if pixel is being hit by a latent point
-            # logpdf args
-            observed_color,
-            latent_color,
-            color_scale,
-            visibility_prob,
-        )

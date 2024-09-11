@@ -3,9 +3,15 @@ import jax.numpy as jnp
 import pytest
 from b3d.chisight.gen3d.pixel_kernels import (
     DEPTH_NONRETURN_VAL,
-    FullPixelColorDistribution,
-    FullPixelDepthDistribution,
-    PixelRGBDDistribution,
+    FullPixelRGBDDistribution,
+)
+from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
+    TruncatedLaplacePixelColorDistribution,
+    UniformPixelColorDistribution,
+)
+from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
+    TruncatedLaplacePixelDepthDistribution,
+    UniformPixelDepthDistribution,
 )
 
 near = 0.01
@@ -13,9 +19,11 @@ far = 20.0
 
 sample_kernels_to_test = [
     (
-        PixelRGBDDistribution(
-            FullPixelColorDistribution(),
-            FullPixelDepthDistribution(near, far),
+        FullPixelRGBDDistribution(
+            TruncatedLaplacePixelColorDistribution(),
+            UniformPixelColorDistribution(),
+            TruncatedLaplacePixelDepthDistribution(near, far),
+            UniformPixelDepthDistribution(near, far),
         ),
         (
             0.01,  # color_scale

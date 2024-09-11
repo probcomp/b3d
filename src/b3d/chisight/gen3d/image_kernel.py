@@ -7,12 +7,18 @@ import jax.numpy as jnp
 from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
 
-from b3d.chisight.gen3d.pixel_kernels import (
-    FullPixelColorDistribution,
-    FullPixelDepthDistribution,
-    PixelDepthDistribution,
+from b3d.chisight.gen3d.pixel_kernels import is_unexplained
+from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
+    TruncatedLaplacePixelColorDistribution,
+    UniformPixelColorDistribution,
+)
+from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
+    TruncatedLaplacePixelDepthDistribution,
+    UniformPixelDepthDistribution,
+)
+from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
+    FullPixelRGBDDistribution,
     PixelRGBDDistribution,
-    is_unexplained,
 )
 from b3d.chisight.gen3d.projection import PixelsPointsAssociation
 
@@ -49,9 +55,6 @@ class ImageKernel(genjax.ExactDensity):
     def logpdf(
         self, obseved_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
     ) -> FloatArray:
-        raise NotImplementedError
-
-    def get_depth_vertex_kernel(self) -> PixelDepthDistribution:
         raise NotImplementedError
 
     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
@@ -130,7 +133,6 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # -inf if it is invalid. We need to filter those out here.
         # (invalid rgbd could happen when the vertex is projected out of the image)
         scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
-
         return scores.sum()
 
     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
@@ -138,10 +140,9 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # but they should work for per-vertex computation as well, except that
         # they don't expect observed_rgbd to be invalid, so we need to handle
         # that manually.
-        return PixelRGBDDistribution(
-            FullPixelColorDistribution(),
-            FullPixelDepthDistribution(self.near, self.far),
+        return FullPixelRGBDDistribution(
+            TruncatedLaplacePixelColorDistribution(),
+            UniformPixelColorDistribution(),
+            TruncatedLaplacePixelDepthDistribution(self.near, self.far),
+            UniformPixelDepthDistribution(self.near, self.far),
         )
-
-    def get_depth_vertex_kernel(self) -> PixelDepthDistribution:
-        return self.get_rgbd_vertex_kernel().depth_kernel

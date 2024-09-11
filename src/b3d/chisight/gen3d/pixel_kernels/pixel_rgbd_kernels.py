@@ -68,6 +68,16 @@ class PixelRGBDDistribution(genjax.ExactDensity):
 
 @Pytree.dataclass
 class FullPixelRGBDDistribution(PixelRGBDDistribution):
+    """
+    Args:
+    - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
+    - color_scale: float
+    - depth_scale: float
+    - visibility_prob: float
+
+    The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
+    """
+
     inlier_color_distribution: PixelColorDistribution
     outlier_color_distribution: PixelColorDistribution
 

@@ -129,10 +129,11 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             state["visibility_prob"],
             state["depth_nonreturn_prob"],
         )
-        # the pixel kernel does not expect invalid observed_rgbd and will return
-        # -inf if it is invalid. We need to filter those out here.
-        # (invalid rgbd could happen when the vertex is projected out of the image)
+        # Points that don't hit the camera plane should not contribute to the score.
         scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
+
+        # TODO: add scoring for pixels that are not explained by the latent points
+
         return scores.sum()
 
     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:

@@ -94,11 +94,7 @@ class PixelsPointsAssociation(Pytree):
         by indexing into the given image.
         Vertices that don't hit a pixel will have a value of (-1, -1, -1, -1).
         """
-        unfiltered = rgbd_image[self.x, self.y]
-        invalid_indices = jnp.logical_or(self.x == INVALID_IDX, self.y == INVALID_IDX)
-        return jnp.where(
-            invalid_indices[:, None], -jnp.ones_like(unfiltered), unfiltered
-        )
+        return rgbd_image.at[self.x, self.y].get(mode="drop", fill_value=-1.0)
 
     def get_point_depths(self, rgbd_image: FloatArray) -> FloatArray:
         """

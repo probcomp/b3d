@@ -12,6 +12,7 @@ from b3d.chisight.gen3d.pixel_kernels import (
     FullPixelDepthDistribution,
     PixelDepthDistribution,
     PixelRGBDDistribution,
+    is_unexplained,
 )
 from b3d.chisight.gen3d.projection import PixelsPointsAssociation
 
@@ -79,9 +80,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             transformed_points, hyperparams
         )
         vertex_kernel = self.get_rgbd_vertex_kernel()
-        observed_rgbd_per_point = observed_rgbd.at[
-            points_to_pixels.x, points_to_pixels.y
-        ].get(mode="drop", fill_value=-1.0)
+        observed_rgbd_per_point = points_to_pixels.get_point_rgbds(observed_rgbd)
         latent_rgbd_per_point = jnp.concatenate(
             (state["colors"], transformed_points[..., 2, None]), axis=-1
         )
@@ -94,11 +93,18 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             state["visibility_prob"],
             state["depth_nonreturn_prob"],
         )
+        # the pixel kernel does not expect invalid observed_rgbd and will return
+        # -inf if it is invalid. We need to filter those out here.
+        # (invalid rgbd could happen when the vertex is projected out of the image)
+        scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
+
         return scores.sum()
 
     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
         # Note: The distributions were originally defined for per-pixel computation,
-        # but they should work for per-vertex computation as well
+        # but they should work for per-vertex computation as well, except that
+        # they don't expect observed_rgbd to be invalid, so we need to handle
+        # that manually.
         return PixelRGBDDistribution(
             FullPixelColorDistribution(),
             FullPixelDepthDistribution(self.near, self.far),

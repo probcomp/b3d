@@ -224,7 +224,7 @@ class LaplaceColorDriftKernel(DriftKernel):
     This is a thin wrapper around the truncated_color_laplace distribution to
     provide a consistent interface with other drift kernels.
 
-    Support: [0.0, 1.0]
+    Support: [0.0, 1.0]^3
     """
 
     scale: float = Pytree.static()
@@ -244,16 +244,13 @@ class LaplaceColorDriftKernel(DriftKernel):
 @Pytree.dataclass
 class LaplaceNotTruncatedColorDriftKernel(DriftKernel):
     """A drift kernel that samples the 3 channels of the color from a specialized
-    truncated Laplace distribution, centered at the previous color. Values outside
-    of the bounds will be resampled from a small uniform window at the boundary.
-    This is a thin wrapper around the truncated_color_laplace distribution to
-    provide a consistent interface with other drift kernels.
+    truncated Laplace distribution, centered at the previous color. Values may
+    go outside of the valid color range ([0.0, 1.0]^3).
 
-    Support: [0.0, 1.0]
+    Support: [-inf, inf]^3
     """
 
     scale: float = Pytree.static()
-    uniform_window_size: float = Pytree.static(default=_FIXED_COLOR_UNIFORM_WINDOW)
 
     def sample(self, key: PRNGKey, prev_value: ArrayLike) -> ArrayLike:
         return genjax.laplace.sample(key, prev_value, self.scale)

@@ -12,15 +12,16 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import PixelDepthDistr
 class PixelRGBDDistribution(genjax.ExactDensity):
     """
     Distribution args:
-    - latent_rgbd: 4-array: RGBD value.  (Should be [-1, -1, -1, -1] to indicate no point hits here.)
-    - rgb_scale: float
+    - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
+    - color_scale: float
     - depth_scale: float
     - visibility_prob: float
     - depth_nonreturn_prob: float
 
     The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
 
-    If the logpdf of [-1, -1, -1, -1] is requested, this will return 0.0.
+    Note that this distribution expects the observed_rgbd to be valid. If an invalid
+    pixel is observed, the logpdf will return -inf.
     """
 
     color_kernel: PixelColorDistribution
@@ -30,14 +31,14 @@ class PixelRGBDDistribution(genjax.ExactDensity):
         self,
         key: PRNGKey,
         latent_rgbd: FloatArray,
-        rgb_scale,
-        depth_scale,
-        visibility_prob,
-        depth_nonreturn_prob,
+        color_scale: float,
+        depth_scale: float,
+        visibility_prob: float,
+        depth_nonreturn_prob: float,
     ) -> FloatArray:
         keys = jax.random.split(key, 2)
         observed_color = self.color_kernel.sample(
-            keys[0], latent_rgbd[:3], rgb_scale, visibility_prob
+            keys[0], latent_rgbd[:3], color_scale, visibility_prob
         )
         observed_depth = self.depth_kernel.sample(
             keys[1], latent_rgbd[3], depth_scale, visibility_prob, depth_nonreturn_prob
@@ -48,13 +49,13 @@ class PixelRGBDDistribution(genjax.ExactDensity):
         self,
         observed_rgbd: FloatArray,
         latent_rgbd: FloatArray,
-        rgb_scale,
-        depth_scale,
-        visibility_prob,
-        depth_nonreturn_prob,
+        color_scale: float,
+        depth_scale: float,
+        visibility_prob: float,
+        depth_nonreturn_prob: float,
     ) -> float:
         color_logpdf = self.color_kernel.logpdf(
-            observed_rgbd[:3], latent_rgbd[:3], rgb_scale, visibility_prob
+            observed_rgbd[:3], latent_rgbd[:3], color_scale, visibility_prob
         )
         depth_logpdf = self.depth_kernel.logpdf(
             observed_rgbd[3],

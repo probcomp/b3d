@@ -141,7 +141,7 @@ def propose_a_points_attributes(
     """
     return _propose_a_points_attributes(
         key,
-        observed_rgbd=observed_rgbd_for_point,
+        observed_rgbd_for_point=observed_rgbd_for_point,
         latent_depth=new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2],
         previous_color=prev_state["colors"][vertex_index],
         previous_visibility_prob=prev_state["visibility_prob"][vertex_index],
@@ -158,7 +158,7 @@ def propose_a_points_attributes(
 
 def _propose_a_points_attributes(
     key,
-    observed_rgbd,
+    observed_rgbd_for_point,
     latent_depth,
     previous_color,
     previous_visibility_prob,
@@ -181,7 +181,7 @@ def _propose_a_points_attributes(
         dnrprob_transition_score = dnrp_transition_kernel.logpdf(dnrprob, previous_dnrp)
         color_transition_score = color_kernel.logpdf(color, previous_color)
         likelihood_score = obs_rgbd_kernel.logpdf(
-            observed_rgbd=observed_rgbd,
+            observed_rgbd=observed_rgbd_for_point,
             latent_rgbd=jnp.append(color, latent_depth),
             color_scale=color_scale,
             depth_scale=depth_scale,
@@ -209,7 +209,7 @@ def _propose_a_points_attributes(
             key=k,
             visprob=visprob_dnrprob_pair[0],
             dnrprob=visprob_dnrprob_pair[1],
-            observed_rgb=observed_rgbd[:3],
+            observed_rgb=observed_rgbd_for_point[:3],
             score_attribute_assignment=score_attribute_assignment,
             previous_rgb=previous_color,
             color_scale=color_scale,

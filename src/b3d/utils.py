@@ -597,17 +597,6 @@ def nn_background_segmentation(images):
     return masks
 
 
-def rr_log_pose(channel, pose, scale=0.1):
-    origins = jnp.tile(pose.pos[None, ...], (3, 1))
-    colors = jnp.eye(3)
-    rr.log(
-        channel,
-        rr.Arrows3D(
-            origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors
-        ),
-    )
-
-
 def rr_init(name="demo"):
     rr.init(name)
     rr.connect("127.0.0.1:8812")
@@ -638,6 +627,17 @@ def rr_log_cloud(cloud, channel="cloud", colors=None):
         rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
     else:
         rr.log(channel, rr.Points3D(cloud.reshape(-1, 3), colors=colors.reshape(-1, 3)))
+
+
+def rr_log_pose(pose, channel="pose", scale=0.1):
+    origins = jnp.tile(pose.pos[None, ...], (3, 1))
+    colors = jnp.eye(3)
+    rr.log(
+        channel,
+        rr.Arrows3D(
+            origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors
+        ),
+    )
 
 
 def rr_set_time(t=0):

@@ -84,7 +84,7 @@ normal = tfp_distribution(tfp.distributions.Normal)
 class RenormalizedLaplace(genjax.ExactDensity):
     def sample(self, key, loc, scale, low, high):
         warnings.warn(
-            "RenormalizedLaplace sampling is currently not implemented correctly."
+            "RenormalizedLaplace sampling is currently not implemented perfectly."
         )
         x = tfp.distributions.Laplace(loc, scale).sample(seed=key)
         return jnp.clip(x, low, high)
@@ -108,6 +108,22 @@ class RenormalizedLaplace(genjax.ExactDensity):
 
 
 renormalized_laplace = RenormalizedLaplace()
+
+
+@Pytree.dataclass
+class RenormalizedColorLaplace(genjax.ExactDensity):
+    def sample(self, key, loc, scale):
+        return jax.vmap(
+            lambda k, c: renormalized_laplace.sample(k, c, scale, 0.0, 1.0),
+        )(jax.random.split(key, loc.shape[0]), loc)
+
+    def logpdf(self, obs, loc, scale):
+        return jax.vmap(
+            lambda o, c: renormalized_laplace.logpdf(o, c, scale, 0.0, 1.0),
+        )(obs, loc).sum()
+
+
+renormalized_color_laplace = RenormalizedColorLaplace()
 
 ### Mixture distribution combinator ###
 

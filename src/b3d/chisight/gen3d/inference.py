@@ -30,20 +30,18 @@ class InferenceHyperparams(Pytree):
         old color, and exactly the new color.
     - pose_proposal_std: Standard deviation of the position distribution for the pose.
     - pose_proposal_conc: Concentration parameter for the orientation distribution for the pose.
-    - effective_color_transition_scale: This parameter is used in the color proposal.
-        When the color transition kernel is a laplace, this should be its scale.
-        When the color transition kernel is a different distribution, set this to something
-        that would make a laplace transition kernel propose with a somewhat similar spread
-        to the kernel you are using.  (This parameter is used to decide
-        the size of the proposal in the color proposal, using a simple analysis
-        we conducted in the laplace case.)
+    - prev_color_proposal_laplace_scale: Scale parameter for proposing point colors
+        around the previous point RGB.
+    - obs_color_proposal_laplace_scale: Scale parameter for proposing point colors
+        around the observed point RGB.
     """
 
     n_poses: int = Pytree.static()
-    do_stochastic_color_proposals: bool = Pytree.static()
+    do_stochastic_color_proposals: bool
     pose_proposal_std: float
     pose_proposal_conc: float
-    effective_color_transition_scale: float
+    prev_color_proposal_laplace_scale: float
+    obs_color_proposal_laplace_scale: float
 
 
 @jax.jit
@@ -87,17 +85,15 @@ def infer_latents_c2f(
     n_seq,
     n_poses_per_sequential_step,
     trace,
-    effective_color_transition_scale,
-    do_stochastic_color_proposals=True,
     pose_proposal_std_conc_seq=DEFAULT_C2F_SEQ,
+    **inference_hyperparam_kwargs,
 ):
     for std, conc in pose_proposal_std_conc_seq:
         inference_hyperparams = InferenceHyperparams(
             n_poses=n_poses_per_sequential_step,
-            do_stochastic_color_proposals=do_stochastic_color_proposals,
             pose_proposal_std=std,
             pose_proposal_conc=conc,
-            effective_color_transition_scale=effective_color_transition_scale,
+            **inference_hyperparam_kwargs,
         )
         key, _ = split(key)
         trace, _ = infer_latents_using_sequential_proposals(
@@ -132,7 +128,6 @@ def infer_latents_using_sequential_proposals(key, n_seq, trace, inference_hyperp
     k1, k2 = split(key)
     ks = split(k1, n_seq)
     weights = [get_weight(k) for k in ks]
-    print("weights: ", weights)
 
     normalized_logps = jax.nn.log_softmax(jnp.array(weights))
     chosen_idx = jax.random.categorical(k2, normalized_logps)

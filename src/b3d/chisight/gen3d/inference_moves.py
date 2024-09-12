@@ -7,7 +7,7 @@ from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
 from b3d import Pose
-from b3d.modeling_utils import uniform
+from b3d.modeling_utils import renormalized_color_laplace
 
 from .model import (
     get_hypers,
@@ -224,7 +224,6 @@ def _propose_a_points_attributes(
             observed_rgb=observed_rgbd_for_point[:3],
             score_attribute_assignment=score_attribute_assignment,
             previous_rgb=previous_color,
-            color_scale=color_scale,
             inference_hyperparams=inference_hyperparams,
             color_kernel=color_kernel,
         )
@@ -237,7 +236,7 @@ def _propose_a_points_attributes(
         in_axes=(0, 0),
     )(all_visprob_dnrprob_pairs, rgbs)
 
-    log_weights = log_pscores  # - log_qs_rgb
+    log_weights = log_pscores - log_qs_rgb
     log_normalized_scores = normalize_log_scores(log_weights)
     index = jax.random.categorical(k2, log_normalized_scores)
 
@@ -267,7 +266,6 @@ def propose_vertex_color_given_other_attributes(
     observed_rgb,
     score_attribute_assignment,
     previous_rgb,
-    color_scale,
     inference_hyperparams,
     color_kernel,
 ):
@@ -279,7 +277,6 @@ def propose_vertex_color_given_other_attributes(
             observed_rgb,
             score_attribute_assignment,
             previous_rgb,
-            color_scale,
             inference_hyperparams,
         )
     )
@@ -307,7 +304,6 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     observed_rgb,
     score_attribute_assignment,
     previous_rgb,
-    color_scale,
     inference_hyperparams,
 ):
     """
@@ -317,77 +313,54 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     as in SMCP3 or RAVI.
     Returns (sampled_rgb, log_q_score).
 
-    Specifically, this proposal works by proposing 3 RGB values:
-    - One from a tight uniform around previous_rgb
-    - One from a tight uniform around observed_rgb
-    - One from a potentially broader uniform around the midpoint of the two.
+    Specifically, this proposal works by proposing 2 RGB values:
+    - One from a laplace around previous_rgb
+    - One from a laplace around observed_rgb
 
-    Then, one of these 3 RGB values is resampled and return.
+    Then, one of these 2 RGB values is resampled and return.
 
     This process is a "forward" ("K") proposal, which has sampled (1) the chosen RGB value,
-    (2) the index amoung [0, 1, 2] for which of the 3 proposals generated it, and (3)
-    two additional RGB values.
+    (2) the index amoung [0, 1] for which of the 2 proposals generated it, and (3)
+    one additional RGB values.
 
     We then imagine having an "L" proposal which, given (1), proposes (2) and (3).
     To estimate the _marginal_ probability of K having proposed (1), marginalizing
     over the choice of (2) and (3), we can return the value log_K - log_L
     (where these terms are the log densities of the K and L proposals, respectively,
     evaluated at the values we sampled out of the K proposal).
-
-    One remaining TODO: this proposal has no probability of generating a value that is far outside
-    the range of the previous and observed values.  This means we technically do not have absolute continuity.
-    In practice this means if the posterior ever assigns mass to RGB values outside this range, we can't
-    propose traces that match that part of the posterior.
     """
     metadata = {}
-    color_shift_scale = inference_hyperparams.effective_color_transition_scale
-    d = 1 / (1 / color_shift_scale + 1 / color_scale)
 
-    r_diff = jnp.abs(previous_rgb[0] - observed_rgb[0])
-    g_diff = jnp.abs(previous_rgb[1] - observed_rgb[1])
-    b_diff = jnp.abs(previous_rgb[2] - observed_rgb[2])
-    diffs = jnp.array([r_diff, g_diff, b_diff])
-
-    (k1, k2, k3) = split(key, 3)
+    k1, k2 = split(key, 2)
 
     ## Proposal 1: near the previous value.
-    min_rgbs1 = jnp.maximum(0.0, previous_rgb - diffs / 10 - 2 * d)
-    max_rgbs1 = jnp.minimum(1.0, previous_rgb + diffs / 10 + 2 * d)
-    if inference_hyperparams.do_stochastic_color_proposals:
-        proposed_rgb_1 = uniform.sample(k1, min_rgbs1, max_rgbs1)
-    else:
-        proposed_rgb_1 = previous_rgb
-    log_q_rgb_1 = uniform.logpdf(proposed_rgb_1, min_rgbs1, max_rgbs1)
-    metadata["min_rgbs1"] = min_rgbs1
-    metadata["max_rgbs1"] = max_rgbs1
+    scale1 = inference_hyperparams.prev_color_proposal_laplace_scale
+    proposed_rgb_1 = renormalized_color_laplace.sample(k1, previous_rgb, scale1)
+    proposed_rgb_1 = jnp.where(
+        inference_hyperparams.do_stochastic_color_proposals,
+        proposed_rgb_1,
+        previous_rgb,
+    )
+    log_q_rgb_1 = renormalized_color_laplace.logpdf(
+        proposed_rgb_1, previous_rgb, scale1
+    )
 
-    ## Proposal 2: near the observed value.
-    min_rgbs2 = jnp.maximum(0.0, observed_rgb - diffs / 10 - 2 * d)
-    max_rgbs2 = jnp.minimum(1.0, observed_rgb + diffs / 10 + 2 * d)
-    if inference_hyperparams.do_stochastic_color_proposals:
-        proposed_rgb_2 = uniform.sample(k2, min_rgbs2, max_rgbs2)
-    else:
-        proposed_rgb_2 = observed_rgb
-    log_q_rgb_2 = uniform.logpdf(proposed_rgb_2, min_rgbs2, max_rgbs2)
-    metadata["min_rgbs2"] = min_rgbs2
-    metadata["max_rgbs2"] = max_rgbs2
-
-    ## Proposal 3: somewhere in the middle
-    mean_rgb = (previous_rgb + observed_rgb) / 2
-    min_rgbs3 = jnp.maximum(0.0, mean_rgb - 8 / 10 * diffs - 2 * d)
-    max_rgbs3 = jnp.minimum(1.0, mean_rgb + 8 / 10 * diffs + 2 * d)
-    if inference_hyperparams.do_stochastic_color_proposals:
-        proposed_rgb_3 = uniform.sample(k3, min_rgbs3, max_rgbs3)
-    else:
-        proposed_rgb_3 = mean_rgb
-    log_q_rgb_3 = uniform.logpdf(proposed_rgb_3, min_rgbs3, max_rgbs3)
-    metadata["min_rgbs3"] = min_rgbs3
-    metadata["max_rgbs3"] = max_rgbs3
+    ## Proposal 1: near the observed value.
+    scale2 = inference_hyperparams.obs_color_proposal_laplace_scale
+    proposed_rgb_2 = renormalized_color_laplace.sample(k2, observed_rgb, scale2)
+    proposed_rgb_2 = jnp.where(
+        inference_hyperparams.do_stochastic_color_proposals,
+        proposed_rgb_2,
+        observed_rgb,
+    )
+    log_q_rgb_2 = renormalized_color_laplace.logpdf(
+        proposed_rgb_2, observed_rgb, scale2
+    )
 
     ## Resample one of the values.
 
-    proposed_rgbs = jnp.array([proposed_rgb_1, proposed_rgb_2, proposed_rgb_3])
-    log_qs = jnp.array([log_q_rgb_1, log_q_rgb_2, log_q_rgb_3])
+    proposed_rgbs = jnp.array([proposed_rgb_1, proposed_rgb_2])
+    log_qs = jnp.array([log_q_rgb_1, log_q_rgb_2])
     metadata["log_qs"] = log_qs
     metadata["proposed_rgbs"] = proposed_rgbs
 
@@ -395,15 +368,16 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
         jax.vmap(lambda rgb: score_attribute_assignment(rgb, visprob, dnrprob))(
             proposed_rgbs
         )
-        # - log_qs
+        - log_qs
     )
     normalized_scores = normalize_log_scores(scores)
     sampled_index = jax.random.categorical(key, normalized_scores)
     sampled_rgb = proposed_rgbs[sampled_index]
-    log_K_score = log_qs.sum() + normalized_scores[sampled_index]
     metadata["normalized_scores"] = normalized_scores
     metadata["sampled_index"] = sampled_index
     metadata["sampled_rgb"] = sampled_rgb
+
+    log_K_score = log_qs.sum() + normalized_scores[sampled_index]
     metadata["log_K_score"] = log_K_score
 
     ## "L proposal": given the sampled rgb, the L proposal proposes
@@ -413,9 +387,8 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     # the values we sampled out of the K proposal.
     log_qs_for_this_rgb = jnp.array(
         [
-            uniform.logpdf(sampled_rgb, min_rgbs1, max_rgbs1),
-            uniform.logpdf(sampled_rgb, min_rgbs2, max_rgbs2),
-            uniform.logpdf(sampled_rgb, min_rgbs3, max_rgbs3),
+            renormalized_color_laplace.logpdf(sampled_rgb, previous_rgb, scale1),
+            renormalized_color_laplace.logpdf(sampled_rgb, observed_rgb, scale2),
         ]
     )
     normalized_L_logprobs = normalize_log_scores(log_qs_for_this_rgb)
@@ -432,8 +405,8 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     metadata["log_L_score"] = log_L_score
 
     ## Compute the overall estimate of the marginal density of proposing `sampled_rgb`.
-    # overall_score = log_K_score - log_L_score
-    overall_score = normalized_scores[sampled_index]  # + log_qs["sampled_index"]
+    overall_score = log_K_score - log_L_score
+    # overall_score = normalized_scores[sampled_index]  # + log_qs["sampled_index"]
     metadata["overall_score"] = overall_score
 
     ## Return

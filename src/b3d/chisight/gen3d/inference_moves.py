@@ -74,7 +74,7 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
         [colors, visibility_probs, depth_nonreturn_probs],
     )
     # TODO: debug these scores -- right now they are causing bad behavior
-    log_q_point_attributes = 0.0
+    # log_q_point_attributes = 0.0
 
     k3a, k3b = split(k3)
     depth_scale, log_q_ds = propose_depth_scale(k3a, trace)
@@ -88,7 +88,10 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     return (
         trace,
         log_q,
-        {"point_attribute_proposal_metadata": point_proposal_metadata},
+        {
+            "point_attribute_proposal_metadata": point_proposal_metadata,
+            "log_q_point_attributes": log_q_point_attributes,
+        },
     )
 
 
@@ -204,7 +207,7 @@ def _propose_a_points_attributes(
     )
 
     # Propose a color for each visprob-dnrprob pair.
-    rgbs, log_qs_rgb = jax.vmap(
+    rgbs, log_qs_rgb, rgb_proposal_metadata = jax.vmap(
         lambda k, visprob_dnrprob_pair: propose_vertex_color_given_other_attributes(
             key=k,
             visprob=visprob_dnrprob_pair[0],
@@ -214,6 +217,7 @@ def _propose_a_points_attributes(
             previous_rgb=previous_color,
             color_scale=color_scale,
             inference_hyperparams=inference_hyperparams,
+            color_kernel=color_kernel,
         )
     )(split(k1, len(all_visprob_dnrprob_pairs)), all_visprob_dnrprob_pairs)
 
@@ -232,10 +236,60 @@ def _propose_a_points_attributes(
     visibility_prob, dnr_prob = all_visprob_dnrprob_pairs[index]
     log_q_score = log_normalized_scores[index] + log_qs_rgb[index]
 
-    return rgb, visibility_prob, dnr_prob, log_q_score, {}
+    return (
+        rgb,
+        visibility_prob,
+        dnr_prob,
+        log_q_score,
+        {
+            "log_qs_rgb": log_qs_rgb,
+            "log_normalized_scores": log_normalized_scores,
+            "index": index,
+            "all_visprob_dnrprob_pairs": all_visprob_dnrprob_pairs,
+            "rgb_proposal_metadata": rgb_proposal_metadata,
+        },
+    )
 
 
 def propose_vertex_color_given_other_attributes(
+    key,
+    visprob,
+    dnrprob,
+    observed_rgb,
+    score_attribute_assignment,
+    previous_rgb,
+    color_scale,
+    inference_hyperparams,
+    color_kernel,
+):
+    value_if_observed_is_valid, log_q_if_valid, metadata_if_valid = (
+        propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
+            key,
+            visprob,
+            dnrprob,
+            observed_rgb,
+            score_attribute_assignment,
+            previous_rgb,
+            color_scale,
+            inference_hyperparams,
+        )
+    )
+    value_if_observed_is_invalid = color_kernel.sample(key, previous_rgb)
+    log_q_if_invalid = color_kernel.logpdf(value_if_observed_is_invalid, previous_rgb)
+
+    isvalid = ~jnp.any(observed_rgb < 0)
+    value = jnp.where(isvalid, value_if_observed_is_valid, value_if_observed_is_invalid)
+    log_q = jnp.where(isvalid, log_q_if_valid, log_q_if_invalid)
+    metadata = {
+        "isvalid": isvalid,
+        "metadata_if_valid": metadata_if_valid,
+        "value_if_observed_is_invalid": value_if_observed_is_invalid,
+        "log_q_if_invalid": log_q_if_invalid,
+    }
+    return value, log_q, metadata
+
+
+def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     key,
     visprob,
     dnrprob,
@@ -274,6 +328,7 @@ def propose_vertex_color_given_other_attributes(
     In practice this means if the posterior ever assigns mass to RGB values outside this range, we can't
     propose traces that match that part of the posterior.
     """
+    metadata = {}
     color_shift_scale = inference_hyperparams.effective_color_transition_scale
     d = 1 / (1 / color_shift_scale + 1 / color_scale)
 
@@ -289,12 +344,16 @@ def propose_vertex_color_given_other_attributes(
     max_rgbs1 = jnp.minimum(1.0, previous_rgb + diffs / 10 + 2 * d)
     proposed_rgb_1 = uniform.sample(k1, min_rgbs1, max_rgbs1)
     log_q_rgb_1 = uniform.logpdf(proposed_rgb_1, min_rgbs1, max_rgbs1)
+    metadata["min_rgbs1"] = min_rgbs1
+    metadata["max_rgbs1"] = max_rgbs1
 
     ## Proposal 2: near the observed value.
     min_rgbs2 = jnp.maximum(0.0, observed_rgb - diffs / 10 - 2 * d)
     max_rgbs2 = jnp.minimum(1.0, observed_rgb + diffs / 10 + 2 * d)
     proposed_rgb_2 = uniform.sample(k2, min_rgbs2, max_rgbs2)
     log_q_rgb_2 = uniform.logpdf(proposed_rgb_2, min_rgbs2, max_rgbs2)
+    metadata["min_rgbs2"] = min_rgbs2
+    metadata["max_rgbs2"] = max_rgbs2
 
     ## Proposal 3: somewhere in the middle
     mean_rgb = (previous_rgb + observed_rgb) / 2
@@ -302,11 +361,15 @@ def propose_vertex_color_given_other_attributes(
     max_rgbs3 = jnp.minimum(1.0, mean_rgb + 8 / 10 * diffs + 2 * d)
     proposed_rgb_3 = uniform.sample(k3, min_rgbs3, max_rgbs3)
     log_q_rgb_3 = uniform.logpdf(proposed_rgb_3, min_rgbs3, max_rgbs3)
+    metadata["min_rgbs3"] = min_rgbs3
+    metadata["max_rgbs3"] = max_rgbs3
 
     ## Resample one of the values.
 
     proposed_rgbs = jnp.array([proposed_rgb_1, proposed_rgb_2, proposed_rgb_3])
     log_qs = jnp.array([log_q_rgb_1, log_q_rgb_2, log_q_rgb_3])
+    metadata["log_qs"] = log_qs
+    metadata["proposed_rgbs"] = proposed_rgbs
 
     scores = (
         jax.vmap(lambda rgb: score_attribute_assignment(rgb, visprob, dnrprob))(
@@ -318,6 +381,10 @@ def propose_vertex_color_given_other_attributes(
     sampled_index = jax.random.categorical(key, normalized_scores)
     sampled_rgb = proposed_rgbs[sampled_index]
     log_K_score = log_qs.sum() + normalized_scores[sampled_index]
+    metadata["normalized_scores"] = normalized_scores
+    metadata["sampled_index"] = sampled_index
+    metadata["sampled_rgb"] = sampled_rgb
+    metadata["log_K_score"] = log_K_score
 
     ## "L proposal": given the sampled rgb, the L proposal proposes
     # an index for which of the 3 proposals may have produced this sample RGB,
@@ -342,12 +409,14 @@ def propose_vertex_color_given_other_attributes(
 
     # full L score
     log_L_score = log_L_score_for_index + log_L_score_for_unused_values
+    metadata["log_L_score"] = log_L_score
 
     ## Compute the overall estimate of the marginal density of proposing `sampled_rgb`.
     overall_score = log_K_score - log_L_score
+    metadata["overall_score"] = overall_score
 
     ## Return
-    return sampled_rgb, overall_score
+    return sampled_rgb, overall_score, metadata
 
 
 def propose_depth_scale(key, trace):

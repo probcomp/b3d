@@ -64,8 +64,44 @@ def advance_time(key, trace, observed_rgbd):
     return trace
 
 
-@partial(jax.jit, static_argnums=(3,))
-def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
+def inference_step_using_sequential_proposals(
+    key, n_seq, old_trace, observed_rgbd, inference_hyperparams
+):
+    """
+    Like `inference_step`, but does `n_seq` sequential proposals
+    of `inference_hyperparams.n_poses` poses and other latents,
+    and resamples one among all of these.
+    Returns `(trace, weight)`.
+    """
+    shared_args = (old_trace, observed_rgbd, inference_hyperparams)
+
+    def get_weight(key):
+        return inference_step(key, *shared_args, get_trace=False, get_metadata=False)[0]
+
+    k1, k2 = split(key)
+    ks = split(k1, n_seq)
+    weights = []
+    for k in ks:
+        weights.append(get_weight(k))
+
+    normalized_logps = jax.nn.log_softmax(jnp.array(weights))
+    chosen_idx = jax.random.categorical(k2, normalized_logps)
+    trace, _ = inference_step(ks[chosen_idx], *shared_args, get_metadata=False)
+    overall_weight = jax.scipy.special.logsumexp(jnp.array(weights))
+
+    return trace, overall_weight
+
+
+@partial(jax.jit, static_argnums=(3, 4, 5, 6))
+def inference_step(
+    key,
+    old_trace,
+    observed_rgbd,
+    inference_hyperparams,
+    get_trace=True,
+    get_weight=True,
+    get_metadata=True,
+):
     """
     Perform over the latent state at time T, given the observed
     rgbd at this timestep, and the old trace from time T-1.
@@ -92,18 +128,25 @@ def inference_step(key, old_trace, observed_rgbd, inference_hyperparams):
     chosen_index = jax.random.categorical(k4, scores)
     new_trace = jax.tree.map(lambda x: x[chosen_index], proposed_traces)
 
-    return (
-        new_trace,
-        logmeanexp(scores),
-        {
-            "proposed_poses": proposed_poses,
-            "chosen_pose_index": chosen_index,
-            "p_scores": p_scores,
-            "log_q_poses": log_q_poses,
-            "log_q_nonpose_latents": log_q_nonpose_latents,
-            "other_latents_metadata": other_latents_metadata,
-        },
-    )
+    weight = logmeanexp(scores)
+    metadata = {
+        "proposed_poses": proposed_poses,
+        "chosen_pose_index": chosen_index,
+        "p_scores": p_scores,
+        "log_q_poses": log_q_poses,
+        "log_q_nonpose_latents": log_q_nonpose_latents,
+        "other_latents_metadata": other_latents_metadata,
+    }
+
+    ret = ()
+    if get_trace:
+        ret = (*ret, new_trace)
+    if get_weight:
+        ret = (*ret, weight)
+    if get_metadata:
+        ret = (*ret, metadata)
+
+    return ret
 
 
 @wraps(inference_step)

@@ -9,11 +9,11 @@ from genjax.typing import FloatArray, PRNGKey
 
 from b3d.chisight.gen3d.pixel_kernels import is_unexplained
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
-    TruncatedLaplacePixelColorDistribution,
+    RenormalizedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
 )
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
-    TruncatedLaplacePixelDepthDistribution,
+    RenormalizedLaplacePixelDepthDistribution,
     UniformPixelDepthDistribution,
 )
 from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
@@ -142,8 +142,8 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # they don't expect observed_rgbd to be invalid, so we need to handle
         # that manually.
         return FullPixelRGBDDistribution(
-            TruncatedLaplacePixelColorDistribution(),
+            RenormalizedLaplacePixelColorDistribution(),
             UniformPixelColorDistribution(),
-            TruncatedLaplacePixelDepthDistribution(self.near, self.far),
+            RenormalizedLaplacePixelDepthDistribution(self.near, self.far),
             UniformPixelDepthDistribution(self.near, self.far),
         )

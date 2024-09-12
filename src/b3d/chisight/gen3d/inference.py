@@ -95,11 +95,11 @@ def infer_latents_c2f(
     effective_color_transition_scale,
     pose_proposal_std_conc_seq=DEFAULT_C2F_SEQ,
 ):
-    for pose, std in pose_proposal_std_conc_seq:
+    for std, conc in pose_proposal_std_conc_seq:
         inference_hyperparams = InferenceHyperparams(
             n_poses=n_poses_per_sequential_step,
-            pose_proposal_std=pose,
-            pose_proposal_conc=std,
+            pose_proposal_std=std,
+            pose_proposal_conc=conc,
             effective_color_transition_scale=effective_color_transition_scale,
         )
         key, _ = split(key)

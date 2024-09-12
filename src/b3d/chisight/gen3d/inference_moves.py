@@ -73,8 +73,6 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
         ["colors", "visibility_prob", "depth_nonreturn_prob"],
         [colors, visibility_probs, depth_nonreturn_probs],
     )
-    # TODO: debug these scores -- right now they are causing bad behavior
-    # log_q_point_attributes = 0.0
 
     k3a, k3b = split(k3)
     depth_scale, log_q_ds = propose_depth_scale(k3a, trace)

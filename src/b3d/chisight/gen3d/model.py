@@ -181,3 +181,6 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
                 ground_truth_pose.apply(ground_truth_vertices),
                 "scene/ground_truth_object_mesh",
             )
+
+            b3d.rr_log_pose(ground_truth_pose, "scene/ground_truth_pose")
+            b3d.rr_log_pose(trace.get_choices()["pose"], "scene/inferred_pose")

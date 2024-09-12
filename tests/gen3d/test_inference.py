@@ -18,12 +18,13 @@ def hyperparams_and_inference_hyperparams():
 
     # This parameter is needed for the inference hyperparameters.
     # See the `InferenceHyperparams` docstring in `inference.py` for details.
-    effective_color_transition_scale = color_transiton_scale + p_resample_color * 1 / 2
     inference_hyperparams = inference.InferenceHyperparams(
         n_poses=6000,
         pose_proposal_std=0.04,
         pose_proposal_conc=1000.0,
-        effective_color_transition_scale=effective_color_transition_scale,
+        do_stochastic_color_proposals=True,
+        prev_color_proposal_laplace_scale=0.001,
+        obs_color_proposal_laplace_scale=0.001,
     )
 
     hyperparams = {
@@ -40,10 +41,10 @@ def hyperparams_and_inference_hyperparams():
             jnp.array([1 - p_resample_color, p_resample_color]),
         ),
         "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.01, 0.99])
+            resample_probability=0.1, support=jnp.array([0.001, 0.999])
         ),
         "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.01, 0.99])
+            resample_probability=0.1, support=jnp.array([0.001, 0.999])
         ),
         "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
             resample_probability=0.1,
@@ -184,7 +185,7 @@ def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
     dnr_prob_samples = get_dnr_prob_samples(
         keys, observed_rgbd_for_this_vertex, previous_dnrp
     )
-    assert dnr_prob_samples.mean() < 0.90
+    assert dnr_prob_samples.mean() > 0.90
 
     # If depth is valid, the depth nonreturn prob should become low.
     previous_dnrp = depth_nonreturn_prob_kernel.support[-1]
@@ -192,7 +193,7 @@ def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
     dnr_prob_samples = get_dnr_prob_samples(
         keys, observed_rgbd_for_this_vertex, previous_dnrp
     )
-    assert dnr_prob_samples.mean() < 0.15
+    assert dnr_prob_samples.mean() < 0.10
 
     # If depth is valid, the depth nonreturn prob should stay low.
     previous_dnrp = depth_nonreturn_prob_kernel.support[0]

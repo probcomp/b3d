@@ -190,6 +190,8 @@ def infer_latents(
     # poses in the grid.
     use_gt_pose=False,
     gt_pose=b3d.Pose.identity(),
+    # Useful for debugging: turn off - logq in the pose resampling
+    include_qscores_in_outer_resample=True,
 ):
     """
     Infer the latents at time `T`, given a trace `T` with arguments
@@ -217,13 +219,18 @@ def infer_latents(
         pose_generation_keys, trace, inference_hyperparams
     )
 
-    if use_gt_pose:
-        proposed_poses = jax.tree.map(
-            lambda x, y: x.at[0].set(y), proposed_poses, gt_pose
+    proposed_poses = jax.tree.map(
+        lambda x, y: x.at[0].set(jnp.where(use_gt_pose, y, x[0])),
+        proposed_poses,
+        gt_pose,
+    )
+    log_q_poses = log_q_poses.at[0].set(
+        jnp.where(
+            use_gt_pose,
+            get_pose_proposal_density(gt_pose, trace, inference_hyperparams),
+            log_q_poses[0],
         )
-        log_q_poses = log_q_poses.at[0].set(
-            get_pose_proposal_density(gt_pose, trace, inference_hyperparams)
-        )
+    )
 
     param_generation_keys = split(k3, inference_hyperparams.n_poses)
     proposed_traces, log_q_nonpose_latents, other_latents_metadata = jax.vmap(
@@ -231,7 +238,11 @@ def infer_latents(
     )(param_generation_keys, trace, proposed_poses, inference_hyperparams)
     p_scores = jax.vmap(lambda tr: tr.get_score())(proposed_traces)
 
-    scores = p_scores - log_q_poses - log_q_nonpose_latents
+    scores = jnp.where(
+        include_qscores_in_outer_resample,
+        p_scores - log_q_poses - log_q_nonpose_latents,
+        p_scores,
+    )
     chosen_index = jax.random.categorical(k4, scores)
     new_trace = jax.tree.map(lambda x: x[chosen_index], proposed_traces)
 

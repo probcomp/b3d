@@ -36,7 +36,7 @@ def propose_pose(key, advanced_trace, inference_hyperparams):
     Propose a random pose near the previous timestep's pose.
     Returns (proposed_pose, log_proposal_density).
     """
-    previous_pose = get_prev_state(advanced_trace)["pose"]
+    previous_pose = get_new_state(advanced_trace)["pose"]
     ih = inference_hyperparams
     pose = Pose.sample_gaussian_vmf_pose(
         key, previous_pose, ih.pose_proposal_std, ih.pose_proposal_conc
@@ -45,6 +45,17 @@ def propose_pose(key, advanced_trace, inference_hyperparams):
         pose, previous_pose, ih.pose_proposal_std, ih.pose_proposal_conc
     )
     return pose, log_q
+
+
+def get_pose_proposal_density(pose, advanced_trace, inference_hyperparams):
+    """
+    Returns the log proposal density of the given pose, conditional upon the previous pose.
+    """
+    previous_pose = get_prev_state(advanced_trace)["pose"]
+    ih = inference_hyperparams
+    return Pose.logpdf_gaussian_vmf_pose(
+        pose, previous_pose, ih.pose_proposal_std, ih.pose_proposal_conc
+    )
 
 
 def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperparams):
@@ -226,7 +237,7 @@ def _propose_a_points_attributes(
         in_axes=(0, 0),
     )(all_visprob_dnrprob_pairs, rgbs)
 
-    log_weights = log_pscores - log_qs_rgb
+    log_weights = log_pscores  # - log_qs_rgb
     log_normalized_scores = normalize_log_scores(log_weights)
     index = jax.random.categorical(k2, log_normalized_scores)
 
@@ -272,7 +283,9 @@ def propose_vertex_color_given_other_attributes(
             inference_hyperparams,
         )
     )
-    value_if_observed_is_invalid = color_kernel.sample(key, previous_rgb)
+    value_if_observed_is_invalid = jnp.zeros(
+        3
+    )  # color_kernel.sample(key, previous_rgb)
     log_q_if_invalid = color_kernel.logpdf(value_if_observed_is_invalid, previous_rgb)
 
     isvalid = ~jnp.any(observed_rgb < 0)
@@ -340,7 +353,10 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     ## Proposal 1: near the previous value.
     min_rgbs1 = jnp.maximum(0.0, previous_rgb - diffs / 10 - 2 * d)
     max_rgbs1 = jnp.minimum(1.0, previous_rgb + diffs / 10 + 2 * d)
-    proposed_rgb_1 = uniform.sample(k1, min_rgbs1, max_rgbs1)
+    if inference_hyperparams.do_stochastic_color_proposals:
+        proposed_rgb_1 = uniform.sample(k1, min_rgbs1, max_rgbs1)
+    else:
+        proposed_rgb_1 = previous_rgb
     log_q_rgb_1 = uniform.logpdf(proposed_rgb_1, min_rgbs1, max_rgbs1)
     metadata["min_rgbs1"] = min_rgbs1
     metadata["max_rgbs1"] = max_rgbs1
@@ -348,7 +364,10 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     ## Proposal 2: near the observed value.
     min_rgbs2 = jnp.maximum(0.0, observed_rgb - diffs / 10 - 2 * d)
     max_rgbs2 = jnp.minimum(1.0, observed_rgb + diffs / 10 + 2 * d)
-    proposed_rgb_2 = uniform.sample(k2, min_rgbs2, max_rgbs2)
+    if inference_hyperparams.do_stochastic_color_proposals:
+        proposed_rgb_2 = uniform.sample(k2, min_rgbs2, max_rgbs2)
+    else:
+        proposed_rgb_2 = observed_rgb
     log_q_rgb_2 = uniform.logpdf(proposed_rgb_2, min_rgbs2, max_rgbs2)
     metadata["min_rgbs2"] = min_rgbs2
     metadata["max_rgbs2"] = max_rgbs2
@@ -357,7 +376,10 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     mean_rgb = (previous_rgb + observed_rgb) / 2
     min_rgbs3 = jnp.maximum(0.0, mean_rgb - 8 / 10 * diffs - 2 * d)
     max_rgbs3 = jnp.minimum(1.0, mean_rgb + 8 / 10 * diffs + 2 * d)
-    proposed_rgb_3 = uniform.sample(k3, min_rgbs3, max_rgbs3)
+    if inference_hyperparams.do_stochastic_color_proposals:
+        proposed_rgb_3 = uniform.sample(k3, min_rgbs3, max_rgbs3)
+    else:
+        proposed_rgb_3 = mean_rgb
     log_q_rgb_3 = uniform.logpdf(proposed_rgb_3, min_rgbs3, max_rgbs3)
     metadata["min_rgbs3"] = min_rgbs3
     metadata["max_rgbs3"] = max_rgbs3
@@ -373,7 +395,7 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
         jax.vmap(lambda rgb: score_attribute_assignment(rgb, visprob, dnrprob))(
             proposed_rgbs
         )
-        - log_qs
+        # - log_qs
     )
     normalized_scores = normalize_log_scores(scores)
     sampled_index = jax.random.categorical(key, normalized_scores)
@@ -410,7 +432,8 @@ def propose_vertex_color_given_other_attributes_for_valid_observed_rgb(
     metadata["log_L_score"] = log_L_score
 
     ## Compute the overall estimate of the marginal density of proposing `sampled_rgb`.
-    overall_score = log_K_score - log_L_score
+    # overall_score = log_K_score - log_L_score
+    overall_score = normalized_scores[sampled_index]  # + log_qs["sampled_index"]
     metadata["overall_score"] = overall_score
 
     ## Return

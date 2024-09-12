@@ -198,8 +198,10 @@ def get_blueprint():
         rrb.Vertical(
             rrb.Horizontal(
                 rrb.Spatial3DView(origin="scene/"),
-                rrb.Spatial2DView(origin="image/rgb/observed"),
-                rrb.Spatial2DView(origin="image/depth/observed"),
+                rrb.Horizontal(
+                    rrb.Spatial2DView(origin="image/rgb/observed"),
+                    rrb.Spatial2DView(origin="image/depth/observed"),
+                ),
             ),
             rrb.Horizontal(
                 rrb.Spatial3DView(origin="object/model"),

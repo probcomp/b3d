@@ -250,7 +250,16 @@ def test_color_prob_inference(hyperparams_and_inference_hyperparams):
     assert jnp.max(jnp.abs(color_samples - previous_color)) < 0.02
 
     # # If depths match and colors slightly change, then the color should move.
-    # previous_color = jnp.array([0.15, 0.25, 0.35])
-    # observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, latent_depth])
-    # color_samples = get_color_samples(keys, observed_rgbd_for_this_vertex, previous_color)
-    # assert jnp.max(jnp.abs(jnp.median(color_samples,axis=0) - previous_color)) < 0.03
+    previous_color = jnp.array([0.15, 0.25, 0.35])
+    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, latent_depth])
+    color_samples = get_color_samples(
+        keys, observed_rgbd_for_this_vertex, previous_color
+    )
+    assert (
+        jnp.max(
+            jnp.abs(
+                jnp.median(color_samples, axis=0) - observed_rgbd_for_this_vertex[:3]
+            )
+        )
+        < 0.03
+    )

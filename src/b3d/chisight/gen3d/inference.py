@@ -8,6 +8,7 @@ from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
+import b3d
 from b3d.chisight.gen3d.inference_moves import (
     get_pose_proposal_density,
     propose_other_latents_given_pose,
@@ -73,6 +74,27 @@ DEFAULT_C2F_SEQ = [(0.04, 1000.0), (0.02, 1500.0), (0.005, 2000.0)]
 def inference_step_c2f(
     key, n_seq, n_poses_per_sequential_step, old_trace, observed_rgbd, *args, **kwargs
 ):
+    """
+    Take an inference step using a coarse-to-fine sweep of pose proposals.
+    At each step of C2F, we propose `n_seq * n_poses_per_sequential_step` poses,
+    for each pose, propose all the other latents, and then resample one among
+    these options.  That pose is used as the center of the pose proposal
+    distribution for the next step of C2F.
+    The final trace is returned.
+
+    Args:
+    - key: PRNGKey
+    - n_seq: For each step of C2F, how many parallel batches of poses to propose.
+        (This is provided so more poses can be considered than can fit into GPU memory.)
+    - n_poses_per_sequential_step: How many poses to propose in parallel at each step.
+        (So at each step of C2F, we propose n_seq * n_poses_per_sequential_step poses,
+        and resample one.  Then at the next step of C2F, we propose that many poses
+        again, but with a narrower proposal distribution.)
+    - old_trace: The trace from the previous timestep.
+    - observed_rgbd: The observed RGBD image at the current timestep.
+    - **kwargs: Kwargs providing each field of InferenceHyperparams
+        other than `n_poses`, `pose_proposal_std`, and `pose_proposal_conc`.
+    """
     k1, k2 = split(key)
     trace = advance_time(k1, old_trace, observed_rgbd)
     return infer_latents_c2f(
@@ -106,6 +128,13 @@ def infer_latents_c2f(
 def inference_step_using_sequential_proposals(
     key, n_seq, old_trace, observed_rgbd, inference_hyperparams
 ):
+    """
+    Like `inference_step`, but does `n_seq` sequential proposals
+    of `inference_hyperparams.n_poses` poses and other latents,
+    and resamples one among all of these.
+    Considers n_seq * inference_hyperparams.n_poses proposals in total.
+    Returns `(trace, weight)`.
+    """
     k1, k2 = split(key)
     trace = advance_time(k1, old_trace, observed_rgbd)
     return infer_latents_using_sequential_proposals(
@@ -114,12 +143,6 @@ def inference_step_using_sequential_proposals(
 
 
 def infer_latents_using_sequential_proposals(key, n_seq, trace, inference_hyperparams):
-    """
-    Like `inference_step`, but does `n_seq` sequential proposals
-    of `inference_hyperparams.n_poses` poses and other latents,
-    and resamples one among all of these.
-    Returns `(trace, weight)`.
-    """
     shared_args = (trace, inference_hyperparams)
 
     def get_weight(key):
@@ -140,12 +163,22 @@ def infer_latents_using_sequential_proposals(key, n_seq, trace, inference_hyperp
 def inference_step(
     key, old_trace, observed_rgbd, inference_hyperparams, *args, **kwargs
 ):
+    """
+    Perform over the latent state at time T, given the observed
+    rgbd at this timestep, and the old trace from time T-1.
+
+    Also returns an estimate of the marginal likelihood of
+    the observed rgbd, given the latent state from time T-1.
+
+    All arguments after `inference_hyperparams` are passed to
+    `infer_latents`; see `infer_latents` for details.
+    """
     k1, k2 = split(key)
     trace = advance_time(k1, old_trace, observed_rgbd)
     return infer_latents(k2, trace, inference_hyperparams, *args, **kwargs)
 
 
-@partial(jax.jit, static_argnums=(3, 4, 5, 6))
+@partial(jax.jit, static_argnums=(3, 4, 5))
 def infer_latents(
     key,
     trace,
@@ -155,34 +188,49 @@ def infer_latents(
     get_metadata=True,
     # If this is included, we guarantee that this is one of the
     # poses in the grid.
-    gt_pose=None,
+    use_gt_pose=False,
+    gt_pose=b3d.Pose.identity(),
+    # Useful for debugging: turn off - logq in the pose resampling
+    include_qscores_in_outer_resample=True,
 ):
     """
-    Perform over the latent state at time T, given the observed
-    rgbd at this timestep, and the old trace from time T-1.
+    Infer the latents at time `T`, given a trace `T` with arguments
+    containing the prev state (state at `T-1`).
+    Pose proposals are centered around the trace in the new state
+    in this trace.
 
-    Also returns an estimate of the marginal likelihood of
-    the observed rgbd, given the latent state from time T-1.
-
-    If `gt_pose` is not None, this will force the pose sampled at index 0
-    in the sampling step to be `gt_pose`.  (That is, this will do inference
-    as would occur given that the ground truth pose was the first sampled
-    pose.)
+    Args:
+    - key: PRNGKey
+    - trace: Partially inferred trace at time `T`.
+        (E.g. the output of `advance_time`.)
+    - inference_hyperparams: InferenceHyperparams
+    - get_trace: Controls whether the inferred trace is in the function's return value.
+    - get_weight: Controls whether the weight is in the function's return value.
+    - get_metadata: Controls whether the metadata is in the function's return value.
+    - use_gt_pose: If true, the value `gt_pose` will be placed as the first
+        proposed pose, in the pose proposal.  (Ie. the function will act as though
+        it proposed this pose on the first step.)
+    - gt_pose: The ground truth pose at time T.
     """
-    _, k2, k3, _ = split(key, 4)
+    _, k2, k3, k4 = split(key, 4)
 
     pose_generation_keys = split(k2, inference_hyperparams.n_poses)
     proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
         pose_generation_keys, trace, inference_hyperparams
     )
 
-    if gt_pose is not None:
-        proposed_poses = jax.tree.map(
-            lambda x, y: x.at[0].set(y), proposed_poses, gt_pose
+    proposed_poses = jax.tree.map(
+        lambda x, y: x.at[0].set(jnp.where(use_gt_pose, y, x[0])),
+        proposed_poses,
+        gt_pose,
+    )
+    log_q_poses = log_q_poses.at[0].set(
+        jnp.where(
+            use_gt_pose,
+            get_pose_proposal_density(gt_pose, trace, inference_hyperparams),
+            log_q_poses[0],
         )
-        log_q_poses = log_q_poses.at[0].set(
-            get_pose_proposal_density(gt_pose, trace, inference_hyperparams)
-        )
+    )
 
     param_generation_keys = split(k3, inference_hyperparams.n_poses)
     proposed_traces, log_q_nonpose_latents, other_latents_metadata = jax.vmap(
@@ -190,11 +238,15 @@ def infer_latents(
     )(param_generation_keys, trace, proposed_poses, inference_hyperparams)
     p_scores = jax.vmap(lambda tr: tr.get_score())(proposed_traces)
 
-    scores = p_scores  #  - log_q_poses - log_q_nonpose_latents
-    chosen_index = jnp.argmax(scores)  # jax.random.categorical(k4, scores)
+    scores = jnp.where(
+        include_qscores_in_outer_resample,
+        p_scores - log_q_poses - log_q_nonpose_latents,
+        p_scores,
+    )
+    chosen_index = jax.random.categorical(k4, scores)
     new_trace = jax.tree.map(lambda x: x[chosen_index], proposed_traces)
 
-    weight = jnp.max(scores)  # logmeanexp(scores)
+    weight = logmeanexp(scores)
     metadata = {
         "proposed_poses": proposed_poses,
         "chosen_pose_index": chosen_index,

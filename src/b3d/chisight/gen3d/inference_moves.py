@@ -182,7 +182,6 @@ def _propose_a_points_attributes(
     color_scale,
     depth_scale,
     inference_hyperparams,
-    return_metadata=True,
 ):
     k1, k2 = split(key, 2)
 

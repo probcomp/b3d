@@ -2,6 +2,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
+import rerun.blueprint as rrb
 from genjax import ChoiceMapBuilder as C
 
 import b3d
@@ -95,6 +96,8 @@ def get_observed_rgbd(trace):
 
 
 ### Visualization Code ###
+
+
 def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
     b3d.rr_set_time(t)
     hyperparams, _ = trace.get_args()
@@ -133,8 +136,8 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
         ),
     )
 
-    rr.log("color_scale", rr.Scalar(new_state["color_scale"]))
-    rr.log("depth_scale", rr.Scalar(new_state["depth_scale"]))
+    # rr.log("color_scale", rr.Scalar(new_state["color_scale"]))
+    # rr.log("depth_scale", rr.Scalar(new_state["depth_scale"]))
 
     vertices_transformed = pose.apply(vertices)
     b3d.rr_log_cloud(
@@ -184,3 +187,25 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
 
             b3d.rr_log_pose(ground_truth_pose, "scene/ground_truth_pose")
             b3d.rr_log_pose(trace.get_choices()["pose"], "scene/inferred_pose")
+
+    if not b3d.get_blueprint_logged():
+        rr.send_blueprint(get_blueprint())
+        b3d.set_blueprint_logged(True)
+
+
+def get_blueprint():
+    return rrb.Blueprint(
+        rrb.Vertical(
+            rrb.Horizontal(
+                rrb.Spatial3DView(origin="scene/"),
+                rrb.Spatial2DView(origin="image/rgb/observed"),
+                rrb.Spatial2DView(origin="image/depth/observed"),
+            ),
+            rrb.Horizontal(
+                rrb.Spatial3DView(origin="object/model"),
+                rrb.Spatial3DView(origin="object/visibility_prob"),
+                rrb.Spatial3DView(origin="object/depth_nonreturn_prob"),
+                rrb.TextDocumentView(origin="info"),
+            ),
+        )
+    )

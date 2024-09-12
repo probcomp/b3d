@@ -1,11 +1,10 @@
 from functools import partial, wraps
-from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
 import jax.random
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff
+from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
@@ -19,8 +18,8 @@ from b3d.chisight.gen3d.model import (
 )
 
 
-# Use namedtuple rather than dict so we can hash this, and use it as a static arg to a jitted function.
-class InferenceHyperparams(NamedTuple):
+@Pytree.dataclass
+class InferenceHyperparams(Pytree):
     """
     Parameters for the inference algorithm.
     - n_poses: Number of poses to propose at each timestep.
@@ -35,7 +34,7 @@ class InferenceHyperparams(NamedTuple):
         we conducted in the laplace case.)
     """
 
-    n_poses: int
+    n_poses: int = Pytree.static()
     pose_proposal_std: float
     pose_proposal_conc: float
     effective_color_transition_scale: float
@@ -64,19 +63,74 @@ def advance_time(key, trace, observed_rgbd):
     return trace
 
 
+DEFAULT_C2F_SEQ = [(0.04, 1000.0), (0.02, 1500.0), (0.005, 2000.0)]
+
+
+def inference_step_c2f(
+    key,
+    n_seq,
+    n_poses_per_sequential_step,
+    old_trace,
+    observed_rgbd,
+    effective_color_transition_scale,
+    pose_proposal_std_conc_seq=DEFAULT_C2F_SEQ,
+):
+    k1, k2 = split(key)
+    trace = advance_time(k1, old_trace, observed_rgbd)
+    return infer_latents_c2f(
+        k2,
+        n_seq,
+        n_poses_per_sequential_step,
+        trace,
+        effective_color_transition_scale,
+        pose_proposal_std_conc_seq=pose_proposal_std_conc_seq,
+    )
+
+
+def infer_latents_c2f(
+    key,
+    n_seq,
+    n_poses_per_sequential_step,
+    trace,
+    effective_color_transition_scale,
+    pose_proposal_std_conc_seq=DEFAULT_C2F_SEQ,
+):
+    for pose, std in pose_proposal_std_conc_seq:
+        inference_hyperparams = InferenceHyperparams(
+            n_poses=n_poses_per_sequential_step,
+            pose_proposal_std=pose,
+            pose_proposal_conc=std,
+            effective_color_transition_scale=effective_color_transition_scale,
+        )
+        key, _ = split(key)
+        trace, _ = infer_latents_using_sequential_proposals(
+            key, n_seq, trace, inference_hyperparams
+        )
+
+    return trace
+
+
 def inference_step_using_sequential_proposals(
     key, n_seq, old_trace, observed_rgbd, inference_hyperparams
 ):
+    k1, k2 = split(key)
+    trace = advance_time(k1, old_trace, observed_rgbd)
+    return infer_latents_using_sequential_proposals(
+        k2, n_seq, trace, inference_hyperparams
+    )
+
+
+def infer_latents_using_sequential_proposals(key, n_seq, trace, inference_hyperparams):
     """
     Like `inference_step`, but does `n_seq` sequential proposals
     of `inference_hyperparams.n_poses` poses and other latents,
     and resamples one among all of these.
     Returns `(trace, weight)`.
     """
-    shared_args = (old_trace, observed_rgbd, inference_hyperparams)
+    shared_args = (trace, inference_hyperparams)
 
     def get_weight(key):
-        return inference_step(key, *shared_args, get_trace=False, get_metadata=False)[0]
+        return infer_latents(key, *shared_args, get_trace=False, get_metadata=False)[0]
 
     k1, k2 = split(key)
     ks = split(k1, n_seq)
@@ -86,17 +140,24 @@ def inference_step_using_sequential_proposals(
 
     normalized_logps = jax.nn.log_softmax(jnp.array(weights))
     chosen_idx = jax.random.categorical(k2, normalized_logps)
-    trace, _ = inference_step(ks[chosen_idx], *shared_args, get_metadata=False)
+    trace, _ = infer_latents(ks[chosen_idx], *shared_args, get_metadata=False)
     overall_weight = jax.scipy.special.logsumexp(jnp.array(weights))
 
     return trace, overall_weight
 
 
-@partial(jax.jit, static_argnums=(3, 4, 5, 6))
 def inference_step(
+    key, old_trace, observed_rgbd, inference_hyperparams, *args, **kwargs
+):
+    k1, k2 = split(key)
+    trace = advance_time(k1, old_trace, observed_rgbd)
+    return infer_latents(k2, trace, inference_hyperparams, *args, **kwargs)
+
+
+@partial(jax.jit, static_argnums=(3, 4, 5))
+def infer_latents(
     key,
-    old_trace,
-    observed_rgbd,
+    trace,
     inference_hyperparams,
     get_trace=True,
     get_weight=True,
@@ -109,9 +170,7 @@ def inference_step(
     Also returns an estimate of the marginal likelihood of
     the observed rgbd, given the latent state from time T-1.
     """
-    k1, k2, k3, k4 = split(key, 4)
-
-    trace = advance_time(k1, old_trace, observed_rgbd)
+    _, k2, k3, k4 = split(key, 4)
 
     pose_generation_keys = split(k2, inference_hyperparams.n_poses)
     proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(

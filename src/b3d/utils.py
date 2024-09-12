@@ -597,7 +597,24 @@ def nn_background_segmentation(images):
     return masks
 
 
+# This variable can be used to know whether a rerun blueprint
+# has been logged since this rerun session was initialized.
+_blueprint_logged = False
+
+
+def get_blueprint_logged():
+    global _blueprint_logged
+    return _blueprint_logged
+
+
+def set_blueprint_logged(val):
+    global _blueprint_logged
+    _blueprint_logged = val
+
+
 def rr_init(name="demo"):
+    global _blueprint_logged
+    _blueprint_logged = False
     rr.init(name)
     rr.connect("127.0.0.1:8812")
 

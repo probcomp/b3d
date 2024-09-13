@@ -38,8 +38,8 @@ class ImageKernel(genjax.ExactDensity):
         return PixelsPointsAssociation.from_points_and_intrinsics(
             transformed_points,
             hyperparams["intrinsics"],
-            hyperparams["intrinsics"]["image_height"].const,
-            hyperparams["intrinsics"]["image_width"].const,
+            hyperparams["intrinsics"]["image_height"].unwrap(),
+            hyperparams["intrinsics"]["image_width"].unwrap(),
         )
 
     @abstractmethod
@@ -88,8 +88,8 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         keys = jax.random.split(
             key,
             (
-                hyperparams["intrinsics"]["image_height"].const,
-                hyperparams["intrinsics"]["image_width"].const,
+                hyperparams["intrinsics"]["image_height"].unwrap(),
+                hyperparams["intrinsics"]["image_width"].unwrap(),
             ),
         )
         return jax.vmap(
@@ -154,8 +154,8 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
 #     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
 #         return jnp.zeros(
 #             (
-#                 hyperparams["intrinsics"]["image_height"].const,
-#                 hyperparams["intrinsics"]["image_width"].const,
+#                 hyperparams["intrinsics"]["image_height"].unwrap(),
+#                 hyperparams["intrinsics"]["image_width"].unwrap(),
 #                 4,
 #             )
 #         )

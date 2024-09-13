@@ -27,8 +27,8 @@ class PixelsPointsAssociation(Pytree):
         return cls.from_points_and_intrinsics(
             vertices_C,
             hyperparams["intrinsics"],
-            hyperparams["image_height"].const,
-            hyperparams["image_width"].const,
+            hyperparams["image_height"].unwrap(),
+            hyperparams["image_width"].unwrap(),
         )
 
     @classmethod

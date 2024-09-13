@@ -7,7 +7,7 @@ from genjax import Pytree
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
-from b3d.modeling_utils import uniform_pose, uniform_scale
+from b3d.modeling_utils import get_interpenetration, uniform_pose, uniform_scale
 
 
 def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
@@ -39,6 +39,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         meshes = args_dict["meshes"]
         likelihood_args = args_dict["likelihood_args"]
         num_objects = args_dict["num_objects"]
+        check_interpenetration = args_dict["check_interp"]
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
@@ -86,6 +87,17 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 rasterize_results,
                 scene_mesh.faces,
             )
+            if check_interpenetration.const:
+                print("checking")
+                transformed_scaled_meshes = [
+                    Mesh.transform_mesh(mesh, pose)
+                    for mesh, pose in zip(scaled_meshes, all_poses)
+                ]
+                interpeneration = get_interpenetration(
+                    transformed_scaled_meshes, args_dict["num_mc_sample"].const
+                )
+                likelihood_args["object_interpenetration"] = interpeneration
+
             likelihood_args["latent_rgbd"] = latent_rgbd
             likelihood_args["rasterize_results"] = rasterize_results
 

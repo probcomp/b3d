@@ -25,8 +25,15 @@ def likelihood_func(observed_rgbd, likelihood_args):
         jnp.log(outlier_probability),
     )
 
+    score = pixelwise_score.sum()
+    if "interpenetration_penalty" in likelihood_args.keys():
+        interpenetration_penalty = likelihood_args["interpenetration_penalty"]
+        interpeneration = likelihood_args["object_interpenetration"]
+        interpeneration_score = interpenetration_penalty * interpeneration.sum()
+        score -= interpeneration_score
+
     return {
-        "score": pixelwise_score.sum(),
+        "score": score,
         "pixelwise_score": pixelwise_score,
         "latent_rgbd": latent_rgbd,
     }

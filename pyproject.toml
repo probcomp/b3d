@@ -16,6 +16,9 @@ authors = [{ name = "Nishad Gothoskar", email = "nishadg@mit.edu" }]
 requires-python = ">= 3.10"
 dependencies = []
 
+[project.optional-dependencies]
+core = ["python-fcl>=0.7.0.6,<0.8"]
+
 [tool.pixi.project]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64"]
@@ -47,6 +50,7 @@ rerun-sdk = "==0.17.0"
 ipympl = ">=0.9.4,<0.10"
 msgpack-numpy = ">=0.4.8,<0.5"
 h5py = ">=3.11.0,<4"
+fcl = ">=0.7.0,<0.8"
 
 [tool.pixi.activation.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"

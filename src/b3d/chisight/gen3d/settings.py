@@ -36,7 +36,7 @@ inference_hyperparams = inference.InferenceHyperparams(
     n_poses=6000,
     pose_proposal_std=0.04,
     pose_proposal_conc=1000.0,
-    do_stochastic_color_proposals=True,
-    prev_color_proposal_laplace_scale=0.001,
-    obs_color_proposal_laplace_scale=0.001,
+    do_stochastic_color_proposals=False,
+    prev_color_proposal_laplace_scale=0.1,
+    obs_color_proposal_laplace_scale=0.1,
 )

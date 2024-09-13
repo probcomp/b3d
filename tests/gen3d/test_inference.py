@@ -90,7 +90,6 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
             color_scale,
             depth_scale,
             inference_hyperparams,
-            return_metadata=True,
         )
         return visibility_prob
 
@@ -163,7 +162,6 @@ def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
             color_scale,
             depth_scale,
             inference_hyperparams,
-            return_metadata=True,
         )
         return dnr_prob
 
@@ -234,7 +232,6 @@ def test_color_prob_inference(hyperparams_and_inference_hyperparams):
             color_scale,
             depth_scale,
             inference_hyperparams,
-            return_metadata=True,
         )
         return rgb
 

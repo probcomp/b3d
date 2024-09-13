@@ -4,17 +4,16 @@ from typing import TYPE_CHECKING
 import genjax
 import jax
 import jax.numpy as jnp
-from genjax import Pytree
-from genjax.typing import FloatArray, PRNGKey
-from jax.random import split
-from tensorflow_probability.substrates import jax as tfp
-
 from b3d.modeling_utils import (
     _FIXED_COLOR_UNIFORM_WINDOW,
     PythonMixtureDistribution,
     renormalized_laplace,
     truncated_laplace,
 )
+from genjax import Pytree
+from genjax.typing import FloatArray, PRNGKey
+from jax.random import split
+from tensorflow_probability.substrates import jax as tfp
 
 if TYPE_CHECKING:
     import tensorflow_probability.python.distributions.distribution as dist

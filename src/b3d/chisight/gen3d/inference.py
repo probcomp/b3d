@@ -14,10 +14,7 @@ from b3d.chisight.gen3d.inference_moves import (
     propose_other_latents_given_pose,
     propose_pose,
 )
-from b3d.chisight.gen3d.model import (
-    get_hypers,
-    get_prev_state,
-)
+from b3d.chisight.gen3d.model import get_hypers, get_new_state
 
 
 @Pytree.dataclass
@@ -60,7 +57,7 @@ def advance_time(key, trace, observed_rgbd):
         U.g(
             (
                 Diff.no_change(get_hypers(trace)),
-                Diff.unknown_change(get_prev_state(trace)),
+                Diff.unknown_change(get_new_state(trace)),
             ),
             C.kw(rgbd=observed_rgbd),
         ),

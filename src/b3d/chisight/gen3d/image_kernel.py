@@ -131,10 +131,11 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         )
         # Points that don't hit the camera plane should not contribute to the score.
         scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
+        score_for_pixels_with_points = scores.sum()
 
-        # TODO: add scoring for pixels that are not explained by the latent points
+        # TODO: add scores for pixels that don't get a point
 
-        return scores.sum()
+        return score_for_pixels_with_points
 
     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
         # Note: The distributions were originally defined for per-pixel computation,

@@ -7,8 +7,6 @@ import jax.numpy as jnp
 from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
 
-import b3d
-from b3d.chisight.gen3d.pixel_kernels import is_unexplained
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     RenormalizedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
@@ -20,6 +18,7 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
 from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
     FullPixelRGBDDistribution,
     PixelRGBDDistribution,
+    is_unexplained,
 )
 from b3d.chisight.gen3d.projection import PixelsPointsAssociation
 
@@ -33,19 +32,14 @@ class ImageKernel(genjax.ExactDensity):
     The support of the distribution is [0, 1]^3 x [near, far].
     """
 
-    near: float = Pytree.static()
-    far: float = Pytree.static()
-    image_height: int = Pytree.static()
-    image_width: int = Pytree.static()
-
     def get_pixels_points_association(
         self, transformed_points, hyperparams: Mapping
     ) -> PixelsPointsAssociation:
         return PixelsPointsAssociation.from_points_and_intrinsics(
             transformed_points,
             hyperparams["intrinsics"],
-            self.image_height,
-            self.image_width,
+            hyperparams["intrinsics"]["image_height"].const,
+            hyperparams["intrinsics"]["image_width"].const,
         )
 
     @abstractmethod
@@ -64,11 +58,6 @@ class ImageKernel(genjax.ExactDensity):
 
 @Pytree.dataclass
 class NoOcclusionPerVertexImageKernel(ImageKernel):
-    near: float = Pytree.static()
-    far: float = Pytree.static()
-    image_height: int = Pytree.static()
-    image_width: int = Pytree.static()
-
     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
         """Generate latent RGBD image by projecting the vertices directly to the image
         plane, without checking for occlusions.
@@ -96,10 +85,16 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             [pixel_latent_rgbd, pixel_latent_depth[..., None]], axis=-1
         )
 
-        keys = jax.random.split(key, (self.image_height, self.image_width))
+        keys = jax.random.split(
+            key,
+            (
+                hyperparams["intrinsics"]["image_height"].const,
+                hyperparams["intrinsics"]["image_width"].const,
+            ),
+        )
         return jax.vmap(
-            jax.vmap(vertex_kernel.sample, in_axes=(0, 0, None, None, 0, 0)),
-            in_axes=(0, 0, None, None, 0, 0),
+            jax.vmap(vertex_kernel.sample, in_axes=(0, 0, None, None, 0, 0, None)),
+            in_axes=(0, 0, None, None, 0, 0, None),
         )(
             keys,
             pixel_latent_rgbd,
@@ -107,6 +102,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             state["depth_scale"],
             pixel_visibility_prob,
             pixel_depth_nonreturn_prob,
+            hyperparams["intrinsics"],
         )
 
     def logpdf(
@@ -122,13 +118,14 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             (state["colors"], transformed_points[..., 2, None]), axis=-1
         )
 
-        scores = jax.vmap(vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0))(
+        scores = jax.vmap(vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0, None))(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
             state["color_scale"],
             state["depth_scale"],
             state["visibility_prob"],
             state["depth_nonreturn_prob"],
+            hyperparams["intrinsics"],
         )
         # Points that don't hit the camera plane should not contribute to the score.
         scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
@@ -146,93 +143,88 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         return FullPixelRGBDDistribution(
             RenormalizedLaplacePixelColorDistribution(),
             UniformPixelColorDistribution(),
-            RenormalizedLaplacePixelDepthDistribution(self.near, self.far),
-            UniformPixelDepthDistribution(self.near, self.far),
+            RenormalizedLaplacePixelDepthDistribution(),
+            UniformPixelDepthDistribution(),
         )
 
 
-@Pytree.dataclass
-class OldNoOcclusionPerVertexImageKernel(ImageKernel):
-    near: float = Pytree.static()
-    far: float = Pytree.static()
-    image_height: int = Pytree.static()
-    image_width: int = Pytree.static()
+# @Pytree.dataclass
+# class OldNoOcclusionPerVertexImageKernel(ImageKernel):
+#     @jax.jit
+#     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
+#         return jnp.zeros(
+#             (
+#                 hyperparams["intrinsics"]["image_height"].const,
+#                 hyperparams["intrinsics"]["image_width"].const,
+#                 4,
+#             )
+#         )
 
-    @jax.jit
-    def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
-        return jnp.zeros(
-            (
-                self.image_height,
-                self.image_width,
-                4,
-            )
-        )
+#     @jax.jit
+#     def logpdf(
+#         self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
+#     ) -> FloatArray:
+#         return self.info_func(observed_rgbd, state, hyperparams)["scores"].sum()
 
-    @jax.jit
-    def logpdf(
-        self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
-    ) -> FloatArray:
-        return self.info_func(observed_rgbd, state, hyperparams)["scores"].sum()
+#     def info_from_trace(self, trace):
+#         return self.info_func(
+#             trace.get_choices()["rgbd"],
+#             trace.get_retval()["new_state"],
+#             trace.get_args()[0],
+#         )
 
-    def info_from_trace(self, trace):
-        return self.info_func(
-            trace.get_choices()["rgbd"],
-            trace.get_retval()["new_state"],
-            trace.get_args()[0],
-        )
+#     def info_func(self, observed_rgbd, state, hyperparams):
+#         transformed_points = state["pose"].apply(hyperparams["vertices"])
+#         projected_pixel_coordinates = jnp.rint(
+#             b3d.xyz_to_pixel_coordinates(
+#                 transformed_points,
+#                 hyperparams["intrinsics"]["fx"],
+#                 hyperparams["intrinsics"]["fy"],
+#                 hyperparams["intrinsics"]["cx"],
+#                 hyperparams["intrinsics"]["cy"],
+#             )
+#         ).astype(jnp.int32)
 
-    def info_func(self, observed_rgbd, state, hyperparams):
-        transformed_points = state["pose"].apply(hyperparams["vertices"])
-        projected_pixel_coordinates = jnp.rint(
-            b3d.xyz_to_pixel_coordinates(
-                transformed_points,
-                hyperparams["intrinsics"]["fx"],
-                hyperparams["intrinsics"]["fy"],
-                hyperparams["intrinsics"]["cx"],
-                hyperparams["intrinsics"]["cy"],
-            )
-        ).astype(jnp.int32)
+#         observed_rgbd_masked = observed_rgbd[
+#             projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1]
+#         ]
 
-        observed_rgbd_masked = observed_rgbd[
-            projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1]
-        ]
+#         color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
+#             observed_rgbd_masked[..., :3], state["colors"], state["color_scale"]
+#         ).sum(axis=-1)
+#         color_not_visible_score = jnp.log(1 / 1.0**3)
+#         color_score = jnp.logaddexp(
+#             color_visible_branch_score + jnp.log(state["visibility_prob"]),
+#             color_not_visible_score + jnp.log(1 - state["visibility_prob"]),
+#         )
 
-        color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-            observed_rgbd_masked[..., :3], state["colors"], state["color_scale"]
-        ).sum(axis=-1)
-        color_not_visible_score = jnp.log(1 / 1.0**3)
-        color_score = jnp.logaddexp(
-            color_visible_branch_score + jnp.log(state["visibility_prob"]),
-            color_not_visible_score + jnp.log(1 - state["visibility_prob"]),
-        )
+#         depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
+#             observed_rgbd_masked[..., 3],
+#             transformed_points[..., 2],
+#             state["depth_scale"],
+#         )
+#         depth_not_visible_score = jnp.log(1 / 1.0)
+#         _depth_score = jnp.logaddexp(
+#             depth_visible_branch_score + jnp.log(state["visibility_prob"]),
+#             depth_not_visible_score + jnp.log(1 - state["visibility_prob"]),
+#         )
+#         is_depth_non_return = observed_rgbd_masked[..., 3] < 0.0001
 
-        depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-            observed_rgbd_masked[..., 3],
-            transformed_points[..., 2],
-            state["depth_scale"],
-        )
-        depth_not_visible_score = jnp.log(1 / 1.0)
-        _depth_score = jnp.logaddexp(
-            depth_visible_branch_score + jnp.log(state["visibility_prob"]),
-            depth_not_visible_score + jnp.log(1 - state["visibility_prob"]),
-        )
-        is_depth_non_return = observed_rgbd_masked[..., 3] < 0.0001
+#         non_return_probability = 0.05
+#         depth_score = jnp.where(
+#             is_depth_non_return, jnp.log(non_return_probability), _depth_score
+#         )
 
-        non_return_probability = 0.05
-        depth_score = jnp.where(
-            is_depth_non_return, jnp.log(non_return_probability), _depth_score
-        )
+#         lmbda = 0.5
+#         scores = lmbda * color_score + (1.0 - lmbda) * depth_score
+#         return {
+#             "scores": scores,
+#             "observed_rgbd_masked": observed_rgbd_masked,
+#         }
 
-        lmbda = 0.5
-        scores = lmbda * color_score + (1.0 - lmbda) * depth_score
-        return {
-            "scores": scores,
-            "observed_rgbd_masked": observed_rgbd_masked,
-        }
-
-    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
-        # Note: The distributions were originally defined for per-pixel computation,
-        # but they should work for per-vertex computation as well, except that
-        # they don't expect observed_rgbd to be invalid, so we need to handle
-        # that manually.
-        raise NotImplementedError
+#     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
+#         # Note: The distributions were originally defined for per-pixel computation,
+#         # but they should work for per-vertex computation as well, except that
+#         # they don't expect observed_rgbd to be invalid, so we need to handle
+#         # that manually.
+#         raise NotImplementedError

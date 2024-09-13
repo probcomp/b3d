@@ -3,7 +3,7 @@ import os
 
 import b3d
 import b3d.chisight.gen3d.model
-import b3d.chisight.gen3d.transition_kernels as transition_kernels
+import b3d.chisight.gen3d.settings
 import b3d.io.data_loader
 import jax
 import jax.numpy as jnp
@@ -14,11 +14,12 @@ from b3d.chisight.gen3d.model import (
     make_visibility_prob_choicemap,
 )
 from genjax import ChoiceMapBuilder as C
+from genjax import Pytree
 
 b3d.rr_init("test_gen3d_model")
 
 
-def test_model_no_likelihood():
+def test_model():
     importance = b3d.chisight.gen3d.model.dynamic_object_generative_model.importance
 
     # num_vertices = 100
@@ -39,22 +40,19 @@ def test_model_no_likelihood():
     num_vertices = vertices.shape[0]
 
     key = jax.random.PRNGKey(0)
-    hyperparams = {
-        "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.1),
-        "color_kernel": transition_kernels.LaplaceColorDriftKernel(scale=0.05),
-        "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.01, 0.99])
-        ),
-        "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.01, 0.99])
-        ),
-        "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.005, 0.01, 0.02])
-        ),
-        "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15])
-        ),
-        "vertices": vertices,
+
+    hyperparams = b3d.chisight.gen3d.settings.hyperparams
+
+    hyperparams["vertices"] = vertices
+    hyperparams["intrinsics"] = {
+        "image_height": Pytree.const(480),
+        "image_width": Pytree.const(640),
+        "fx": 1066.778,
+        "fy": 1067.487,
+        "cx": 312.9869,
+        "cy": 241.3109,
+        "near": 0.1,
+        "far": 10.0,
     }
 
     previous_state = {
@@ -76,7 +74,7 @@ def test_model_no_likelihood():
     hyperparams, previous_state = trace.get_args()
 
     traces = [trace]
-    for t in range(100):
+    for t in range(10):
         key = b3d.split_key(key)
         previous_state = trace.get_retval()["new_state"]
         trace, _ = importance(key, C.n(), (hyperparams, previous_state))
@@ -95,7 +93,7 @@ def test_model_no_likelihood():
     fig.suptitle(
         f"""
 pose_kernel max_shift: {hyperparams['pose_kernel'].max_shift},
-color_kernel scale: {hyperparams['color_kernel'].scale},
+color_kernel scale: FILL IN,
 visibility_prob_kernel resample_probability: {hyperparams['visibility_prob_kernel'].resample_probability},
 depth_nonreturn_prob_kernel resample_probability: {hyperparams['depth_nonreturn_prob_kernel'].resample_probability},
 depth_scale_kernel resample_probability: {hyperparams['depth_scale_kernel'].resample_probability},
@@ -153,7 +151,3 @@ color_scale_kernel resample_probability: {hyperparams['color_scale_kernel'].resa
     assert jnp.allclose(
         new_trace.get_choices()["depth_nonreturn_prob", ...], new_depth_nonreturn_prob
     )
-
-
-if __name__ == "__main__":
-    test_model_no_likelihood()

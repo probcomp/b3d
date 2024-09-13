@@ -1,60 +1,24 @@
-import b3d.chisight.gen3d.image_kernel as image_kernel
-import b3d.chisight.gen3d.inference as inference
 import b3d.chisight.gen3d.inference_moves as inference_moves
-import b3d.chisight.gen3d.transition_kernels as transition_kernels
+import b3d.chisight.gen3d.settings
 import jax
 import jax.numpy as jnp
 import pytest
+from genjax import Pytree
 
 
 @pytest.fixture
 def hyperparams_and_inference_hyperparams():
     near, far, image_height, image_width = 0.001, 5.0, 480, 640
-    img_model = image_kernel.NoOcclusionPerVertexImageKernel(
-        near, far, image_height, image_width
-    )
-    color_transiton_scale = 0.05
-    p_resample_color = 0.005
-
-    # This parameter is needed for the inference hyperparameters.
-    # See the `InferenceHyperparams` docstring in `inference.py` for details.
-    inference_hyperparams = inference.InferenceHyperparams(
-        n_poses=6000,
-        pose_proposal_std=0.04,
-        pose_proposal_conc=1000.0,
-        do_stochastic_color_proposals=True,
-        prev_color_proposal_laplace_scale=0.001,
-        obs_color_proposal_laplace_scale=0.001,
-    )
-
-    hyperparams = {
-        "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.1),
-        "color_kernel": transition_kernels.MixtureDriftKernel(
-            [
-                transition_kernels.LaplaceNotTruncatedColorDriftKernel(
-                    scale=color_transiton_scale
-                ),
-                transition_kernels.UniformDriftKernel(
-                    max_shift=0.15, min_val=jnp.zeros(3), max_val=jnp.ones(3)
-                ),
-            ],
-            jnp.array([1 - p_resample_color, p_resample_color]),
-        ),
-        "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.001, 0.999])
-        ),
-        "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.001, 0.999])
-        ),
-        "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1,
-            support=jnp.array([0.0025, 0.01, 0.02, 0.1, 0.4, 1.0]),
-        ),
-        "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15, 0.3, 0.8])
-        ),
-        "image_kernel": img_model,
+    intrinsics = {
+        "image_height": Pytree.const(image_height),
+        "image_width": Pytree.const(image_width),
+        "near": near,
+        "far": far,
     }
+
+    hyperparams = b3d.chisight.gen3d.settings.hyperparams
+    inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
+    hyperparams["intrinsics"] = intrinsics
     return hyperparams, inference_hyperparams
 
 
@@ -89,6 +53,7 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
             obs_rgbd_kernel,
             color_scale,
             depth_scale,
+            hyperparams["intrinsics"],
             inference_hyperparams,
         )
         return visibility_prob
@@ -161,6 +126,7 @@ def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
             obs_rgbd_kernel,
             color_scale,
             depth_scale,
+            hyperparams["intrinsics"],
             inference_hyperparams,
         )
         return dnr_prob
@@ -231,6 +197,7 @@ def test_color_prob_inference(hyperparams_and_inference_hyperparams):
             obs_rgbd_kernel,
             color_scale,
             depth_scale,
+            hyperparams["intrinsics"],
             inference_hyperparams,
         )
         return rgb

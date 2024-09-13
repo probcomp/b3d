@@ -2,12 +2,9 @@ import jax
 import jax.numpy as jnp
 import pytest
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
-    DEPTH_NONRETURN_VAL,
-    MixturePixelDepthDistribution,
     RenormalizedGaussianPixelDepthDistribution,
     RenormalizedLaplacePixelDepthDistribution,
     TruncatedLaplacePixelDepthDistribution,
-    UnexplainedPixelDepthDistribution,
     UniformPixelDepthDistribution,
 )
 
@@ -16,19 +13,10 @@ far = 20.0
 
 # each kernel specs is a tuple of (kernel, additional_args)
 sample_kernels_to_test = [
-    (UniformPixelDepthDistribution(near, far), ()),
-    (TruncatedLaplacePixelDepthDistribution(near, far), (0.25,)),
-    (UnexplainedPixelDepthDistribution(near, far), ()),
-    (RenormalizedLaplacePixelDepthDistribution(near, far), (0.25,)),
-    (RenormalizedGaussianPixelDepthDistribution(near, far), (0.25,)),
-    (
-        MixturePixelDepthDistribution(near, far),
-        (
-            0.15,  # scale
-            0.5,  # visibility_prob
-            0.23,  # depth_nonreturn_prob
-        ),
-    ),
+    (UniformPixelDepthDistribution(), (0.25, near, far)),
+    (TruncatedLaplacePixelDepthDistribution(), (0.25, near, far)),
+    (RenormalizedLaplacePixelDepthDistribution(), (0.25, near, far)),
+    (RenormalizedGaussianPixelDepthDistribution(), (0.25, near, far)),
 ]
 
 
@@ -47,12 +35,6 @@ def test_logpdf_sum_to_1(kernel_spec, latent_depth: float):
         + jnp.log(far - near)
         - jnp.log(n_grid_steps)
     )
-    # compute the mass in { "nonreturn" }
-    log_nonreturn_mass = kernel.logpdf(
-        DEPTH_NONRETURN_VAL, latent_depth, *additional_args
-    )
-    log_pmass = jnp.logaddexp(log_pmass, log_nonreturn_mass)
-
     assert jnp.isclose(log_pmass, 0.0, atol=1e-3)
 
 
@@ -66,8 +48,8 @@ def test_sample_in_valid_depth_range(kernel_spec, latent_depth):
         keys
     )
     assert depths.shape == (num_samples,)
-    assert jnp.all((depths >= near) | (depths == DEPTH_NONRETURN_VAL))
-    assert jnp.all((depths <= far) | (depths == DEPTH_NONRETURN_VAL))
+    assert jnp.all((depths >= near))
+    assert jnp.all((depths <= far))
 
 
 # def test_relative_logpdf():

@@ -1,35 +1,48 @@
 import jax
 import jax.numpy as jnp
 import pytest
-from b3d.chisight.gen3d.pixel_kernels import (
-    DEPTH_NONRETURN_VAL,
-    FullPixelRGBDDistribution,
-)
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     TruncatedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
 )
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
+    DEPTH_NONRETURN_VAL,
     TruncatedLaplacePixelDepthDistribution,
     UniformPixelDepthDistribution,
 )
+from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
+    FullPixelRGBDDistribution,
+)
+from genjax import Pytree
 
 near = 0.01
 far = 20.0
+
+intrinsics = {
+    "image_height": Pytree.const(480),
+    "image_width": Pytree.const(640),
+    "fx": 1066.778,
+    "fy": 1067.487,
+    "cx": 312.9869,
+    "cy": 241.3109,
+    "near": near,
+    "far": far,
+}
 
 sample_kernels_to_test = [
     (
         FullPixelRGBDDistribution(
             TruncatedLaplacePixelColorDistribution(),
             UniformPixelColorDistribution(),
-            TruncatedLaplacePixelDepthDistribution(near, far),
-            UniformPixelDepthDistribution(near, far),
+            TruncatedLaplacePixelDepthDistribution(),
+            UniformPixelDepthDistribution(),
         ),
         (
             0.01,  # color_scale
             0.01,  # depth_scale
             1 - 0.3,  # visibility_prob
             0.1,  # depth_nonreturn_prob
+            intrinsics,
         ),
     )
 ]
@@ -66,10 +79,22 @@ def test_relative_logpdf(kernel_spec):
     # case 1: no vertex hit the pixel
     latent_rgbd = -jnp.ones(4)  # use -1 to denote invalid pixel
     logpdf_1 = kernel.logpdf(
-        obs_rgbd, latent_rgbd, 0.01, 0.01, visibility_prob=0.8, depth_nonreturn_prob=0.1
+        obs_rgbd,
+        latent_rgbd,
+        0.01,
+        0.01,
+        visibility_prob=0.8,
+        depth_nonreturn_prob=0.1,
+        intrinsics=intrinsics,
     )
     logpdf_2 = kernel.logpdf(
-        obs_rgbd, latent_rgbd, 0.01, 0.01, visibility_prob=0.2, depth_nonreturn_prob=0.1
+        obs_rgbd,
+        latent_rgbd,
+        0.01,
+        0.01,
+        visibility_prob=0.2,
+        depth_nonreturn_prob=0.1,
+        intrinsics=intrinsics,
     )
     # the logpdf should be the same because the occluded probability is not used
     # in the case when no vertex hit the pixel
@@ -78,10 +103,22 @@ def test_relative_logpdf(kernel_spec):
     # case 2: a vertex hit the pixel, but the rgbd is not close to the observed rgbd
     latent_rgbd = jnp.array([1.0, 0.5, 0.0, 12.0])
     logpdf_3 = kernel.logpdf(
-        obs_rgbd, latent_rgbd, 0.01, 0.01, visibility_prob=0.8, depth_nonreturn_prob=0.1
+        obs_rgbd,
+        latent_rgbd,
+        0.01,
+        0.01,
+        visibility_prob=0.8,
+        depth_nonreturn_prob=0.1,
+        intrinsics=intrinsics,
     )
     logpdf_4 = kernel.logpdf(
-        obs_rgbd, latent_rgbd, 0.01, 0.01, visibility_prob=0.2, depth_nonreturn_prob=0.1
+        obs_rgbd,
+        latent_rgbd,
+        0.01,
+        0.01,
+        visibility_prob=0.2,
+        depth_nonreturn_prob=0.1,
+        intrinsics=intrinsics,
     )
     # the pixel should be more likely to be an occluded
     assert logpdf_3 < logpdf_4
@@ -89,10 +126,22 @@ def test_relative_logpdf(kernel_spec):
     # case 3: a vertex hit the pixel, and the rgbd is close to the observed rgbd
     latent_rgbd = jnp.array([0.0, 0.0, 0.95, 0.022])
     logpdf_5 = kernel.logpdf(
-        obs_rgbd, latent_rgbd, 0.01, 0.01, visibility_prob=0.8, depth_nonreturn_prob=0.1
+        obs_rgbd,
+        latent_rgbd,
+        0.01,
+        0.01,
+        visibility_prob=0.8,
+        depth_nonreturn_prob=0.1,
+        intrinsics=intrinsics,
     )
     logpdf_6 = kernel.logpdf(
-        obs_rgbd, latent_rgbd, 0.01, 0.01, visibility_prob=0.2, depth_nonreturn_prob=0.1
+        obs_rgbd,
+        latent_rgbd,
+        0.01,
+        0.01,
+        visibility_prob=0.2,
+        depth_nonreturn_prob=0.1,
+        intrinsics=intrinsics,
     )
     # the pixel should be more likely to be an inlier
     assert logpdf_5 > logpdf_6
@@ -116,10 +165,10 @@ def test_invalid_pixel(kernel_spec):
     assert logpdf_1 == logpdf_2
 
     logpdf_3 = kernel.logpdf(
-        jnp.array([1.0, 0.5, 0.2, 4.0]), latent_rgbd, 0.1, 0.4, 0.2, 0.1
+        jnp.array([1.0, 0.5, 0.2, 4.0]), latent_rgbd, 0.1, 0.4, 0.2, 0.1, intrinsics
     )
     logpdf_4 = kernel.logpdf(
-        jnp.array([0.0, 0.0, 0.0, 0.02]), latent_rgbd, 0.3, 0.5, 0.4, 0.2
+        jnp.array([0.0, 0.0, 0.0, 0.02]), latent_rgbd, 0.3, 0.5, 0.4, 0.2, intrinsics
     )
     # and the values of the parameters doesn't matter either
     assert logpdf_2 == logpdf_3

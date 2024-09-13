@@ -1,36 +1,28 @@
 #!/usr/bin/env python
+import os
+
+import b3d
+import b3d.chisight.gen3d.image_kernel as image_kernel
+import b3d.chisight.gen3d.transition_kernels as transition_kernels
 import fire
+import genjax
+import jax
+import jax.numpy as jnp
+from b3d import Mesh, Pose
+from b3d.chisight.gen3d.model import (
+    dynamic_object_generative_model,
+    make_colors_choicemap,
+    make_depth_nonreturn_prob_choicemap,
+    make_visibility_prob_choicemap,
+)
+from genjax import Pytree
+from tqdm import tqdm
 
 
 def run_tracking(scene=None, object=None, debug=False):
-    import importlib
-    import os
-
-    import b3d
-    import b3d.chisight.gen3d.image_kernel as image_kernel
-    import b3d.chisight.gen3d.transition_kernels as transition_kernels
-    import genjax
-    import jax
-    import jax.numpy as jnp
-    from b3d import Mesh, Pose
-    from b3d.chisight.gen3d.model import (
-        dynamic_object_generative_model,
-        make_colors_choicemap,
-        make_depth_nonreturn_prob_choicemap,
-        make_visibility_prob_choicemap,
-    )
-    from genjax import Pytree
-    from tqdm import tqdm
-
-    importlib.reload(b3d.mesh)
-    importlib.reload(b3d.io.data_loader)
-    importlib.reload(b3d.utils)
-    importlib.reload(b3d.renderer.renderer_original)
-
     FRAME_RATE = 50
 
     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
-
     b3d.rr_init("run_ycbv_evaluation")
 
     if scene is None:

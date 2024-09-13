@@ -164,6 +164,7 @@ def propose_a_points_attributes(
         obs_rgbd_kernel=hyperparams["image_kernel"].get_rgbd_vertex_kernel(),
         color_scale=new_state["color_scale"],
         depth_scale=new_state["depth_scale"],
+        intrinsics=hyperparams["intrinsics"],
         inference_hyperparams=inference_hyperparams,
     )
 
@@ -181,6 +182,7 @@ def _propose_a_points_attributes(
     obs_rgbd_kernel,
     color_scale,
     depth_scale,
+    intrinsics,
     inference_hyperparams,
 ):
     k1, k2 = split(key, 2)
@@ -198,6 +200,7 @@ def _propose_a_points_attributes(
             depth_scale=depth_scale,
             visibility_prob=visprob,
             depth_nonreturn_prob=dnrprob,
+            intrinsics=intrinsics,
         )
         return (
             visprob_transition_score

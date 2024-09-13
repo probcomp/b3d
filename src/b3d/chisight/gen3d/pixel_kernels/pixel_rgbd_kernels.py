@@ -2,11 +2,10 @@ from abc import abstractmethod
 
 import genjax
 import jax.numpy as jnp
-from genjax import Pytree
-from genjax.typing import FloatArray, PRNGKey
-
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import PixelColorDistribution
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import PixelDepthDistribution
+from genjax import Pytree
+from genjax.typing import FloatArray, PRNGKey
 
 
 def is_unexplained(latent_value: FloatArray) -> bool:
@@ -50,6 +49,7 @@ class PixelRGBDDistribution(genjax.ExactDensity):
         depth_scale: float,
         visibility_prob: float,
         depth_nonreturn_prob: float,
+        intrinsics: dict,
     ) -> FloatArray:
         raise NotImplementedError
 
@@ -62,6 +62,7 @@ class PixelRGBDDistribution(genjax.ExactDensity):
         depth_scale: float,
         visibility_prob: float,
         depth_nonreturn_prob: float,
+        intrinsics: dict,
     ) -> float:
         raise NotImplementedError
 
@@ -92,6 +93,7 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         depth_scale: float,
         visibility_prob: float,
         depth_nonreturn_prob: float,
+        intrinsics: dict,
     ) -> FloatArray:
         # TODO: Implement this
         return jnp.ones((4,)) * 0.5
@@ -104,6 +106,7 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         depth_scale: float,
         visibility_prob: float,
         depth_nonreturn_prob: float,
+        intrinsics: dict,
     ) -> float:
         total_log_prob = 0.0
 
@@ -121,7 +124,11 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
             jnp.log(depth_nonreturn_prob),
             jnp.log(1 - depth_nonreturn_prob)
             + self.inlier_depth_distribution.logpdf(
-                observed_rgbd[3], latent_rgbd[3], depth_scale
+                observed_rgbd[3],
+                latent_rgbd[3],
+                depth_scale,
+                intrinsics["near"],
+                intrinsics["far"],
             ),
         )
 
@@ -129,10 +136,16 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         total_not_visible_log_prob = 0.0
         # color term
         outlier_color_log_prob = self.outlier_color_distribution.logpdf(
-            observed_rgbd[:3], latent_rgbd[:3], color_scale
+            observed_rgbd[:3],
+            latent_rgbd[:3],
+            color_scale,
         )
         outlier_depth_log_prob = self.outlier_depth_distribution.logpdf(
-            observed_rgbd[3], latent_rgbd[3], depth_scale
+            observed_rgbd[3],
+            latent_rgbd[3],
+            depth_scale,
+            intrinsics["near"],
+            intrinsics["far"],
         )
 
         total_not_visible_log_prob += outlier_color_log_prob

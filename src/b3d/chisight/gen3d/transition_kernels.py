@@ -378,10 +378,27 @@ class DiscreteFlipKernel(genjax.ExactDensity):
         )
 
     def logpdf(self, new_value, prev_value):
+        # Write code to compute the logpdf of this flipping kernel.
+
+        resample_probability = self.resample_probability
+        support = self.support
+
         match = new_value == prev_value
-        return jnp.logaddexp(
-            jnp.log(1.0 - self.resample_probability) + jnp.log(1.0 * match),
-            jnp.log(self.resample_probability)
-            - jnp.log(len(self.support) - 1)
-            + jnp.log(1.0 * (1 - match)),
+        number_of_other_values = len(support) - 1
+
+        log_probability_of_non_matched_values = jnp.where(
+            number_of_other_values > 0.0,
+            jnp.log(resample_probability) - jnp.log(number_of_other_values),
+            jnp.log(0.0),
         )
+        log_total_probability_of_non_matched_values = (
+            log_probability_of_non_matched_values + jnp.log(len(support) - 1)
+        )
+        log_probability_of_match = jnp.log(
+            1.0 - jnp.exp(log_total_probability_of_non_matched_values)
+        )
+        logprob = jnp.logaddexp(
+            jnp.log(match) + log_probability_of_match,
+            log_probability_of_non_matched_values + jnp.log(1.0 - match),
+        )
+        return logprob

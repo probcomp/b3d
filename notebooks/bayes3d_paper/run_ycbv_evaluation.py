@@ -2,13 +2,12 @@
 import os
 
 import b3d
-import b3d.chisight.gen3d.image_kernel as image_kernel
-import b3d.chisight.gen3d.transition_kernels as transition_kernels
+import b3d.chisight.gen3d.settings
 import fire
 import genjax
 import jax
 import jax.numpy as jnp
-from b3d import Mesh, Pose
+from b3d import Mesh
 from b3d.chisight.gen3d.model import (
     dynamic_object_generative_model,
     make_colors_choicemap,
@@ -17,6 +16,9 @@ from b3d.chisight.gen3d.model import (
 )
 from genjax import Pytree
 from tqdm import tqdm
+
+hyperparams = b3d.chisight.gen3d.settings.hyperparams
+inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
 
 
 def run_tracking(scene=None, object=None, debug=False):
@@ -31,27 +33,6 @@ def run_tracking(scene=None, object=None, debug=False):
         scenes = [scene]
     elif isinstance(scene, list):
         scenes = scene
-
-    hyperparams = {
-        "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.1),
-        "color_kernel": transition_kernels.LaplaceNotTruncatedColorDriftKernel(
-            scale=0.15
-        ),
-        "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, possible_values=jnp.array([0.01, 0.99])
-        ),
-        "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, possible_values=jnp.array([0.01, 0.99])
-        ),
-        "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, possible_values=jnp.array([0.0025, 0.01, 0.02])
-        ),
-        "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, possible_values=jnp.array([0.05, 0.1, 0.15])
-        ),
-        "image_likelihood": image_kernel.SimpleNoRenderImageLikelihood(),
-    }
-    info_from_trace = hyperparams["image_likelihood"].info_from_trace
 
     for scene_id in scenes:
         print(f"Scene {scene_id}")
@@ -124,20 +105,25 @@ def run_tracking(scene=None, object=None, debug=False):
                 "pose": template_pose,
                 "colors": model_colors,
                 "visibility_prob": jnp.ones(num_vertices)
-                * hyperparams["visibility_prob_kernel"].possible_values[-1],
+                * hyperparams["visibility_prob_kernel"].support[-1],
                 "depth_nonreturn_prob": jnp.ones(num_vertices)
-                * hyperparams["depth_nonreturn_prob_kernel"].possible_values[0],
-                "depth_scale": hyperparams["depth_scale_kernel"].possible_values[0],
-                "color_scale": hyperparams["color_scale_kernel"].possible_values[0],
+                * hyperparams["depth_nonreturn_prob_kernel"].support[0],
+                "depth_scale": hyperparams["depth_scale_kernel"].support[0],
+                "color_scale": hyperparams["color_scale_kernel"].support[0],
             }
 
+            hyperparams["intrinsics"] = {
+                "fx": fx,
+                "fy": fy,
+                "cx": cx,
+                "cy": cy,
+                "image_height": Pytree.const(image_height),
+                "image_width": Pytree.const(image_width),
+                "near": 0.01,
+                "far": 2.0,
+            }
             hyperparams["vertices"] = model_vertices
-            hyperparams["fx"] = fx
-            hyperparams["fy"] = fy
-            hyperparams["cx"] = cx
-            hyperparams["cy"] = cy
-            hyperparams["image_height"] = Pytree.const(image_height)
-            hyperparams["image_width"] = Pytree.const(image_width)
+
             choicemap = (
                 genjax.ChoiceMap.d(
                     {
@@ -160,12 +146,22 @@ def run_tracking(scene=None, object=None, debug=False):
                 key, choicemap, (hyperparams, previous_state)
             )[0]
 
-            from b3d.chisight.gen3d.inference import inference_step
+            import b3d.chisight.gen3d.inference as inference
 
             ### Run inference ###
             for T in tqdm(range(len(all_data))):
                 key = b3d.split_key(key)
-                trace = inference_step(trace, key, all_data[T]["rgbd"])
+                trace = inference.inference_step_c2f(
+                    key,
+                    1,  # number of sequential iterations of the parallel pose proposal to consider
+                    5000,  # number of poses to propose in parallel
+                    # So the total number of poses considered at each step of C2F is 5000 * 1
+                    trace,
+                    all_data[T]["rgbd"],
+                    prev_color_proposal_laplace_scale=inference_hyperparams.prev_color_proposal_laplace_scale,
+                    obs_color_proposal_laplace_scale=inference_hyperparams.obs_color_proposal_laplace_scale,
+                    do_stochastic_color_proposals=True,
+                )
                 tracking_results[T] = trace
 
                 if debug:
@@ -177,31 +173,31 @@ def run_tracking(scene=None, object=None, debug=False):
                         @ all_data[T]["object_poses"][OBJECT_INDEX],
                     )
 
-            inferred_poses = Pose.stack_poses(
-                [
-                    tracking_results[t].get_choices()["pose"]
-                    for t in range(len(all_data))
-                ]
-            )
-            jnp.savez(
-                f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.npy",
-                position=inferred_poses.position,
-                quaternion=inferred_poses.quat,
-            )
+            # inferred_poses = Pose.stack_poses(
+            #     [
+            #         tracking_results[t].get_choices()["pose"]
+            #         for t in range(len(all_data))
+            #     ]
+            # )
+            # jnp.savez(
+            #     f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.npy",
+            #     position=inferred_poses.position,
+            #     quaternion=inferred_poses.quat,
+            # )
 
-            trace = tracking_results[len(all_data) - 1]
-            info = info_from_trace(trace)
-            rendered_rgbd = info["latent_rgbd"]
+            # trace = tracking_results[len(all_data) - 1]
+            # info = info_from_trace(trace)
+            # rendered_rgbd = info["latent_rgbd"]
 
-            a = b3d.viz_rgb(
-                trace.get_choices()["rgbd"][..., :3],
-            )
-            b = b3d.viz_rgb(
-                rendered_rgbd[..., :3],
-            )
-            b3d.multi_panel([a, b, b3d.overlay_image(a, b)]).save(
-                f"photo_SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.png"
-            )
+            # a = b3d.viz_rgb(
+            #     trace.get_choices()["rgbd"][..., :3],
+            # )
+            # b = b3d.viz_rgb(
+            #     rendered_rgbd[..., :3],
+            # )
+            # b3d.multi_panel([a, b, b3d.overlay_image(a, b)]).save(
+            #     f"photo_SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.png"
+            # )
 
 
 if __name__ == "__main__":

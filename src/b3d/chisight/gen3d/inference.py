@@ -7,6 +7,7 @@ from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
 from jax.random import split
+from tqdm import tqdm
 
 import b3d
 from b3d.chisight.gen3d.inference_moves import (
@@ -271,6 +272,35 @@ def inference_step_noweight(*args):
     (not the weight).
     """
     return inference_step(*args)[0]
+
+
+def run_inference_many_frames(
+    key,
+    trace,
+    all_data,
+    inference_hyperparams,
+    use_gt_pose=True,
+    gt_poses=None,
+    get_metadata=False,
+    include_qscores_in_outer_resample=True,
+):
+    traces = []
+    if gt_poses is None:
+        gt_poses = [b3d.Pose.identity()] * len(all_data)
+    for T in tqdm(len(all_data)):
+        key = b3d.split_key(key)
+        trace, _ = inference_step(
+            key,
+            trace,
+            all_data[T]["rgbd"],
+            inference_hyperparams,
+            use_gt_pose=use_gt_pose,
+            gt_pose=gt_poses[T],
+            get_metadata=get_metadata,
+            include_qscores_in_outer_resample=include_qscores_in_outer_resample,
+        )
+        traces.append(trace)
+    return trace
 
 
 ### Utils ###

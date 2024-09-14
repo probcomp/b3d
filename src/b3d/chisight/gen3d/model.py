@@ -6,6 +6,7 @@ import rerun.blueprint as rrb
 from genjax import ChoiceMapBuilder as C
 
 import b3d
+from b3d.chisight.gen3d.projection import PixelsPointsAssociation
 
 # TODOs
 # 1. Tests of drift kernels
@@ -148,9 +149,26 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
 
     output = trace.get_retval()
     if output["rgbd"] is not None:
-        b3d.rr_log_rgb(output["rgbd"][..., :3], "image")
-        b3d.rr_log_rgb(output["rgbd"][..., :3], "image/rgb/observed")
-        b3d.rr_log_depth(output["rgbd"][..., 3], "image/depth/observed")
+        observed_rgbd = output["rgbd"]
+        b3d.rr_log_rgb(observed_rgbd[..., :3], "image")
+        b3d.rr_log_rgb(observed_rgbd[..., :3], "image/rgb/observed")
+        b3d.rr_log_depth(observed_rgbd[..., 3], "image/depth/observed")
+
+        pixel_point_association = PixelsPointsAssociation.from_points_and_intrinsics(
+            vertices_transformed,
+            hyperparams["intrinsics"],
+        )
+        pixel_latent_rgb = jnp.clip(
+            pixel_point_association.get_pixel_attributes(new_state["colors"]), 0.0, 1.0
+        )
+        pixel_latent_depth = jnp.clip(
+            pixel_point_association.get_pixel_attributes(vertices_transformed[..., 2]),
+            0.0,
+            10.0,
+        )
+
+        b3d.rr_log_rgb(pixel_latent_rgb, "image/rgb/latent")
+        b3d.rr_log_depth(pixel_latent_depth, "image/depth/latent")
 
         # TODO: should we add in a way to visualize a noise-free projection
         # of the points to the camera plane?
@@ -188,9 +206,9 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
             b3d.rr_log_pose(ground_truth_pose, "scene/ground_truth_pose")
             b3d.rr_log_pose(trace.get_choices()["pose"], "scene/inferred_pose")
 
-    if not b3d.get_blueprint_logged():
-        rr.send_blueprint(get_blueprint())
-        b3d.set_blueprint_logged(True)
+    # if not b3d.get_blueprint_logged():
+    #     rr.send_blueprint(get_blueprint())
+    #     b3d.set_blueprint_logged(True)
 
 
 def get_blueprint():

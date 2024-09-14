@@ -27,17 +27,11 @@ class PixelsPointsAssociation(Pytree):
         return cls.from_points_and_intrinsics(
             vertices_C,
             hyperparams["intrinsics"],
-            hyperparams["intrinsics"]["image_height"].unwrap(),
-            hyperparams["intrinsics"]["image_width"].unwrap(),
         )
 
     @classmethod
     def from_points_and_intrinsics(
-        cls,
-        points: FloatArray,
-        intrinsics: dict,
-        image_height: int,
-        image_width: int,
+        cls, points: FloatArray, intrinsics: dict
     ) -> "PixelsPointsAssociation":
         """Create a PixelsPointsAssociation object from a set of 3D points and
         the camera intrinsics.
@@ -58,6 +52,12 @@ class PixelsPointsAssociation(Pytree):
             )
             - 0.5
         )
+
+        image_height, image_width = (
+            intrinsics["image_height"].unwrap(),
+            intrinsics["image_width"].unwrap(),
+        )
+
         # handle NaN before converting to int (otherwise NaN will be converted
         # to 0)
         projected_coords = jnp.nan_to_num(projected_coords, nan=INVALID_IDX)

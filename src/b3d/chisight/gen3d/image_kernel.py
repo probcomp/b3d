@@ -38,8 +38,6 @@ class ImageKernel(genjax.ExactDensity):
         return PixelsPointsAssociation.from_points_and_intrinsics(
             transformed_points,
             hyperparams["intrinsics"],
-            hyperparams["intrinsics"]["image_height"].unwrap(),
-            hyperparams["intrinsics"]["image_width"].unwrap(),
         )
 
     @abstractmethod
@@ -77,12 +75,12 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         pixel_depth_nonreturn_prob = points_to_pixels.get_pixel_attributes(
             state["depth_nonreturn_prob"]
         )
-        pixel_latent_rgbd = points_to_pixels.get_pixel_attributes(state["colors"])
+        pixel_latent_rgb = points_to_pixels.get_pixel_attributes(state["colors"])
         pixel_latent_depth = points_to_pixels.get_pixel_attributes(
             transformed_points[..., 2]
         )
         pixel_latent_rgbd = jnp.concatenate(
-            [pixel_latent_rgbd, pixel_latent_depth[..., None]], axis=-1
+            [pixel_latent_rgb, pixel_latent_depth[..., None]], axis=-1
         )
 
         keys = jax.random.split(

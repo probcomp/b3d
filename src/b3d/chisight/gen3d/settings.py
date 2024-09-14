@@ -24,10 +24,10 @@ hyperparams = {
     ),
     "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
         resample_probability=0.1,
-        support=jnp.array([0.0025, 0.01, 0.02, 0.1, 0.4, 1.0]),
+        support=jnp.array([0.0025, 0.01, 0.02]),
     ),
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15, 0.3, 0.8])
+        resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15])
     ),
     "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(),
 }

@@ -163,7 +163,8 @@ class Mesh:
         return transform_mesh(self, pose)
 
     def __repr__(self) -> str:
-        return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
+        # return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
+        return f"Mesh(vertices={self.vertices}, faces={self.faces}, vertex_attributes={self.vertex_attributes})"
 
     def __len__(self):
         # assert len(self.vertices.shape) == 3, "This is not a batched mesh object."

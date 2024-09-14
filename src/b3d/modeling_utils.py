@@ -108,7 +108,7 @@ def get_interpenetration(mesh_seq, num_samples):
             m1.vertices, m1.faces, m2.vertices, m2.faces, num_samples, key
         )
         interpenetrations.append(intersection_volume)
-    return jnp.array(interpenetrations)
+    return jnp.array(interpenetrations).sum()
 
 
 @jax.jit

@@ -26,10 +26,12 @@ def likelihood_func(observed_rgbd, likelihood_args):
     )
 
     score = pixelwise_score.sum()
-    if "interpenetration_penalty" in likelihood_args.keys():
+    if "object_interpenetration" in likelihood_args.keys():
         interpenetration_penalty = likelihood_args["interpenetration_penalty"]
         interpeneration = likelihood_args["object_interpenetration"]
-        interpeneration_score = interpenetration_penalty * interpeneration.sum()
+        # jax.debug.print("interpeneration: {v}", v=interpeneration)
+        interpeneration_score = interpenetration_penalty.const * interpeneration
+        # jax.debug.print("interpeneration_score: {v}", v=interpeneration_score)
         score -= interpeneration_score
 
     return {

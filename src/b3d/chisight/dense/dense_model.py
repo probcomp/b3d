@@ -97,6 +97,9 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                     transformed_scaled_meshes, args_dict["num_mc_sample"].const
                 )
                 likelihood_args["object_interpenetration"] = interpeneration
+                likelihood_args["interpenetration_penalty"] = args_dict[
+                    "interpenetration_penalty"
+                ]
 
             likelihood_args["latent_rgbd"] = latent_rgbd
             likelihood_args["rasterize_results"] = rasterize_results

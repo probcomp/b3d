@@ -133,8 +133,8 @@ def downsize_images(ims, k):
 @jax.jit
 def xyz_from_depth(z: rr.DepthImage, fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
-    x = (u - cx) / fx
-    y = (v - cy) / fy
+    x = (u + 0.5 - cx) / fx
+    y = (v + 0.5 - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
     return xyz
 

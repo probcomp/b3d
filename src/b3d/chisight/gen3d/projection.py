@@ -51,7 +51,6 @@ class PixelsPointsAssociation(Pytree):
                 intrinsics["cy"],
             )
             - 0.5
-            # ? (not sure if this is necessary) ??
         )
 
         image_height, image_width = (

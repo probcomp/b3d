@@ -104,7 +104,7 @@ def attribute_proposal_only_color_and_visibility(
         "colors": color_sweep[idx_color],
         "visibility_prob": visibility_values[idx_visibility],
         "depth_nonreturn_prob": dnrp,
-        "scores": scores_color_and_visibility,
+        # "scores": scores_color_and_visibility,
     }
 
 
@@ -170,7 +170,7 @@ update_all_get_score_vmap = jax.jit(
 
 
 def inference_step(trace, key, inference_hyperparams):
-    number = 20000
+    number = 10000
     current_pose = trace.get_choices()["pose"]
     var_conc = [(0.04, 1000.0), (0.02, 1500.0), (0.005, 2000.0)]
     for var, conc in var_conc:

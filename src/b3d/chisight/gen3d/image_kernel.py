@@ -23,6 +23,18 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
 from b3d.chisight.gen3d.projection import PixelsPointsAssociation
 
 
+def get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd):
+    transformed_points = state["pose"].apply(hyperparams["vertices"])
+    points_to_pixels = PixelsPointsAssociation.from_points_and_intrinsics(
+        transformed_points, hyperparams["intrinsics"]
+    )
+    observed_rgbd_per_point = points_to_pixels.get_point_rgbds(observed_rgbd)
+    latent_rgbd_per_point = jnp.concatenate(
+        (state["colors"], transformed_points[..., 2, None]), axis=-1
+    )
+    return latent_rgbd_per_point, observed_rgbd_per_point
+
+
 @Pytree.dataclass
 class ImageKernel(genjax.ExactDensity):
     """An abstract class that defines the common interface for image kernels,
@@ -56,10 +68,18 @@ class ImageKernel(genjax.ExactDensity):
 
 @Pytree.dataclass
 class NoOcclusionPerVertexImageKernel(ImageKernel):
+    rgbd_vertex_kernel: PixelRGBDDistribution = FullPixelRGBDDistribution(
+        RenormalizedLaplacePixelColorDistribution(),
+        UniformPixelColorDistribution(),
+        RenormalizedLaplacePixelDepthDistribution(),
+        UniformPixelDepthDistribution(),
+    )
+
     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
         """Generate latent RGBD image by projecting the vertices directly to the image
         plane, without checking for occlusions.
         """
+
         transformed_points = state["pose"].apply(hyperparams["vertices"])
         points_to_pixels = self.get_pixels_points_association(
             transformed_points, hyperparams
@@ -106,16 +126,10 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
     def logpdf(
         self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
     ) -> FloatArray:
-        transformed_points = state["pose"].apply(hyperparams["vertices"])
-        points_to_pixels = self.get_pixels_points_association(
-            transformed_points, hyperparams
+        latent_rgbd_per_point, observed_rgbd_per_point = (
+            get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd)
         )
         vertex_kernel = self.get_rgbd_vertex_kernel()
-        observed_rgbd_per_point = points_to_pixels.get_point_rgbds(observed_rgbd)
-        latent_rgbd_per_point = jnp.concatenate(
-            (state["colors"], transformed_points[..., 2, None]), axis=-1
-        )
-
         scores = jax.vmap(vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0, None))(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
@@ -125,12 +139,12 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             state["depth_nonreturn_prob"],
             hyperparams["intrinsics"],
         )
+
         # Points that don't hit the camera plane should not contribute to the score.
         scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
         score_for_pixels_with_points = scores.sum()
 
         # TODO: add scores for pixels that don't get a point
-
         return score_for_pixels_with_points
 
     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
@@ -138,12 +152,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # but they should work for per-vertex computation as well, except that
         # they don't expect observed_rgbd to be invalid, so we need to handle
         # that manually.
-        return FullPixelRGBDDistribution(
-            RenormalizedLaplacePixelColorDistribution(),
-            UniformPixelColorDistribution(),
-            RenormalizedLaplacePixelDepthDistribution(),
-            UniformPixelDepthDistribution(),
-        )
+        return self.rgbd_vertex_kernel
 
 
 # @Pytree.dataclass
@@ -226,3 +235,67 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
 #         # they don't expect observed_rgbd to be invalid, so we need to handle
 #         # that manually.
 #         raise NotImplementedError
+
+
+@Pytree.dataclass
+class OldOcclusionPixelRGBDDistribution(PixelRGBDDistribution):
+    """
+    Distribution args:
+    - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
+    - color_scale: float
+    - depth_scale: float
+    - visibility_prob: float
+    - depth_nonreturn_prob: float
+
+    The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
+
+    Note that this distribution expects the observed_rgbd to be valid. If an invalid
+    pixel is observed, the logpdf will return -inf.
+    """
+
+    def sample(
+        self,
+        key: PRNGKey,
+        latent_rgbd: FloatArray,
+        color_scale: float,
+        depth_scale: float,
+        visibility_prob: float,
+        depth_nonreturn_prob: float,
+        intrinsics: dict,
+    ) -> FloatArray:
+        return jnp.ones((4,)) * 0.5
+
+    def logpdf(
+        self,
+        observed_rgbd: FloatArray,
+        latent_rgbd: FloatArray,
+        color_scale: float,
+        depth_scale: float,
+        visibility_prob: float,
+        depth_nonreturn_prob: float,
+        intrinsics: dict,
+    ) -> float:
+        color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
+            observed_rgbd[:3], latent_rgbd[:3], color_scale
+        ).sum(axis=-1)
+        color_not_visible_score = jnp.log(1 / 1.0**3)
+        color_score = jnp.logaddexp(
+            color_visible_branch_score + jnp.log(visibility_prob),
+            color_not_visible_score + jnp.log(1 - visibility_prob),
+        )
+
+        depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
+            observed_rgbd[3], latent_rgbd[3], depth_scale
+        )
+        depth_not_visible_score = jnp.log(1 / 1.0)
+        _depth_score = jnp.logaddexp(
+            depth_visible_branch_score + jnp.log(visibility_prob),
+            depth_not_visible_score + jnp.log(1 - visibility_prob),
+        )
+        is_depth_non_return = observed_rgbd[3] < 0.0001
+
+        depth_score = jnp.where(
+            is_depth_non_return, jnp.log(depth_nonreturn_prob), _depth_score
+        )
+
+        return color_score + depth_score

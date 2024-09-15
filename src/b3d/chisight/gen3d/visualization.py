@@ -5,56 +5,23 @@ import matplotlib.pyplot as plt
 from ipywidgets import interact
 from matplotlib.gridspec import GridSpec
 
-import b3d.chisight.gen3d.inference_moves as inference_moves
 
-
-@jax.jit
-def get_sample(
-    key,
+def plot_samples(
+    samples,
     observed_rgbd_for_point,
-    previous_visibility_prob,
+    latent_rgbd_for_point,
     previous_color,
-    latent_depth,
+    previous_visibility_prob,
     previous_dnrp,
     color_scale,
-    depth_scale,
-    hyperparams,
-    inference_hyperparams,
 ):
-    depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
-    visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
-    color_kernel = hyperparams["color_kernel"]
-    obs_rgbd_kernel = hyperparams["image_kernel"].get_rgbd_vertex_kernel()
-    rgb, visibility_prob, dnr_prob = inference_moves._propose_a_points_attributes(
-        key,
-        observed_rgbd_for_point,
-        latent_depth,
-        previous_color,
-        previous_visibility_prob,
-        previous_dnrp,
-        depth_nonreturn_prob_kernel,
-        visibility_prob_kernel,
-        color_kernel,
-        obs_rgbd_kernel,
-        color_scale,
-        depth_scale,
-        inference_hyperparams,
-        return_metadata=False,
-    )[:3]
-    return rgb, visibility_prob, dnr_prob
-
-
-get_samples = jax.vmap(
-    get_sample, in_axes=(0, None, None, None, None, None, None, None, None, None)
-)
-
-
-def plot_samples(samples, observed_rgbd_for_point, previous_color, latent_depth):
     fig = plt.figure(layout="constrained", figsize=(10, 10))
     gs = GridSpec(3, 3, figure=fig)
 
     fig.suptitle(f"Observed RGBD: {observed_rgbd_for_point}", fontsize=16)
-    rgb, visibility_prob, dnr_prob = samples
+    rgb = samples["colors"]
+    visibility_prob = samples["visibility_prob"]
+    dnr_prob = samples["depth_nonreturn_prob"]
 
     ax = fig.add_subplot(gs[0, 0])
     values, counts = jnp.unique(visibility_prob, return_counts=True)
@@ -69,12 +36,14 @@ def plot_samples(samples, observed_rgbd_for_point, previous_color, latent_depth)
     ax.set_title("Depth Nonreturn Probability Samples")
 
     ax = fig.add_subplot(gs[0, 2])
-    ax.set_xlim(0.0, 2.0)
+    # ax.set_xlim(0.0, 2.0)
     ax.set_title("Depth")
     ax.axvline(
         x=observed_rgbd_for_point[3], color="black", linestyle="--", label="Observed"
     )
-    ax.axvline(x=latent_depth, color="black", linestyle="dotted", label="Latent")
+    ax.axvline(
+        x=latent_rgbd_for_point[3], color="black", linestyle="dotted", label="Latent"
+    )
     ax.legend()
 
     ax = fig.add_subplot(gs[1, 0])
@@ -100,105 +69,48 @@ def plot_samples(samples, observed_rgbd_for_point, previous_color, latent_depth)
 
 
 def create_interactive_visualization(
-    observed_rgbd_for_point, hyperparams, inference_hyperparams
+    observed_rgbd_for_point,
+    latent_rgbd_for_point,
+    hyperparams,
+    inference_hyperparams,
+    previous_color,
+    previous_visibility_prob,
+    previous_dnrp,
+    attribute_proposal_function,
 ):
     key = jax.random.PRNGKey(0)
-    keys = jax.random.split(key, 1000)
 
-    depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
-    visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
     color_scale_kernel = hyperparams["color_scale_kernel"]
     depth_scale_kernel = hyperparams["depth_scale_kernel"]
 
     def f(
-        previous_visibility_prob,
-        previous_dnrp,
-        latent_depth,
-        previous_r,
-        previous_g,
-        previous_b,
         color_scale,
         depth_scale,
     ):
-        previous_color = jnp.array([previous_r, previous_g, previous_b])
-        previous_visibility_prob = float(previous_visibility_prob)
-        previous_dnrp = float(previous_dnrp)
-        samples = get_samples(
-            keys,
+        samples = jax.vmap(attribute_proposal_function, in_axes=(0, *(None,) * 9))(
+            jax.random.split(key, 100),
             observed_rgbd_for_point,
-            previous_visibility_prob,
+            latent_rgbd_for_point,
             previous_color,
-            latent_depth,
+            previous_visibility_prob,
             previous_dnrp,
             color_scale,
             depth_scale,
             hyperparams,
             inference_hyperparams,
         )
-        plot_samples(samples, observed_rgbd_for_point, previous_color, latent_depth)
+        plot_samples(
+            samples,
+            observed_rgbd_for_point,
+            latent_rgbd_for_point,
+            previous_color,
+            previous_visibility_prob,
+            previous_dnrp,
+            color_scale,
+        )
 
     interact(
         f,
-        previous_visibility_prob=widgets.ToggleButtons(
-            options=[f"{x:.2f}" for x in visibility_prob_kernel.support],
-            description="Prev Vis Prob:",
-            disabled=False,
-            button_style="",  # 'success', 'info', 'warning', 'danger' or ''
-        ),
-        previous_dnrp=widgets.ToggleButtons(
-            options=[f"{x:.2f}" for x in depth_nonreturn_prob_kernel.support],
-            description="Prev DNR Prob:",
-            disabled=False,
-            button_style="",  # 'success', 'info', 'warning', 'danger' or ''
-        ),
-        latent_depth=widgets.FloatSlider(
-            value=observed_rgbd_for_point[3],
-            min=-1.0,
-            max=1.0,
-            step=0.01,
-            description="Latent Depth:",
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format=".2f",
-        ),
-        previous_r=widgets.FloatSlider(
-            value=observed_rgbd_for_point[0],
-            min=0.0,
-            max=1.0,
-            step=0.01,
-            description="Previous R:",
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format=".2f",
-        ),
-        previous_g=widgets.FloatSlider(
-            value=observed_rgbd_for_point[1],
-            min=0.0,
-            max=1.0,
-            step=0.01,
-            description="Previous G:",
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format=".2f",
-        ),
-        previous_b=widgets.FloatSlider(
-            value=observed_rgbd_for_point[2],
-            min=0.0,
-            max=1.0,
-            step=0.01,
-            description="Previous B:",
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format=".2f",
-        ),
         color_scale=widgets.FloatSlider(
             value=color_scale_kernel.support.min(),
             min=color_scale_kernel.support.min(),

@@ -109,9 +109,8 @@ def attribute_proposal_only_color_and_visibility(
 
 
 @jax.jit
-def update_pose_and_vertex_attributes(key, trace, pose, inference_hyperparams):
+def update_vertex_attributes(key, trace, inference_hyperparams):
     hyperparams, previous_state = trace.get_args()
-    trace = trace.update(key, C["pose"].set(pose))[0]
 
     latent_rgbd_per_point, observed_rgbd_per_point = (
         b3d.chisight.gen3d.image_kernel.get_latent_and_observed_correspondences(
@@ -154,11 +153,19 @@ def update_pose_and_vertex_attributes(key, trace, pose, inference_hyperparams):
     return trace, {}
 
 
-update_pose_and_vertex_attributes_vmap = jax.jit(
-    jax.vmap(
-        lambda a, b, c, d: update_pose_and_vertex_attributes(a, b, c, d)[0].get_score(),
-        in_axes=(0, None, 0, None),
-    )
+def update_all(key, trace, pose, inference_hyperparams):
+    trace = trace.update(key, C["pose"].set(pose))[0]
+    trace, _ = update_vertex_attributes(key, trace, inference_hyperparams)
+    return trace
+
+
+def update_all_get_score(key, trace, pose, inference_hyperparams):
+    trace = update_all(key, trace, pose, inference_hyperparams)
+    return trace.get_score()
+
+
+update_all_get_score_vmap = jax.jit(
+    jax.vmap(update_all_get_score, in_axes=(0, None, 0, None))
 )
 
 
@@ -178,15 +185,11 @@ def inference_step(trace, key, inference_hyperparams):
         pose_scores = Pose.logpdf_gaussian_vmf_pose_vmap(
             poses, trace.get_choices()["pose"], var, conc
         )
-        scores = update_pose_and_vertex_attributes_vmap(
-            keys, trace, poses, inference_hyperparams
-        )
+        scores = update_all_get_score_vmap(keys, trace, poses, inference_hyperparams)
         scores_pose_q_correction = (
             scores - pose_scores
         )  # After this, scores are fair estimates of P(data | previous state)
         #                               and can be used to resample the choice sets.
         current_pose = poses[jnp.argmax(scores)]
-    trace = update_pose_and_vertex_attributes(
-        key, trace, current_pose, inference_hyperparams
-    )[0]
+    trace = update_all(key, trace, current_pose, inference_hyperparams)
     return trace, scores, scores_pose_q_correction

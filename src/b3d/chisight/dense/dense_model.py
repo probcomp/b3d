@@ -39,7 +39,10 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         meshes = args_dict["meshes"]
         likelihood_args = args_dict["likelihood_args"]
         num_objects = args_dict["num_objects"]
-        check_interpenetration = args_dict["check_interp"]
+        if "check_interp" in args_dict:
+            check_interpenetration = True
+        else:
+            check_interpenetration = False
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
@@ -52,7 +55,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 @ f"object_pose_{i}"
             )
             object_scale = (
-                uniform_scale(jnp.ones(3) * 0, jnp.ones(3) * 10.0) @ f"object_scale_{i}"
+                uniform_scale(jnp.ones(3) * 0.1, jnp.ones(3) * 10.0)
+                @ f"object_scale_{i}"
             )
             scaled_meshes.append(meshes[i].scale(object_scale))
             all_poses.append(object_pose)
@@ -87,22 +91,23 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 rasterize_results,
                 scene_mesh.faces,
             )
-            if check_interpenetration.const:
-                print("checking")
-                transformed_scaled_meshes = [
-                    Mesh.transform_mesh(mesh, pose)
-                    for mesh, pose in zip(scaled_meshes, all_poses)
-                ]
-                interpeneration = get_interpenetration(
-                    transformed_scaled_meshes, args_dict["num_mc_sample"].const
-                )
-                likelihood_args["object_interpenetration"] = interpeneration
-                likelihood_args["interpenetration_penalty"] = args_dict[
-                    "interpenetration_penalty"
-                ]
 
             likelihood_args["latent_rgbd"] = latent_rgbd
             likelihood_args["rasterize_results"] = rasterize_results
+
+        if check_interpenetration:
+            print("checking")
+            transformed_scaled_meshes = [
+                Mesh.transform_mesh(mesh, pose)
+                for mesh, pose in zip(scaled_meshes, all_poses)
+            ]
+            interpeneration = get_interpenetration(
+                transformed_scaled_meshes, args_dict["num_mc_sample"].const
+            )
+            likelihood_args["object_interpenetration"] = interpeneration
+            likelihood_args["interpenetration_penalty"] = args_dict[
+                "interpenetration_penalty"
+            ]
 
         image = image_likelihood(likelihood_args) @ "rgbd"
         return {

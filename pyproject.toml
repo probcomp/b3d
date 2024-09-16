@@ -203,6 +203,7 @@ libnvjitlink = "*"
 optax = ">=0.2.2,<0.3"
 pytorch = { version = "==2.3.0", build = "cuda12*" }
 torchvision = "==0.18.0"
+open3d = { version = "==0.18.0", build = "py312he431d9b_6" }
 
 # CUDA tasks (GPU-enabled)
 

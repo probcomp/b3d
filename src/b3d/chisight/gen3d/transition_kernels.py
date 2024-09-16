@@ -357,6 +357,26 @@ class UniformPoseDriftKernel(DriftKernel):
         return position_score + jnp.pi**2
 
 
+@Pytree.dataclass
+class GaussianVMFPoseDriftKernel(DriftKernel):
+    """A specialized uniform drift kernel with fixed min_val and max_val, with
+    additional logics to handle the color channels jointly.
+
+    Support: [max(0.0, prev_value - max_shift), min(1.0, prev_value + max_shift)]
+    """
+
+    variance: float = Pytree.static()
+    concentration: float = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_pose):
+        return prev_pose
+
+    def logpdf(self, new_pose, prev_pose) -> ArrayLike:
+        return Pose.logpdf_gaussian_vmf_pose(
+            new_pose, prev_pose, self.variance, self.concentration
+        )
+
+
 # Discrete Kernels
 
 # TODO: add back in the base class for discretekernel.

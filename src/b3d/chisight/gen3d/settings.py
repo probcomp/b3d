@@ -3,6 +3,17 @@ import jax.numpy as jnp
 import b3d.chisight.gen3d.image_kernel as image_kernel
 import b3d.chisight.gen3d.inference as inference
 import b3d.chisight.gen3d.transition_kernels as transition_kernels
+from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
+    RenormalizedLaplacePixelColorDistribution,
+    UniformPixelColorDistribution,
+)
+from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
+    RenormalizedLaplacePixelDepthDistribution,
+    UniformPixelDepthDistribution,
+)
+from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
+    FullPixelRGBDDistribution,
+)
 
 p_resample_color = 0.005
 hyperparams = {
@@ -29,7 +40,14 @@ hyperparams = {
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
         resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15])
     ),
-    "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(),
+    "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(
+        FullPixelRGBDDistribution(
+            RenormalizedLaplacePixelColorDistribution(),
+            UniformPixelColorDistribution(),
+            RenormalizedLaplacePixelDepthDistribution(),
+            UniformPixelDepthDistribution(),
+        )
+    ),
 }
 
 inference_hyperparams = inference.InferenceHyperparams(

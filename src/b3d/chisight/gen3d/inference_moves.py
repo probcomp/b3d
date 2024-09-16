@@ -9,6 +9,7 @@ from jax.random import split
 from b3d import Pose
 from b3d.modeling_utils import renormalized_color_laplace
 
+from .image_kernel import PixelsPointsAssociation
 from .model import (
     get_hypers,
     get_n_vertices,
@@ -16,7 +17,6 @@ from .model import (
     get_observed_rgbd,
     get_prev_state,
 )
-from .projection import PixelsPointsAssociation
 
 
 def normalize_log_scores(scores):
@@ -118,7 +118,7 @@ def propose_all_pointlevel_attributes(key, trace, inference_hyperparams):
         get_hypers(trace), get_new_state(trace)["pose"]
     ).get_point_rgbds(get_observed_rgbd(trace))
 
-    colors, visibility_probs, depth_nonreturn_probs, log_qs, metadata = jax.vmap(
+    sample, metadata = jax.vmap(
         propose_a_points_attributes, in_axes=(0, 0, 0, None, None, None, None)
     )(
         split(key, get_n_vertices(trace)),
@@ -130,7 +130,13 @@ def propose_all_pointlevel_attributes(key, trace, inference_hyperparams):
         inference_hyperparams,
     )
 
-    return colors, visibility_probs, depth_nonreturn_probs, log_qs.sum(), metadata
+    return (
+        sample["colors"],
+        sample["visibility_prob"],
+        sample["depth_nonreturn_prob"],
+        metadata["log_q_score"].sum(),
+        metadata,
+    )
 
 
 def propose_a_points_attributes(
@@ -154,17 +160,20 @@ def propose_a_points_attributes(
     return _propose_a_points_attributes(
         key,
         observed_rgbd_for_point=observed_rgbd_for_point,
-        latent_depth=new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2],
+        latent_rgbd_for_point=jnp.array(
+            [
+                0.0,
+                0.0,
+                0.0,
+                new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2],
+            ]
+        ),
         previous_color=prev_state["colors"][vertex_index],
         previous_visibility_prob=prev_state["visibility_prob"][vertex_index],
         previous_dnrp=prev_state["depth_nonreturn_prob"][vertex_index],
-        dnrp_transition_kernel=hyperparams["depth_nonreturn_prob_kernel"],
-        visibility_transition_kernel=hyperparams["visibility_prob_kernel"],
-        color_kernel=hyperparams["color_kernel"],
-        obs_rgbd_kernel=hyperparams["image_kernel"].get_rgbd_vertex_kernel(),
         color_scale=new_state["color_scale"],
         depth_scale=new_state["depth_scale"],
-        intrinsics=hyperparams["intrinsics"],
+        hyperparams=hyperparams,
         inference_hyperparams=inference_hyperparams,
     )
 
@@ -172,20 +181,22 @@ def propose_a_points_attributes(
 def _propose_a_points_attributes(
     key,
     observed_rgbd_for_point,
-    latent_depth,
+    latent_rgbd_for_point,
     previous_color,
     previous_visibility_prob,
     previous_dnrp,
-    dnrp_transition_kernel,
-    visibility_transition_kernel,
-    color_kernel,
-    obs_rgbd_kernel,
     color_scale,
     depth_scale,
-    intrinsics,
+    hyperparams,
     inference_hyperparams,
 ):
     k1, k2 = split(key, 2)
+    dnrp_transition_kernel = hyperparams["depth_nonreturn_prob_kernel"]
+    visibility_transition_kernel = hyperparams["visibility_prob_kernel"]
+    color_kernel = hyperparams["color_kernel"]
+    obs_rgbd_kernel = hyperparams["image_kernel"].get_rgbd_vertex_kernel()
+    latent_depth = latent_rgbd_for_point[3]
+    intrinsics = hyperparams["intrinsics"]
 
     def score_attribute_assignment(color, visprob, dnrprob):
         visprob_transition_score = visibility_transition_kernel.logpdf(
@@ -247,11 +258,13 @@ def _propose_a_points_attributes(
     log_q_score = log_normalized_scores[index] + log_qs_rgb[index]
 
     return (
-        rgb,
-        visibility_prob,
-        dnr_prob,
-        log_q_score,
         {
+            "colors": rgb,
+            "visibility_prob": visibility_prob,
+            "depth_nonreturn_prob": dnr_prob,
+        },
+        {
+            "log_q_score": log_q_score,
             "log_qs_rgb": log_qs_rgb,
             "log_normalized_scores": log_normalized_scores,
             "index": index,

@@ -30,33 +30,27 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
 
     depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
-    color_kernel = hyperparams["color_kernel"]
-    obs_rgbd_kernel = hyperparams["image_kernel"].get_rgbd_vertex_kernel()
 
     previous_color = jnp.array([0.1, 0.2, 0.3])
+    latent_rgbd_for_point = jnp.concatenate([previous_color, jnp.array([1.0])])
     previous_dnrp = depth_nonreturn_prob_kernel.support[0]
-    latent_depth = 1.0
 
     def get_visibility_prob_sample(
         key, observed_rgbd_for_point, previous_visibility_prob
     ):
-        _, visibility_prob, _, _, _ = inference_moves._propose_a_points_attributes(
+        sample, _ = inference_moves._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
-            latent_depth,
+            latent_rgbd_for_point,
             previous_color,
             previous_visibility_prob,
             previous_dnrp,
-            depth_nonreturn_prob_kernel,
-            visibility_prob_kernel,
-            color_kernel,
-            obs_rgbd_kernel,
             color_scale,
             depth_scale,
-            hyperparams["intrinsics"],
+            hyperparams,
             inference_hyperparams,
         )
-        return visibility_prob
+        return sample["visibility_prob"]
 
     get_visibility_prob_samples = jax.vmap(
         get_visibility_prob_sample, in_axes=(0, None, None)
@@ -66,7 +60,7 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
 
     # Verify that when the color matches exactly but the depth change drasticaly, the visibility prob switches to low.
     previous_visibility_prob = visibility_prob_kernel.support[-1]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 4.0])
+    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.35, 4.0])
     visibility_prob_samples = get_visibility_prob_samples(
         keys, observed_rgbd_for_this_vertex, previous_visibility_prob
     )
@@ -105,31 +99,25 @@ def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
 
     depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
-    color_kernel = hyperparams["color_kernel"]
-    obs_rgbd_kernel = hyperparams["image_kernel"].get_rgbd_vertex_kernel()
 
     previous_color = jnp.array([0.1, 0.2, 0.3])
     previous_visibility_prob = visibility_prob_kernel.support[-1]
-    latent_depth = 1.0
+    latent_rgbd_for_point = jnp.concatenate([previous_color, jnp.array([1.0])])
 
     def get_dnr_prob_sample(key, observed_rgbd_for_point, previous_dnrp):
-        _, _, dnr_prob, _, _ = inference_moves._propose_a_points_attributes(
+        sample, _ = inference_moves._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
-            latent_depth,
+            latent_rgbd_for_point,
             previous_color,
             previous_visibility_prob,
             previous_dnrp,
-            depth_nonreturn_prob_kernel,
-            visibility_prob_kernel,
-            color_kernel,
-            obs_rgbd_kernel,
             color_scale,
             depth_scale,
-            hyperparams["intrinsics"],
+            hyperparams,
             inference_hyperparams,
         )
-        return dnr_prob
+        return sample["depth_nonreturn_prob"]
 
     get_dnr_prob_samples = jax.vmap(get_dnr_prob_sample, in_axes=(0, None, None))
 
@@ -176,31 +164,28 @@ def test_color_prob_inference(hyperparams_and_inference_hyperparams):
 
     depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
-    color_kernel = hyperparams["color_kernel"]
-    obs_rgbd_kernel = hyperparams["image_kernel"].get_rgbd_vertex_kernel()
 
     previous_visibility_prob = visibility_prob_kernel.support[-1]
     previous_dnrp = depth_nonreturn_prob_kernel.support[0]
     latent_depth = 1.0
+    latent_rgbd_for_point = jnp.concatenate(
+        [jnp.array([0.1, 0.2, 0.3]), jnp.array([latent_depth])]
+    )
 
     def get_color_sample(key, observed_rgbd_for_point, previous_color):
-        rgb, _, _, _, _ = inference_moves._propose_a_points_attributes(
+        sample, _ = inference_moves._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
-            latent_depth,
+            latent_rgbd_for_point,
             previous_color,
             previous_visibility_prob,
             previous_dnrp,
-            depth_nonreturn_prob_kernel,
-            visibility_prob_kernel,
-            color_kernel,
-            obs_rgbd_kernel,
             color_scale,
             depth_scale,
-            hyperparams["intrinsics"],
+            hyperparams,
             inference_hyperparams,
         )
-        return rgb
+        return sample["colors"]
 
     get_color_samples = jax.vmap(get_color_sample, in_axes=(0, None, None))
 

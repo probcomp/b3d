@@ -1,26 +1,175 @@
 from abc import abstractmethod
+from functools import cached_property
 from typing import Mapping
 
 import genjax
 import jax
 import jax.numpy as jnp
 from genjax import Pytree
-from genjax.typing import FloatArray, PRNGKey
+from genjax.typing import FloatArray, IntArray, PRNGKey
 
-from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
-    RenormalizedLaplacePixelColorDistribution,
-    UniformPixelColorDistribution,
-)
-from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
-    RenormalizedLaplacePixelDepthDistribution,
-    UniformPixelDepthDistribution,
-)
+import b3d.utils
 from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
-    FullPixelRGBDDistribution,
     PixelRGBDDistribution,
     is_unexplained,
 )
-from b3d.chisight.gen3d.projection import PixelsPointsAssociation
+
+# using this in combination with mode="drop" in the .at[]
+# methods can help filter out vertices that are not visible in the image
+INVALID_IDX = jnp.iinfo(jnp.int32).min  # -2147483648
+
+
+@Pytree.dataclass
+class PixelsPointsAssociation(Pytree):
+    """A utility class to associate 3D points with their projected 2D pixel."""
+
+    projected_pixel_coordinates: IntArray  # (num_vertices, 2)
+    image_height: int
+    image_width: int
+
+    @classmethod
+    def from_hyperparams_and_pose(cls, hyperparams, pose_CO):
+        """`pose_CO` is the same thing as `pose` in the model."""
+        vertices_O = hyperparams["vertices"]
+        vertices_C = pose_CO.apply(vertices_O)
+        return cls.from_points_and_intrinsics(
+            vertices_C,
+            hyperparams["intrinsics"],
+        )
+
+    @classmethod
+    def from_points_and_intrinsics(
+        cls, points: FloatArray, intrinsics: dict
+    ) -> "PixelsPointsAssociation":
+        """Create a PixelsPointsAssociation object from a set of 3D points and
+        the camera intrinsics.
+
+        Args:
+            points (FloatArray): The points/vertices in 3D space (num_vertices, 3).
+            intrinsics (dict): Camera intrinsics.
+            image_height (int): Height of the image.
+            image_width (int): Width of the image.
+        """
+        projected_coords = jnp.rint(
+            b3d.utils.xyz_to_pixel_coordinates(
+                points,
+                intrinsics["fx"],
+                intrinsics["fy"],
+                intrinsics["cx"],
+                intrinsics["cy"],
+            )
+            - 0.5
+        )
+
+        image_height, image_width = (
+            intrinsics["image_height"].unwrap(),
+            intrinsics["image_width"].unwrap(),
+        )
+
+        # handle NaN before converting to int (otherwise NaN will be converted
+        # to 0)
+        projected_coords = jnp.nan_to_num(projected_coords, nan=INVALID_IDX)
+
+        # handle the case where the projected coordinates are outside the image
+        projected_coords = jnp.where(
+            projected_coords > 0, projected_coords, INVALID_IDX
+        )
+        projected_coords = jnp.where(
+            projected_coords < jnp.array([image_height, image_width]),
+            projected_coords,
+            INVALID_IDX,
+        )
+
+        return cls(projected_coords.astype(jnp.int32), image_height, image_width)
+
+    def __len__(self) -> int:
+        return self.projected_pixel_coordinates.shape[0]
+
+    def shape(self) -> tuple[int, int]:
+        return self.projected_pixel_coordinates.shape
+
+    @property
+    def x(self) -> IntArray:
+        return self.projected_pixel_coordinates[:, 0]
+
+    @property
+    def y(self) -> IntArray:
+        return self.projected_pixel_coordinates[:, 1]
+
+    def get_pixel_attributes(self, point_attributes: FloatArray) -> FloatArray:
+        """Given a (num_vertices, attribute_length) array of point attributes,
+        return a (image_height, image_width, attribute_length) array of attributes.
+        Pixels that don't hit a vertex will have a value filled with -1.
+        """
+        return point_attributes.at[self.pixel_to_point_idx].get(
+            mode="drop", fill_value=-1
+        )
+
+    def get_point_rgbds(self, rgbd_image: FloatArray) -> FloatArray:
+        """
+        Get a (num_vertices, 4) array of RGBD values for each vertex
+        by indexing into the given image.
+        Vertices that don't hit a pixel will have a value of (-1, -1, -1, -1).
+        """
+        return rgbd_image.at[self.x, self.y].get(mode="drop", fill_value=-1.0)
+
+    def get_point_depths(self, rgbd_image: FloatArray) -> FloatArray:
+        """
+        Get a (num_vertices,) array of depth values for each vertex
+        by indexing into the given image, or -1 if the vertex doesn't hit a pixel.
+        """
+        return self.get_point_rgbds(rgbd_image)[..., 3]
+
+    def get_point_rgbs(self, rgbd: FloatArray) -> FloatArray:
+        """
+        Get a (num_vertices, 3) array of RGB values for each vertex
+        by indexing into the given image, or [-1, -1, -1] if the vertex doesn't hit a pixel.
+        """
+        return self.get_point_rgbds(rgbd)[..., :3]
+
+    @cached_property
+    def num_point_per_pixel(self) -> IntArray:
+        """Return a 2D array of shape (image_height, image_width) where each
+        element is the number of points that project to that pixel.
+        """
+        counts = jnp.zeros((self.image_height, self.image_width), dtype=jnp.int32)
+        counts = counts.at[self.x, self.y].add(1, mode="drop")
+        return counts
+
+    @cached_property
+    def pixel_to_point_idx(self) -> IntArray:
+        """Return a 2D array of shape (image_height, image_width) where each
+        element is the index of the point that projects to that pixel (if any).
+        If none of the points project to that pixel, the value is set to INVALID_IDX.
+
+        Warning: this implementaion does not handle race condition. That is, if
+        multiple points project to the same pixel, this method will randomly
+        return one of them (the non-determinism is subject to GPU parallelism).
+        """
+        registered_pixel_idx = jnp.full(
+            (self.image_height, self.image_width), INVALID_IDX, dtype=jnp.int32
+        )
+        registered_pixel_idx = registered_pixel_idx.at[self.x, self.y].set(
+            jnp.arange(len(self))
+        )
+        return registered_pixel_idx
+
+    def get_pixel_idx(self, point_idx: int) -> IntArray:
+        return self.projected_pixel_coordinates[point_idx]
+
+    def get_pixels_with_multiple_points(self) -> tuple[IntArray, IntArray]:
+        """Return a tuple of (x_coords, y_coords) of pixels that have more than
+        one vertices associated with them. Note that this method is not JIT-compatible
+        because the return values are not of fixed shape.
+        """
+        return jnp.nonzero(self.num_point_per_pixel > 1)
+
+    def get_one_latent_point_idx(self, pixel_x: int, pixel_y: int) -> int:
+        """Return the index of one of the points that project to the given pixel.
+        If there are multiple points, this method will return one of them randomly
+        (the non-determinism is subject to GPU parallelism).
+        """
+        return self.pixel_to_point_idx[pixel_x, pixel_y]
 
 
 def get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd):
@@ -35,6 +184,15 @@ def get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd):
     return latent_rgbd_per_point, observed_rgbd_per_point
 
 
+def get_latent_rgb_image(state, hyperparams):
+    transformed_points = state["pose"].apply(hyperparams["vertices"])
+    ppa = PixelsPointsAssociation.from_points_and_intrinsics(
+        transformed_points, hyperparams["intrinsics"]
+    )
+    latent_rgb_image = jnp.clip(ppa.get_pixel_attributes(state["colors"]), 0.0, 1.0)
+    return latent_rgb_image
+
+
 @Pytree.dataclass
 class ImageKernel(genjax.ExactDensity):
     """An abstract class that defines the common interface for image kernels,
@@ -43,14 +201,6 @@ class ImageKernel(genjax.ExactDensity):
 
     The support of the distribution is [0, 1]^3 x [near, far].
     """
-
-    def get_pixels_points_association(
-        self, transformed_points, hyperparams: Mapping
-    ) -> PixelsPointsAssociation:
-        return PixelsPointsAssociation.from_points_and_intrinsics(
-            transformed_points,
-            hyperparams["intrinsics"],
-        )
 
     @abstractmethod
     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
@@ -68,12 +218,7 @@ class ImageKernel(genjax.ExactDensity):
 
 @Pytree.dataclass
 class NoOcclusionPerVertexImageKernel(ImageKernel):
-    rgbd_vertex_kernel: PixelRGBDDistribution = FullPixelRGBDDistribution(
-        RenormalizedLaplacePixelColorDistribution(),
-        UniformPixelColorDistribution(),
-        RenormalizedLaplacePixelDepthDistribution(),
-        UniformPixelDepthDistribution(),
-    )
+    rgbd_vertex_kernel: PixelRGBDDistribution
 
     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
         """Generate latent RGBD image by projecting the vertices directly to the image
@@ -81,8 +226,9 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         """
 
         transformed_points = state["pose"].apply(hyperparams["vertices"])
-        points_to_pixels = self.get_pixels_points_association(
-            transformed_points, hyperparams
+        points_to_pixels = PixelsPointsAssociation.from_points_and_intrinsics(
+            transformed_points,
+            hyperparams["intrinsics"],
         )
         vertex_kernel = self.get_rgbd_vertex_kernel()
 
@@ -126,9 +272,15 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
     def logpdf(
         self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
     ) -> FloatArray:
-        latent_rgbd_per_point, observed_rgbd_per_point = (
-            get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd)
+        transformed_points = state["pose"].apply(hyperparams["vertices"])
+        ppa = PixelsPointsAssociation.from_points_and_intrinsics(
+            transformed_points, hyperparams["intrinsics"]
         )
+        observed_rgbd_per_point = ppa.get_point_rgbds(observed_rgbd)
+        latent_rgbd_per_point = jnp.concatenate(
+            (state["colors"], transformed_points[..., 2, None]), axis=-1
+        )
+
         vertex_kernel = self.get_rgbd_vertex_kernel()
         scores = jax.vmap(vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0, None))(
             observed_rgbd_per_point,
@@ -144,6 +296,9 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         scores = jnp.where(is_unexplained(observed_rgbd_per_point), 0.0, scores)
         score_for_pixels_with_points = scores.sum()
 
+        # a = jnp.unique(ppa.projected_pixel_coordinates, axis=0, size=30000, fill_value=-1)
+        # num_pixels = ( a.sum(-1) >= 0).sum()
+
         # TODO: add scores for pixels that don't get a point
         return score_for_pixels_with_points
 
@@ -153,149 +308,3 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # they don't expect observed_rgbd to be invalid, so we need to handle
         # that manually.
         return self.rgbd_vertex_kernel
-
-
-# @Pytree.dataclass
-# class OldNoOcclusionPerVertexImageKernel(ImageKernel):
-#     @jax.jit
-#     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
-#         return jnp.zeros(
-#             (
-#                 hyperparams["intrinsics"]["image_height"].unwrap(),
-#                 hyperparams["intrinsics"]["image_width"].unwrap(),
-#                 4,
-#             )
-#         )
-
-#     @jax.jit
-#     def logpdf(
-#         self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
-#     ) -> FloatArray:
-#         return self.info_func(observed_rgbd, state, hyperparams)["scores"].sum()
-
-#     def info_from_trace(self, trace):
-#         return self.info_func(
-#             trace.get_choices()["rgbd"],
-#             trace.get_retval()["new_state"],
-#             trace.get_args()[0],
-#         )
-
-#     def info_func(self, observed_rgbd, state, hyperparams):
-#         transformed_points = state["pose"].apply(hyperparams["vertices"])
-#         projected_pixel_coordinates = jnp.rint(
-#             b3d.xyz_to_pixel_coordinates(
-#                 transformed_points,
-#                 hyperparams["intrinsics"]["fx"],
-#                 hyperparams["intrinsics"]["fy"],
-#                 hyperparams["intrinsics"]["cx"],
-#                 hyperparams["intrinsics"]["cy"],
-#             )
-#         ).astype(jnp.int32)
-
-#         observed_rgbd_masked = observed_rgbd[
-#             projected_pixel_coordinates[..., 0], projected_pixel_coordinates[..., 1]
-#         ]
-
-#         color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-#             observed_rgbd_masked[..., :3], state["colors"], state["color_scale"]
-#         ).sum(axis=-1)
-#         color_not_visible_score = jnp.log(1 / 1.0**3)
-#         color_score = jnp.logaddexp(
-#             color_visible_branch_score + jnp.log(state["visibility_prob"]),
-#             color_not_visible_score + jnp.log(1 - state["visibility_prob"]),
-#         )
-
-#         depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-#             observed_rgbd_masked[..., 3],
-#             transformed_points[..., 2],
-#             state["depth_scale"],
-#         )
-#         depth_not_visible_score = jnp.log(1 / 1.0)
-#         _depth_score = jnp.logaddexp(
-#             depth_visible_branch_score + jnp.log(state["visibility_prob"]),
-#             depth_not_visible_score + jnp.log(1 - state["visibility_prob"]),
-#         )
-#         is_depth_non_return = observed_rgbd_masked[..., 3] < 0.0001
-
-#         non_return_probability = 0.05
-#         depth_score = jnp.where(
-#             is_depth_non_return, jnp.log(non_return_probability), _depth_score
-#         )
-
-#         lmbda = 0.5
-#         scores = lmbda * color_score + (1.0 - lmbda) * depth_score
-#         return {
-#             "scores": scores,
-#             "observed_rgbd_masked": observed_rgbd_masked,
-#         }
-
-#     def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
-#         # Note: The distributions were originally defined for per-pixel computation,
-#         # but they should work for per-vertex computation as well, except that
-#         # they don't expect observed_rgbd to be invalid, so we need to handle
-#         # that manually.
-#         raise NotImplementedError
-
-
-@Pytree.dataclass
-class OldOcclusionPixelRGBDDistribution(PixelRGBDDistribution):
-    """
-    Distribution args:
-    - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
-    - color_scale: float
-    - depth_scale: float
-    - visibility_prob: float
-    - depth_nonreturn_prob: float
-
-    The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
-
-    Note that this distribution expects the observed_rgbd to be valid. If an invalid
-    pixel is observed, the logpdf will return -inf.
-    """
-
-    def sample(
-        self,
-        key: PRNGKey,
-        latent_rgbd: FloatArray,
-        color_scale: float,
-        depth_scale: float,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        intrinsics: dict,
-    ) -> FloatArray:
-        return jnp.ones((4,)) * 0.5
-
-    def logpdf(
-        self,
-        observed_rgbd: FloatArray,
-        latent_rgbd: FloatArray,
-        color_scale: float,
-        depth_scale: float,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        intrinsics: dict,
-    ) -> float:
-        color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-            observed_rgbd[:3], latent_rgbd[:3], color_scale
-        ).sum(axis=-1)
-        color_not_visible_score = jnp.log(1 / 1.0**3)
-        color_score = jnp.logaddexp(
-            color_visible_branch_score + jnp.log(visibility_prob),
-            color_not_visible_score + jnp.log(1 - visibility_prob),
-        )
-
-        depth_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-            observed_rgbd[3], latent_rgbd[3], depth_scale
-        )
-        depth_not_visible_score = jnp.log(1 / 1.0)
-        _depth_score = jnp.logaddexp(
-            depth_visible_branch_score + jnp.log(visibility_prob),
-            depth_not_visible_score + jnp.log(1 - visibility_prob),
-        )
-        is_depth_non_return = observed_rgbd[3] < 0.0001
-
-        depth_score = jnp.where(
-            is_depth_non_return, jnp.log(depth_nonreturn_prob), _depth_score
-        )
-
-        return color_score + depth_score

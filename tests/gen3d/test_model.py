@@ -92,7 +92,7 @@ def test_model():
 
     fig.suptitle(
         f"""
-pose_kernel max_shift: {hyperparams['pose_kernel'].max_shift},
+pose_kernel max_shift: FILL IN,
 color_kernel scale: FILL IN,
 visibility_prob_kernel resample_probability: {hyperparams['visibility_prob_kernel'].resample_probability},
 depth_nonreturn_prob_kernel resample_probability: {hyperparams['depth_nonreturn_prob_kernel'].resample_probability},

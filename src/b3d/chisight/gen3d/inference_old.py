@@ -14,7 +14,7 @@ from .model import (
 
 
 @jax.jit
-def attribute_proposal_only_color_and_visibility(
+def attribute_proposal(
     key,
     observed_rgbd_for_point,
     latent_rgbd_for_point,
@@ -130,7 +130,7 @@ def update_vertex_attributes(key, trace, inference_hyperparams):
     keys = jax.random.split(key, len(observed_rgbd_per_point))
 
     sample = jax.vmap(
-        attribute_proposal_only_color_and_visibility,
+        attribute_proposal,
         in_axes=(0, 0, 0, 0, 0, 0, None, None, None, None),
     )(
         keys,
@@ -172,7 +172,7 @@ update_all_get_score_vmap = jax.jit(
 def inference_step(trace, key, inference_hyperparams):
     number = 10000
     current_pose = trace.get_choices()["pose"]
-    var_conc = [(0.04, 1000.0), (0.02, 1500.0), (0.005, 2000.0)]
+    var_conc = [(0.04, 1000.0), (0.01, 2000.0), (0.005, 3000.0)]
     for var, conc in var_conc:
         key = jax.random.split(key, 2)[-1]
         keys = jax.random.split(key, number)

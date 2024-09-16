@@ -6,7 +6,7 @@ import rerun.blueprint as rrb
 from genjax import ChoiceMapBuilder as C
 
 import b3d
-from b3d.chisight.gen3d.projection import PixelsPointsAssociation
+from b3d.chisight.gen3d.image_kernel import PixelsPointsAssociation
 
 # TODOs
 # 1. Tests of drift kernels

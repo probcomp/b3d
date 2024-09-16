@@ -84,12 +84,19 @@ def create_interactive_visualization(
     depth_scale_kernel = hyperparams["depth_scale_kernel"]
 
     def f(
+        observed_r,
+        observed_g,
+        observed_b,
+        observed_d,
         color_scale,
         depth_scale,
     ):
+        _observed_rgbd_for_point = jnp.array(
+            [observed_r, observed_g, observed_b, observed_d]
+        )
         samples = jax.vmap(attribute_proposal_function, in_axes=(0, *(None,) * 9))(
             jax.random.split(key, 100),
-            observed_rgbd_for_point,
+            _observed_rgbd_for_point,
             latent_rgbd_for_point,
             previous_color,
             previous_visibility_prob,
@@ -101,7 +108,7 @@ def create_interactive_visualization(
         )
         plot_samples(
             samples,
-            observed_rgbd_for_point,
+            _observed_rgbd_for_point,
             latent_rgbd_for_point,
             previous_color,
             previous_visibility_prob,
@@ -134,5 +141,53 @@ def create_interactive_visualization(
             orientation="horizontal",
             readout=True,
             readout_format=".4f",
+        ),
+        observed_r=widgets.FloatSlider(
+            value=observed_rgbd_for_point[0],
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            description="Observed R:",
+            disabled=False,
+            continuous_update=False,
+            orientation="horizontal",
+            readout=True,
+            readout_format=".2f",
+        ),
+        observed_g=widgets.FloatSlider(
+            value=observed_rgbd_for_point[1],
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            description="Observed G:",
+            disabled=False,
+            continuous_update=False,
+            orientation="horizontal",
+            readout=True,
+            readout_format=".2f",
+        ),
+        observed_b=widgets.FloatSlider(
+            value=observed_rgbd_for_point[2],
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            description="Observed B:",
+            disabled=False,
+            continuous_update=False,
+            orientation="horizontal",
+            readout=True,
+            readout_format=".2f",
+        ),
+        observed_d=widgets.FloatSlider(
+            value=observed_rgbd_for_point[3],
+            min=-1.0,
+            max=hyperparams["intrinsics"]["far"],
+            step=0.01,
+            description="Observed Depth:",
+            disabled=False,
+            continuous_update=False,
+            orientation="horizontal",
+            readout=True,
+            readout_format=".2f",
         ),
     )

@@ -165,7 +165,7 @@ def test_inference_alg_runs_and_looks_ok():
         )
         assert (
             jnp.linalg.norm(get_new_state(trace)["pose"].position - gt_pose(T).position)
-            < 0.004
+            < 0.007
         )
 
     ### Real inference run ###

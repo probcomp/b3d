@@ -104,7 +104,6 @@ cmd = [
 ]
 env = { PDOC_ALLOW_EXEC = "1", LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64" }
 
-
 [tool.pixi.tasks.test]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"

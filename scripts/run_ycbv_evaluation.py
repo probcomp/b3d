@@ -96,7 +96,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
             )
 
             if save_rerun:
-                rr.init(f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}")
+                b3d.rr_init(f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}")
                 rr.save(
                     rr_folder_name / f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.rrd"
                 )

@@ -9,7 +9,9 @@ from jax.random import split
 from b3d import Pose
 from b3d.modeling_utils import renormalized_color_laplace
 
-from .image_kernel import PixelsPointsAssociation
+from .image_kernel import (
+    calculate_latent_and_observed_correspondences,
+)
 from .model import (
     get_hypers,
     get_n_vertices,
@@ -114,9 +116,18 @@ def propose_all_pointlevel_attributes(key, trace, inference_hyperparams):
     have shape (n_vertices,), log_q (a float) is (an estimate of)
     the overall log proposal density, and metadata is a dict.
     """
-    observed_rgbds_per_point = PixelsPointsAssociation.from_hyperparams_and_pose(
-        get_hypers(trace), get_new_state(trace)["pose"]
-    ).get_point_rgbds(get_observed_rgbd(trace))
+    # observed_rgbds_per_point = PixelsPointsAssociation.from_hyperparams_and_pose(
+    #     get_hypers(trace), get_new_state(trace)["pose"]
+    # ).get_point_rgbds(get_observed_rgbd(trace))
+    observed_rgbds_for_registered_points, _, _, _, vertex_indices = (
+        calculate_latent_and_observed_correspondences(
+            get_observed_rgbd(trace), get_new_state(trace), get_hypers(trace)
+        )
+    )
+    observed_rgbds_per_point = -jnp.ones((get_n_vertices(trace), 4))
+    observed_rgbds_per_point = observed_rgbds_per_point.at[vertex_indices].set(
+        observed_rgbds_for_registered_points, mode="drop"
+    )
 
     sample, metadata = jax.vmap(
         propose_a_points_attributes, in_axes=(0, 0, 0, None, None, None, None)
@@ -295,9 +306,9 @@ def propose_vertex_color_given_other_attributes(
             inference_hyperparams,
         )
     )
-    value_if_observed_is_invalid = jnp.zeros(
-        3
-    )  # color_kernel.sample(key, previous_rgb)
+    value_if_observed_is_invalid = (
+        previous_rgb  # color_kernel.sample(key, previous_rgb)
+    )
     log_q_if_invalid = color_kernel.logpdf(value_if_observed_is_invalid, previous_rgb)
 
     isvalid = ~jnp.any(observed_rgb < 0)

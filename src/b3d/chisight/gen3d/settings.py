@@ -15,12 +15,15 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
     FullPixelRGBDDistribution,
 )
 
-p_resample_color = 0.005
+p_resample_color = 0.03
 hyperparams = {
-    "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.2),
+    "pose_kernel": {
+        "distribution": transition_kernels.GaussianVMFPoseDriftKernel(),
+        "args": (0.02, 1000.0),
+    },
     "color_kernel": transition_kernels.MixtureDriftKernel(
         [
-            transition_kernels.LaplaceNotTruncatedColorDriftKernel(scale=0.05),
+            transition_kernels.LaplaceNotTruncatedColorDriftKernel(scale=0.08),
             transition_kernels.UniformDriftKernel(
                 max_shift=0.15, min_val=jnp.zeros(3), max_val=jnp.ones(3)
             ),
@@ -38,9 +41,9 @@ hyperparams = {
         support=jnp.array([0.0025, 0.01, 0.02]),
     ),
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15])
+        resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15, 0.3, 0.6, 1.0])
     ),
-    "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(
+    "image_kernel": image_kernel.UniquePixelsImageKernel(
         FullPixelRGBDDistribution(
             RenormalizedLaplacePixelColorDistribution(),
             UniformPixelColorDistribution(),
@@ -48,10 +51,11 @@ hyperparams = {
             UniformPixelDepthDistribution(),
         )
     ),
+    "unexplained_depth_nonreturn_prob": 0.02,
 }
 
 inference_hyperparams = inference.InferenceHyperparams(
-    n_poses=6000,
+    n_poses=4000,
     pose_proposal_std=0.04,
     pose_proposal_conc=1000.0,
     do_stochastic_color_proposals=False,

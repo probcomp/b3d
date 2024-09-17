@@ -17,14 +17,15 @@ from b3d.chisight.gen3d.image_kernel import PixelsPointsAssociation
 def dynamic_object_generative_model(hyperparams, previous_state):
     hyperparams["vertices"]
 
-    pose_kernel = hyperparams["pose_kernel"]
+    pose_kernel = hyperparams["pose_kernel"]["distribution"]
+    pose_kernel_hyperargs = hyperparams["pose_kernel"]["args"]
     color_kernel = hyperparams["color_kernel"]
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
     depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
     depth_scale_kernel = hyperparams["depth_scale_kernel"]
     color_scale_kernel = hyperparams["color_scale_kernel"]
 
-    pose = pose_kernel(previous_state["pose"]) @ "pose"
+    pose = pose_kernel(previous_state["pose"], *pose_kernel_hyperargs) @ "pose"
     colors = color_kernel.vmap()(previous_state["colors"]) @ "colors"
     visibility_prob = (
         visibility_prob_kernel.vmap()(previous_state["visibility_prob"])
@@ -176,9 +177,6 @@ def viz_trace(
         b3d.rr_log_rgb(pixel_latent_rgb, "image/rgb/latent")
         b3d.rr_log_depth(pixel_latent_depth, "image/depth/latent")
 
-        # TODO: should we add in a way to visualize a noise-free projection
-        # of the points to the camera plane?
-
         fx, fy, cx, cy = (
             hyperparams["intrinsics"]["fx"],
             hyperparams["intrinsics"]["fy"],
@@ -223,8 +221,8 @@ def get_blueprint():
             rrb.Horizontal(
                 rrb.Spatial3DView(origin="scene/"),
                 rrb.Horizontal(
-                    rrb.Spatial2DView(origin="image/rgb/observed"),
-                    rrb.Spatial2DView(origin="image/depth/observed"),
+                    rrb.Spatial2DView(origin="image/rgb/"),
+                    rrb.Spatial2DView(origin="image/depth/"),
                 ),
             ),
             rrb.Horizontal(

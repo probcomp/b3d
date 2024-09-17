@@ -206,7 +206,7 @@ def inference_step(
     return infer_latents(k2, trace, inference_hyperparams, *args, **kwargs)
 
 
-@partial(jax.jit, static_argnums=(3, 4, 5))
+@partial(jax.jit, static_argnums=(3, 4, 5, 6))
 def infer_latents(
     key,
     trace,
@@ -214,6 +214,7 @@ def infer_latents(
     get_trace=True,
     get_weight=True,
     get_metadata=True,
+    get_trace_at_gt_pose=False,
     # If this is included, we guarantee that this is one of the
     # poses in the grid.
     use_gt_pose=False,
@@ -287,6 +288,8 @@ def infer_latents(
     ret = ()
     if get_trace:
         ret = (*ret, new_trace)
+    if get_trace_at_gt_pose:
+        ret = (*ret, jax.tree.map(lambda x: x[0], proposed_traces))
     if get_weight:
         ret = (*ret, weight)
     if get_metadata:

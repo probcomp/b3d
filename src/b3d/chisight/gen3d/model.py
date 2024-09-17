@@ -106,6 +106,7 @@ def viz_trace(
     ground_truth_vertices=None,
     ground_truth_pose=None,
     log_blueprint=True,
+    tracename="trace",
 ):
     b3d.rr_set_time(t)
     hyperparams, _ = trace.get_args()
@@ -118,23 +119,23 @@ def viz_trace(
 
     vertices = hyperparams["vertices"]
     b3d.rr_log_cloud(
-        vertices,
-        "object/model",
-        colors,
+        vertices[visibility_prob > 0.1],
+        f"/object/model/{tracename}",
+        colors[visibility_prob > 0.1],
     )
     b3d.rr_log_cloud(
         vertices,
-        "object/visibility_prob",
+        f"/object/visibility_prob/{tracename}",
         jnp.array([[1.0, 0.0, 0.0]]) * visibility_prob[..., None],
     )
     b3d.rr_log_cloud(
         vertices,
-        "object/depth_nonreturn_prob",
+        f"/object/depth_nonreturn_prob/{tracename}",
         jnp.array([[0.0, 1.0, 0.0]]) * depth_nonreturn_prob[..., None],
     )
 
     rr.log(
-        "info",
+        f"info/{tracename}",
         rr.TextDocument(
             f"""
             depth_scale: {new_state["depth_scale"]}
@@ -150,16 +151,16 @@ def viz_trace(
     vertices_transformed = pose.apply(vertices)
     b3d.rr_log_cloud(
         vertices_transformed,
-        "scene/model",
+        f"/scene/model/{tracename}",
         colors,
     )
 
     output = trace.get_retval()
     if output["rgbd"] is not None:
         observed_rgbd = output["rgbd"]
-        b3d.rr_log_rgb(observed_rgbd[..., :3], "image")
-        b3d.rr_log_rgb(observed_rgbd[..., :3], "image/rgb/observed")
-        b3d.rr_log_depth(observed_rgbd[..., 3], "image/depth/observed")
+        b3d.rr_log_rgb(observed_rgbd[..., :3], f"/image/{tracename}")
+        b3d.rr_log_rgb(observed_rgbd[..., :3], f"/image/rgb/observed/{tracename}")
+        b3d.rr_log_depth(observed_rgbd[..., 3], f"/image/depth/observed/{tracename}")
 
         pixel_point_association = PixelsPointsAssociation.from_points_and_intrinsics(
             vertices_transformed,
@@ -174,8 +175,8 @@ def viz_trace(
             10.0,
         )
 
-        b3d.rr_log_rgb(pixel_latent_rgb, "image/rgb/latent")
-        b3d.rr_log_depth(pixel_latent_depth, "image/depth/latent")
+        b3d.rr_log_rgb(pixel_latent_rgb, "/image/rgb/latent")
+        b3d.rr_log_depth(pixel_latent_depth, "/image/depth/latent")
 
         fx, fy, cx, cy = (
             hyperparams["intrinsics"]["fx"],
@@ -207,8 +208,10 @@ def viz_trace(
                 "scene/ground_truth_object_mesh",
             )
 
-            b3d.rr_log_pose(ground_truth_pose, "scene/ground_truth_pose")
-            b3d.rr_log_pose(trace.get_choices()["pose"], "scene/inferred_pose")
+            b3d.rr_log_pose(ground_truth_pose, "/scene/ground_truth_pose/")
+            b3d.rr_log_pose(
+                trace.get_choices()["pose"], f"/scene/inferred_pose/{tracename}"
+            )
 
     if not b3d.get_blueprint_logged() and log_blueprint:
         rr.send_blueprint(get_blueprint())

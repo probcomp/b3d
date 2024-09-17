@@ -23,7 +23,7 @@ hyperparams = {
     },
     "color_kernel": transition_kernels.MixtureDriftKernel(
         [
-            transition_kernels.LaplaceNotTruncatedColorDriftKernel(scale=0.08),
+            transition_kernels.LaplaceNotTruncatedColorDriftKernel(scale=0.03),
             transition_kernels.UniformDriftKernel(
                 max_shift=0.15, min_val=jnp.zeros(3), max_val=jnp.ones(3)
             ),
@@ -34,14 +34,14 @@ hyperparams = {
         resample_probability=0.1, support=jnp.array([0.001, 0.999])
     ),
     "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1, support=jnp.array([0.001, 0.999])
+        resample_probability=0.3, support=jnp.array([0.001, 0.999])
     ),
     "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
         resample_probability=0.1,
         support=jnp.array([0.0025, 0.01, 0.02]),
     ),
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15, 0.3, 0.6, 1.0])
+        resample_probability=0.1, support=jnp.array([0.002, 0.01, 0.05, 0.1, 0.15, 0.3])
     ),
     "image_kernel": image_kernel.UniquePixelsImageKernel(
         FullPixelRGBDDistribution(
@@ -59,6 +59,6 @@ inference_hyperparams = inference.InferenceHyperparams(
     pose_proposal_std=0.04,
     pose_proposal_conc=1000.0,
     do_stochastic_color_proposals=False,
-    prev_color_proposal_laplace_scale=0.1,
-    obs_color_proposal_laplace_scale=0.1,
+    prev_color_proposal_laplace_scale=0.04,
+    obs_color_proposal_laplace_scale=0.01,
 )

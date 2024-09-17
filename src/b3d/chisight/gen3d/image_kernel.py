@@ -402,23 +402,27 @@ class UniquePixelsImageKernel(ImageKernel):
         self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
     ) -> FloatArray:
         intrinsics = hyperparams["intrinsics"]
-        (observed_rgbd_per_point, latent_rgbd_per_point, is_valid, _, _) = (
-            calculate_latent_and_observed_correspondences(
-                observed_rgbd, state, hyperparams
-            )
+        (
+            observed_rgbd_per_point,
+            latent_rgbd_per_point,
+            is_valid,
+            _,
+            point_indices_for_observed_rgbds,
+        ) = calculate_latent_and_observed_correspondences(
+            observed_rgbd, state, hyperparams
         )
 
         # Score the collided pixels
         scores = jax.vmap(
-            hyperparams["image_kernel"].get_rgbd_vertex_kernel().logpdf,
+            self.get_rgbd_vertex_kernel().logpdf,
             in_axes=(0, 0, None, None, 0, 0, None),
         )(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
             state["color_scale"],
             state["depth_scale"],
-            state["visibility_prob"],
-            state["depth_nonreturn_prob"],
+            state["visibility_prob"][point_indices_for_observed_rgbds],
+            state["depth_nonreturn_prob"][point_indices_for_observed_rgbds],
             hyperparams["intrinsics"],
         )
         total_score_for_explained_pixels = jnp.where(is_valid, scores, 0.0).sum()

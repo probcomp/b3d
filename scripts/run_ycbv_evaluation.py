@@ -1,27 +1,64 @@
 #!/usr/bin/env python
 
 import copy
+import os
+import pprint
+from datetime import datetime
+from pathlib import Path
 
+import b3d
 import b3d.chisight.gen3d.inference as inference
 import b3d.chisight.gen3d.settings as settings
+import b3d.chisight.gen3d.visualization as viz
 import fire
 import jax
 import jax.numpy as jnp
+import rerun as rr
 from b3d import Pose
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
     load_object_given_scene,
     load_scene,
 )
+from b3d.chisight.gen3d.model import viz_trace as rr_viz_trace
 from tqdm import tqdm
 
 
-def run_tracking(scene=None, object=None, debug=False):
-    import b3d
+def setup_save_directory():
+    # Make a folder, stamped with the current time.
+    current_time = datetime.now().strftime("%Y-%m-%d--%H:%M")
+    folder_name = (
+        b3d.get_root_path() / "test_results" / "gen3d" / f"gen3d_{current_time}"
+    )
+    Path(folder_name).mkdir(parents=True, exist_ok=True)
+    video_folder_name = folder_name / "mp4"
+    npy_folder_name = folder_name / "npy"
+    rr_folder_name = folder_name / "rr"
+    os.mkdir(rr_folder_name)
+    os.mkdir(video_folder_name)
+    os.mkdir(npy_folder_name)
+    return folder_name, video_folder_name, npy_folder_name, rr_folder_name
+
+
+def save_hyperparams(folder_name, hyperparams, inference_hyperparams):
+    hyperparams_file = folder_name / "hyperparams.txt"
+    with open(hyperparams_file, "w") as f:
+        f.write("Hyperparameters:\n")
+        f.write(pprint.pformat(hyperparams))
+        f.write("\n\n\nInference Hyperparameters:\n")
+        f.write(pprint.pformat(inference_hyperparams))
+
+
+def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
+    folder_name, video_folder_name, npy_folder_name, rr_folder_name = (
+        setup_save_directory()
+    )
+
+    hyperparams = copy.deepcopy(settings.hyperparams)
+    inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
+    save_hyperparams(folder_name, hyperparams, inference_hyperparams)
 
     FRAME_RATE = 50
-
-    b3d.utils.rr_init("run_ycbv_evaluation")
 
     if scene is None:
         scenes = range(48, 60)
@@ -29,8 +66,6 @@ def run_tracking(scene=None, object=None, debug=False):
         scenes = [scene]
     elif isinstance(scene, list):
         scenes = scene
-
-    hyperparams = copy.deepcopy(settings.hyperparams)
 
     for scene_id in scenes:
         all_data, meshes, renderer, intrinsics, initial_object_poses = load_scene(
@@ -53,7 +88,6 @@ def run_tracking(scene=None, object=None, debug=False):
             )
 
             tracking_results = {}
-            inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
 
             ### Run inference ###
             key = jax.random.PRNGKey(156)
@@ -61,7 +95,18 @@ def run_tracking(scene=None, object=None, debug=False):
                 key, hyperparams, initial_state, all_data[0]["rgbd"]
             )
 
-            for T in tqdm(range(len(all_data))):
+            if save_rerun:
+                rr.init(f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}")
+                rr.save(
+                    rr_folder_name / f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.rrd"
+                )
+
+            if max_n_frames is not None:
+                maxT = min(max_n_frames, len(all_data))
+            else:
+                maxT = len(all_data)
+
+            for T in tqdm(range(maxT)):
                 key = b3d.split_key(key)
                 trace = inference.inference_step_c2f(
                     key,
@@ -76,8 +121,8 @@ def run_tracking(scene=None, object=None, debug=False):
                 )
                 tracking_results[T] = trace
 
-                if debug:
-                    b3d.chisight.gen3d.model.viz_trace(
+                if save_rerun:
+                    rr_viz_trace(
                         trace,
                         T,
                         ground_truth_vertices=meshes[OBJECT_INDEX].vertices,
@@ -86,24 +131,24 @@ def run_tracking(scene=None, object=None, debug=False):
                     )
 
             inferred_poses = Pose.stack_poses(
-                [
-                    tracking_results[t].get_choices()["pose"]
-                    for t in range(len(all_data))
-                ]
+                [tracking_results[t].get_choices()["pose"] for t in range(maxT)]
             )
             jnp.savez(
-                f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.npy",
+                npy_folder_name
+                / f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.npy",
                 position=inferred_poses.position,
                 quaternion=inferred_poses.quat,
             )
 
-            import b3d.chisight.gen3d.visualization as viz
-
             viz.make_video_from_traces(
-                [tracking_results[t] for t in range(len(all_data))],
-                f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.mp4",
+                [tracking_results[t] for t in range(maxT)],
+                video_folder_name / f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.mp4",
                 scale=0.25,
             )
+
+            if save_rerun:
+                rr.disconnect()
+                print("rerun disconnected")
 
 
 if __name__ == "__main__":

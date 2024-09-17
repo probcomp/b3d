@@ -84,13 +84,16 @@ def get_fp_pred_pose(test_scene_id: int, obj_id: int):
 
 def get_b3d_pred_pose(result_dir: Path, test_scene_id: int, obj_id: int):
     poses = np.load(
-        result_dir / f"SCENE_{test_scene_id}_OBJECT_INDEX_{obj_id}_POSES.npy",
+        result_dir / f"SCENE_{test_scene_id}_OBJECT_INDEX_{obj_id}_POSES.npy.npz",
     )
     poses = b3d.Pose(poses["position"], poses["quaternion"])
     return poses.as_matrix()
 
 
-def main(b3d_result_dir: str, output_dir: str | None = None):
+def main(b3d_result_dir: str, output_dir: str | None = None, get_fp_pose: bool = False):
+    """
+    Call this with `b3d_result_dir` as the directory containing `.npy.npz` files.
+    """
     result_dir = Path(b3d_result_dir)
     if output_dir is None:
         output_dir = b3d_result_dir
@@ -98,7 +101,10 @@ def main(b3d_result_dir: str, output_dir: str | None = None):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pred_score_getter = partial(get_b3d_pred_pose, result_dir)
-    # pred_score_getter = get_fp_pred_pose
+
+    if get_fp_pose:
+        pred_score_getter = get_fp_pred_pose
+
     results_summary, _ = collect_all_scores(pred_score_getter)
     print(results_summary)
     if output_dir is not None:

@@ -99,7 +99,13 @@ def get_observed_rgbd(trace):
 ### Visualization Code ###
 
 
-def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
+def viz_trace(
+    trace,
+    t=0,
+    ground_truth_vertices=None,
+    ground_truth_pose=None,
+    log_blueprint=True,
+):
     b3d.rr_set_time(t)
     hyperparams, _ = trace.get_args()
     new_state = trace.get_retval()["new_state"]
@@ -206,9 +212,9 @@ def viz_trace(trace, t=0, ground_truth_vertices=None, ground_truth_pose=None):
             b3d.rr_log_pose(ground_truth_pose, "scene/ground_truth_pose")
             b3d.rr_log_pose(trace.get_choices()["pose"], "scene/inferred_pose")
 
-    # if not b3d.get_blueprint_logged():
-    #     rr.send_blueprint(get_blueprint())
-    #     b3d.set_blueprint_logged(True)
+    if not b3d.get_blueprint_logged() and log_blueprint:
+        rr.send_blueprint(get_blueprint())
+        b3d.set_blueprint_logged(True)
 
 
 def get_blueprint():

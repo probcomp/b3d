@@ -310,3 +310,98 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # they don't expect observed_rgbd to be invalid, so we need to handle
         # that manually.
         return self.rgbd_vertex_kernel
+
+
+@Pytree.dataclass
+class UniquePixelsImageKernel(ImageKernel):
+    rgbd_vertex_kernel: PixelRGBDDistribution
+
+    def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
+        # TODO: implement this
+        return jnp.zeros(
+            (
+                hyperparams["intrinsics"]["image_height"].unwrap(),
+                hyperparams["intrinsics"]["image_width"].unwrap(),
+                4,
+            )
+        )
+
+    def logpdf(
+        self, observed_rgbd: FloatArray, state: Mapping, hyperparams: Mapping
+    ) -> FloatArray:
+        intrinsics = hyperparams["intrinsics"]
+
+        transformed_points = state["pose"].apply(hyperparams["vertices"])
+
+        # Sort the vertices by depth.
+        sort_order = jnp.argsort(transformed_points[..., 2])
+        transformed_points_sorted = transformed_points[sort_order]
+
+        # Project the vertices to the image plane.
+        projected_coords = jnp.rint(
+            b3d.utils.xyz_to_pixel_coordinates(
+                transformed_points_sorted,
+                intrinsics["fx"],
+                intrinsics["fy"],
+                intrinsics["cx"],
+                intrinsics["cy"],
+            )
+            - 0.5
+        ).astype(jnp.int32)
+
+        # Compute the unique pixel coordinates and the indices of the first vertex that hit that pixel.
+        unique_pixel_coordinates, unique_indices = jnp.unique(
+            projected_coords,
+            axis=0,
+            return_index=True,
+            size=projected_coords.shape[0],
+            fill_value=-1,
+        )
+
+        # For each collided pixel, get the observed rgbd value.
+        observed_rgbd_per_point = observed_rgbd[
+            unique_pixel_coordinates[:, 0], unique_pixel_coordinates[:, 1]
+        ]
+
+        # For each collided pixel, get the color and depth of the vertex that hit that pixel.
+        latent_rgbd_per_point = jnp.concatenate(
+            [
+                state["colors"][sort_order][unique_indices],
+                transformed_points_sorted[unique_indices, 2, None],
+            ],
+            axis=-1,
+        )
+
+        # Score the collided pixels
+        scores = jax.vmap(
+            hyperparams["image_kernel"].get_rgbd_vertex_kernel().logpdf,
+            in_axes=(0, 0, None, None, 0, 0, None),
+        )(
+            observed_rgbd_per_point,
+            latent_rgbd_per_point,
+            state["color_scale"],
+            state["depth_scale"],
+            state["visibility_prob"],
+            state["depth_nonreturn_prob"],
+            hyperparams["intrinsics"],
+        )
+        is_valid_pixel = (unique_pixel_coordinates >= 0).all(axis=-1)
+        adjusted_scores = jnp.where(is_valid_pixel, scores, 0.0)
+
+        # Calcuate the number of pixels that don't have any vertices hitting them.
+        total_pixels = (
+            intrinsics["image_height"].unwrap() * intrinsics["image_width"].unwrap()
+        )
+        num_no_hypothesis_pixels = total_pixels - is_valid_pixel.sum()
+
+        # The pixels that have no vertices produce an observation uniformly at random.
+        color_score = jnp.log(1 / 1.0**3)
+        depth_score = jnp.log(1 / (intrinsics["far"] - intrinsics["near"]))
+        no_hypothesis_score = color_score + depth_score
+
+        # Final score is the sum of the log probabilities over all pixels, collided and not collided.
+        score = adjusted_scores.sum() + num_no_hypothesis_pixels * no_hypothesis_score
+        return score
+
+    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
+        return self.rgbd_vertex_kernel

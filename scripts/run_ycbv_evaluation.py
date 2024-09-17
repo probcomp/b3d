@@ -3,7 +3,6 @@
 import copy
 
 import b3d.chisight.gen3d.inference as inference
-import b3d.chisight.gen3d.inference_old as inference_old
 import b3d.chisight.gen3d.settings as settings
 import fire
 import jax
@@ -54,7 +53,7 @@ def run_tracking(scene=None, object=None, debug=False):
             )
 
             tracking_results = {}
-            inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
+            inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
 
             ### Run inference ###
             key = jax.random.PRNGKey(156)
@@ -64,10 +63,17 @@ def run_tracking(scene=None, object=None, debug=False):
 
             for T in tqdm(range(len(all_data))):
                 key = b3d.split_key(key)
-                trace = inference.advance_time(key, trace, all_data[T]["rgbd"])
-                trace = inference_old.inference_step(trace, key, inference_hyperparams)[
-                    0
-                ]
+                trace = inference.inference_step_c2f(
+                    key,
+                    2,  # number of sequential iterations of the parallel pose proposal to consider
+                    3000,  # number of poses to propose in parallel
+                    # So the total number of poses considered at each step of C2F is 5000 * 1
+                    trace,
+                    all_data[T]["rgbd"],
+                    prev_color_proposal_laplace_scale=0.1,  # inference_hyperparams.prev_color_proposal_laplace_scale,
+                    obs_color_proposal_laplace_scale=0.1,  # inference_hyperparams.obs_color_proposal_laplace_scale,
+                    do_stochastic_color_proposals=False,
+                )
                 tracking_results[T] = trace
 
                 if debug:
@@ -91,19 +97,12 @@ def run_tracking(scene=None, object=None, debug=False):
                 quaternion=inferred_poses.quat,
             )
 
-            trace = tracking_results[len(all_data) - 1]
-            latent_rgb = b3d.chisight.gen3d.image_kernel.get_latent_rgb_image(
-                trace.get_retval()["new_state"], trace.get_args()[0]
-            )
+            import b3d.chisight.gen3d.visualization as viz
 
-            a = b3d.viz_rgb(
-                trace.get_choices()["rgbd"][..., :3],
-            )
-            b = b3d.viz_rgb(
-                latent_rgb[..., :3],
-            )
-            b3d.multi_panel([a, b, b3d.overlay_image(a, b)]).save(
-                f"photo_SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.png"
+            viz.make_video_from_traces(
+                [tracking_results[t] for t in range(len(all_data))],
+                f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.mp4",
+                scale=0.25,
             )
 
 

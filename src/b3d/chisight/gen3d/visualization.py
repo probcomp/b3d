@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from ipywidgets import interact
 from matplotlib.gridspec import GridSpec
 
+import b3d
+
 
 def plot_samples(
     samples,
@@ -191,3 +193,29 @@ def create_interactive_visualization(
             readout_format=".2f",
         ),
     )
+
+
+# Make video
+
+
+def make_video_from_traces(traces, output_filename, scale=0.2, fps=5.0):
+    images = []
+    for trace in traces:
+        latent_rgb = b3d.chisight.gen3d.image_kernel.get_latent_rgb_image(
+            trace.get_retval()["new_state"], trace.get_args()[0]
+        )
+
+        a = b3d.scale_image(
+            b3d.viz_rgb(
+                trace.get_choices()["rgbd"][..., :3],
+            ),
+            scale,
+        )
+        b = b3d.scale_image(
+            b3d.viz_rgb(
+                latent_rgb[..., :3],
+            ),
+            scale,
+        )
+        images.append(b3d.multi_panel([a, b, b3d.overlay_image(a, b)]))
+    b3d.utils.make_video_from_pil_images(images, output_filename, fps=fps)

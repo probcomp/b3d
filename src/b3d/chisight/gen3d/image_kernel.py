@@ -172,6 +172,7 @@ class PixelsPointsAssociation(Pytree):
         return self.pixel_to_point_idx[pixel_x, pixel_y]
 
 
+@jax.jit
 def get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd):
     transformed_points = state["pose"].apply(hyperparams["vertices"])
     points_to_pixels = PixelsPointsAssociation.from_points_and_intrinsics(
@@ -184,6 +185,7 @@ def get_latent_and_observed_correspondences(state, hyperparams, observed_rgbd):
     return latent_rgbd_per_point, observed_rgbd_per_point
 
 
+@jax.jit
 def get_latent_rgb_image(state, hyperparams):
     transformed_points = state["pose"].apply(hyperparams["vertices"])
     ppa = PixelsPointsAssociation.from_points_and_intrinsics(

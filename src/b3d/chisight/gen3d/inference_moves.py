@@ -10,6 +10,7 @@ from b3d import Pose
 from b3d.modeling_utils import renormalized_color_laplace
 
 from .image_kernel import (
+    PixelsPointsAssociation,
     calculate_latent_and_observed_correspondences,
 )
 from .model import (
@@ -116,18 +117,20 @@ def propose_all_pointlevel_attributes(key, trace, inference_hyperparams):
     have shape (n_vertices,), log_q (a float) is (an estimate of)
     the overall log proposal density, and metadata is a dict.
     """
-    # observed_rgbds_per_point = PixelsPointsAssociation.from_hyperparams_and_pose(
-    #     get_hypers(trace), get_new_state(trace)["pose"]
-    # ).get_point_rgbds(get_observed_rgbd(trace))
-    observed_rgbds_for_registered_points, _, _, _, vertex_indices = (
-        calculate_latent_and_observed_correspondences(
-            get_observed_rgbd(trace), get_new_state(trace), get_hypers(trace)
+    if inference_hyperparams.do_assoc_using_unique_pixels:
+        observed_rgbds_for_registered_points, _, _, _, vertex_indices = (
+            calculate_latent_and_observed_correspondences(
+                get_observed_rgbd(trace), get_new_state(trace), get_hypers(trace)
+            )
         )
-    )
-    observed_rgbds_per_point = -jnp.ones((get_n_vertices(trace), 4))
-    observed_rgbds_per_point = observed_rgbds_per_point.at[vertex_indices].set(
-        observed_rgbds_for_registered_points, mode="drop"
-    )
+        observed_rgbds_per_point = -jnp.ones((get_n_vertices(trace), 4))
+        observed_rgbds_per_point = observed_rgbds_per_point.at[vertex_indices].set(
+            observed_rgbds_for_registered_points, mode="drop"
+        )
+    else:
+        observed_rgbds_per_point = PixelsPointsAssociation.from_hyperparams_and_pose(
+            get_hypers(trace), get_new_state(trace)["pose"]
+        ).get_point_rgbds(get_observed_rgbd(trace))
 
     sample, metadata = jax.vmap(
         propose_a_points_attributes, in_axes=(0, 0, 0, None, None, None, None)

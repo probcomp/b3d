@@ -42,6 +42,7 @@ class InferenceHyperparams(Pytree):
         around the observed point RGB.
     """
 
+    do_assoc_using_unique_pixels: bool = Pytree.static(default=True)
     n_poses: int = Pytree.static()
     do_stochastic_color_proposals: bool
     pose_proposal_std: float

@@ -1,0 +1,57 @@
+name: Codebase tests (GPU)
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_ALLOCATOR: "platform"
+
+jobs:
+  test:
+    runs-on: [self-hosted, b3d]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install curl
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: curl
+          version: 1.0
+
+      - name: Authenticate gcloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run tests
+        run: |
+          # install pixi
+          curl -fsSL https://pixi.sh/install.sh | bash
+          source ~/.bashrc
+          export PATH=$HOME/.pixi/bin:$HOME/.local/bin:$PATH
+
+          # install pipx and inject gcp backend
+          pixi global install pipx
+          pipx install keyring
+          pipx inject keyring \
+            keyrings.google-artifactregistry-auth \
+            --index-url \
+            https://pypi.org/simple
+
+          # install gpu environment
+          pixi clean && pixi clean cache --yes
+          pixi install --locked -e gpu -v --pypi-keyring-provider subprocess
+
+          # run tests
+          pixi run -e gpu test-ci

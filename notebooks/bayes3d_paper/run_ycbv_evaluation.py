@@ -10,12 +10,8 @@ def run_tracking(scene=None, object=None, debug=False):
     import genjax
     import jax
     import jax.numpy as jnp
-    import rerun as rr
     from b3d import Mesh, Pose
-    from b3d.bayes3d.enumerative_proposals import gvmf_and_select_best_move
-    from b3d.modeling_utils import uniform_pose
     from genjax import Pytree
-    from IPython import embed
     from tqdm import tqdm
 
     importlib.reload(b3d.mesh)
@@ -27,7 +23,7 @@ def run_tracking(scene=None, object=None, debug=False):
 
     ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
 
-    b3d.rr_init()
+    b3d.rr_init("run_ycbv_evaluation")
 
     if scene is None:
         scenes = range(48, 60)
@@ -51,189 +47,267 @@ def run_tracking(scene=None, object=None, debug=False):
             for id in all_data[0]["object_types"]
         ]
 
-        height, width = all_data[0]["rgbd"].shape[:2]
+        image_height, image_width = all_data[0]["rgbd"].shape[:2]
         fx, fy, cx, cy = all_data[0]["camera_intrinsics"]
-        scaling_factor = 0.3
+        scaling_factor = 1.0
         renderer = b3d.renderer.renderer_original.RendererOriginal(
-            width * scaling_factor,
-            height * scaling_factor,
+            image_width * scaling_factor,
+            image_height * scaling_factor,
             fx * scaling_factor,
             fy * scaling_factor,
             cx * scaling_factor,
             cy * scaling_factor,
             0.01,
-            2.0,
+            4.0,
         )
 
-        import b3d.chisight.dense.likelihoods.image_likelihood
-        import b3d.chisight.dense.likelihoods.simple_likelihood
+        def grid_outlier_prob(trace, values):
+            return jax.vmap(
+                lambda x: info_from_trace(
+                    b3d.update_choices(trace, Pytree.const(("outlier_probability",)), x)
+                )["scores"]
+            )(values)
 
-        intermediate_likelihood_func = (
-            b3d.chisight.dense.likelihoods.simple_likelihood.simple_likelihood
+        @jax.jit
+        def update_pose_and_color(trace, address, pose):
+            trace = b3d.update_choices(trace, address, pose)
+            info = info_from_trace(trace)
+            current_outlier_probabilities = trace.get_choices()["outlier_probability"]
+            model_rgbd, observed_rgbd = (
+                info["model_rgbd"],
+                info["corresponding_observed_rgbd"],
+            )
+            deltas = (observed_rgbd - model_rgbd)[..., :3]
+            deltas_clipped = jnp.clip(deltas, -0.1, 0.1)
+
+            mesh = trace.get_args()[0]["meshes"][0]
+            is_inlier = current_outlier_probabilities == outlier_probability_sweep[0]
+            mesh.vertex_attributes = (
+                mesh.vertex_attributes + deltas_clipped * is_inlier[..., None]
+            )
+
+            trace, _ = importance_jit(
+                jax.random.PRNGKey(2),
+                trace.get_choices(),
+                (
+                    {
+                        "num_objects": Pytree.const(1),
+                        "meshes": [mesh],
+                        "likelihood_args": likelihood_args,
+                    },
+                ),
+            )
+            return trace.get_score()
+
+        def _gvmf_and_select_best_move(
+            trace, key, variance, concentration, address, number
+        ):
+            test_poses = Pose.concatenate_poses(
+                [
+                    jax.vmap(
+                        Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None)
+                    )(
+                        jax.random.split(key, number),
+                        trace.get_choices()[address.unwrap()],
+                        variance,
+                        concentration,
+                    ),
+                    trace.get_choices()[address.unwrap()][None, ...],
+                ]
+            )
+            scores = jax.vmap(update_pose_and_color, in_axes=(None, None, 0))(
+                trace, address, test_poses
+            )
+            trace = b3d.update_choices(
+                trace,
+                address,
+                test_poses[scores.argmax()],
+            )
+            key = jax.random.split(key, 2)[-1]
+            return trace, key
+
+        gvmf_and_select_best_move = jax.jit(
+            _gvmf_and_select_best_move, static_argnames=["number"]
         )
-        image_likelihood = (
-            b3d.chisight.dense.likelihoods.image_likelihood.make_image_likelihood(
-                intermediate_likelihood_func, renderer
+
+        from b3d.chisight.dense.likelihoods.simplified_rendering_laplace_likelihood import (
+            simplified_rendering_laplace_likelihood,
+        )
+
+        model, viz_trace, info_from_trace = (
+            b3d.chisight.dense.dense_model.make_dense_multiobject_model(
+                None, simplified_rendering_laplace_likelihood
             )
         )
+        importance_jit = jax.jit(model.importance)
 
-        @genjax.gen
-        def dense_multiobject_model(num_objects, meshes, likelihood_args):
-            all_poses = []
-            for i in range(num_objects.const):
-                object_pose = (
-                    uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
-                    @ f"object_pose_{i}"
-                )
-                all_poses.append(object_pose)
-
-            all_poses = Pose.stack_poses(all_poses)
-            scene_mesh = Mesh.transform_and_merge_meshes(meshes, all_poses)
-            image = image_likelihood(scene_mesh, likelihood_args) @ "image"
-            return {"scene_mesh": scene_mesh, "image": image}
-
-        def rerun_visualize_trace_t(trace, t):
-            rr.set_time_sequence("time", t)
-            observed_rgbd = trace.get_retval()["image"]
-
-            intermediate_info = intermediate_likelihood_func(
-                trace.get_retval()["image"],
-                trace.get_retval()["scene_mesh"],
-                renderer,
-                trace.get_args()[2],
-            )
-            rendered_rgbd = intermediate_info["rendered_rgbd"]
-
-            rr.log("rgb", rr.Image(observed_rgbd[..., :3]))
-            rr.log("rgb/rendering", rr.Image(rendered_rgbd[..., :3]))
-            rr.log("rgb/overlay/depth", rr.DepthImage(observed_rgbd[..., 3]))
-            rr.log("rgb/overlay/depth_rendering", rr.DepthImage(rendered_rgbd[..., 3]))
-            info_string = f"# Score : {trace.get_score()}"
-
-            for add in [
-                "is_match",
-                "is_mismatched",
-                "color_match",
-                "depth_match",
-                "is_hypothesized",
-                "is_mismatched_teleportation",
-            ]:
-                rr.log(
-                    f"/rgb/overlay/{add}", rr.DepthImage(intermediate_info[add] * 1.0)
-                )
-            rr.log("/info", rr.TextDocument(info_string))
-
-        importance_jit = jax.jit(dense_multiobject_model.importance)
-
-        initial_camera_pose = all_data[0]["camera_pose"]
+        # initial_camera_pose = all_data[0]["camera_pose"]
         initial_object_poses = all_data[0]["object_poses"]
 
         likelihood_args = {
-            "inlier_score": 20.0,
-            "color_tolerance": 20.0,
-            "depth_tolerance": 0.01,
-            "outlier_prob": 0.000001,
-            "multiplier": 10000.0,
-            "bounds": jnp.array([110.0, 45.0, 45.0, 0.005]),
-            "variances": jnp.zeros(4),
+            "fx": fx,
+            "fy": fy,
+            "cx": cx,
+            "cy": cy,
+            "image_height": Pytree.const(image_height),
+            "image_width": Pytree.const(image_width),
         }
 
         object_indices = (
             [object] if object is not None else range(len(initial_object_poses))
         )
-        for IDX in object_indices:
-            print(f"Object {IDX} out of {len(initial_object_poses) - 1}")
+        for OBJECT_INDEX in object_indices:
+            print(f"Object {OBJECT_INDEX} out of {len(initial_object_poses) - 1}")
+            T = 0
 
-            pose = initial_camera_pose.inv() @ initial_object_poses[IDX]
-            choicemap = genjax.ChoiceMap.d(
-                dict(
-                    [
-                        ("object_pose_0", pose),
-                        (
-                            "image",
-                            b3d.utils.resize_image(
-                                all_data[0]["rgbd"], renderer.height, renderer.width
-                            ),
-                        ),
-                    ]
-                )
+            template_pose = (
+                all_data[T]["camera_pose"].inv()
+                @ all_data[T]["object_poses"][OBJECT_INDEX]
+            )
+            rendered_rgbd = renderer.render_rgbd_from_mesh(
+                meshes[OBJECT_INDEX].transform(template_pose)
+            )
+            xyz_rendered = b3d.xyz_from_depth(rendered_rgbd[..., 3], fx, fy, cx, cy)
+
+            fx, fy, cx, cy = all_data[T]["camera_intrinsics"]
+            xyz_observed = b3d.xyz_from_depth(
+                all_data[T]["rgbd"][..., 3], fx, fy, cx, cy
+            )
+            mask = (
+                all_data[T]["masks"][OBJECT_INDEX]
+                * (xyz_observed[..., 2] > 0)
+                * (jnp.linalg.norm(xyz_rendered - xyz_observed, axis=-1) < 0.01)
+            )
+            mesh = Mesh(
+                vertices=template_pose.inv().apply(xyz_rendered[mask]),
+                faces=jnp.zeros((0, 3), dtype=jnp.int32),
+                vertex_attributes=all_data[T]["rgbd"][..., :3][mask],
             )
 
-            trace, _ = importance_jit(
+            outlier_probability_sweep = jnp.array([0.05, 1.0])
+
+            choicemap = genjax.ChoiceMap.d(
+                {
+                    "rgbd": all_data[T]["rgbd"],
+                    "camera_pose": Pose.identity(),
+                    "object_pose_0": template_pose,
+                    "outlier_probability": jnp.ones(len(mesh.vertices))
+                    * outlier_probability_sweep[0],
+                    "color_noise_variance": 0.05,
+                    "depth_noise_variance": 0.01,
+                }
+            )
+
+            trace0, _ = importance_jit(
                 jax.random.PRNGKey(2),
                 choicemap,
-                (Pytree.const(1), [meshes[IDX]], likelihood_args),
+                (
+                    {
+                        "num_objects": Pytree.const(1),
+                        "meshes": [mesh],
+                        "likelihood_args": likelihood_args,
+                    },
+                ),
             )
-            trace0 = trace
-
-            if debug:
-                rerun_visualize_trace_t(trace, 0)
-                intermediate_info = intermediate_likelihood_func(
-                    trace.get_retval()["image"],
-                    trace.get_retval()["scene_mesh"],
-                    renderer,
-                    trace.get_args()[2],
-                )
-                rr.set_time_sequence("time", 0)
-                rr.log(
-                    "rgb/overlay/alternate_color_space",
-                    rr.Image(intermediate_info["alternate_color_space"]),
-                )
-                rr.log(
-                    "rgb/overlay/alternate_color_spcae_rendered",
-                    rr.Image(intermediate_info["alternate_color_space_rendered"]),
-                )
-
             key = jax.random.PRNGKey(100)
 
             trace = trace0
             tracking_results = {}
-            for t in tqdm(range(len(all_data))):
-                trace = b3d.update_choices_jit(
+            for T in tqdm(range(len(all_data))):
+                trace = b3d.update_choices(
                     trace,
-                    jax.random.PRNGKey(0),
-                    ("image",),
-                    b3d.utils.resize_image(
-                        all_data[t]["rgbd"], renderer.height, renderer.width
-                    ),
+                    Pytree.const(("rgbd",)),
+                    all_data[T]["rgbd"],
                 )
-                saved_trace = trace
-                potential_traces = []
-                for var in [
-                    0.1,
-                    0.06,
-                    0.04,
-                    0.02,
-                    0.01,
-                    0.005,
-                    0.1,
-                    0.06,
-                    0.04,
-                    0.02,
-                    0.01,
-                    0.005,
-                ]:
-                    trace = saved_trace
-                    trace, key = gvmf_and_select_best_move(
-                        trace, key, var, 700.0, Pytree.const("object_pose_0"), 700
-                    )
-                    trace, key = gvmf_and_select_best_move(
-                        trace, key, var, 700.0, Pytree.const("object_pose_0"), 700
-                    )
-                    trace, key = gvmf_and_select_best_move(
-                        trace, key, var, 1000.0, Pytree.const("object_pose_0"), 700
-                    )
-                    trace, key = gvmf_and_select_best_move(
-                        trace, key, var, 1000.0, Pytree.const("object_pose_0"), 700
-                    )
-                    potential_traces.append(trace)
-                scores = jnp.array([t.get_score() for t in potential_traces])
-                trace = potential_traces[scores.argmax()]
-                print(trace.get_score())
-                tracking_results[t] = trace
 
+                for _ in range(5):
+                    trace, key = gvmf_and_select_best_move(
+                        trace,
+                        key,
+                        0.01,
+                        1000.0,
+                        Pytree.const(("object_pose_0",)),
+                        10000,
+                    )
+                    trace, key = gvmf_and_select_best_move(
+                        trace,
+                        key,
+                        0.005,
+                        2000.0,
+                        Pytree.const(("object_pose_0",)),
+                        10000,
+                    )
+                # viz_trace(trace, T)
+
+                if T % 1 == 0:
+                    trace = b3d.bayes3d.enumerative_proposals.enumerate_and_select_best(
+                        trace,
+                        Pytree.const(("color_noise_variance",)),
+                        jnp.linspace(0.05, 0.1, 10),
+                    )
+                    trace = b3d.bayes3d.enumerative_proposals.enumerate_and_select_best(
+                        trace,
+                        Pytree.const(("depth_noise_variance",)),
+                        jnp.linspace(0.005, 0.01, 10),
+                    )
+
+                    current_outlier_probabilities = trace.get_choices()[
+                        "outlier_probability"
+                    ]
+                    scores = grid_outlier_prob(
+                        trace,
+                        outlier_probability_sweep[..., None]
+                        * jnp.ones_like(current_outlier_probabilities),
+                    )
+                    trace = b3d.update_choices(
+                        trace,
+                        Pytree.const(("outlier_probability",)),
+                        outlier_probability_sweep[jnp.argmax(scores, axis=0)],
+                    )
+
+                    current_outlier_probabilities = trace.get_choices()[
+                        "outlier_probability"
+                    ]
+                    # b3d.rr_log_cloud(
+                    #     mesh.vertices,
+                    #     colors=colors[1 * (current_outlier_probabilities == outlier_probability_sweep[0])],
+                    #     channel="cloud/outlier_probabilities"
+                    # )
+
+                    info = info_from_trace(trace)
+                    current_outlier_probabilities = trace.get_choices()[
+                        "outlier_probability"
+                    ]
+                    model_rgbd, observed_rgbd = (
+                        info["model_rgbd"],
+                        info["corresponding_observed_rgbd"],
+                    )
+                    deltas = observed_rgbd - model_rgbd
+                    deltas_clipped = jnp.clip(deltas, -0.05, 0.05)
+                    new_model_rgbd = model_rgbd + deltas_clipped
+
+                    mesh = trace.get_args()[0]["meshes"][0]
+                    is_inlier = (
+                        current_outlier_probabilities == outlier_probability_sweep[0]
+                    )
+                    mesh.vertex_attributes = mesh.vertex_attributes.at[is_inlier].set(
+                        new_model_rgbd[is_inlier, :3]
+                    )
+
+                    trace, _ = importance_jit(
+                        jax.random.PRNGKey(2),
+                        trace.get_choices(),
+                        (
+                            {
+                                "num_objects": Pytree.const(1),
+                                "meshes": [mesh],
+                                "likelihood_args": likelihood_args,
+                            },
+                        ),
+                    )
+                    tracking_results[T] = trace
                 if debug:
-                    rerun_visualize_trace_t(tracking_results[t], t)
+                    viz_trace(trace, T)
 
             inferred_poses = Pose.stack_poses(
                 [
@@ -242,100 +316,24 @@ def run_tracking(scene=None, object=None, debug=False):
                 ]
             )
             jnp.savez(
-                f"SCENE_{scene_id}_OBJECT_INDEX_{IDX}_POSES.npy",
+                f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.npy",
                 position=inferred_poses.position,
                 quaternion=inferred_poses.quat,
             )
 
             trace = tracking_results[len(all_data) - 1]
-            intermediate_info = intermediate_likelihood_func(
-                trace.get_choices()["image"],
-                trace.get_retval()["scene_mesh"],
-                renderer,
-                trace.get_args()[2],
-            )
-            rendered_rgbd = intermediate_info["rendered_rgbd"]
+            info = info_from_trace(trace)
+            rendered_rgbd = info["latent_rgbd"]
 
             a = b3d.viz_rgb(
-                trace.get_choices()["image"][..., :3],
+                trace.get_choices()["rgbd"][..., :3],
             )
             b = b3d.viz_rgb(
                 rendered_rgbd[..., :3],
             )
             b3d.multi_panel([a, b, b3d.overlay_image(a, b)]).save(
-                f"photo_SCENE_{scene_id}_OBJECT_INDEX_{IDX}_POSES.png"
+                f"photo_SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.png"
             )
-
-            if debug:
-                for i in range(len(all_data)):
-                    rerun_visualize_trace_t(tracking_results[i], i)
-
-                embed()
-
-                t = 1
-                trace = tracking_results[t - 1]
-                trace = b3d.update_choices_jit(
-                    trace,
-                    jax.random.PRNGKey(0),
-                    ("image",),
-                    b3d.utils.resize_image(
-                        all_data[t]["rgbd"], renderer.height, renderer.width
-                    ),
-                )
-                rerun_visualize_trace_t(trace, t)
-
-                trace = tracking_results[t - 1]
-                trace = b3d.update_choices_jit(
-                    trace,
-                    jax.random.PRNGKey(0),
-                    ("image", "object_pose_0"),
-                    b3d.utils.resize_image(
-                        all_data[t]["rgbd"], renderer.height, renderer.width
-                    ),
-                    all_data[t]["camera_pose"].inv() @ all_data[t]["object_poses"][IDX],
-                )
-                rerun_visualize_trace_t(trace, t)
-
-                intermediate_info = intermediate_likelihood_func(
-                    trace.get_retval()["image"],
-                    trace.get_retval()["scene_mesh"],
-                    renderer,
-                    trace.get_args()[2],
-                )
-                hsv_observed_image = b3d.colors.rgb_to_hsv(
-                    trace.get_choices()["image"][..., :3]
-                )
-                hsv_rendered_image = b3d.colors.rgb_to_hsv(
-                    intermediate_info["rendered_rgbd"][..., :3]
-                )
-                rr.set_time_sequence("time", 0)
-                rr.log("image", rr.Image(hsv_observed_image))
-                rr.log("image/r", rr.Image(hsv_rendered_image))
-
-                # new_likelihood_args = {
-                #     "inlier_score": 20.0,
-                #     "color_tolerance": 20.0,
-                #     "depth_tolerance": 0.01,
-                #     "outlier_prob": 0.000001,
-                #     "multiplier": 10000.0,
-                #     "bounds": jnp.array([90.0, 50.0, 50.0, 0.005]),
-                #     "variances" : jnp.zeros(4)
-                # }
-                # choicemap = genjax.ChoiceMap.d(
-                #     dict(
-                #         [
-                #             ("object_pose_0",  trace.get_choices()["object_pose_0"]),
-                #             ("image", trace.get_choices()["image"])
-                #         ]
-                #     )
-                # )
-
-                # trace, _ = importance_jit(
-                #     jax.random.PRNGKey(2),
-                #     choicemap,
-                #     (Pytree.const(1), [meshes[IDX]], new_likelihood_args),
-                # )
-                # rerun_visualize_trace_t(trace, t)
 
 
 if __name__ == "__main__":

@@ -75,9 +75,9 @@ class ImageDistFromPixelDist(genjax.ExactDensity):
         return pixels.reshape((height, width, -1))
 
     def logpdf(self, observed_image, height, width, *pixel_dist_args):
-        if observed_image.shape[:2] != (height, width):
-            print("Warning: unequal shapes in ImageDistFromPixelDist.logpdf")
-            return -jnp.inf
+        # if observed_image.shape[:2] != (height, width):
+        #     print("Warning: unequal shapes in ImageDistFromPixelDist.logpdf")
+        #     return -jnp.inf
         logpdfs = jax.vmap(
             lambda pixel, *args: self.pixel_dist.logpdf(pixel, *args),
             in_axes=self._vmap_in_axes(),
@@ -294,7 +294,7 @@ class PythonMixturePixelModel(genjax.ExactDensity):
     def logpdf(self, observed, probs, args):
         logprobs = []
         for i, dist in enumerate(self.dists):
-            lp = dist.logpdf(observed, *args[i])
+            lp = dist.logpdf(observed, *args[i]) + jnp.log(probs[i])
             logprobs.append(lp)
         logprobs = jnp.stack(logprobs)
         # jax.debug.print("lps = {lps}", lps=logprobs)

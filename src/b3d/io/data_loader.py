@@ -48,6 +48,42 @@ def remove_zero_pad(img_id):
             return img_id[i:]
 
 
+@jax.jit
+def get_camera_K_pose_from_dict(image_cam_data):
+    cam_K = jnp.array(image_cam_data["cam_K"]).reshape(3, 3)
+    cam_R_w2c = jnp.array(image_cam_data["cam_R_w2c"]).reshape(3, 3)
+    cam_t_w2c = jnp.array(image_cam_data["cam_t_w2c"]).reshape(3, 1)
+    cam_pose_w2c = jnp.vstack(
+        [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
+    )
+    cam_pose = jnp.linalg.inv(cam_pose_w2c)
+    cam_pose = Pose.from_matrix(cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0))
+    camera_intrinsics = jnp.array(
+        [
+            cam_K[0, 0],
+            cam_K[1, 1],
+            cam_K[0, 2],
+            cam_K[1, 2],
+        ]
+    )
+    return camera_intrinsics, cam_pose
+
+
+@jax.jit
+def get_pose_object_info_from_dict(d, cam_pose):
+    model_R = jnp.array(d["cam_R_m2c"]).reshape(3, 3)
+    model_t = jnp.array(d["cam_t_m2c"]).reshape(3, 1)
+    model_pose = jnp.vstack([jnp.hstack([model_R, model_t]), jnp.array([0, 0, 0, 1])])
+    model_pose = model_pose.at[:3, 3].set(model_pose[:3, 3] * 1.0 / 1000.0)
+    obj_id = d["obj_id"] - 1
+    return obj_id, cam_pose @ Pose.from_matrix(model_pose)
+
+
+get_pose_object_info_from_dict_vmap = jax.jit(
+    jax.vmap(get_pose_object_info_from_dict, in_axes=(0, None))
+)
+
+
 def get_ycbv_num_test_images(ycb_dir, scene_id):
     scene_id = str(scene_id).rjust(6, "0")
 
@@ -86,35 +122,16 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
     all_data = []
     for image_index in tqdm(images_indices):
         img_id = str(image_index).rjust(6, "0")
+        data = {"img_id": img_id}
 
-        data = {
-            "img_id": img_id,
-        }
-
-        # get camera intrinsics and pose for image
         image_cam_data = scene_cam_data[remove_zero_pad(img_id)]
-        cam_K = jnp.array(image_cam_data["cam_K"]).reshape(3, 3)
-        cam_R_w2c = jnp.array(image_cam_data["cam_R_w2c"]).reshape(3, 3)
-        cam_t_w2c = jnp.array(image_cam_data["cam_t_w2c"]).reshape(3, 1)
-        cam_pose_w2c = jnp.vstack(
-            [jnp.hstack([cam_R_w2c, cam_t_w2c]), jnp.array([0, 0, 0, 1])]
-        )
-        cam_pose = jnp.linalg.inv(cam_pose_w2c)
-        cam_pose = Pose.from_matrix(
-            cam_pose.at[:3, 3].set(cam_pose[:3, 3] * 1.0 / 1000.0)
-        )
-        data["camera_pose"] = cam_pose
-
-        cam_K = np.array(cam_K)
-        fx, fy, cx, cy = (
-            cam_K[0, 0],
-            cam_K[1, 1],
-            cam_K[0, 2],
-            cam_K[1, 2],
-        )
-        data["camera_intrinsics"] = jnp.array([fx, fy, cx, cy])
-
         cam_depth_scale = image_cam_data["depth_scale"]
+
+        image_cam_data_jnp = {k: jnp.array(v) for k, v in image_cam_data.items()}
+
+        camera_intrinsics, cam_pose = get_camera_K_pose_from_dict(image_cam_data_jnp)
+        data["camera_pose"] = cam_pose
+        data["camera_intrinsics"] = camera_intrinsics
 
         # get rgb image
         rgb = jnp.array(Image.open(os.path.join(scene_rgb_images_dir, f"{img_id}.png")))
@@ -122,6 +139,9 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
         # get depth image
         depth = jnp.array(
             Image.open(os.path.join(scene_depth_images_dir, f"{img_id}.png"))
+        )
+        rgbd = jnp.concatenate(
+            [rgb / 255.0, (depth * cam_depth_scale / 1000.0)[..., None]], axis=-1
         )
         rgbd = jnp.concatenate(
             [rgb / 255.0, (depth * cam_depth_scale / 1000.0)[..., None]], axis=-1
@@ -138,26 +158,16 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
         # get GT object model ID+poses
         objects_gt_data = scene_imgs_gt_data[remove_zero_pad(img_id)]
-        gt_poses = []
-        gt_ids = []
-        for d in objects_gt_data:
-            model_R = jnp.array(d["cam_R_m2c"]).reshape(3, 3)
-            model_t = jnp.array(d["cam_t_m2c"]).reshape(3, 1)
-            model_pose = jnp.vstack(
-                [jnp.hstack([model_R, model_t]), jnp.array([0, 0, 0, 1])]
-            )
-            model_pose = model_pose.at[:3, 3].set(model_pose[:3, 3] * 1.0 / 1000.0)
-            gt_poses.append(model_pose)
-
-            obj_id = d["obj_id"] - 1
-
-            gt_ids.append(obj_id)
-
-        data["object_types"] = jnp.array(gt_ids)
-        data["object_poses"] = cam_pose @ Pose.stack_poses(
-            [Pose.from_matrix(p) for p in jnp.array(gt_poses)]
+        merged_dict = jax.tree_util.tree_map(
+            lambda *args: jnp.stack(args), *objects_gt_data
         )
 
+        object_types, object_poses = get_pose_object_info_from_dict_vmap(
+            merged_dict, cam_pose
+        )
+
+        data["object_types"] = jnp.array(object_types)
+        data["object_poses"] = object_poses
         all_data.append(data)
     return all_data
 

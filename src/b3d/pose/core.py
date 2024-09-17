@@ -1,5 +1,6 @@
 from typing import TypeAlias
 
+import genjax
 import jax
 import jax.numpy as jnp
 from jax.scipy.spatial.transform import Rotation as Rot
@@ -10,6 +11,30 @@ Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
 Int: TypeAlias = Array
 Quaternion: TypeAlias = Array
+
+
+# GenJAX Distributions
+@jax.jit
+def sample_uniform_pose_centered(key, center_pose, low, high):
+    keys = jax.random.split(key, 2)
+    pos = jax.random.uniform(keys[0], (3,)) * (high - low) + low + center_pose.position
+    quat = jax.random.normal(keys[1], (4,))
+    quat = quat / jnp.linalg.norm(quat)
+    return Pose(pos, quat)
+
+
+def logpdf_uniform_pose_centered(pose, center_pose, low, high):
+    position_delta = pose.pos - center_pose.pos
+    valid = (low <= position_delta) & (position_delta <= high)
+    position_score = jnp.log(
+        (valid * 1.0) * (jnp.ones_like(position_delta) / (high - low))
+    )
+    return position_score.sum() + jnp.pi**2
+
+
+uniform_pose_centered = genjax.exact_density(
+    sample_uniform_pose_centered, logpdf_uniform_pose_centered
+)
 
 
 def multiply_quats(q1, q2):
@@ -379,7 +404,15 @@ class Pose:
         jax.vmap(sample_uniform_pose, in_axes=(0, None, None))
     )
     sample_gaussian_vmf_pose = sample_gaussian_vmf_pose
+
     sample_gaussian_vmf_pose_jit = jax.jit(sample_gaussian_vmf_pose)
     sample_gaussian_vmf_pose_vmap = jax.vmap(
         sample_gaussian_vmf_pose, in_axes=(0, None, None, None)
     )
+
+    logpdf_gaussian_vmf_pose = logpdf_gaussian_vmf_pose
+    logpdf_gaussian_vmf_pose_vmap = jax.jit(
+        jax.vmap(logpdf_gaussian_vmf_pose, in_axes=(0, None, None, None))
+    )
+
+    uniform_pose_centered = uniform_pose_centered

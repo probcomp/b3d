@@ -15,7 +15,14 @@ from b3d.chisight.gen3d.inference_moves import (
     propose_other_latents_given_pose,
     propose_pose,
 )
-from b3d.chisight.gen3d.model import get_hypers, get_new_state
+from b3d.chisight.gen3d.model import (
+    dynamic_object_generative_model,
+    get_hypers,
+    get_new_state,
+    make_colors_choicemap,
+    make_depth_nonreturn_prob_choicemap,
+    make_visibility_prob_choicemap,
+)
 
 
 @Pytree.dataclass
@@ -41,6 +48,29 @@ class InferenceHyperparams(Pytree):
     pose_proposal_conc: float
     prev_color_proposal_laplace_scale: float
     obs_color_proposal_laplace_scale: float
+
+
+def get_initial_trace(key, hyperparams, initial_state, initial_observed_rgbd):
+    """
+    Get the initial trace, given the initial state.
+    """
+    choicemap = (
+        C.d(
+            {
+                "pose": initial_state["pose"],
+                "color_scale": initial_state["color_scale"],
+                "depth_scale": initial_state["depth_scale"],
+                "rgbd": initial_observed_rgbd,
+            }
+        )
+        ^ make_visibility_prob_choicemap(initial_state["visibility_prob"])
+        ^ make_colors_choicemap(initial_state["colors"])
+        ^ make_depth_nonreturn_prob_choicemap(initial_state["depth_nonreturn_prob"])
+    )
+    trace, _ = dynamic_object_generative_model.importance(
+        key, choicemap, (hyperparams, initial_state)
+    )
+    return trace
 
 
 @jax.jit

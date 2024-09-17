@@ -2,9 +2,7 @@
 
 import os
 
-import b3d.chisight.gen3d.image_kernel as image_kernel
-import b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels as pixel_rgbd_kernels
-import b3d.chisight.gen3d.transition_kernels as transition_kernels
+import b3d.chisight.gen3d.inference as inference
 import fire
 import genjax
 import jax
@@ -36,30 +34,10 @@ def run_tracking(scene=None, object=None, debug=False):
     elif isinstance(scene, list):
         scenes = scene
 
-    hyperparams = {
-        "pose_kernel": transition_kernels.GaussianVMFPoseDriftKernel(
-            variance=0.02, concentration=1000.0
-        ),
-        "color_kernel": transition_kernels.LaplaceNotTruncatedColorDriftKernel(
-            scale=0.02
-        ),
-        "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, support=jnp.array([1e-5, 1.0 - 1e-5])
-        ),
-        "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, support=jnp.array([1e-5, 1.0 - 1e-5])
-        ),
-        "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05,
-            support=jnp.array([0.01, 0.005, 0.01, 0.02]),
-        ),
-        "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-            resample_probability=0.05, support=jnp.array([0.001])
-        ),
-        "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(
-            pixel_rgbd_kernels.OldOcclusionPixelRGBDDistribution()
-        ),
-    }
+    import b3d.chisight.gen3d.settings
+
+    hyperparams = b3d.chisight.gen3d.settings.hyperparams
+    # inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
 
     for scene_id in scenes:
         print(f"Scene {scene_id}")
@@ -173,19 +151,20 @@ def run_tracking(scene=None, object=None, debug=False):
                 key, choicemap, (hyperparams, previous_state)
             )[0]
 
-            import b3d.chisight.gen3d.inference as inference
-            import b3d.chisight.gen3d.inference_old as inference_old
-            import b3d.chisight.gen3d.settings
-
-            inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
-
             ### Run inference ###
             for T in tqdm(range(len(all_data))):
                 key = b3d.split_key(key)
-                trace = inference.advance_time(key, trace, all_data[T]["rgbd"])
-                trace = inference_old.inference_step(trace, key, inference_hyperparams)[
-                    0
-                ]
+                trace = inference.inference_step_c2f(
+                    key,
+                    2,  # number of sequential iterations of the parallel pose proposal to consider
+                    3000,  # number of poses to propose in parallel
+                    # So the total number of poses considered at each step of C2F is 5000 * 1
+                    trace,
+                    all_data[T]["rgbd"],
+                    prev_color_proposal_laplace_scale=0.1,  # inference_hyperparams.prev_color_proposal_laplace_scale,
+                    obs_color_proposal_laplace_scale=0.1,  # inference_hyperparams.obs_color_proposal_laplace_scale,
+                    do_stochastic_color_proposals=False,
+                )
                 tracking_results[T] = trace
 
                 if debug:
@@ -209,19 +188,12 @@ def run_tracking(scene=None, object=None, debug=False):
                 quaternion=inferred_poses.quat,
             )
 
-            trace = tracking_results[len(all_data) - 1]
-            latent_rgb = b3d.chisight.gen3d.image_kernel.get_latent_rgb_image(
-                trace.get_retval()["new_state"], trace.get_args()[0]
-            )
+            import b3d.chisight.gen3d.visualization as viz
 
-            a = b3d.viz_rgb(
-                trace.get_choices()["rgbd"][..., :3],
-            )
-            b = b3d.viz_rgb(
-                latent_rgb[..., :3],
-            )
-            b3d.multi_panel([a, b, b3d.overlay_image(a, b)]).save(
-                f"photo_SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}_POSES.png"
+            viz.make_video_from_traces(
+                [tracking_results[t] for t in range(len(all_data))],
+                f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.mp4",
+                scale=0.25,
             )
 
 

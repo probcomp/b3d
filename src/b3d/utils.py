@@ -911,3 +911,16 @@ def make_grid_points(min_vec, max_vec, num_vec):
     )
     deltas = deltas.reshape((-1, len(min_vec)), order="F")
     return deltas
+
+
+def scale_image(img, factor):
+    """Scale an image.
+
+    Args:
+        img (PIL.Image): Image to scale.
+        factor (float): Scale factor.
+    Returns:
+        PIL.Image: Scaled image.
+    """
+    w, h = img.size
+    return img.resize((int(w * factor), int(h * factor)))

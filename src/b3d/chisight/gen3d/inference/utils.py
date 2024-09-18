@@ -4,19 +4,12 @@ import jax.random
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
-from jax.random import split
 
-from b3d import Pose
-from b3d.modeling_utils import renormalized_color_laplace
 
-from ..image_kernel import PixelsPointsAssociation
-from ..model import (
-    get_hypers,
-    get_n_vertices,
-    get_new_state,
-    get_observed_rgbd,
-    get_prev_state,
-)
+def logmeanexp(vec):
+    vec = jnp.where(jnp.isnan(vec), -jnp.inf, vec)
+    return jax.scipy.special.logsumexp(vec) - jnp.log(len(vec))
+
 
 def update_field(key, trace, fieldname, value):
     """
@@ -79,6 +72,7 @@ def all_pairs(X, Y):
     That is, `ret[i, :]` is a pair [x, y] for some x in X and y in Y.
     """
     return jnp.swapaxes(jnp.stack(jnp.meshgrid(X, Y), axis=-1), 0, 1).reshape(-1, 2)
+
 
 def normalize_log_scores(scores):
     """

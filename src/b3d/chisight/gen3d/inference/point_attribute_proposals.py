@@ -1,12 +1,8 @@
 import jax
 import jax.numpy as jnp
 import jax.random
-from genjax import ChoiceMapBuilder as C
-from genjax import Diff
-from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
-from b3d import Pose
 from b3d.modeling_utils import renormalized_color_laplace
 
 from ..image_kernel import PixelsPointsAssociation
@@ -17,7 +13,8 @@ from ..model import (
     get_observed_rgbd,
     get_prev_state,
 )
-from .utils import all_pairs, normalize_log_scores, update_field, update_vmapped_fields
+from .utils import all_pairs, normalize_log_scores
+
 
 def propose_all_pointlevel_attributes(key, trace, inference_hyperparams):
     """

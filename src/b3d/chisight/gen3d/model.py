@@ -25,25 +25,31 @@ def dynamic_object_generative_model(hyperparams, previous_state):
     color_scale_kernel = hyperparams["color_scale_kernel"]
 
     pose = pose_kernel(previous_state["pose"]) @ "pose"
-    colors = color_kernel.vmap()(previous_state["colors"]) @ "colors"
-    visibility_prob = (
+    color_for_each_latent_point = (
+        color_kernel.vmap()(previous_state["colors"]) @ "colors"
+    )
+    visibility_prob_for_each_latent_point = (
         visibility_prob_kernel.vmap()(previous_state["visibility_prob"])
         @ "visibility_prob"
     )
-    depth_nonreturn_prob = (
+    depth_nonreturn_prob_for_each_latent_point = (
         depth_nonreturn_prob_kernel.vmap()(previous_state["depth_nonreturn_prob"])
         @ "depth_nonreturn_prob"
     )
-    depth_scale = depth_scale_kernel(previous_state["depth_scale"]) @ "depth_scale"
-    color_scale = color_scale_kernel(previous_state["color_scale"]) @ "color_scale"
+    global_depth_scale = (
+        depth_scale_kernel(previous_state["depth_scale"]) @ "depth_scale"
+    )
+    global_color_scale = (
+        color_scale_kernel(previous_state["color_scale"]) @ "color_scale"
+    )
 
     new_state = {
         "pose": pose,
-        "colors": colors,
-        "visibility_prob": visibility_prob,
-        "depth_nonreturn_prob": depth_nonreturn_prob,
-        "depth_scale": depth_scale,
-        "color_scale": color_scale,
+        "colors": color_for_each_latent_point,
+        "visibility_prob": visibility_prob_for_each_latent_point,
+        "depth_nonreturn_prob": depth_nonreturn_prob_for_each_latent_point,
+        "depth_scale": global_depth_scale,
+        "color_scale": global_color_scale,
     }
 
     if "image_kernel" not in hyperparams:

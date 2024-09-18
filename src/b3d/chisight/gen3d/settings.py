@@ -1,8 +1,8 @@
 import jax.numpy as jnp
 
 import b3d.chisight.gen3d.image_kernel as image_kernel
-import b3d.chisight.gen3d.inference_old as inference_old
 import b3d.chisight.gen3d.transition_kernels as transition_kernels
+from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     RenormalizedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
@@ -50,10 +50,8 @@ hyperparams = {
     ),
 }
 
-inference_hyperparams = inference_old.InferenceHyperparams(
-    n_poses=6000,
-    pose_proposal_std=0.04,
-    pose_proposal_conc=1000.0,
+inference_hyperparams = InferenceHyperparams(
+    n_poses=4000,
     do_stochastic_color_proposals=False,
     prev_color_proposal_laplace_scale=0.1,
     obs_color_proposal_laplace_scale=0.1,

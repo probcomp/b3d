@@ -1,7 +1,7 @@
 import os
 
 import b3d
-import b3d.chisight.gen3d.inference as i
+import b3d.chisight.gen3d.inference_old as i
 import b3d.chisight.gen3d.model
 import b3d.chisight.gen3d.settings
 import b3d.io.data_loader

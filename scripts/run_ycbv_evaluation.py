@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 import b3d
-import b3d.chisight.gen3d.inference as inference
+import b3d.chisight.gen3d.inference_old as inference_old
 import b3d.chisight.gen3d.settings as settings
 import b3d.chisight.gen3d.visualization as viz
 import fire
@@ -91,7 +91,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
             ### Run inference ###
             key = jax.random.PRNGKey(156)
-            trace = inference.get_initial_trace(
+            trace = inference_old.get_initial_trace(
                 key, hyperparams, initial_state, all_data[0]["rgbd"]
             )
 
@@ -108,7 +108,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
             for T in tqdm(range(maxT)):
                 key = b3d.split_key(key)
-                trace = inference.inference_step_c2f(
+                trace = inference_old.inference_step_c2f(
                     key,
                     2,  # number of sequential iterations of the parallel pose proposal to consider
                     3000,  # number of poses to propose in parallel

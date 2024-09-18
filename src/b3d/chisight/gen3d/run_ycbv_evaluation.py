@@ -6,14 +6,16 @@ import pprint
 from datetime import datetime
 from pathlib import Path
 
-import b3d
-import b3d.chisight.gen3d.inference.inference as inference
-import b3d.chisight.gen3d.settings as settings
-import b3d.chisight.gen3d.visualization as viz
 import fire
 import jax
 import jax.numpy as jnp
 import rerun as rr
+from tqdm import tqdm
+
+import b3d
+import b3d.chisight.gen3d.inference.inference as inference
+import b3d.chisight.gen3d.settings as settings
+import b3d.chisight.gen3d.visualization as viz
 from b3d import Pose
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
@@ -21,7 +23,6 @@ from b3d.chisight.gen3d.dataloading import (
     load_scene,
 )
 from b3d.chisight.gen3d.model import viz_trace as rr_viz_trace
-from tqdm import tqdm
 
 
 def setup_save_directory():

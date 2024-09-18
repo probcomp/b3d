@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import copy
 import os
 import pprint
 from datetime import datetime
@@ -55,7 +54,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
         setup_save_directory()
     )
 
-    hyperparams = copy.deepcopy(settings.hyperparams)
+    hyperparams = settings.hyperparams
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
     save_hyperparams(folder_name, hyperparams, inference_hyperparams)
 

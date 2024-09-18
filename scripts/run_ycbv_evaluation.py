@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 import b3d
-import b3d.chisight.gen3d.inference_old as inference_old
+import b3d.chisight.gen3d.inference.inference as inference
 import b3d.chisight.gen3d.settings as settings
 import b3d.chisight.gen3d.visualization as viz
 import fire
@@ -91,7 +91,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
             ### Run inference ###
             key = jax.random.PRNGKey(156)
-            trace = inference_old.get_initial_trace(
+            trace = inference.get_initial_trace(
                 key, hyperparams, initial_state, all_data[0]["rgbd"]
             )
 
@@ -108,16 +108,8 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
             for T in tqdm(range(maxT)):
                 key = b3d.split_key(key)
-                trace = inference_old.inference_step_c2f(
-                    key,
-                    2,  # number of sequential iterations of the parallel pose proposal to consider
-                    3000,  # number of poses to propose in parallel
-                    # So the total number of poses considered at each step of C2F is 5000 * 1
-                    trace,
-                    all_data[T]["rgbd"],
-                    prev_color_proposal_laplace_scale=0.1,  # inference_hyperparams.prev_color_proposal_laplace_scale,
-                    obs_color_proposal_laplace_scale=0.1,  # inference_hyperparams.obs_color_proposal_laplace_scale,
-                    do_stochastic_color_proposals=False,
+                trace, _ = inference.inference_step(
+                    key, trace, all_data[T]["rgbd"], inference_hyperparams
                 )
                 tracking_results[T] = trace
 

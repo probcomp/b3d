@@ -40,12 +40,14 @@ def inference_step(
     get_all_metadata=False,
     get_all_weights=False,
 ):
+    print("In inference_step")
     if do_advance_time:
         key, subkey = split(key)
         trace = advance_time(subkey, trace, observed_rgbd)
 
     @jax.jit
     def c2f_step(trace, key, pose_proposal_args):
+        print("in c2f step")
         k1, k2, k3 = split(key, 3)
 
         # Propose the poses
@@ -61,6 +63,7 @@ def inference_step(
         def propose_other_latents_given_pose_and_get_scores(
             key, proposed_pose, trace, inference_hyperparams
         ):
+            print("in propose other latents")
             proposed_trace, log_q, _ = propose_other_latents_given_pose(
                 key, trace, proposed_pose, inference_hyperparams
             )

@@ -49,7 +49,9 @@ def save_hyperparams(folder_name, hyperparams, inference_hyperparams):
         f.write(pprint.pformat(inference_hyperparams))
 
 
-def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
+def run_tracking(
+    scene=None, object=None, save_rerun=False, max_n_frames=None, use_gt_pose=False
+):
     folder_name, video_folder_name, npy_folder_name, rr_folder_name = (
         setup_save_directory()
     )
@@ -90,6 +92,12 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
             tracking_results = {}
 
             ### Run inference ###
+            def gt_pose(T):
+                return (
+                    all_data[T]["camera_pose"].inv()
+                    @ all_data[T]["object_poses"][OBJECT_INDEX]
+                )
+
             key = jax.random.PRNGKey(156)
             trace = inference.get_initial_trace(
                 key, hyperparams, initial_state, all_data[0]["rgbd"]
@@ -109,7 +117,12 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
             for T in tqdm(range(maxT)):
                 key = b3d.split_key(key)
                 trace, _ = inference.inference_step(
-                    key, trace, all_data[T]["rgbd"], inference_hyperparams
+                    key,
+                    trace,
+                    all_data[T]["rgbd"],
+                    inference_hyperparams,
+                    gt_pose=gt_pose(T),
+                    use_gt_pose=use_gt_pose,
                 )
                 tracking_results[T] = trace
 
@@ -118,8 +131,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
                         trace,
                         T,
                         ground_truth_vertices=meshes[OBJECT_INDEX].vertices,
-                        ground_truth_pose=all_data[T]["camera_pose"].inv()
-                        @ all_data[T]["object_poses"][OBJECT_INDEX],
+                        ground_truth_pose=gt_pose(T),
                     )
 
             inferred_poses = Pose.stack_poses(

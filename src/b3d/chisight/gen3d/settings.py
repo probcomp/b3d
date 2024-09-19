@@ -15,6 +15,7 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
     FullPixelRGBDDistribution,
 )
 
+# TODO: possibly update these...
 p_resample_color = 0.005
 hyperparams = {
     "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.2),
@@ -40,7 +41,7 @@ hyperparams = {
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
         resample_probability=0.1, support=jnp.array([0.05, 0.1, 0.15])
     ),
-    "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(
+    "image_kernel": image_kernel.UniquePixelsImageKernel(
         FullPixelRGBDDistribution(
             RenormalizedLaplacePixelColorDistribution(),
             UniformPixelColorDistribution(),
@@ -48,6 +49,7 @@ hyperparams = {
             UniformPixelDepthDistribution(),
         )
     ),
+    "unexplained_depth_nonreturn_prob": 0.02,
 }
 
 inference_hyperparams = InferenceHyperparams(
@@ -55,4 +57,5 @@ inference_hyperparams = InferenceHyperparams(
     do_stochastic_color_proposals=False,
     prev_color_proposal_laplace_scale=0.1,
     obs_color_proposal_laplace_scale=0.1,
+    in_inference_only_assoc_one_point_per_pixel=True,
 )

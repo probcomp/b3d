@@ -275,24 +275,20 @@ if __name__ == "__main__":
     end = time.time()
     print(f"Time taken: {(end-start)*1000} milliseconds for {ntr*nrot} poses")
 
-    ### Visualize ###
-    viz_grid = pose_grid_jit(
-        pose0,
-        min_x=min_x,
-        min_y=min_y,
-        min_z=min_z,
-        max_x=max_x,
-        max_y=max_y,
-        max_z=max_z,
-        nx=nx,
-        ny=ny,
-        nz=ny,
-        min_euler_angle=min_euler,
-        max_euler_angle=max_euler,
-        n_xrot=1,
-        n_yrot=1,
-        n_zrot=1,
-    )
-    b3d.rr_init("pose_grid_test")
-    rr_log_pose_arrows_grid(viz_grid)
-    b3d.rr_log_pose(pose0, channel="original_pose")
+    # ### Visualize ###
+    # viz_grid = pose_grid_jit(
+    #     pose0,
+    #     half_dx=half_dx,
+    #     half_dy=half_dy,
+    #     half_dz=half_dz,
+    #     half_nx=half_nx,
+    #     half_ny=half_ny,
+    #     half_nz=half_nz,
+    #     half_dangle=half_d_euler,
+    #     half_n_xrot=half_n_alpha,
+    #     half_n_yrot=half_n_beta,
+    #     half_n_zrot=half_n_gamma,
+    # )
+    # b3d.rr_init("pose_grid_test")
+    # rr_log_pose_arrows_grid(viz_grid)
+    # b3d.rr_log_pose(pose0, channel="original_pose")

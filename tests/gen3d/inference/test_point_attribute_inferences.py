@@ -1,4 +1,4 @@
-import b3d.chisight.gen3d.inference_moves as inference_moves
+import b3d.chisight.gen3d.inference.point_attribute_proposals as point_attribute_proposals
 import b3d.chisight.gen3d.settings
 import jax
 import jax.numpy as jnp
@@ -38,7 +38,7 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
     def get_visibility_prob_sample(
         key, observed_rgbd_for_point, previous_visibility_prob
     ):
-        sample, _ = inference_moves._propose_a_points_attributes(
+        sample, _ = point_attribute_proposals._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
             latent_rgbd_for_point,
@@ -105,7 +105,7 @@ def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
     latent_rgbd_for_point = jnp.concatenate([previous_color, jnp.array([1.0])])
 
     def get_dnr_prob_sample(key, observed_rgbd_for_point, previous_dnrp):
-        sample, _ = inference_moves._propose_a_points_attributes(
+        sample, _ = point_attribute_proposals._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
             latent_rgbd_for_point,
@@ -173,7 +173,7 @@ def test_color_prob_inference(hyperparams_and_inference_hyperparams):
     )
 
     def get_color_sample(key, observed_rgbd_for_point, previous_color):
-        sample, _ = inference_moves._propose_a_points_attributes(
+        sample, _ = point_attribute_proposals._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
             latent_rgbd_for_point,

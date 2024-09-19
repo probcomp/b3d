@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
-import copy
 import os
 import pprint
 from datetime import datetime
 from pathlib import Path
 
-import b3d
-import b3d.chisight.gen3d.inference as inference
-import b3d.chisight.gen3d.settings as settings
-import b3d.chisight.gen3d.visualization as viz
 import fire
 import jax
 import jax.numpy as jnp
 import rerun as rr
+from tqdm import tqdm
+
+import b3d
+import b3d.chisight.gen3d.inference.inference as inference
+import b3d.chisight.gen3d.settings as settings
+import b3d.chisight.gen3d.visualization as viz
 from b3d import Pose
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
@@ -21,7 +22,6 @@ from b3d.chisight.gen3d.dataloading import (
     load_scene,
 )
 from b3d.chisight.gen3d.model import viz_trace as rr_viz_trace
-from tqdm import tqdm
 
 
 def setup_save_directory():
@@ -54,7 +54,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
         setup_save_directory()
     )
 
-    hyperparams = copy.deepcopy(settings.hyperparams)
+    hyperparams = settings.hyperparams
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
     save_hyperparams(folder_name, hyperparams, inference_hyperparams)
 
@@ -108,16 +108,8 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
             for T in tqdm(range(maxT)):
                 key = b3d.split_key(key)
-                trace = inference.inference_step_c2f(
-                    key,
-                    2,  # number of sequential iterations of the parallel pose proposal to consider
-                    3000,  # number of poses to propose in parallel
-                    # So the total number of poses considered at each step of C2F is 5000 * 1
-                    trace,
-                    all_data[T]["rgbd"],
-                    prev_color_proposal_laplace_scale=0.1,  # inference_hyperparams.prev_color_proposal_laplace_scale,
-                    obs_color_proposal_laplace_scale=0.1,  # inference_hyperparams.obs_color_proposal_laplace_scale,
-                    do_stochastic_color_proposals=False,
+                trace, _ = inference.inference_step(
+                    key, trace, all_data[T]["rgbd"], inference_hyperparams
                 )
                 tracking_results[T] = trace
 

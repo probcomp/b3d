@@ -40,7 +40,7 @@ jobs:
 
           # ensure all deps across all environments and platforms are solving
           pixi --version
-          pixi clean && pixi clean cache --yes
+          pixi clean && pixi clean cache -y
           pixi install --locked -e default -v --pypi-keyring-provider subprocess
           pixi install --locked -e cpu -v --pypi-keyring-provider subprocess
           pixi install --locked -e gpu -v --pypi-keyring-provider subprocess

@@ -26,7 +26,7 @@ from b3d.chisight.gen3d.model import viz_trace as rr_viz_trace
 
 def setup_save_directory():
     # Make a folder, stamped with the current time.
-    current_time = datetime.now().strftime("%Y-%m-%d--%H:%M")
+    current_time = datetime.now().strftime("%Y-%m-%d--%H:%M:%S")
     folder_name = (
         b3d.get_root_path() / "test_results" / "gen3d" / f"gen3d_{current_time}"
     )
@@ -49,7 +49,14 @@ def save_hyperparams(folder_name, hyperparams, inference_hyperparams):
         f.write(pprint.pformat(inference_hyperparams))
 
 
-def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
+def run_tracking(
+    scene=None,
+    object=None,
+    live_rerun=False,
+    save_rerun=False,
+    subdir="train_real",
+    max_n_frames=None,
+):
     folder_name, video_folder_name, npy_folder_name, rr_folder_name = (
         setup_save_directory()
     )
@@ -60,8 +67,15 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
     FRAME_RATE = 50
 
+    assert not (
+        live_rerun and save_rerun
+    ), "Cannot save and live rerun at the same time"
+
+    if live_rerun:
+        b3d.rr_init("run_ycbv_evaluation")
+
     if scene is None:
-        scenes = range(48, 60)
+        scenes = range(1, 15)
     elif isinstance(scene, int):
         scenes = [scene]
     elif isinstance(scene, list):
@@ -69,7 +83,7 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
 
     for scene_id in scenes:
         all_data, meshes, renderer, intrinsics, initial_object_poses = load_scene(
-            scene_id, FRAME_RATE
+            scene_id, FRAME_RATE, subdir=subdir
         )
 
         object_indices = (
@@ -112,6 +126,15 @@ def run_tracking(scene=None, object=None, save_rerun=False, max_n_frames=None):
                     key, trace, all_data[T]["rgbd"], inference_hyperparams
                 )
                 tracking_results[T] = trace
+
+                if live_rerun:
+                    rr_viz_trace(
+                        trace,
+                        T,
+                        ground_truth_vertices=meshes[OBJECT_INDEX].vertices,
+                        ground_truth_pose=all_data[T]["camera_pose"].inv()
+                        @ all_data[T]["object_poses"][OBJECT_INDEX],
+                    )
 
                 if save_rerun:
                     rr_viz_trace(

@@ -56,6 +56,14 @@ def viz_from_grid(pose_grid, rerun_session_name="grid_test", ycb_obj_id=13):
         viz_rotation(pose_viz, mesh_vertices, t + 1)
 
 
+def rr_log_pose_arrows_grid(pose_grid, channel="pose_grid", scale=0.02):
+    origins = jnp.tile(pose_grid.pos, (3, 1))
+    colors = jnp.tile(jnp.eye(3), (len(origins), 1))
+    vectors = jax.vmap(lambda pose: pose.as_matrix()[:3, :3].T)(pose_grid) * scale
+    vectors = vectors.reshape(-1, 3)
+    rr.log(channel, rr.Arrows3D(origins=origins, vectors=vectors, colors=colors))
+
+
 def make_rotation_grid_enumeration(
     min_angle,
     max_angle,
@@ -240,3 +248,25 @@ if __name__ == "__main__":
     )
     end = time.time()
     print(f"Time taken: {(end-start)*1000} milliseconds for {ntr*nrot} poses")
+
+    ### Visualize ###
+    viz_grid = pose_grid_jit(
+        pose0,
+        min_x=min_x,
+        min_y=min_y,
+        min_z=min_z,
+        max_x=max_x,
+        max_y=max_y,
+        max_z=max_z,
+        nx=nx,
+        ny=ny,
+        nz=ny,
+        min_euler_angle=min_euler,
+        max_euler_angle=max_euler,
+        n_xrot=1,
+        n_yrot=1,
+        n_zrot=1,
+    )
+    b3d.rr_init("pose_grid_test")
+    rr_log_pose_arrows_grid(viz_grid)
+    b3d.rr_log_pose(pose0, channel="original_pose")

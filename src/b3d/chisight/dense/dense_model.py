@@ -34,23 +34,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
 
     image_likelihood = ImageLikelihood()
 
-    @Pytree.dataclass
-    class PixelIndexDistribution(genjax.ExactDensity):
-        def sample(self, key, log_pixel_weightings, num_rays):
-            keys = jax.random.split(key, num_rays.const)
-            flat_indices = jax.vmap(genjax.categorical.sample,in_axes=(0, None,))(
-                    keys,
-                    log_pixel_weightings.flatten())
-            return flat_indices # jnp.unravel_index(flat_indices, log_pixel_weightings.shape) 
-        
-        def logpdf(self, inds, log_pixel_weightings, num_rays):
-            #flat_indices = jnp.ravel_multi_index(inds, log_pixel_weightings.shape, mode='clip')
-            flat_indices = inds
-            pixel_logpdfs = genjax.categorical.logpdf(flat_indices, log_pixel_weightings.flatten())
-            return pixel_logpdfs.sum()
-
-    pixel_index_distribution = PixelIndexDistribution()
-
     @genjax.gen
     def dense_multiobject_model(args_dict):
         meshes = args_dict["meshes"]
@@ -76,27 +59,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         scene_mesh = Mesh.transform_and_merge_meshes(meshes, all_poses).transform(
             camera_pose.inv()
         )
-        rasterize_results = renderer.rasterize(scene_mesh.vertices, scene_mesh.faces)
-
-        latent_rgbd = renderer.interpolate(
-            jnp.concatenate(
-                [scene_mesh.vertex_attributes, scene_mesh.vertices[..., -1:]], axis=-1
-            ),
-            rasterize_results,
-            scene_mesh.faces,
-        )
-        
-        likelihood_args["fx"] = renderer.fx
-        likelihood_args["fy"] = renderer.fy
-        likelihood_args["cx"] = renderer.cx
-        likelihood_args["cy"] = renderer.cy
-        # rows and cols needs to depend on image likelihood
-
-        # uniform weighting from scene
-        weightings = latent_rgbd[...,3]/jnp.sum(latent_rgbd[...,3])
-        inds = pixel_index_distribution(weightings, args_dict["num_rays"]) @ "pixel_choices"
-        likelihood_args["rows"], likelihood_args["cols"] = jnp.unravel_index(inds, weightings.shape)
-
         likelihood_args["scene_mesh"] = scene_mesh
 
         depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"

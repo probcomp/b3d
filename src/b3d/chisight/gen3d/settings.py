@@ -15,13 +15,12 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
     FullPixelRGBDDistribution,
 )
 
-# TODO: possibly update these...
 p_resample_color = 0.005
 hyperparams = {
-    "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=0.2),
+    "pose_kernel": transition_kernels.GaussianVMFPoseDriftKernel(0.02, 1000.0),
     "color_kernel": transition_kernels.MixtureDriftKernel(
         [
-            transition_kernels.LaplaceNotTruncatedColorDriftKernel(scale=0.05),
+            transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.05),
             transition_kernels.UniformDriftKernel(
                 max_shift=0.15, min_val=jnp.zeros(3), max_val=jnp.ones(3)
             ),
@@ -57,5 +56,7 @@ inference_hyperparams = InferenceHyperparams(
     do_stochastic_color_proposals=False,
     prev_color_proposal_laplace_scale=0.1,
     obs_color_proposal_laplace_scale=0.1,
+    # If you don't use the UniquePixelsImageKernel, you should probably
+    # change this to False.
     in_inference_only_assoc_one_point_per_pixel=True,
 )

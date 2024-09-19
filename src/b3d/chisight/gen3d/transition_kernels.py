@@ -10,6 +10,7 @@ from tensorflow_probability.substrates import jax as tfp
 
 from b3d import Pose
 from b3d.chisight.dense.likelihoods.other_likelihoods import PythonMixturePixelModel
+from b3d.modeling_utils import renormalized_color_laplace
 
 
 @Pytree.dataclass
@@ -257,6 +258,17 @@ class LaplaceNotTruncatedColorDriftKernel(DriftKernel):
 
     def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
         return jax.scipy.stats.laplace.logpdf(new_value, prev_value, self.scale).sum()
+
+
+@Pytree.dataclass
+class RenormalizedLaplaceColorDriftKernel(DriftKernel):
+    scale: float = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_value: ArrayLike) -> ArrayLike:
+        return renormalized_color_laplace.sample(key, prev_value, self.scale)
+
+    def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
+        return renormalized_color_laplace.logpdf(new_value, prev_value, self.scale)
 
 
 @Pytree.dataclass

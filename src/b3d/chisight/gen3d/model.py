@@ -123,9 +123,9 @@ def viz_trace(
 
     vertices = hyperparams["vertices"]
     b3d.rr_log_cloud(
-        vertices,
+        vertices[visibility_prob > 0.1],
         "object/model",
-        colors,
+        colors[visibility_prob > 0.1],
     )
     b3d.rr_log_cloud(
         vertices,
@@ -133,9 +133,11 @@ def viz_trace(
         jnp.array([[1.0, 0.0, 0.0]]) * visibility_prob[..., None],
     )
     b3d.rr_log_cloud(
-        vertices,
+        vertices[visibility_prob > 0.1],
         "object/depth_nonreturn_prob",
-        jnp.array([[0.0, 1.0, 0.0]]) * depth_nonreturn_prob[..., None],
+        (jnp.array([[0.0, 1.0, 0.0]]) * depth_nonreturn_prob[..., None])[
+            visibility_prob > 0.1
+        ],
     )
 
     rr.log(
@@ -229,8 +231,8 @@ def get_blueprint():
             rrb.Horizontal(
                 rrb.Spatial3DView(origin="scene/"),
                 rrb.Horizontal(
-                    rrb.Spatial2DView(origin="image/rgb/observed"),
-                    rrb.Spatial2DView(origin="image/depth/observed"),
+                    rrb.Spatial2DView(origin="image/rgb/"),
+                    rrb.Spatial2DView(origin="image/depth/"),
                 ),
             ),
             rrb.Horizontal(

@@ -12,7 +12,7 @@ from b3d.chisight.gen3d.metrics import (
 TEST_FP_YCBV_RESULT_DIR = (
     FP_RESULTS_ROOT_DIR / "ycbv/2024-07-11-every-50-frames-gt-init"
 )
-ycb_dir = b3d.get_assets_path() / "bop/ycbv"
+ycb_dir = b3d.get_assets_path() / "bop/ycbv/test"
 
 
 @pytest.mark.skipif(
@@ -51,17 +51,19 @@ def test_ground_truth_pose(error_fn):
 )
 def test_compute_metric():
     # example showing how the metric can be computed
-    test_scene = 48
+    test_scene = 49
     obj_id = 0
     framerate = 50
-    num_scenes = b3d.io.data_loader.get_ycbv_num_test_images(ycb_dir, test_scene)
+    num_scenes = b3d.io.data_loader.get_ycbv_num_images(test_scene, subdir="test")
     image_ids = range(1, num_scenes + 1, framerate)
-    all_data = b3d.io.data_loader.get_ycbv_test_images(ycb_dir, test_scene, image_ids)
+    all_data = b3d.io.data_loader.get_ycbv_data(test_scene, image_ids, subdir="test")
 
     # get the gt mesh
     obj_id_str = str(all_data[0]["object_types"][obj_id] + 1).rjust(6, "0")
     print(obj_id_str)
-    mesh = b3d.Mesh.from_obj_file(ycb_dir / f"models/obj_{obj_id_str}.ply").scale(0.001)
+    mesh = b3d.Mesh.from_obj_file(ycb_dir / f"../models/obj_{obj_id_str}.ply").scale(
+        0.001
+    )
 
     # load the foundation pose tracking results
     fp_result = foundation_pose_ycbv_result.load(

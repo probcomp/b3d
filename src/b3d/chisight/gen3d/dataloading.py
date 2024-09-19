@@ -8,13 +8,13 @@ import b3d
 from b3d import Mesh
 
 
-def load_scene(scene_id, FRAME_RATE=50):
-    ycb_dir = os.path.join(b3d.utils.get_assets_path(), "bop/ycbv")
-    num_scenes = b3d.io.data_loader.get_ycbv_num_test_images(ycb_dir, scene_id)
+def load_scene(scene_id, FRAME_RATE=50, subdir="train_real"):
+    num_scenes = b3d.io.data_loader.get_ycbv_num_images(scene_id, subdir=subdir)
 
     image_ids = range(1, num_scenes + 1, FRAME_RATE)
-    all_data = b3d.io.get_ycbv_test_images(ycb_dir, scene_id, image_ids)
+    all_data = b3d.io.get_ycbv_data(scene_id, image_ids, subdir=subdir)
 
+    ycb_dir = os.path.join(b3d.utils.get_assets_path(), "bop/ycbv")
     meshes = [
         Mesh.from_obj_file(
             os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')

@@ -14,6 +14,7 @@ from natsort import natsorted
 from PIL import Image
 from tqdm import tqdm
 
+import b3d
 from b3d.mesh import Mesh
 from b3d.pose import Pose
 
@@ -84,12 +85,11 @@ get_pose_object_info_from_dict_vmap = jax.jit(
 )
 
 
-def get_ycbv_num_test_images(ycb_dir, scene_id):
+def get_ycbv_num_images(scene_id, subdir="test"):
+    ycb_dir = os.path.join(b3d.utils.get_assets_path(), f"bop/ycbv/{subdir}")
     scene_id = str(scene_id).rjust(6, "0")
-
-    data_dir = os.path.join(ycb_dir, "test")
     scene_data_dir = os.path.join(
-        data_dir, scene_id
+        ycb_dir, scene_id
     )  # depth, mask, mask_visib, rgb; scene_camera.json, scene_gt_info.json, scene_gt.json
 
     scene_rgb_images_dir = os.path.join(scene_data_dir, "rgb")
@@ -101,10 +101,10 @@ def get_ycbv_num_test_images(ycb_dir, scene_id):
     )
 
 
-def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
+def get_ycbv_data(scene_id, images_indices, fields=[], subdir="train_real"):
     scene_id = str(scene_id).rjust(6, "0")
+    data_dir = os.path.join(b3d.utils.get_assets_path(), f"bop/ycbv/{subdir}")
 
-    data_dir = os.path.join(ycb_dir, "test")
     scene_data_dir = os.path.join(
         data_dir, scene_id
     )  # depth, mask, mask_visib, rgb; scene_camera.json, scene_gt_info.json, scene_gt.json

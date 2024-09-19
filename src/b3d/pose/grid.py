@@ -1,128 +1,90 @@
+import os
+
 import jax
 import jax.numpy as jnp
+
+# for debug+test only
+import rerun as rr
+from jax.scipy.spatial.transform import Rotation
+
+import b3d
+from b3d import Mesh
 
 from .core import Pose
 
 
-def angle_axis_helper_edgecase(newZ):
-    zUnit = jnp.array([0.0, 0.0, 1.0])
-    axis = jnp.array([0.0, 1.0, 0.0])
-    geodesicAngle = jax.lax.cond(
-        jnp.allclose(newZ, zUnit, atol=1e-3),
-        lambda: 0.0,
-        lambda: jnp.pi,  # noqa: E731
+def viz_rotation(pose, vertices, t=0, channel="scene/transformed_mesh"):
+    """visualize a rotation of a given mesh vertex set in rerun"""
+    b3d.rr_set_time(t)
+
+    # render
+    b3d.rr_log_cloud(
+        pose.apply(vertices),
+        channel,
     )
-    return axis, geodesicAngle
-
-
-def angle_axis_helper(newZ):
-    zUnit = jnp.array([0.0, 0.0, 1.0])
-    axis = jnp.cross(zUnit, newZ)
-    theta = jax.lax.asin(jax.lax.clamp(-1.0, jnp.linalg.norm(axis), 1.0))
-    geodesicAngle = jax.lax.cond(
-        jnp.dot(zUnit, newZ) > 0,
-        lambda: theta,
-        lambda: jnp.pi - theta,  # noqa: E731
+    rr.log(
+        "info",
+        rr.TextDocument(
+            f"""
+            translation: {pose.pos}
+            rotation (xyzw): {pose.quaternion}
+            """.strip(),
+            media_type=rr.MediaType.MARKDOWN,
+        ),
     )
-    return axis, geodesicAngle
+    b3d.rr_log_pose(pose, "pose/xfm_pose")
 
 
-def axis_angle_to_quaternion(axis, angle):
-    # Normalize the axis to ensure it's a unit vector
-    direction = axis / jnp.linalg.norm(axis)
+def viz_from_grid(pose_grid, rerun_session_name="grid_test", ycb_obj_id=13):
+    # load vertices
+    ycb_dir = os.path.join(b3d.get_assets_path(), "bop/ycbv")
+    mesh = Mesh.from_obj_file(
+        os.path.join(ycb_dir, f'models/obj_{f"{ycb_obj_id + 1}".rjust(6, "0")}.ply')
+    ).scale(0.001)
+    cam_pose = Pose(
+        position=mesh.vertices.mean(axis=0), quaternion=jnp.array([0, 0, 0, 1])
+    )  # center the mesh for cleaner viz
+    mesh_vertices = cam_pose.inv().apply(mesh.vertices)
 
-    # Half-angle for quaternion computation
-    half_angle = angle / 2.0
-    sina = jnp.sin(half_angle)
-    cosa = jnp.cos(half_angle)
+    # setup viz
+    b3d.rr_init(rerun_session_name)
+    b3d.rr_log_pose(Pose.identity(), "pose/default_pose")
+    viz_rotation(Pose.identity(), mesh_vertices, 0, "pose/default_pose")
 
-    # Quaternion components
-    q_w = cosa  # Scalar part
-    q_x = direction[0] * sina  # x-component
-    q_y = direction[1] * sina  # y-component
-    q_z = direction[2] * sina  # z-component
-
-    # Return quaternion (scalar last)
-    return jnp.array([q_x, q_y, q_z, q_w])
-
-
-def geodesicHopf_rotate_within_axis(newZ, planarAngle):
-    """
-    Rotate an axis in 3D space by a planar angle
-    """
-    # newZ should be a normalized vector
-    # returns a 4x4 quaternion
-    zUnit = jnp.array([0.0, 0.0, 1.0])
-
-    # todo: implement cases where newZ is approx. -zUnit or approx. zUnit
-    axis, geodesicAngle = jax.lax.cond(
-        jnp.allclose(jnp.abs(newZ), zUnit, atol=1e-3),
-        angle_axis_helper_edgecase,
-        angle_axis_helper,
-        newZ,
-    )
-    left_pose = Pose(
-        jnp.array([0, 0, 0]), axis_angle_to_quaternion(axis, geodesicAngle)
-    )
-    right_pose = Pose(
-        jnp.array([0, 0, 0]), axis_angle_to_quaternion(zUnit, planarAngle)
-    )
-
-    return left_pose @ right_pose
-
-
-def fibonacci_sphere(samples_in_range, phi_range=jnp.pi):
-    ga = jnp.pi * (jnp.sqrt(5) - 1)  # golden angle
-    eps = 1e-10
-    min_y = jnp.cos(phi_range)
-
-    samples = jnp.round(samples_in_range * (2 / (1 - min_y + eps)))
-
-    def fib_point(i):
-        y = 1 - (i / (samples - 1)) * 2  # goes from 1 to -1
-        radius = jnp.sqrt(1 - y * y)
-        theta = ga * i
-        x = jnp.cos(theta) * radius
-        z = jnp.sin(theta) * radius
-        return jnp.array([x, z, y])
-
-    fib_sphere = jax.vmap(fib_point, in_axes=(0))
-    points = jnp.arange(samples_in_range)
-    return fib_sphere(points)
+    # visualize
+    for t, pose_viz in enumerate(pose_grid):
+        viz_rotation(pose_viz, mesh_vertices, t + 1)
 
 
 def make_rotation_grid_enumeration(
-    num_fibonacci_sphere_points,  # 5
-    num_axis_rotations,  # 2
-    min_rot_angle,
-    max_rot_angle,
-    sphere_angle_range,
+    min_angle,
+    max_angle,
+    n_alpha,
+    n_beta,
+    n_gamma,
 ) -> Pose:
     """
-    Generate uniformly spaced rotation proposals around a constrained region of SO(3)
-
-    Params:
-    num_fibonacci_sphere_points: number of rotation axes to sample, on the region of the fibonacci sphere specified by `sphere_angle_range`
-    num_axis_rotations: number of in-axis rotations to sample, in the interval [min_rot_angle, max_rot_angle]
-    min_rot_angle, max_rot_angle: the minimum and maximum rotation angle values; max_rot_angle - min_rot_angle leq 2*pi
-    sphere_angle_range: the maximum phi angle (in spherical coordinates) that bounds the region of the fibonacci sphere to sample rotation axes from; sphere_angle_range leq pi
-
-    Returns:
-    rotation proposals: b3d.Pose type with length (fib_sample*rot_sample)
+    Enumerate rotations via euler angles uniformly gridded in the range [min_angle, max_angle]
+    for each axis (angle of axes: X = alpha, Y = beta, Z = gamma)
     """
-    unit_sphere_directions = fibonacci_sphere(
-        num_fibonacci_sphere_points, sphere_angle_range
+    alphas = jnp.linspace(min_angle, max_angle, n_alpha)
+    betas = jnp.linspace(min_angle, max_angle, n_beta)
+    gammas = jnp.linspace(min_angle, max_angle, n_gamma)
+
+    # nest vmap over all axes
+    def _inner_proposal(alpha, beta, gamma):
+        return Rotation.from_euler("ZYX", jnp.array([gamma, beta, alpha]))
+
+    _proposal_z = lambda gamma, beta: jax.vmap(  # noqa:E731
+        _inner_proposal, in_axes=(None, None, 0)
+    )(gamma, beta, alphas)
+    _proposal_zy = lambda gamma: jax.vmap(_proposal_z, in_axes=(None, 0))(gamma, betas)  # noqa:E731
+    proposal_zyx = jax.vmap(_proposal_zy, in_axes=(0,))(gammas)
+
+    return Pose(
+        jnp.zeros((n_alpha * n_beta * n_gamma, 3)),
+        proposal_zyx.as_quat().reshape(-1, 4),
     )
-    in_axis_spin = jnp.linspace(min_rot_angle, max_rot_angle, num_axis_rotations)
-
-    inner_vmap = lambda axis_rot: jax.vmap(  # noqa:E731
-        geodesicHopf_rotate_within_axis, in_axes=(None, 0)
-    )(axis_rot, in_axis_spin)
-
-    _proposals = jax.vmap(inner_vmap, in_axes=(0,))(unit_sphere_directions)
-    proposals = _proposals.reshape(num_fibonacci_sphere_points * num_axis_rotations)
-
-    return proposals
 
 
 def make_translation_grid_enumeration(
@@ -157,16 +119,18 @@ def pose_grid(
     nx: int,
     ny: int,
     nz: int,
-    min_r: float,
-    max_r: float,
-    d_sph: float,
-    nfib: int,
-    naxis: int,
+    min_euler_angle: float,
+    max_euler_angle: float,
+    n_xrot: int,
+    n_yrot: int,
+    n_zrot: int,
 ) -> jnp.ndarray:
     tr_grid = make_translation_grid_enumeration(
         min_x, min_y, min_z, max_x, max_y, max_z, nx, ny, nz
     )
-    rot_grid = make_rotation_grid_enumeration(nfib, naxis, min_r, max_r, d_sph)
+    rot_grid = make_rotation_grid_enumeration(
+        min_euler_angle, max_euler_angle, n_xrot, n_yrot, n_zrot
+    )
 
     compose_pose = lambda tr, rot: pose_center.compose(tr).compose(rot)  # noqa:E731
     inner_vmap = lambda tr: jax.vmap(compose_pose, in_axes=(None, 0))(  # noqa:E731
@@ -180,41 +144,62 @@ def pose_grid(
 
 
 if __name__ == "__main__":
-    import time
-
+    # center pose
     xyz0 = jnp.array([0.0, 0.0, 0.0])
     rot0 = jnp.array([0.0, 0.0, 0.0, 1.0])
     pose0 = Pose(xyz0, rot0)
 
-    # grid size (translation)
-    nx, ny, nz = 5, 5, 5
+    # translation grid
+    nx = ny = nz = 5
     ntr = nx * ny * nz
+    print(f"Generating {ntr} translations")
+    min_x, min_y, min_z = -0.1, -0.1, 0.001
+    max_x, max_y, max_z = 0.1, 0.1, 0.2
 
-    # grid size (rotation)
-    nfib, naxis = 10, 10
-    nrot = nfib * naxis
+    # rotation grid
+    n_alpha = n_beta = n_gamma = 5
+    nrot = n_alpha * n_beta * n_gamma
+    print(f"Generating {nrot} rotations")
+    min_euler, max_euler = -jnp.pi / 6, jnp.pi / 6
+
+    ##################################
+    # Translation / Rotation grids
+    ##################################
+    tr_grid = make_translation_grid_enumeration(
+        min_x, min_y, min_z, max_x, max_y, max_z, nx, ny, nz
+    )
+    rot_grid = make_rotation_grid_enumeration(
+        min_euler, max_euler, n_alpha, n_beta, n_gamma
+    )
+
+    ##################################
+    # Whole pose grid
+    ##################################
 
     pose_grid_jit = jax.jit(
-        pose_grid, static_argnames=("nx", "ny", "nz", "nfib", "naxis")
+        pose_grid, static_argnames=("nx", "ny", "nz", "n_xrot", "n_yrot", "n_zrot")
     )
     grid = pose_grid_jit(
         pose0,
-        min_x=-1,
-        min_y=-1,
-        min_z=-1,
-        max_x=1,
-        max_y=1,
-        max_z=1,
+        min_x=min_x,
+        min_y=min_y,
+        min_z=min_z,
+        max_x=max_x,
+        max_y=max_y,
+        max_z=max_z,
         nx=nx,
         ny=ny,
         nz=ny,
-        min_r=-jnp.pi,
-        max_r=jnp.pi,
-        d_sph=jnp.pi,
-        nfib=nfib,
-        naxis=naxis,
+        min_euler_angle=min_euler,
+        max_euler_angle=max_euler,
+        n_xrot=n_alpha,
+        n_yrot=n_beta,
+        n_zrot=n_gamma,
     )
 
+    ##################################
+    # Test correctness
+    ##################################
     # sanity check sizes
     assert isinstance(
         grid, Pose
@@ -228,23 +213,30 @@ if __name__ == "__main__":
         4,
     ), f"Wrong shape for quat; expected {(ntr * nrot, 4)}, got {grid.quaternion.shape}"
 
+    # viz_from_grid(grid, rerun_session_name=f"GRID_{ntr}_{nrot}", ycb_obj_id=13)
+
+    # ##################################
+    # # Test time
+    # ##################################
+    import time
+
     start = time.time()
     timed_grid = pose_grid_jit(
         pose0,
-        min_x=-1,
-        min_y=-1,
-        min_z=-1,
-        max_x=1,
-        max_y=1,
-        max_z=1,
+        min_x=min_x,
+        min_y=min_y,
+        min_z=min_z,
+        max_x=max_x,
+        max_y=max_y,
+        max_z=max_z,
         nx=nx,
         ny=ny,
         nz=ny,
-        min_r=-jnp.pi,
-        max_r=jnp.pi,
-        d_sph=jnp.pi,
-        nfib=nfib,
-        naxis=naxis,
+        min_euler_angle=min_euler,
+        max_euler_angle=max_euler,
+        n_xrot=n_alpha,
+        n_yrot=n_beta,
+        n_zrot=n_gamma,
     )
     end = time.time()
     print(f"Time taken: {(end-start)*1000} milliseconds for {ntr*nrot} poses")

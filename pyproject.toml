@@ -53,56 +53,9 @@ LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 
 # Default tasks (CPU-enabled)
 
-[tool.pixi.tasks.code]
-description = "launch vscode connected to vm (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-connect-vscode"
-cwd = "scripts"
-depends_on = ["rerun"]
-
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
 cmd = "python scripts/rerun-task.py"
-
-[tool.pixi.tasks.gcp-help]
-description = "help with gcp tasks"
-cmd = "./gcp.sh :gcp-help"
-cwd = "scripts"
-
-[tool.pixi.tasks.gcp-env]
-description = "show gcp environment variables"
-cmd = "./gcp.sh :gcp-env"
-cwd = "scripts"
-
-[tool.pixi.tasks.gcp-list]
-description = "list all machines"
-cmd = "./gcp.sh :gcp-list"
-cwd = "scripts"
-
-[tool.pixi.tasks.gcp-terminal]
-description = "connect to vm through terminal (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-connect-terminal"
-cwd = "scripts"
-depends_on = ["rerun"]
-
-[tool.pixi.tasks.gcp-start]
-description = "start a vm (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-start"
-cwd = "scripts"
-
-[tool.pixi.tasks.gcp-status]
-description = "show vm status (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-status"
-cwd = "scripts"
-
-[tool.pixi.tasks.gcp-stop]
-description = "stop a vm (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-stop"
-cwd = "scripts"
-
-[tool.pixi.tasks.gcp-delete]
-description = "delete a vm (requires GCP_VM and GCP_PROJECT)"
-cmd = "./gcp.sh :gcp-delete"
-cwd = "scripts"
 
 # Core feature (CPU-enabled)
 
@@ -213,6 +166,80 @@ cmd = "python -c 'import jax; print(\"jax: v{}, devices={}\".format(jax.__versio
 [tool.pixi.feature.cuda.tasks.sys]
 description = "gpu, torch, and jax statu"
 depends_on = ["gpu", "torch", "jax"]
+
+[tool.pixi.tasks]
+code = { cmd = [
+    "code",
+    "--folder-uri",
+    "vscode-remote://ssh-remote+$GCP_VM.$GCP_ZONE.$GCP_PROJECT/home/$USER"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }, description = "open vm in vs code" }
+ssh = { depends_on = [
+    "gcp-start",
+    "gcp-ssh"
+]}
+gcp-create = { depends_on = [
+    "gcloud-create-address",
+    "gcloud-config-ssh",
+]}
+gcloud-create = { cmd = [
+    "gcloud compute instances create $GCP_VM",
+    "--project=$GCP_PROJECT",
+    "--zone=$GCP_ZONE",
+    "--image-family=common-cu123-ubuntu-2204-py310",
+    "--image-project=deeplearning-platform-release",
+    "--maintenance-policy=TERMINATE",
+    "--boot-disk-size=400GB",
+    "--machine-type=g2-standard-32",
+    "--accelerator=type=nvidia-l4,count=1",
+    "--metadata=install-nvidia-driver=True",
+    "--address=${GCP_VM}-address"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcloud-create-address = { cmd = [
+    "gcloud compute addresses create ${GCP_VM}-address",
+    "--region=$GCP_REGION",
+    "--project=$GCP_PROJECT"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcloud-config-ssh = { cmd = [
+    "gcloud",
+    "compute",
+    "config-ssh",
+    "--project=$GCP_PROJECT"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-stop = { cmd = [
+    "gcloud compute instances stop $GCP_VM",
+    "--project=$GCP_PROJECT",
+    "--zone=$GCP_ZONE"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-delete = { cmd = [
+    "gcloud compute instances delete $GCP_VM",
+    "--project=$GCP_PROJECT",
+    "--zone=$GCP_ZONE"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-start = { cmd = [
+    "gcloud compute instances start $GCP_VM",
+    "--project=$GCP_PROJECT",
+    "--zone=$GCP_ZONE"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-list = { cmd = [
+    "gcloud compute instances list",
+    "--project=$GCP_PROJECT"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-status = { cmd = [
+    "gcloud compute instances describe $GCP_VM",
+    "--zone=$GCP_ZONE",
+    "--project=$GCP_PROJECT",
+    "--format='get(status)'"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-env = { cmd = [
+    "echo GCP_VM = $GCP_VM",
+    "echo GCP_PROJECT = $GCP_PROJECT",
+    "echo GCP_REGION = $GCP_REGION",
+    "echo GCP_ZONE = $GCP_ZONE"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" }}
+gcp-ssh = { cmd = [
+    "ssh -o StrictHostKeyChecking=ask",
+    "$GCP_VM.$GCP_ZONE.$GCP_PROJECT"
+], env = { GCP_PROJECT = "probcomp-caliban", GCP_ZONE = "us-west1-a", GCP_REGION = "us-west1" } }
 
 [tool.pixi.feature.cuda.tasks.test]
 description = "run tests (optionally set TEST_TARGETS)"

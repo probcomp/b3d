@@ -99,6 +99,7 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         # TODO: Implement this
         return jnp.ones((4,)) * 0.5
 
+    @jax.jit
     def logpdf(
         self,
         observed_rgbd: FloatArray,

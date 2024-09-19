@@ -190,6 +190,7 @@ system-requirements = { cuda = "12" }
 cuda-toolkit = "*"
 gcc = "*"
 jax = "*"
+#jaxlib = { version = "0.4.31", build = "cuda120py312h3995614_201" }
 jaxlib = { version = "0.4.28", build = "cuda12*" }
 libnvjitlink = "*"
 optax = ">=0.2.2,<0.3"

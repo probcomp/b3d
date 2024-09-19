@@ -480,6 +480,10 @@ gcp-start() {
     echo "GCP_ZONE required"
     return 3
   fi
+  if [-z "$GCP_REGION"]; then
+    echo "GCP_REGION required"
+    return 6
+  fi
 
   local host
   local command
@@ -494,6 +498,7 @@ gcp-start() {
     gcloud compute instances start "$GCP_VM"
     --project="$GCP_PROJECT"
     --zone="$GCP_ZONE"
+    --region="$GCP_REGION"
   )
 
   if ! result=$(gcp-execute "${command[@]}"); then

@@ -35,7 +35,8 @@ jobs:
           pipx inject keyring \
             keyrings.google-artifactregistry-auth \
             --index-url \
-            https://pypi.org/simple
+            https://pypi.org/simple \
+            --force
 
           # ensure all deps across all environments and platforms are solving
           pixi --version

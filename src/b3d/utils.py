@@ -527,10 +527,17 @@ enumerate_choices = jax.jit(
     )
 )
 
+# enumerate_choices_get_scores = jax.jit(
+#     jax.vmap(
+#         update_choices_get_score,
+#         in_axes=(None, None, 0),
+#     )
+# )
+
 enumerate_choices_get_scores = jax.jit(
     jax.vmap(
         update_choices_get_score,
-        in_axes=(None, None, 0),
+        in_axes=(None, None, 0, None),
     )
 )
 

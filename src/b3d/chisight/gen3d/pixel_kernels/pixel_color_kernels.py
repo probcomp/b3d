@@ -3,10 +3,8 @@ from typing import TYPE_CHECKING
 
 import genjax
 import jax
-import jax.numpy as jnp
 from b3d.modeling_utils import (
     _FIXED_COLOR_UNIFORM_WINDOW,
-    PythonMixtureDistribution,
     renormalized_laplace,
     truncated_laplace,
 )

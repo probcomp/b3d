@@ -3,11 +3,11 @@ from abc import abstractmethod
 import genjax
 import jax
 import jax.numpy as jnp
-from jax.random import split
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import PixelColorDistribution
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import PixelDepthDistribution
 from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
+from jax.random import split
 
 
 def is_unexplained(latent_value: FloatArray) -> bool:
@@ -68,6 +68,7 @@ class PixelRGBDDistribution(genjax.ExactDensity):
     ) -> float:
         raise NotImplementedError
 
+
 @Pytree.dataclass
 class RGBDDist(genjax.ExactDensity):
     """
@@ -82,6 +83,7 @@ class RGBDDist(genjax.ExactDensity):
 
     Calls a color distribution and a "valid depth return" depth distribution to sample the pixel.
     """
+
     color_distribution: PixelColorDistribution
     depth_distribution: PixelDepthDistribution
 
@@ -95,33 +97,30 @@ class RGBDDist(genjax.ExactDensity):
         intrinsics: dict,
     ) -> FloatArray:
         k1, k2, k3 = split(key, 3)
-        color = self.color_distribution.sample(
-            k1, latent_rgbd[:3], color_scale
-        )
+        color = self.color_distribution.sample(k1, latent_rgbd[:3], color_scale)
         depth_if_return = self.depth_distribution.sample(
             k2, latent_rgbd[3], depth_scale, intrinsics["near"], intrinsics["far"]
         )
         depth = jnp.where(
-            jax.random.bernoulli(k3, depth_nonreturn_prob),
-            0.0,
-            depth_if_return
+            jax.random.bernoulli(k3, depth_nonreturn_prob), 0.0, depth_if_return
         )
 
         return jnp.concatenate([color, depth])
-    
-    def logpdf(self, obs, latent, color_scale, depth_scale, depth_nonreturn_prob, intrinsics):
-        color_logpdf = self.color_distribution.logpdf(
-            obs[:3], latent[:3], color_scale
-        )
+
+    def logpdf(
+        self, obs, latent, color_scale, depth_scale, depth_nonreturn_prob, intrinsics
+    ):
+        color_logpdf = self.color_distribution.logpdf(obs[:3], latent[:3], color_scale)
         depth_logpdf_if_return = self.depth_distribution.logpdf(
             obs[3], latent[3], depth_scale, intrinsics["near"], intrinsics["far"]
         )
         depth_logpdf = jnp.where(
             obs[3] == 0.0,
             jnp.log(depth_nonreturn_prob),
-            jnp.log(1 - depth_nonreturn_prob) + depth_logpdf_if_return
+            jnp.log(1 - depth_nonreturn_prob) + depth_logpdf_if_return,
         )
         return color_logpdf + depth_logpdf
+
 
 @Pytree.dataclass
 class FullPixelRGBDDistribution(PixelRGBDDistribution):
@@ -144,10 +143,12 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
     @property
     def inlier_distribution(self):
         return RGBDDist(self.inlier_color_distribution, self.inlier_depth_distribution)
-    
+
     @property
     def outlier_distribution(self):
-        return RGBDDist(self.outlier_color_distribution, self.outlier_depth_distribution)
+        return RGBDDist(
+            self.outlier_color_distribution, self.outlier_depth_distribution
+        )
 
     def sample(
         self,
@@ -158,16 +159,26 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         visibility_prob: float,
         depth_nonreturn_prob: float,
         intrinsics: dict,
-        depth_nonreturn_prob_for_invisible: float
+        depth_nonreturn_prob_for_invisible: float,
     ) -> FloatArray:
         k1, k2, k3 = split(key, 3)
         return jnp.where(
             jax.random.bernoulli(k1, visibility_prob),
             self.inlier_distribution.sample(
-                k2, latent_rgbd, color_scale, depth_scale, depth_nonreturn_prob, intrinsics
+                k2,
+                latent_rgbd,
+                color_scale,
+                depth_scale,
+                depth_nonreturn_prob,
+                intrinsics,
             ),
             self.outlier_distribution.sample(
-                k3, latent_rgbd, color_scale, depth_scale, depth_nonreturn_prob_for_invisible, intrinsics
+                k3,
+                latent_rgbd,
+                color_scale,
+                depth_scale,
+                depth_nonreturn_prob_for_invisible,
+                intrinsics,
             ),
         )
 
@@ -181,14 +192,26 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         visibility_prob: float,
         depth_nonreturn_prob: float,
         intrinsics: dict,
-        invisible_depth_nonreturn_prob: float
+        invisible_depth_nonreturn_prob: float,
     ) -> float:
         return jnp.logaddexp(
-            jnp.log(visibility_prob) + self.inlier_distribution.logpdf(
-                observed_rgbd, latent_rgbd, color_scale, depth_scale, depth_nonreturn_prob, intrinsics
+            jnp.log(visibility_prob)
+            + self.inlier_distribution.logpdf(
+                observed_rgbd,
+                latent_rgbd,
+                color_scale,
+                depth_scale,
+                depth_nonreturn_prob,
+                intrinsics,
             ),
-            jnp.log(1 - visibility_prob) + self.outlier_distribution.logpdf(
-                observed_rgbd, latent_rgbd, color_scale, depth_scale, invisible_depth_nonreturn_prob, intrinsics
+            jnp.log(1 - visibility_prob)
+            + self.outlier_distribution.logpdf(
+                observed_rgbd,
+                latent_rgbd,
+                color_scale,
+                depth_scale,
+                invisible_depth_nonreturn_prob,
+                intrinsics,
             ),
         )
 

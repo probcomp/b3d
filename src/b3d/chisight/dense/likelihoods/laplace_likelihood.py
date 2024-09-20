@@ -10,8 +10,16 @@ def likelihood_func(observed_rgbd, likelihood_args):
     outlier_probability = likelihood_args["outlier_probability"]
 
     valid_window = latent_rgbd[..., 3] > 0.0
-    near = 0.001
-    far = 3.0
+    if "masked" in likelihood_args:
+        valid_window_rgb = observed_rgbd[..., 3] > 0.0
+        invalid_window = jnp.multiply(valid_window_rgb, ~valid_window)
+        near = 0.001
+        far = jnp.inf
+    else:
+        invalid_window = ~valid_window
+        far = 1
+        near = 0
+
     pixelwise_score = (
         jax.scipy.stats.laplace.logpdf(
             observed_rgbd,
@@ -19,7 +27,7 @@ def likelihood_func(observed_rgbd, likelihood_args):
             jnp.array([color_variance, color_variance, color_variance, depth_variance]),
         ).sum(-1)
         * valid_window
-        + (jnp.log(1.0 / 1.0**3) + jnp.log(far - near)) * ~valid_window
+        - (jnp.log(1.0 / 1.0**3) + jnp.log(far - near)) * invalid_window
     )
 
     pixelwise_score = jnp.logaddexp(

@@ -44,6 +44,9 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         else:
             check_interpenetration = False
 
+        if "masked" in args_dict:
+            likelihood_args["masked"] = Pytree.const(True)
+
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
 

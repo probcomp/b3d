@@ -78,7 +78,8 @@ def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas):
     # jax.debug.print("init_scale: {v}", v=current_scale)
     for i in range(len(all_deltas[0])):
         test_poses = current_pose @ all_deltas[0][i]
-        test_scales = jnp.multiply(current_scale, all_deltas[1])
+        test_scales = current_scale + (all_deltas[1] / (i + 1))
+        # jnp.multiply(current_scale, all_deltas[1])
         # jax.debug.print("test_poses: {v}", v=test_poses)
         # jax.debug.print("test_scales: {v}", v=test_scales)
         all_scores = jnp.array([])

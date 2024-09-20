@@ -82,6 +82,7 @@ normal = tfp_distribution(tfp.distributions.Normal)
 
 @Pytree.dataclass
 class RenormalizedLaplace(genjax.ExactDensity):
+    @jax.jit
     def sample(self, key, loc, scale, low, high):
         warnings.warn(
             "RenormalizedLaplace sampling is currently not implemented perfectly."
@@ -89,6 +90,7 @@ class RenormalizedLaplace(genjax.ExactDensity):
         x = tfp.distributions.Laplace(loc, scale).sample(seed=key)
         return jnp.clip(x, low, high)
 
+    @jax.jit
     def logpdf(self, obs, loc, scale, low, high):
         laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
         p_below_low = tfp.distributions.Laplace(loc, scale).cdf(low)
@@ -112,11 +114,13 @@ renormalized_laplace = RenormalizedLaplace()
 
 @Pytree.dataclass
 class RenormalizedColorLaplace(genjax.ExactDensity):
+    @jax.jit
     def sample(self, key, loc, scale):
         return jax.vmap(
             lambda k, c: renormalized_laplace.sample(k, c, scale, 0.0, 1.0),
         )(jax.random.split(key, loc.shape[0]), loc)
 
+    @jax.jit
     def logpdf(self, obs, loc, scale):
         return jax.vmap(
             lambda o, c: renormalized_laplace.logpdf(o, c, scale, 0.0, 1.0),
@@ -187,18 +191,24 @@ class TruncatedLaplace(genjax.ExactDensity):
     """
 
     def sample(self, key, loc, scale, low, high, uniform_window_size):
-        assert low < high
-        assert low + uniform_window_size < high - uniform_window_size
+        isvalid = jnp.logical_and(
+            low < high, low + uniform_window_size < high - uniform_window_size
+        )
         k1, k2 = jax.random.split(key, 2)
         x = tfp.distributions.Laplace(loc, scale).sample(seed=k1)
         u = jax.random.uniform(k2, ()) * uniform_window_size
         return jnp.where(
-            x > high, high - uniform_window_size + u, jnp.where(x < low, low + u, x)
+            isvalid,
+            jnp.where(
+                x > high, high - uniform_window_size + u, jnp.where(x < low, low + u, x)
+            ),
+            jnp.nan,
         )
 
     def logpdf(self, obs, loc, scale, low, high, uniform_window_size):
-        assert low < high
-        assert low + uniform_window_size < high - uniform_window_size
+        isvalid = jnp.logical_and(
+            low < high, low + uniform_window_size < high - uniform_window_size
+        )
         laplace_logpdf = tfp.distributions.Laplace(loc, scale).log_prob(obs)
         laplace_logp_below_low = tfp.distributions.Laplace(loc, scale).log_cdf(low)
         laplace_logp_above_high = tfp.distributions.Laplace(
@@ -206,7 +216,7 @@ class TruncatedLaplace(genjax.ExactDensity):
         ).log_survival_function(high)
         log_window_size = jnp.log(uniform_window_size)
 
-        return jnp.where(
+        score = jnp.where(
             jnp.logical_or(obs < low, obs > high),
             -jnp.inf,
             jnp.where(
@@ -225,6 +235,7 @@ class TruncatedLaplace(genjax.ExactDensity):
                 ),
             ),
         )
+        return jnp.where(isvalid, score, -jnp.inf)
 
 
 truncated_laplace = TruncatedLaplace()

@@ -109,7 +109,7 @@ cwd = "scripts"
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
 datasync = "==0.0.2"
-genjax = "==0.6.1"
+genjax = "==0.6.1.post12.dev0+465058bd"
 pykitti = "==0.3.1"
 pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
 pyransac3d = ">=0.6.0,<0.7"

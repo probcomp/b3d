@@ -1,5 +1,5 @@
 import b3d
-import b3d.chisight.gen3d.inference.inference as inference
+import b3d.chisight.gen3d.inference as inference
 import b3d.chisight.gen3d.model
 import b3d.chisight.gen3d.settings
 import b3d.chisight.gen3d.settings as settings

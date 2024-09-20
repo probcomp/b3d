@@ -8,7 +8,7 @@ import rerun.blueprint as rrb
 from genjax import ChoiceMapBuilder as C
 
 import b3d
-from b3d.chisight.gen3d.image_kernel import PixelsPointsAssociation
+# from b3d.chisight.gen3d.image_kernel_new import PixelsPointsAssociation
 
 # TODOs
 # 1. Tests of drift kernels
@@ -44,6 +44,10 @@ def dynamic_object_generative_model(hyperparams, previous_state):
     global_color_scale = (
         color_scale_kernel(previous_state["color_scale"]) @ "color_scale"
     )
+
+    # pixel_point_association = PixelsPointsAssociation.from_pose_intrinsics_and_vertices(
+    #     pose, hyperparams["intrinsics"], hyperparams["vertices"]
+    # )
 
     new_state = {
         "pose": pose,
@@ -172,21 +176,21 @@ def viz_trace(
         b3d.rr_log_rgb(observed_rgbd[..., :3], "image/rgb/observed")
         b3d.rr_log_depth(observed_rgbd[..., 3], "image/depth/observed")
 
-        pixel_point_association = PixelsPointsAssociation.from_points_and_intrinsics(
-            vertices_transformed,
-            hyperparams["intrinsics"],
-        )
-        pixel_latent_rgb = jnp.clip(
-            pixel_point_association.get_pixel_attributes(new_state["colors"]), 0.0, 1.0
-        )
-        pixel_latent_depth = jnp.clip(
-            pixel_point_association.get_pixel_attributes(vertices_transformed[..., 2]),
-            0.0,
-            10.0,
-        )
+        # pixel_point_association = PixelsPointsAssociation.from_points_and_intrinsics(
+        #     vertices_transformed,
+        #     hyperparams["intrinsics"],
+        # )
+        # pixel_latent_rgb = jnp.clip(
+        #     pixel_point_association.get_pixel_attributes(new_state["colors"]), 0.0, 1.0
+        # )
+        # pixel_latent_depth = jnp.clip(
+        #     pixel_point_association.get_pixel_attributes(vertices_transformed[..., 2]),
+        #     0.0,
+        #     10.0,
+        # )
 
-        b3d.rr_log_rgb(pixel_latent_rgb, "image/rgb/latent")
-        b3d.rr_log_depth(pixel_latent_depth, "image/depth/latent")
+        # b3d.rr_log_rgb(pixel_latent_rgb, "image/rgb/latent")
+        # b3d.rr_log_depth(pixel_latent_depth, "image/depth/latent")
 
         # TODO: should we add in a way to visualize a noise-free projection
         # of the points to the camera plane?

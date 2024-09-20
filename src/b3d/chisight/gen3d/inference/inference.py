@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import jax.random
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
 import b3d
@@ -128,10 +127,13 @@ def inference_step(
 
 
 def get_trace_generated_during_inference(
-    key, trace, pose, inference_hyperparams,
+    key,
+    trace,
+    pose,
+    inference_hyperparams,
     do_advance_time=True,
     observed_rgbd=None,
-    just_return_trace=True
+    just_return_trace=True,
 ):
     """
     Get the trace generated at pose `pose` with key `key` by inference_step,
@@ -180,13 +182,11 @@ def advance_time(key, trace, observed_rgbd):
     """
     trace, _, _, _ = trace.update(
         key,
-        U.g(
-            (
-                Diff.no_change(get_hypers(trace)),
-                Diff.unknown_change(get_new_state(trace)),
-            ),
-            C.kw(rgbd=observed_rgbd),
-        ),
+        C.kw(rgbd=observed_rgbd),
+        (
+            Diff.no_change(get_hypers(trace)),
+            Diff.unknown_change(get_new_state(trace)),
+        )
     )
     return trace
 
@@ -255,11 +255,11 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     k1, k2, k3, k4 = split(key, 4)
 
     trace = update_field(k1, advanced_trace, "pose", pose)
-    
+
     sup = get_hypers(trace)["color_scale_kernel"].support
     val = get_prev_state(advanced_trace)["color_scale"]
     idx = jnp.argmin(jnp.abs(sup - val))
-    newidx = jnp.minimum(idx+1, sup.shape[0]-1)
+    newidx = jnp.minimum(idx + 1, sup.shape[0] - 1)
     trace = update_field(k1, trace, "color_scale", sup[newidx])
 
     k2a, k2b = split(k2)

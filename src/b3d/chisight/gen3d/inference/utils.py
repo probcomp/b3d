@@ -3,8 +3,6 @@ import jax.numpy as jnp
 import jax.random
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
-
 
 def logmeanexp(vec):
     vec = jnp.where(jnp.isnan(vec), -jnp.inf, vec)
@@ -27,10 +25,8 @@ def update_fields(key, trace, fieldnames, values):
     hyperparams, previous_state = trace.get_args()
     trace, _, _, _ = trace.update(
         key,
-        U.g(
-            (Diff.no_change(hyperparams), Diff.no_change(previous_state)),
-            C.kw(**dict(zip(fieldnames, values))),
-        ),
+        C.kw(**dict(zip(fieldnames, values))),
+        (Diff.no_change(hyperparams), Diff.no_change(previous_state)),
     )
     return trace
 
@@ -52,8 +48,7 @@ def update_vmapped_fields(key, trace, fieldnames, values):
 
     hyperparams, previous_state = trace.get_args()
     trace, _, _, _ = trace.update(
-        key,
-        U.g((Diff.no_change(hyperparams), Diff.no_change(previous_state)), c),
+        key, c, (Diff.no_change(hyperparams), Diff.no_change(previous_state))
     )
     return trace
 

@@ -130,7 +130,9 @@ def _propose_a_points_attributes(
             visibility_prob=visprob,
             depth_nonreturn_prob=dnrprob,
             intrinsics=intrinsics,
-            invisible_depth_nonreturn_prob=hyperparams["unexplained_depth_nonreturn_prob"],
+            invisible_depth_nonreturn_prob=hyperparams[
+                "unexplained_depth_nonreturn_prob"
+            ],
         )
         return (
             visprob_transition_score

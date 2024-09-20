@@ -31,7 +31,6 @@ jobs:
           # install pipx and inject gcp backend
           pixi global install pipx
           pipx install --force keyring==25.3.0
-
           pipx inject keyring \
             keyrings.google-artifactregistry-auth \
             --index-url \

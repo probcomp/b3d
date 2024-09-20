@@ -8,7 +8,7 @@ import b3d
 from b3d import Mesh
 
 
-def load_scene(scene_id, FRAME_RATE=50, subdir="train_real"):
+def load_scene(scene_id, FRAME_RATE=50, subdir="test"):
     num_scenes = b3d.io.data_loader.get_ycbv_num_images(scene_id, subdir=subdir)
 
     image_ids = range(1, num_scenes + 1, FRAME_RATE)

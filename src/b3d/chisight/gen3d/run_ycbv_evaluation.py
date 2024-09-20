@@ -64,6 +64,14 @@ def run_tracking(
     folder_name, video_folder_name, npy_folder_name, rr_folder_name = (
         setup_save_directory()
     )
+    print(
+        f"""
+Folder Name: {folder_name}
+Video Folder Name: {video_folder_name}
+Npy Folder Name: {npy_folder_name}
+RR Folder Name: {rr_folder_name}
+"""
+    )
 
     hyperparams = settings.hyperparams
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
@@ -79,13 +87,14 @@ def run_tracking(
         b3d.rr_init("run_ycbv_evaluation")
 
     if scene is None:
-        scenes = range(1, 15)
+        scenes = range(1, 80)
     elif isinstance(scene, int):
         scenes = [scene]
     elif isinstance(scene, list):
         scenes = scene
 
     for scene_id in scenes:
+        print(f"Scene {scene_id}")
         all_data, meshes, renderer, intrinsics, initial_object_poses = load_scene(
             scene_id, FRAME_RATE, subdir=subdir
         )

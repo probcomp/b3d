@@ -127,8 +127,25 @@ def inference_step(
         return (trace, weight)
 
 
-def get_trace_generated_during_inference(key, trace, pose, inference_hyperparams):
-    return propose_other_latents_given_pose(key, trace, pose, inference_hyperparams)[0]
+def get_trace_generated_during_inference(
+    key, trace, pose, inference_hyperparams,
+    do_advance_time=True,
+    observed_rgbd=None,
+    just_return_trace=True
+):
+    """
+    Get the trace generated at pose `pose` with key `key` by inference_step,
+    when it was given `trace`, `do_advance_time`, `inference_hyperparams`,
+    and `observed_rgbd` as input.
+    """
+    if do_advance_time:
+        assert observed_rgbd is not None
+        trace = advance_time(key, trace, observed_rgbd)
+    vals = propose_other_latents_given_pose(key, trace, pose, inference_hyperparams)
+    if just_return_trace:
+        return vals[0]
+    else:
+        return vals
 
 
 def maybe_swap_in_gt_pose(
@@ -238,6 +255,12 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
     k1, k2, k3, k4 = split(key, 4)
 
     trace = update_field(k1, advanced_trace, "pose", pose)
+    
+    sup = get_hypers(trace)["color_scale_kernel"].support
+    val = get_prev_state(advanced_trace)["color_scale"]
+    idx = jnp.argmin(jnp.abs(sup - val))
+    newidx = jnp.minimum(idx+1, sup.shape[0]-1)
+    trace = update_field(k1, trace, "color_scale", sup[newidx])
 
     k2a, k2b = split(k2)
     (

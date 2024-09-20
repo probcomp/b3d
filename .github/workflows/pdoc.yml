@@ -35,11 +35,12 @@ jobs:
 
           # install pipx and inject gcp backend
           pixi global install pipx
-          pipx install keyring
+          pipx install --force keyring==25.3.0
           pipx inject keyring \
-          keyrings.google-artifactregistry-auth \
+            keyrings.google-artifactregistry-auth \
             --index-url \
-            https://pypi.org/simple
+            https://pypi.org/simple \
+            --force
 
           # render docs
           pixi run docs

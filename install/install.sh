@@ -260,7 +260,7 @@ __wrap__() {
   pipx ensurepath &>/dev/null
 
   printf "\n→ installing keyring into %s\n\n" "$PIPX_BIN"
-  pipx install keyring
+  pipx install --force keyring==25.3.0
 
   printf "\n→ injecting gauth backend into keyring...\n\n"
   if ! is-gauth-injected; then

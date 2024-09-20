@@ -1,5 +1,3 @@
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 import jax.random
@@ -25,9 +23,66 @@ from .point_attribute_proposals import propose_all_pointlevel_attributes
 from .utils import logmeanexp, normalize_log_scores, update_field, update_vmapped_fields
 
 
-@partial(
-    jax.jit, static_argnames=("do_advance_time", "get_all_metadata", "get_all_weights")
-)
+@jax.jit
+def c2f_step(
+    key,
+    trace,
+    pose_proposal_args,
+    inference_hyperparams,
+    use_gt_pose,
+    gt_pose=b3d.Pose.identity(),
+):
+    k1, k2, k3 = split(key, 3)
+
+    # Propose the poses
+    pose_generation_keys = split(k1, inference_hyperparams.n_poses)
+    proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
+        pose_generation_keys, trace, pose_proposal_args
+    )
+    proposed_poses, log_q_poses = maybe_swap_in_gt_pose(
+        proposed_poses, log_q_poses, trace, use_gt_pose, gt_pose, pose_proposal_args
+    )
+
+    # Generate the remaining latents to get pose scores
+    def propose_other_latents_given_pose_and_get_scores(
+        key, proposed_pose, trace, inference_hyperparams
+    ):
+        proposed_trace, log_q, _ = propose_other_latents_given_pose(
+            key, trace, proposed_pose, inference_hyperparams
+        )
+        return proposed_trace.get_score(), log_q
+
+    param_generation_keys = split(k2, inference_hyperparams.n_poses)
+    p_scores, log_q_nonpose_latents = jax.lax.map(
+        lambda x: propose_other_latents_given_pose_and_get_scores(
+            x[0], x[1], trace, inference_hyperparams
+        ),
+        (param_generation_keys, proposed_poses),
+    )
+
+    # Scoring + resampling
+    weights = jnp.where(
+        inference_hyperparams.include_q_scores_at_top_level,
+        p_scores - log_q_poses - log_q_nonpose_latents,
+        p_scores,
+    )
+
+    chosen_index = jax.random.categorical(k3, weights)
+    resampled_trace, _, _ = propose_other_latents_given_pose(
+        param_generation_keys[chosen_index],
+        trace,
+        proposed_poses[chosen_index],
+        inference_hyperparams,
+    )
+    return (
+        resampled_trace,
+        logmeanexp(weights),
+        param_generation_keys,
+        proposed_poses,
+        weights,
+    )
+
+
 def inference_step(
     key,
     trace,
@@ -44,62 +99,15 @@ def inference_step(
         key, subkey = split(key)
         trace = advance_time(subkey, trace, observed_rgbd)
 
-    @jax.jit
-    def c2f_step(trace, key, pose_proposal_args):
-        k1, k2, k3 = split(key, 3)
-
-        # Propose the poses
-        pose_generation_keys = split(k1, inference_hyperparams.n_poses)
-        proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
-            pose_generation_keys, trace, pose_proposal_args
-        )
-        proposed_poses, log_q_poses = maybe_swap_in_gt_pose(
-            proposed_poses, log_q_poses, trace, use_gt_pose, gt_pose, pose_proposal_args
-        )
-
-        # Generate the remaining latents to get pose scores
-        def propose_other_latents_given_pose_and_get_scores(
-            key, proposed_pose, trace, inference_hyperparams
-        ):
-            proposed_trace, log_q, _ = propose_other_latents_given_pose(
-                key, trace, proposed_pose, inference_hyperparams
-            )
-            return proposed_trace.get_score(), log_q
-
-        param_generation_keys = split(k2, inference_hyperparams.n_poses)
-        p_scores, log_q_nonpose_latents = jax.lax.map(
-            lambda x: propose_other_latents_given_pose_and_get_scores(
-                x[0], x[1], trace, inference_hyperparams
-            ),
-            (param_generation_keys, proposed_poses),
-        )
-
-        # Scoring + resampling
-        weights = jnp.where(
-            inference_hyperparams.include_q_scores_at_top_level,
-            p_scores - log_q_poses - log_q_nonpose_latents,
-            p_scores,
-        )
-
-        chosen_index = jax.random.categorical(k3, weights)
-        resampled_trace, _, _ = propose_other_latents_given_pose(
-            param_generation_keys[chosen_index],
-            trace,
-            proposed_poses[chosen_index],
-            inference_hyperparams,
-        )
-        return (
-            resampled_trace,
-            logmeanexp(weights),
-            param_generation_keys,
-            proposed_poses,
-            weights,
-        )
-
     for pose_proposal_args in inference_hyperparams.pose_proposal_args:
         key, subkey = split(key)
         trace, weight, keys_to_regenerate_traces, all_poses, all_weights = c2f_step(
-            trace, subkey, pose_proposal_args
+            subkey,
+            trace,
+            pose_proposal_args,
+            inference_hyperparams,
+            use_gt_pose,
+            gt_pose=gt_pose,
         )
 
     if get_all_metadata:

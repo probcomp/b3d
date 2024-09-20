@@ -315,6 +315,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
 ### Unique point per pixel image kernel ###
 
 
+@jax.jit
 def calculate_latent_and_observed_correspondences(
     observed_rgbd: FloatArray,
     state: Mapping,

@@ -40,13 +40,15 @@ def setup_save_directory():
     return folder_name, video_folder_name, npy_folder_name, rr_folder_name
 
 
-def save_hyperparams(folder_name, hyperparams, inference_hyperparams):
+def save_hyperparams(folder_name, hyperparams, inference_hyperparams, script_kwargs):
     hyperparams_file = folder_name / "hyperparams.txt"
     with open(hyperparams_file, "w") as f:
         f.write("Hyperparameters:\n")
         f.write(pprint.pformat(hyperparams))
         f.write("\n\n\nInference Hyperparameters:\n")
         f.write(pprint.pformat(inference_hyperparams))
+        f.write("\n\n\nScript kwargs:\n")
+        f.write(pprint.pformat(script_kwargs))
 
 
 def run_tracking(
@@ -58,13 +60,14 @@ def run_tracking(
     subdir="train_real",
     max_n_frames=None,
 ):
+    kwargs = locals()
     folder_name, video_folder_name, npy_folder_name, rr_folder_name = (
         setup_save_directory()
     )
 
     hyperparams = settings.hyperparams
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams  # noqa
-    save_hyperparams(folder_name, hyperparams, inference_hyperparams)
+    save_hyperparams(folder_name, hyperparams, inference_hyperparams, kwargs)
 
     FRAME_RATE = 50
 

@@ -13,3 +13,5 @@ class InferenceHyperparams(Pytree):
 
     include_q_scores_at_top_level: bool = True
     do_stochastic_color_proposals: bool = True
+
+    in_inference_only_assoc_one_point_per_pixel: bool = Pytree.static(default=True)

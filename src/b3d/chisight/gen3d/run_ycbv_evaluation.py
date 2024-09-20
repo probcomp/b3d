@@ -54,6 +54,7 @@ def run_tracking(
     object=None,
     live_rerun=False,
     save_rerun=False,
+    use_gt_pose=False,
     subdir="train_real",
     max_n_frames=None,
 ):
@@ -104,13 +105,19 @@ def run_tracking(
             tracking_results = {}
 
             ### Run inference ###
+            def gt_pose(T):
+                return (
+                    all_data[T]["camera_pose"].inv()
+                    @ all_data[T]["object_poses"][OBJECT_INDEX]
+                )
+
             key = jax.random.PRNGKey(156)
             trace = inference.get_initial_trace(
                 key, hyperparams, initial_state, all_data[0]["rgbd"]
             )
 
             if save_rerun:
-                rr.init(f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}")
+                b3d.rr_init(f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}")
                 rr.save(
                     rr_folder_name / f"SCENE_{scene_id}_OBJECT_INDEX_{OBJECT_INDEX}.rrd"
                 )
@@ -123,26 +130,21 @@ def run_tracking(
             for T in tqdm(range(maxT)):
                 key = b3d.split_key(key)
                 trace, _ = inference.inference_step(
-                    key, trace, all_data[T]["rgbd"], inference_hyperparams
+                    key,
+                    trace,
+                    all_data[T]["rgbd"],
+                    inference_hyperparams,
+                    gt_pose=gt_pose(T),
+                    use_gt_pose=use_gt_pose,
                 )
                 tracking_results[T] = trace
 
-                if live_rerun:
+                if live_rerun or save_rerun:
                     rr_viz_trace(
                         trace,
                         T,
                         ground_truth_vertices=meshes[OBJECT_INDEX].vertices,
-                        ground_truth_pose=all_data[T]["camera_pose"].inv()
-                        @ all_data[T]["object_poses"][OBJECT_INDEX],
-                    )
-
-                if save_rerun:
-                    rr_viz_trace(
-                        trace,
-                        T,
-                        ground_truth_vertices=meshes[OBJECT_INDEX].vertices,
-                        ground_truth_pose=all_data[T]["camera_pose"].inv()
-                        @ all_data[T]["object_poses"][OBJECT_INDEX],
+                        ground_truth_pose=gt_pose(T),
                     )
 
             inferred_poses = Pose.stack_poses(

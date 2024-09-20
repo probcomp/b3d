@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - eightysteele/spnup-14-pypi-authentication-broken-on-gcp
+      - main
 
 jobs:
   pixi-update:

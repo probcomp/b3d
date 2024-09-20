@@ -114,7 +114,7 @@ def inference_step(
             metadata,
         )
     elif get_all_weights:
-        (trace, weight, all_weights, all_poses, keys_to_regenerate_traces)
+        return (trace, weight, all_weights, all_poses, keys_to_regenerate_traces)
     else:
         return (trace, weight)
 

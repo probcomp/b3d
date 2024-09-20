@@ -1,3 +1,5 @@
+import pprint
+
 import genjax
 import jax
 import jax.numpy as jnp
@@ -144,8 +146,10 @@ def viz_trace(
         "info",
         rr.TextDocument(
             f"""
-            depth_scale: {new_state["depth_scale"]}
-            color_scale: {new_state["color_scale"]}
+            depth_scale: {new_state["depth_scale"]:.5f}
+            color_scale: {new_state["color_scale"]:.5f}
+            hyperparams:
+                {pprint.pformat(hyperparams)}
             """.strip(),
             media_type=rr.MediaType.MARKDOWN,
         ),

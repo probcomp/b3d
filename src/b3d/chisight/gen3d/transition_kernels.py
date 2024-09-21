@@ -398,39 +398,39 @@ class GaussianVMFPoseDriftKernel(DriftKernel):
 
 @Pytree.dataclass
 class DiscreteFlipKernel(genjax.ExactDensity):
-    resample_probability: float = Pytree.static()
+    """
+    When `support` has 1 element, this is the delta distribution at that value.
+    When `support` has more than 1 element, this is the distribution which,
+    given `prev_value`, returns `prev_value` with probability `1 - p_change_to_different_value`,
+    and with probability `p_change_to_different_value`, returns a value from `support`
+    other than `prev_value`.
+    """
+
+    p_change_to_different_value: float = Pytree.static()
     support: ArrayLike = Pytree.static()
 
     def sample(self, key: PRNGKey, prev_value):
-        should_resample = jax.random.bernoulli(key, self.resample_probability)
-        return (
-            should_resample
-            * self.support.at[jax.random.choice(key, len(self.support))].get()
-            + (1 - should_resample) * prev_value
-        )
+        if len(self.support) == 1:
+            return self.support[0]
+        else:
+            should_resample = jax.random.bernoulli(
+                key, self.p_change_to_different_value
+            )
+            idx_of_prev_value = jnp.argmin(self.support == prev_value)
+            idx = jax.random.randint(key, (), 0, len(self.support) - 1)
+            idx = jnp.where(idx >= idx_of_prev_value, idx + 1, idx)
+            return jnp.where(should_resample, self.support[idx], prev_value)
 
     def logpdf(self, new_value, prev_value):
         # Write code to compute the logpdf of this flipping kernel.
-
-        resample_probability = self.resample_probability
-        support = self.support
-
         match = new_value == prev_value
-        number_of_other_values = len(support) - 1
+        number_of_other_values = len(self.support) - 1
 
-        log_probability_of_non_matched_values = jnp.where(
-            number_of_other_values > 0.0,
-            jnp.log(resample_probability) - jnp.log(number_of_other_values),
-            jnp.log(0.0),
-        )
-        log_total_probability_of_non_matched_values = (
-            log_probability_of_non_matched_values + jnp.log(len(support) - 1)
-        )
-        log_probability_of_match = jnp.log(
-            1.0 - jnp.exp(log_total_probability_of_non_matched_values)
-        )
-        logprob = jnp.logaddexp(
-            jnp.log(match) + log_probability_of_match,
-            log_probability_of_non_matched_values + jnp.log(1.0 - match),
-        )
-        return logprob
+        if len(self.support) > 1:
+            return jnp.where(
+                match,
+                jnp.log(1 - self.p_change_to_different_value),
+                jnp.log(self.p_change_to_different_value * 1 / number_of_other_values),
+            )
+        else:
+            return 0.0

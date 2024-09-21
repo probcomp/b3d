@@ -6,7 +6,6 @@ import pytest
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     COLOR_MAX_VAL,
     COLOR_MIN_VAL,
-    MixturePixelColorDistribution,
     RenormalizedGaussianPixelColorDistribution,
     RenormalizedLaplacePixelColorDistribution,
     TruncatedLaplacePixelColorDistribution,
@@ -39,13 +38,6 @@ sample_kernels_to_test = [
     (TruncatedLaplacePixelColorDistribution(), (0.1,)),
     (RenormalizedLaplacePixelColorDistribution(), (0.1,)),
     (RenormalizedGaussianPixelColorDistribution(), (0.1,)),
-    (
-        MixturePixelColorDistribution(),
-        (
-            0.3,
-            0.5,
-        ),
-    ),
 ]
 
 

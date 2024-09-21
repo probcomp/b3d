@@ -94,10 +94,10 @@ def test_model():
         f"""
 pose_kernel max_shift: FILL IN,
 color_kernel scale: FILL IN,
-visibility_prob_kernel resample_probability: {hyperparams['visibility_prob_kernel'].resample_probability},
-depth_nonreturn_prob_kernel resample_probability: {hyperparams['depth_nonreturn_prob_kernel'].resample_probability},
-depth_scale_kernel resample_probability: {hyperparams['depth_scale_kernel'].resample_probability},
-color_scale_kernel resample_probability: {hyperparams['color_scale_kernel'].resample_probability}"""
+visibility_prob_kernel p_change_to_different_value: {hyperparams['visibility_prob_kernel'].p_change_to_different_value},
+depth_nonreturn_prob_kernel p_change_to_different_value: {hyperparams['depth_nonreturn_prob_kernel'].p_change_to_different_value},
+depth_scale_kernel p_change_to_different_value: {hyperparams['depth_scale_kernel'].p_change_to_different_value},
+color_scale_kernel p_change_to_different_value: {hyperparams['color_scale_kernel'].p_change_to_different_value}"""
     )
     ax[0].set_title(f"Color of vertex {point_index}")
     ax[0].plot(colors_over_time[..., point_index, 0], color="r")

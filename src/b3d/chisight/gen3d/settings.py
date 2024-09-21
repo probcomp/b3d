@@ -18,29 +18,20 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
 p_resample_color = 0.005
 hyperparams = {
     "pose_kernel": transition_kernels.GaussianVMFPoseDriftKernel(0.02, 1000.0),
-    "color_kernel": transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.002),
-    # transition_kernels.MixtureDriftKernel(
-    #     [
-    #         transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.01),
-    #         transition_kernels.UniformDriftKernel(
-    #             max_shift=0.15, min_val=jnp.zeros(3), max_val=jnp.ones(3)
-    #         ),
-    #     ],
-    #     jnp.array([0.8, 1 - 0.805, .005]),
-    # ),
+    "color_kernel": transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.05),
     "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.05, support=jnp.array([0.0, 1.0])
+        p_change_to_different_value=0.05, support=jnp.array([0.001, 0.999])
     ),
     "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1, support=jnp.array([0.0, 1.0])
+        p_change_to_different_value=0.1, support=jnp.array([0.001, 0.999])
     ),
     "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1,
+        p_change_to_different_value=0.1,
         support=jnp.array([0.001, 0.0025, 0.01, 0.02]),
     ),
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-        resample_probability=0.1,
-        support=jnp.array([0.002, 0.01, 0.02, 0.05, 0.1, 0.15]),
+        p_change_to_different_value=0.1,
+        support=jnp.array([0.05, 0.1, 0.15]),
     ),
     "image_kernel": image_kernel.UniquePixelsImageKernel(
         FullPixelRGBDDistribution(
@@ -62,3 +53,41 @@ inference_hyperparams = InferenceHyperparams(
     # change this to False.
     in_inference_only_assoc_one_point_per_pixel=True,
 )
+
+
+# WIP_hyperparams = {
+#     "pose_kernel": transition_kernels.GaussianVMFPoseDriftKernel(0.02, 1000.0),
+#     "color_kernel": transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.002),
+#     # transition_kernels.MixtureDriftKernel(
+#     #     [
+#     #         transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.01),
+#     #         transition_kernels.UniformDriftKernel(
+#     #             max_shift=0.15, min_val=jnp.zeros(3), max_val=jnp.ones(3)
+#     #         ),
+#     #     ],
+#     #     jnp.array([0.8, 1 - 0.805, .005]),
+#     # ),
+#     "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
+#         p_change_to_different_value=0.05, support=jnp.array([0.0, 1.0])
+#     ),
+#     "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
+#         p_change_to_different_value=0.1, support=jnp.array([0.0, 1.0])
+#     ),
+#     "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
+#         p_change_to_different_value=0.1,
+#         support=jnp.array([0.001, 0.0025, 0.01, 0.02]),
+#     ),
+#     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
+#         p_change_to_different_value=0.1,
+#         support=jnp.array([0.002, 0.01, 0.02, 0.05, 0.1, 0.15]),
+#     ),
+#     "image_kernel": image_kernel.UniquePixelsImageKernel(
+#         FullPixelRGBDDistribution(
+#             RenormalizedLaplacePixelColorDistribution(),
+#             UniformPixelColorDistribution(),
+#             RenormalizedLaplacePixelDepthDistribution(),
+#             UniformPixelDepthDistribution(),
+#         )
+#     ),
+#     "unexplained_depth_nonreturn_prob": 0.02,
+# }

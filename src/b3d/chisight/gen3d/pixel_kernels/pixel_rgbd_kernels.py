@@ -105,7 +105,7 @@ class RGBDDist(genjax.ExactDensity):
             jax.random.bernoulli(k3, depth_nonreturn_prob), 0.0, depth_if_return
         )
 
-        return jnp.concatenate([color, depth])
+        return jnp.concatenate([color, jnp.array([depth])])
 
     def logpdf(
         self, obs, latent, color_scale, depth_scale, depth_nonreturn_prob, intrinsics
@@ -162,8 +162,9 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         depth_nonreturn_prob_for_invisible: float,
     ) -> FloatArray:
         k1, k2, k3 = split(key, 3)
+        choose_to_be_invisible = jax.random.bernoulli(k1, visibility_prob)
         return jnp.where(
-            jax.random.bernoulli(k1, visibility_prob),
+            jnp.logical_or(is_unexplained(latent_rgbd), choose_to_be_invisible),
             self.inlier_distribution.sample(
                 k2,
                 latent_rgbd,
@@ -194,25 +195,28 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         intrinsics: dict,
         invisible_depth_nonreturn_prob: float,
     ) -> float:
-        return jnp.logaddexp(
-            jnp.log(visibility_prob)
-            + self.inlier_distribution.logpdf(
-                observed_rgbd,
-                latent_rgbd,
-                color_scale,
-                depth_scale,
-                depth_nonreturn_prob,
-                intrinsics,
-            ),
-            jnp.log(1 - visibility_prob)
-            + self.outlier_distribution.logpdf(
-                observed_rgbd,
-                latent_rgbd,
-                color_scale,
-                depth_scale,
-                invisible_depth_nonreturn_prob,
-                intrinsics,
-            ),
+        log_inlier_prob = self.inlier_distribution.logpdf(
+            observed_rgbd,
+            latent_rgbd,
+            color_scale,
+            depth_scale,
+            depth_nonreturn_prob,
+            intrinsics,
+        )
+        log_outlier_prob = self.outlier_distribution.logpdf(
+            observed_rgbd,
+            latent_rgbd,
+            color_scale,
+            depth_scale,
+            invisible_depth_nonreturn_prob,
+            intrinsics,
+        )
+        score_if_latent_is_valid = jnp.logaddexp(
+            jnp.log(visibility_prob) + log_inlier_prob,
+            jnp.log(1 - visibility_prob) + log_outlier_prob,
+        )
+        return jnp.where(
+            is_unexplained(latent_rgbd), log_outlier_prob, score_if_latent_is_valid
         )
 
 

@@ -32,7 +32,6 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
 
     previous_color = jnp.array([0.1, 0.2, 0.3])
-    latent_rgbd_for_point = jnp.concatenate([previous_color, jnp.array([1.0])])
     previous_dnrp = depth_nonreturn_prob_kernel.support[0]
 
     def get_visibility_prob_sample(
@@ -41,7 +40,7 @@ def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
         sample, _ = point_attribute_proposals._propose_a_points_attributes(
             key,
             observed_rgbd_for_point,
-            latent_rgbd_for_point,
+            jnp.array(1.0),  # point depth
             previous_color,
             previous_visibility_prob,
             previous_dnrp,

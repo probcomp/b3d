@@ -202,3 +202,117 @@ def test_invalid_pixel(kernel_spec):
         jnp.array([-1.0, -1.0, -1.0, -1.0]), latent_rgbd, *additional_args
     )
     assert logpdf_5 == -jnp.inf
+
+
+def test_nonreturn_prob_works():
+    kernel = FullPixelRGBDDistribution(
+        TruncatedLaplacePixelColorDistribution(),
+        UniformPixelColorDistribution(),
+        TruncatedLaplacePixelDepthDistribution(),
+        UniformPixelDepthDistribution(),
+    )
+
+    # visible, DNRprob = 1.0
+    assert (
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            1.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+        == -jnp.inf
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 0.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            1.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.5,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+
+    # invisible, DNRprobVisible = 1.0, DNRprobInvisible < 1
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 0.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+
+    # invisible, DNRprobVisible < 1.0, DNRprobInvisible = 1.0
+    assert jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.0,  # visibility prob
+            0.0,  # depth nonreturn prob for visible
+            intrinsics,
+            1.0,  # depth nonreturn prob for invisible
+        )
+    )
+
+    # invalid point
+    assert jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            -jnp.ones(4),
+            0.1,
+            0.4,
+            0.5,  # visibility prob
+            0.5,  # depth nonreturn prob for visible
+            intrinsics,
+            1.0,  # depth nonreturn prob for invisible
+        )
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            -jnp.ones(4),
+            0.1,
+            0.4,
+            0.5,  # visibility prob
+            0.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.05,  # depth nonreturn prob for invisible
+        )
+    )

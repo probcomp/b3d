@@ -95,10 +95,12 @@ mesa-libglu-devel-cos7-x86_64 = "*"
 mesa-libglu-cos7-x86_64 = "*"
 
 [tool.pixi.feature.cuda]
+platforms = ["linux-64"]
+system-requirements = { cuda = "12" }
 channels = [
-    #"nvidia",
     "conda-forge",
     "pytorch",
+    "nvidia"
 ]
 
 [tool.pixi.feature.cuda.pypi-dependencies]
@@ -106,14 +108,22 @@ nvidia-cudnn-cu12 = "*"
 #jaxlib ="*"
 #jax = "*"
 # jaxlib = { version = "==0.4.31", extras = ["cuda12"] }
-jax = { version = "*", extras = ["cuda12"] }
+
+#jax = { version = "*", extras = ["cuda12"] }
+jax = "*"
 # jax = "==0.4.31"
 
+#torch = "*"
+
 [tool.pixi.feature.cuda.dependencies]
-#jaxlib = { version = "0.4.31", build = "cuda12*" }
-cuda-toolkit = "*"
-pytorch = { version = "2.3.0", channel = "pytorch" }
-torchvision = { version = "0.18.0", channel = "pytorch" }
+jaxlib = { version = "0.4.31", build = "cuda12*", channel = "conda-forge"}
+cuda-toolkit = {version = "*", channel = "conda-forge" }
+
+# pytorch = { version = "2.3.0", channel = "pytorch" }
+# torchvision = { version = "0.18.0", channel = "pytorch" }
+pytorch = { version = "*" , channel = "pytorch" }
+pytorch-cuda = { version = "==12.4", channel = "pytorch" }
+torchvision = { version = "*", channel = "pytorch" }
 
 [tool.pixi.environments]
 default = { features = ["cuda"] }

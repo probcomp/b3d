@@ -26,8 +26,8 @@ class PixelDepthDistribution(genjax.ExactDensity):
     Distribution args:
     - latent_depth
     - depth_scale
-    - visibility_prob
-    - depth_nonreturn_prob
+    - near
+    - far
 
     Support: depth value in [near, far], or DEPTH_NONRETURN_VAL.
     """

@@ -10,7 +10,7 @@
 # near, far = 0.001, 1.0
 
 # dnrp_transition_kernel = transition_kernels.DiscreteFlipKernel(
-#     resample_probability=0.05, support=jnp.array([0.01, 0.99])
+#     p_change_to_different_value=0.05, support=jnp.array([0.01, 0.99])
 # )
 
 

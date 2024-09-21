@@ -86,14 +86,7 @@ def propose_a_points_attributes(
     return _propose_a_points_attributes(
         key,
         observed_rgbd_for_point=observed_rgbd_for_point,
-        latent_rgbd_for_point=jnp.array(
-            [
-                0.0,
-                0.0,
-                0.0,
-                new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2],
-            ]
-        ),
+        latent_depth=new_state["pose"].apply(hyperparams["vertices"][vertex_index])[2],
         previous_color=prev_state["colors"][vertex_index],
         previous_visibility_prob=prev_state["visibility_prob"][vertex_index],
         previous_dnrp=prev_state["depth_nonreturn_prob"][vertex_index],
@@ -107,7 +100,7 @@ def propose_a_points_attributes(
 def _propose_a_points_attributes(
     key,
     observed_rgbd_for_point,
-    latent_rgbd_for_point,
+    latent_depth,
     previous_color,
     previous_visibility_prob,
     previous_dnrp,
@@ -121,7 +114,6 @@ def _propose_a_points_attributes(
     visibility_transition_kernel = hyperparams["visibility_prob_kernel"]
     color_kernel = hyperparams["color_kernel"]
     obs_rgbd_kernel = hyperparams["image_kernel"].get_rgbd_vertex_kernel()
-    latent_depth = latent_rgbd_for_point[3]
     intrinsics = hyperparams["intrinsics"]
 
     def score_attribute_assignment(color, visprob, dnrprob):
@@ -138,6 +130,9 @@ def _propose_a_points_attributes(
             visibility_prob=visprob,
             depth_nonreturn_prob=dnrprob,
             intrinsics=intrinsics,
+            invisible_depth_nonreturn_prob=hyperparams[
+                "unexplained_depth_nonreturn_prob"
+            ],
         )
         return (
             visprob_transition_score

@@ -2,6 +2,7 @@
 
 import b3d.chisight.gen3d.transition_kernels as transition_kernels
 import jax.numpy as jnp
+import jax.random as r
 
 
 def test_discrete_flip_kernel():
@@ -9,7 +10,7 @@ def test_discrete_flip_kernel():
     possible_values = jnp.linspace(0, 1, num_values)
     flip_probability = 0.1
     kernel = transition_kernels.DiscreteFlipKernel(
-        resample_probability=flip_probability, support=possible_values
+        p_change_to_different_value=flip_probability, support=possible_values
     )
 
     assert jnp.isclose(
@@ -24,8 +25,17 @@ def test_discrete_flip_kernel():
     possible_values = jnp.array([0.01])
     flip_probability = 0.1
     kernel = transition_kernels.DiscreteFlipKernel(
-        resample_probability=flip_probability, support=possible_values
+        p_change_to_different_value=flip_probability, support=possible_values
     )
     assert jnp.isclose(
         kernel.logpdf(possible_values[0], possible_values[0]), jnp.log(1.0)
     )
+    assert kernel.sample(r.PRNGKey(0), 0.01) == 0.01
+
+    possible_values = jnp.array([0.01, 1.0])
+    flip_probability = 0.1
+    kernel = transition_kernels.DiscreteFlipKernel(
+        p_change_to_different_value=flip_probability, support=possible_values
+    )
+    assert jnp.isclose(kernel.logpdf(0.01, 0.01), jnp.log(0.9))
+    assert jnp.isclose(kernel.logpdf(1.0, 0.01), jnp.log(0.1))

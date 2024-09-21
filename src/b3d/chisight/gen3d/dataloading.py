@@ -8,7 +8,7 @@ import b3d
 from b3d import Mesh
 
 
-def load_scene(scene_id, FRAME_RATE=50, subdir="test"):
+def load_scene(scene_id, FRAME_RATE=50, subdir="test", T0=0):
     num_scenes = b3d.io.data_loader.get_ycbv_num_images(scene_id, subdir=subdir)
 
     image_ids = range(1, num_scenes + 1, FRAME_RATE)
@@ -19,11 +19,11 @@ def load_scene(scene_id, FRAME_RATE=50, subdir="test"):
         Mesh.from_obj_file(
             os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
         ).scale(0.001)
-        for id in all_data[0]["object_types"]
+        for id in all_data[T0]["object_types"]
     ]
 
-    image_height, image_width = all_data[0]["rgbd"].shape[:2]
-    fx, fy, cx, cy = all_data[0]["camera_intrinsics"]
+    image_height, image_width = all_data[T0]["rgbd"].shape[:2]
+    fx, fy, cx, cy = all_data[T0]["camera_intrinsics"]
     scaling_factor = 1.0
     renderer = b3d.renderer.renderer_original.RendererOriginal(
         image_width * scaling_factor,
@@ -47,13 +47,13 @@ def load_scene(scene_id, FRAME_RATE=50, subdir="test"):
         "far": 3.0,
     }
 
-    initial_object_poses = all_data[0]["object_poses"]
+    initial_object_poses = all_data[T0]["object_poses"]
 
     return all_data, meshes, renderer, intrinsics, initial_object_poses
 
 
-def load_object_given_scene(all_data, meshes, renderer, OBJECT_INDEX):
-    T = 0
+def load_object_given_scene(all_data, meshes, renderer, OBJECT_INDEX, T0=0):
+    T = T0
     fx, fy, cx, cy = all_data[T]["camera_intrinsics"]
 
     template_pose = (

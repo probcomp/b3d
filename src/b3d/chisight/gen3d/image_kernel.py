@@ -259,8 +259,10 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             ),
         )
         return jax.vmap(
-            jax.vmap(vertex_kernel.sample, in_axes=(0, 0, None, None, 0, 0, None)),
-            in_axes=(0, 0, None, None, 0, 0, None),
+            jax.vmap(
+                vertex_kernel.sample, in_axes=(0, 0, None, None, 0, 0, None, None)
+            ),
+            in_axes=(0, 0, None, None, 0, 0, None, None),
         )(
             keys,
             pixel_latent_rgbd,
@@ -269,6 +271,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             pixel_visibility_prob,
             pixel_depth_nonreturn_prob,
             hyperparams["intrinsics"],
+            hyperparams["unexplained_depth_nonreturn_prob"],
         )
 
     def logpdf(
@@ -284,7 +287,9 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         )
 
         vertex_kernel = self.get_rgbd_vertex_kernel()
-        scores = jax.vmap(vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0, None))(
+        scores = jax.vmap(
+            vertex_kernel.logpdf, in_axes=(0, 0, None, None, 0, 0, None, None)
+        )(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
             state["color_scale"],
@@ -292,6 +297,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
             state["visibility_prob"],
             state["depth_nonreturn_prob"],
             hyperparams["intrinsics"],
+            hyperparams["unexplained_depth_nonreturn_prob"],
         )
 
         # Points that don't hit the camera plane should not contribute to the score.
@@ -420,7 +426,7 @@ class UniquePixelsImageKernel(ImageKernel):
         # Score the collided pixels
         scores = jax.vmap(
             hyperparams["image_kernel"].get_rgbd_vertex_kernel().logpdf,
-            in_axes=(0, 0, None, None, 0, 0, None),
+            in_axes=(0, 0, None, None, 0, 0, None, None),
         )(
             observed_rgbd_per_point,
             latent_rgbd_per_point,
@@ -429,6 +435,7 @@ class UniquePixelsImageKernel(ImageKernel):
             state["visibility_prob"][point_indices_for_observed_rgbds],
             state["depth_nonreturn_prob"][point_indices_for_observed_rgbds],
             hyperparams["intrinsics"],
+            hyperparams["unexplained_depth_nonreturn_prob"],
         )
         total_score_for_explained_pixels = jnp.where(is_valid, scores, 0.0).sum()
 

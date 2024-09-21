@@ -43,6 +43,7 @@ sample_kernels_to_test = [
             1 - 0.3,  # visibility_prob
             0.1,  # depth_nonreturn_prob
             intrinsics,
+            0.02,  # depth nonreturn prob for non-registered point
         ),
     )
 ]
@@ -86,6 +87,7 @@ def test_relative_logpdf(kernel_spec):
         visibility_prob=0.8,
         depth_nonreturn_prob=0.1,
         intrinsics=intrinsics,
+        invisible_depth_nonreturn_prob=0.02,
     )
     logpdf_2 = kernel.logpdf(
         obs_rgbd,
@@ -95,6 +97,7 @@ def test_relative_logpdf(kernel_spec):
         visibility_prob=0.2,
         depth_nonreturn_prob=0.1,
         intrinsics=intrinsics,
+        invisible_depth_nonreturn_prob=0.02,
     )
     # the logpdf should be the same because the occluded probability is not used
     # in the case when no vertex hit the pixel
@@ -110,6 +113,7 @@ def test_relative_logpdf(kernel_spec):
         visibility_prob=0.8,
         depth_nonreturn_prob=0.1,
         intrinsics=intrinsics,
+        invisible_depth_nonreturn_prob=0.02,
     )
     logpdf_4 = kernel.logpdf(
         obs_rgbd,
@@ -119,6 +123,7 @@ def test_relative_logpdf(kernel_spec):
         visibility_prob=0.2,
         depth_nonreturn_prob=0.1,
         intrinsics=intrinsics,
+        invisible_depth_nonreturn_prob=0.02,
     )
     # the pixel should be more likely to be an occluded
     assert logpdf_3 < logpdf_4
@@ -133,6 +138,7 @@ def test_relative_logpdf(kernel_spec):
         visibility_prob=0.8,
         depth_nonreturn_prob=0.1,
         intrinsics=intrinsics,
+        invisible_depth_nonreturn_prob=0.02,
     )
     logpdf_6 = kernel.logpdf(
         obs_rgbd,
@@ -142,6 +148,7 @@ def test_relative_logpdf(kernel_spec):
         visibility_prob=0.2,
         depth_nonreturn_prob=0.1,
         intrinsics=intrinsics,
+        invisible_depth_nonreturn_prob=0.02,
     )
     # the pixel should be more likely to be an inlier
     assert logpdf_5 > logpdf_6
@@ -165,10 +172,24 @@ def test_invalid_pixel(kernel_spec):
     assert logpdf_1 == logpdf_2
 
     logpdf_3 = kernel.logpdf(
-        jnp.array([1.0, 0.5, 0.2, 4.0]), latent_rgbd, 0.1, 0.4, 0.2, 0.1, intrinsics
+        jnp.array([1.0, 0.5, 0.2, 4.0]),
+        latent_rgbd,
+        0.1,
+        0.4,
+        0.2,
+        0.1,
+        intrinsics,
+        0.02,
     )
     logpdf_4 = kernel.logpdf(
-        jnp.array([0.0, 0.0, 0.0, 0.02]), latent_rgbd, 0.3, 0.5, 0.4, 0.2, intrinsics
+        jnp.array([0.0, 0.0, 0.0, 0.02]),
+        latent_rgbd,
+        0.3,
+        0.5,
+        0.4,
+        0.2,
+        intrinsics,
+        0.02,
     )
     # and the values of the parameters doesn't matter either
     assert logpdf_2 == logpdf_3
@@ -181,3 +202,117 @@ def test_invalid_pixel(kernel_spec):
         jnp.array([-1.0, -1.0, -1.0, -1.0]), latent_rgbd, *additional_args
     )
     assert logpdf_5 == -jnp.inf
+
+
+def test_nonreturn_prob_works():
+    kernel = FullPixelRGBDDistribution(
+        TruncatedLaplacePixelColorDistribution(),
+        UniformPixelColorDistribution(),
+        TruncatedLaplacePixelDepthDistribution(),
+        UniformPixelDepthDistribution(),
+    )
+
+    # visible, DNRprob = 1.0
+    assert (
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            1.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+        == -jnp.inf
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 0.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            1.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.5,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+
+    # invisible, DNRprobVisible = 1.0, DNRprobInvisible < 1
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 0.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.0,  # visibility prob
+            1.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.02,  # depth nonreturn prob for invisible
+        )
+    )
+
+    # invisible, DNRprobVisible < 1.0, DNRprobInvisible = 1.0
+    assert jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            jnp.array([1.0, 0.5, 0.5, 4.0]),
+            0.1,
+            0.4,
+            0.0,  # visibility prob
+            0.0,  # depth nonreturn prob for visible
+            intrinsics,
+            1.0,  # depth nonreturn prob for invisible
+        )
+    )
+
+    # invalid point
+    assert jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            -jnp.ones(4),
+            0.1,
+            0.4,
+            0.5,  # visibility prob
+            0.5,  # depth nonreturn prob for visible
+            intrinsics,
+            1.0,  # depth nonreturn prob for invisible
+        )
+    )
+    assert not jnp.isinf(
+        kernel.logpdf(
+            jnp.array([1.0, 0.5, 0.2, 4.0]),
+            -jnp.ones(4),
+            0.1,
+            0.4,
+            0.5,  # visibility prob
+            0.0,  # depth nonreturn prob for visible
+            intrinsics,
+            0.05,  # depth nonreturn prob for invisible
+        )
+    )

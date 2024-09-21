@@ -20,10 +20,10 @@ hyperparams = {
     "pose_kernel": transition_kernels.GaussianVMFPoseDriftKernel(0.02, 1000.0),
     "color_kernel": transition_kernels.RenormalizedLaplaceColorDriftKernel(scale=0.05),
     "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
-        p_change_to_different_value=0.05, support=jnp.array([0.001, 0.999])
+        p_change_to_different_value=0.05, support=jnp.array([0.0, 1.0])
     ),
     "depth_nonreturn_prob_kernel": transition_kernels.DiscreteFlipKernel(
-        p_change_to_different_value=0.1, support=jnp.array([0.001, 0.999])
+        p_change_to_different_value=0.1, support=jnp.array([0.0, 1.0])
     ),
     "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
         p_change_to_different_value=0.1,

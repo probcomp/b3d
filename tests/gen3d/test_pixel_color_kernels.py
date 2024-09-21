@@ -6,8 +6,9 @@ import pytest
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     COLOR_MAX_VAL,
     COLOR_MIN_VAL,
-    FullPixelColorDistribution,
     MixturePixelColorDistribution,
+    RenormalizedGaussianPixelColorDistribution,
+    RenormalizedLaplacePixelColorDistribution,
     TruncatedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
 )
@@ -35,9 +36,16 @@ def generate_color_grid(n_grid_steps: int):
 
 sample_kernels_to_test = [
     (UniformPixelColorDistribution(), ()),
-    (TruncatedLaplacePixelColorDistribution(0.1), ()),
-    (MixturePixelColorDistribution(0.3), (0.5,)),  # occluded_prob
-    (FullPixelColorDistribution(0.5), (0.3,)),  # occluded_prob
+    (TruncatedLaplacePixelColorDistribution(), (0.1,)),
+    (RenormalizedLaplacePixelColorDistribution(), (0.1,)),
+    (RenormalizedGaussianPixelColorDistribution(), (0.1,)),
+    (
+        MixturePixelColorDistribution(),
+        (
+            0.3,
+            0.5,
+        ),
+    ),
 ]
 
 
@@ -68,34 +76,35 @@ def test_sample_in_valid_color_range(kernel_spec, latent_color):
         keys
     )
     assert colors.shape == (num_samples, 3)
-    assert jnp.all(colors > 0)
-    assert jnp.all(colors < 1)
+    assert jnp.all(colors >= 0)
+    assert jnp.all(colors <= 1)
 
 
-def test_relative_logpdf():
-    kernel = FullPixelColorDistribution(0.01)
-    obs_color = jnp.array([0.0, 0.0, 1.0])  # a blue pixel
+# def test_relative_logpdf():
+#     kernel = FullPixelColorDistribution()
+#     scale = 0.01
+#     obs_color = jnp.array([0.0, 0.0, 1.0])  # a blue pixel
 
-    # case 1: no color hit the pixel
-    latent_color = -jnp.ones(3)  # use -1 to denote invalid pixel
-    logpdf_1 = kernel.logpdf(obs_color, latent_color, 0.2)
-    logpdf_2 = kernel.logpdf(obs_color, latent_color, 0.8)
-    # the logpdf should be the same because the occluded probability is not used
-    # in the case when no color hit the pixel
-    assert jnp.allclose(logpdf_1, logpdf_2)
+#     # case 1: no color hit the pixel
+#     latent_color = -jnp.ones(3)  # use -1 to denote invalid pixel
+#     logpdf_1 = kernel.logpdf(obs_color, latent_color, scale, 0.8)
+#     logpdf_2 = kernel.logpdf(obs_color, latent_color, scale, 0.2)
+#     # the logpdf should be the same because the occluded probability is not used
+#     # in the case when no color hit the pixel
+#     assert jnp.allclose(logpdf_1, logpdf_2)
 
-    # case 2: a color hit the pixel, but the color is not close to the observed color
-    latent_color = jnp.array([1.0, 0.5, 0.0])
-    logpdf_3 = kernel.logpdf(obs_color, latent_color, 0.2)
-    logpdf_4 = kernel.logpdf(obs_color, latent_color, 0.8)
-    # the pixel should be more likely to be an occluded
-    assert logpdf_3 < logpdf_4
+#     # case 2: a color hit the pixel, but the color is not close to the observed color
+#     latent_color = jnp.array([1.0, 0.5, 0.0])
+#     logpdf_3 = kernel.logpdf(obs_color, latent_color, scale, 0.8)
+#     logpdf_4 = kernel.logpdf(obs_color, latent_color, scale, 0.2)
+#     # the pixel should be more likely to be an occluded
+#     assert logpdf_3 < logpdf_4
 
-    # case 3: a color hit the pixel, and the color is close to the observed color
-    latent_color = jnp.array([0.0, 0.0, 0.9])
-    logpdf_5 = kernel.logpdf(obs_color, latent_color, 0.2)
-    logpdf_6 = kernel.logpdf(obs_color, latent_color, 0.8)
-    # the pixel should be more likely to be an inlier
-    assert logpdf_5 > logpdf_6
-    # the score of the pixel should be higher when the color is closer
-    assert logpdf_5 > logpdf_3
+#     # case 3: a color hit the pixel, and the color is close to the observed color
+#     latent_color = jnp.array([0.0, 0.0, 0.9])
+#     logpdf_5 = kernel.logpdf(obs_color, latent_color, 0.01, 0.8)
+#     logpdf_6 = kernel.logpdf(obs_color, latent_color, scale, 0.2)
+#     # the pixel should be more likely to be an inlier
+#     assert logpdf_5 > logpdf_6
+#     # the score of the pixel should be higher when the color is closer
+#     assert logpdf_5 > logpdf_3

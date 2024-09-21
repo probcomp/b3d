@@ -287,7 +287,7 @@ def visualize_particle_system(
         )
 
         for i in range(num_clusters.unwrap()):
-            b3d.rr_log_pose(f"{viz_prefix}/3D/cluster/{i}", object_poses[t][i])
+            b3d.rr_log_pose(object_poses[t][i], channel=f"{viz_prefix}/3D/cluster/{i}")
 
 
 def particle_2d_pixel_coordinates_to_image(pixel_coords, image_height, image_width):

@@ -102,6 +102,9 @@ class MixtureOfUniforms(genjax.ExactDensity):
             self.uniforms
         )
         joint_logpdfs_for_each_uniform = jnp.log(self.probs) + logpdfs_given_uniform
+        joint_logpdfs_for_each_uniform = jnp.nan_to_num(
+            joint_logpdfs_for_each_uniform, nan=-jnp.inf
+        )
         return jax.scipy.special.logsumexp(joint_logpdfs_for_each_uniform)
 
 
@@ -120,6 +123,9 @@ class MixtureOfNiceTruncatedCenteredUniforms(genjax.ExactDensity):
     def logpdf(self, x, center):
         logpdfs_given_ntcu = jax.vmap(lambda ntcu: ntcu.logpdf(x, center))(self.ntcus)
         joint_logpdfs_for_each_ntcu = jnp.log(self.probs) + logpdfs_given_ntcu
+        joint_logpdfs_for_each_ntcu = jnp.nan_to_num(
+            joint_logpdfs_for_each_ntcu, nan=-jnp.inf
+        )
         return jax.scipy.special.logsumexp(joint_logpdfs_for_each_ntcu)
 
 
@@ -215,96 +221,6 @@ def all_pairs(X, Y):
 
 
 ### IPy vizualization ###
-
-
-# Set up an ipywidget that visualizes the exact posterior
-# function from src/, and the enumeration-based posterior
-# computed above.
-# Also have a way to visualize the priors.
-#
-# The visual will be as follows:
-#  Top half:
-#   - A slider for the latent value
-#   - A 1D histogram plot of the prior (x axis = value, y axis = density)
-#     - Should have a vertical line at the latent value
-#   - A 1D histogram plot of the observation distribution, given
-#      that latent value.
-#  Bottom half:
-#   - A slider for the observed value
-#   - A 1D histogram plot of the prior (x axis = value, y axis = density)
-#     - Should have a vertical line at the observed value
-#   - A 1D histogram plot of the enumeration-based posterior
-#      distribution, given that observed value.
-#   - A 1D histogram plot of the exact posterior distribution (computed
-#      using the exact posterior function from src), given that observed value.
-#
-# The sliders should be able to move between the min and max values
-# of the latent and observed distributions, respectively.
-# def create_interactive_posterior_viz(
-#     prior,
-#     obs_model,
-#     prior_min,
-#     prior_max,
-#     obs_min,
-#     obs_max,
-#     get_exact_posterior_pdf, # (obs, latent) -> pdf
-#     get_enum_posterior_pdf=None, # (obs, gridpoints) -> approx pdf at each gridpoint
-# ):
-#     if get_enum_posterior_pdf is None:
-#         get_enum_posterior_pdf = lambda obs, gridpoints: _get_enum_posterior_pdf(
-#             prior, obs_model, obs, gridpoints
-#         )
-
-#     def plot_histogram(ax, data, bins, title, xlabel, ylabel, vline=None):
-#         ax.hist(data, bins=bins, density=True, alpha=0.6, color='g')
-#         if vline is not None:
-#             ax.axvline(vline, color='r', linestyle='dashed', linewidth=1)
-#         ax.set_title(title)
-#         ax.set_xlabel(xlabel)
-#         ax.set_ylabel(ylabel)
-
-#     def update(latent_val, obs_val):
-#         fig = plt.figure(figsize=(10, 8))
-#         gs = GridSpec(2, 2, figure=fig)
-
-#         # Top half
-#         ax1 = fig.add_subplot(gs[0, 0])
-#         plot_histogram(ax1, prior, bins=30, title='Prior Distribution', xlabel='Value', ylabel='Density', vline=latent_val)
-
-#         ax2 = fig.add_subplot(gs[0, 1])
-#         obs_dist_given_latent = obs_model(latent_val)
-#         plot_histogram(ax2, obs_dist_given_latent, bins=30, title='Observation Distribution Given Latent', xlabel='Value', ylabel='Density')
-
-#         # Bottom half
-#         ax3 = fig.add_subplot(gs[1, 0])
-#         plot_histogram(ax3, prior, bins=30, title='Prior Distribution', xlabel='Value', ylabel='Density', vline=obs_val)
-#         ax4 = fig.add_subplot(gs[1, 1])
-#         gridpoints = jnp.linspace(prior_min, prior_max, 1000001)
-#         enum_posterior_pdf = get_enum_posterior_pdf(obs_val, gridpoints)
-
-#         # Select 100 evenly spaced points for plotting
-#         plot_points = jnp.linspace(prior_min, prior_max, 101)
-#         assert jnp.allclose(plot_points, gridpoints[::10000])
-#         enum_posterior_plot = enum_posterior_pdf[::10000]
-
-#         # Compute exact posterior only at plot points
-#         exact_posterior_plot = get_exact_posterior_pdf(obs_val, plot_points)
-
-#         ax4.plot(plot_points, enum_posterior_plot, label='Enum Posterior', alpha=0.6)
-#         ax4.plot(plot_points, exact_posterior_plot, label='Exact Posterior', alpha=0.6)
-#         ax4.axvline(obs_val, color='r', linestyle='dashed', linewidth=1)
-#         ax4.set_title('Posterior Distributions')
-#         ax4.set_xlabel('Value')
-#         ax4.set_ylabel('Density')
-#         ax4.legend()
-
-#         plt.tight_layout()
-#         plt.show()
-
-#     latent_slider = widgets.FloatSlider(min=prior_min, max=prior_max, step=0.1, description='Latent Value')
-#     obs_slider = widgets.FloatSlider(min=obs_min, max=obs_max, step=0.1, description='Observed Value')
-
-#     interact(update, latent_val=latent_slider, obs_val=obs_slider)
 
 
 def create_interactive_posterior_viz(

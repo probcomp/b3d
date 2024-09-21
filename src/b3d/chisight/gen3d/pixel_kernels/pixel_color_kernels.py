@@ -26,8 +26,8 @@ class PixelColorDistribution(genjax.ExactDensity):
     An abstract class that defines the common interface for pixel color kernels.
 
     Distribuiton args:
-    - latent_rgb
-    - rgb_scale
+    - latent_color
+    - color_scale
 
     Support:
     - An RGB value in [0, 1]^3.
@@ -35,23 +35,30 @@ class PixelColorDistribution(genjax.ExactDensity):
 
     @abstractmethod
     def sample(
-        self, key: PRNGKey, latent_color: FloatArray, *args, **kwargs
+        self, key: PRNGKey, latent_color: FloatArray, color_scale: FloatArray
     ) -> FloatArray:
         raise NotImplementedError
 
     def logpdf(
-        self, observed_color: FloatArray, latent_color: FloatArray, *args, **kwargs
+        self,
+        observed_color: FloatArray,
+        latent_color: FloatArray,
+        color_scale: FloatArray,
     ) -> float:
-        return self.logpdf_per_channel(
-            observed_color, latent_color, *args, **kwargs
-        ).sum()
+        return self.logpdf_per_channel(observed_color, latent_color, color_scale).sum()
 
     @abstractmethod
     def logpdf_per_channel(
-        self, observed_color: FloatArray, latent_color: FloatArray, *args, **kwargs
+        self,
+        observed_color: FloatArray,
+        latent_color: FloatArray,
+        color_scale: FloatArray,
     ) -> FloatArray:
-        """Return an array of logpdf values, one for each channel. This is useful
-        for testing purposes."""
+        """
+        Return an array of logpdf values, one for each channel. This is useful
+        for testing purposes.
+        Either this or `logpdf` must be implemented.
+        """
         raise NotImplementedError
 
 
@@ -64,7 +71,7 @@ class RenormalizedGaussianPixelColorDistribution(PixelColorDistribution):
     The support of the distribution is ([0, 1]^3).
     """
 
-    def sample(self, key, latent_color, color_scale, *args, **kwargs):
+    def sample(self, key, latent_color, color_scale):
         return jax.vmap(
             genjax.truncated_normal.sample, in_axes=(0, 0, None, None, None)
         )(
@@ -75,9 +82,7 @@ class RenormalizedGaussianPixelColorDistribution(PixelColorDistribution):
             COLOR_MAX_VAL,
         )
 
-    def logpdf_per_channel(
-        self, observed_color, latent_color, color_scale, *args, **kwargs
-    ):
+    def logpdf_per_channel(self, observed_color, latent_color, color_scale):
         return jax.vmap(
             genjax.truncated_normal.logpdf, in_axes=(0, 0, None, None, None)
         )(observed_color, latent_color, color_scale, COLOR_MIN_VAL, COLOR_MAX_VAL)
@@ -92,7 +97,7 @@ class RenormalizedLaplacePixelColorDistribution(PixelColorDistribution):
     The support of the distribution is ([0, 1]^3).
     """
 
-    def sample(self, key, latent_color, color_scale, *args, **kwargs):
+    def sample(self, key, latent_color, color_scale):
         return jax.vmap(renormalized_laplace.sample, in_axes=(0, 0, None, None, None))(
             split(key, latent_color.shape[0]),
             latent_color,
@@ -101,9 +106,7 @@ class RenormalizedLaplacePixelColorDistribution(PixelColorDistribution):
             COLOR_MAX_VAL,
         )
 
-    def logpdf_per_channel(
-        self, observed_color, latent_color, color_scale, *args, **kwargs
-    ):
+    def logpdf_per_channel(self, observed_color, latent_color, color_scale):
         return jax.vmap(renormalized_laplace.logpdf, in_axes=(0, 0, None, None, None))(
             observed_color, latent_color, color_scale, COLOR_MIN_VAL, COLOR_MAX_VAL
         )
@@ -121,12 +124,7 @@ class TruncatedLaplacePixelColorDistribution(PixelColorDistribution):
     uniform_window_size: float = Pytree.static(default=_FIXED_COLOR_UNIFORM_WINDOW)
 
     def sample(
-        self,
-        key: PRNGKey,
-        latent_color: FloatArray,
-        color_scale: FloatArray,
-        *args,
-        **kwargs,
+        self, key: PRNGKey, latent_color: FloatArray, color_scale: FloatArray
     ) -> FloatArray:
         return jax.vmap(
             lambda k, color: truncated_laplace.sample(
@@ -145,8 +143,6 @@ class TruncatedLaplacePixelColorDistribution(PixelColorDistribution):
         observed_color: FloatArray,
         latent_color: FloatArray,
         color_scale: FloatArray,
-        *args,
-        **kwargs,
     ) -> FloatArray:
         return jax.vmap(
             lambda obs, latent: truncated_laplace.logpdf(

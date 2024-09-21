@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 from b3d.modeling_utils import (
     PythonMixtureDistribution,
+    renormalized_laplace,
     truncated_color_laplace,
     truncated_laplace,
 )
@@ -27,6 +28,13 @@ def confirm_logpdf_looks_valid(
     total_pmass = jnp.sum(pdfs * stepsize)
     assert jnp.isclose(total_pmass, 1.0, atol=1e-3)
 
+    logpdfs = jax.vmap(lambda x: renormalized_laplace.logpdf(x, loc, scale, low, high))(
+        x
+    )
+    pdfs = jnp.exp(logpdfs)
+    total_pmass = jnp.sum(pdfs * stepsize)
+    assert jnp.isclose(total_pmass, 1.0, atol=1e-3)
+
 
 def ensure_laplace_samples_have_sufficient_spread(
     key, loc, scale, low, high, uniform_window_size, scale_mult=0.1
@@ -42,8 +50,17 @@ def ensure_laplace_samples_have_sufficient_spread(
         or jnp.abs(samples[1] - samples[2]) > scale * scale_mult
     )
 
+    samples = jax.vmap(lambda k: renormalized_laplace.sample(k, loc, scale, low, high))(
+        jax.random.split(key, 3)
+    )
+    assert (
+        jnp.abs(samples[0] - samples[1]) > scale * scale_mult
+        or jnp.abs(samples[0] - samples[2]) > scale * scale_mult
+        or jnp.abs(samples[1] - samples[2]) > scale * scale_mult
+    )
 
-def test_truncated_laplace():
+
+def test_truncated_laplace_and_renormalized_laplace():
     confirm_logpdf_looks_valid(0.5, 1.0, 0.0, 1.0, 0.1)
     confirm_logpdf_looks_valid(1.0, 1.0, 0.0, 1.0, 0.1)
     confirm_logpdf_looks_valid(0.0, 1.0, 0.0, 1.0, 0.1)

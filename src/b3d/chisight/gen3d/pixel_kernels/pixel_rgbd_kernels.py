@@ -1,10 +1,10 @@
-from abc import abstractmethod
-
 import genjax
 import jax
 import jax.numpy as jnp
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import PixelColorDistribution
-from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import PixelDepthDistribution
+from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
+    PixelDepthDistributionForDepthReturn,
+)
 from genjax import Pytree
 from genjax.typing import FloatArray, PRNGKey
 from jax.random import split
@@ -27,69 +27,31 @@ def is_unexplained(latent_value: FloatArray) -> bool:
 
 
 @Pytree.dataclass
-class PixelRGBDDistribution(genjax.ExactDensity):
-    """
-    Distribution args:
-    - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
-    - color_scale: float
-    - depth_scale: float
-    - visibility_prob: float
-    - depth_nonreturn_prob: float
-    - intrinsics: dict
-    - depth_nonreturn_prob_for_invisible: float
-        Depth nonreturn prob for pixels not associated with a latent point,
-        or for "invisible" pixels.
-
-    The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
-
-    Note that this distribution expects the observed_rgbd to be valid. If an invalid
-    pixel is observed, the logpdf will return -inf.
-    """
-
-    @abstractmethod
-    def sample(
-        self,
-        key: PRNGKey,
-        latent_rgbd: FloatArray,
-        color_scale: float,
-        depth_scale: float,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        intrinsics: dict,
-    ) -> FloatArray:
-        raise NotImplementedError
-
-    @abstractmethod
-    def logpdf(
-        self,
-        observed_rgbd: FloatArray,
-        latent_rgbd: FloatArray,
-        color_scale: float,
-        depth_scale: float,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        intrinsics: dict,
-    ) -> float:
-        raise NotImplementedError
-
-
-@Pytree.dataclass
-class RGBDDist(genjax.ExactDensity):
+class PixelDistFromColorDistAndDepthReturnDist(genjax.ExactDensity):
     """
     Distribution on an RGBD pixel.
+    This wraps (1) a color distribution and (2)
+    a depth distribution for the case where the depth value is a return.
+
+    This distribution samples a pixel by sampling from the color distribution,
+    and either sampling a depth value from the depth distribution or deciding
+    that the depth value at this pixel is a non-return.
+
+    Distribution support:
+        [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
 
     Args:
     - latent_rgbd
     - color_scale
     - depth_scale
     - depth_nonreturn_prob
-    - intrinsics
+    - intrinsics dict containing `"near"` and `"far"` keys.
 
-    Calls a color distribution and a "valid depth return" depth distribution to sample the pixel.
+    [TODO: is there a better name for this class?]
     """
 
     color_distribution: PixelColorDistribution
-    depth_distribution: PixelDepthDistribution
+    depth_distribution: PixelDepthDistributionForDepthReturn
 
     def sample(
         self,
@@ -127,7 +89,7 @@ class RGBDDist(genjax.ExactDensity):
 
 
 @Pytree.dataclass
-class FullPixelRGBDDistribution(PixelRGBDDistribution):
+class FullPixelRGBDDistribution(genjax.ExactDensity):
     """
     Args:
     - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
@@ -139,21 +101,32 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
     - depth_nonreturn_prob_for_invisible: float
 
     The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
+
+    The generative process is:
+    - If latent_rgbd is [-1, -1, -1, -1], the pixel color will be sampled from `outlier_color_distribution`
+        and the depth will be sampled from `outlier_depth_distribution`, called with `depth_nonreturn_prob_for_invisible`.
+    - Otherwise, with probability `1 - visibility_prob`, the pixel will be sampled in the same way
+        as the preceding bullet.
+    - Finally, if `latent_rgbd` is not [-1, -1, -1, -1], with probability `visibility_prob`, the pixel
+        color will be sampled from `inlier_color_distribution` and the depth will be sampled from `inlier_depth_distribution`
+        called with `depth_nonreturn_prob` (rather than `depth_nonreturn_prob_for_invisible`).
     """
 
     inlier_color_distribution: PixelColorDistribution
     outlier_color_distribution: PixelColorDistribution
 
-    inlier_depth_distribution: PixelDepthDistribution
-    outlier_depth_distribution: PixelDepthDistribution
+    inlier_depth_distribution: PixelDepthDistributionForDepthReturn
+    outlier_depth_distribution: PixelDepthDistributionForDepthReturn
 
     @property
     def inlier_distribution(self):
-        return RGBDDist(self.inlier_color_distribution, self.inlier_depth_distribution)
+        return PixelDistFromColorDistAndDepthReturnDist(
+            self.inlier_color_distribution, self.inlier_depth_distribution
+        )
 
     @property
     def outlier_distribution(self):
-        return RGBDDist(
+        return PixelDistFromColorDistAndDepthReturnDist(
             self.outlier_color_distribution, self.outlier_depth_distribution
         )
 

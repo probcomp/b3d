@@ -259,11 +259,14 @@ def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperp
 
     trace = update_field(k1, advanced_trace, "pose", pose)
 
-    sup = get_hypers(trace)["color_scale_kernel"].support
-    val = get_prev_state(advanced_trace)["color_scale"]
-    idx = jnp.argmin(jnp.abs(sup - val))
-    newidx = jnp.minimum(idx + 1, sup.shape[0] - 1)
-    trace = update_field(k1, trace, "color_scale", sup[newidx])
+    # TODO: can toggle this on to change the inference behavior slightly...
+    # This cranks up the color scale before proposing the colors.
+    #
+    # sup = get_hypers(trace)["color_scale_kernel"].support
+    # val = get_prev_state(advanced_trace)["color_scale"]
+    # idx = jnp.argmin(jnp.abs(sup - val))
+    # newidx = jnp.minimum(idx + 1, sup.shape[0] - 1)
+    # trace = update_field(k1, trace, "color_scale", sup[newidx])
 
     k2a, k2b = split(k2)
     (

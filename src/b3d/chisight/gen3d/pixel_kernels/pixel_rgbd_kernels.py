@@ -89,7 +89,7 @@ class PixelDistFromColorDistAndDepthReturnDist(genjax.ExactDensity):
 
 
 @Pytree.dataclass
-class PixelRGBDDistribution(genjax.ExactDensity):
+class FullPixelRGBDDistribution(genjax.ExactDensity):
     """
     Args:
     - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)

@@ -10,7 +10,7 @@ from genjax.typing import FloatArray, IntArray, PRNGKey
 
 import b3d.utils
 from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
-    PixelRGBDDistribution,
+    FullPixelRGBDDistribution,
     is_unexplained,
 )
 
@@ -214,13 +214,13 @@ class ImageKernel(genjax.ExactDensity):
     ) -> FloatArray:
         raise NotImplementedError
 
-    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
+    def get_rgbd_vertex_kernel(self) -> FullPixelRGBDDistribution:
         raise NotImplementedError
 
 
 @Pytree.dataclass
 class NoOcclusionPerVertexImageKernel(ImageKernel):
-    rgbd_vertex_kernel: PixelRGBDDistribution
+    rgbd_vertex_kernel: FullPixelRGBDDistribution
 
     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
         """Generate latent RGBD image by projecting the vertices directly to the image
@@ -310,7 +310,7 @@ class NoOcclusionPerVertexImageKernel(ImageKernel):
         # TODO: add scores for pixels that don't get a point
         return score_for_pixels_with_points
 
-    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
+    def get_rgbd_vertex_kernel(self) -> FullPixelRGBDDistribution:
         # Note: The distributions were originally defined for per-pixel computation,
         # but they should work for per-vertex computation as well, except that
         # they don't expect observed_rgbd to be invalid, so we need to handle
@@ -396,7 +396,7 @@ def calculate_latent_and_observed_correspondences(
 
 @Pytree.dataclass
 class UniquePixelsImageKernel(ImageKernel):
-    rgbd_vertex_kernel: PixelRGBDDistribution
+    rgbd_vertex_kernel: FullPixelRGBDDistribution
 
     def sample(self, key: PRNGKey, state: Mapping, hyperparams: Mapping) -> FloatArray:
         # TODO: implement this
@@ -475,5 +475,5 @@ class UniquePixelsImageKernel(ImageKernel):
         # Final score is the sum of the log probabilities over all pixels, collided and not collided.
         return total_score_for_explained_pixels + total_score_for_unexplained_pixels
 
-    def get_rgbd_vertex_kernel(self) -> PixelRGBDDistribution:
+    def get_rgbd_vertex_kernel(self) -> FullPixelRGBDDistribution:
         return self.rgbd_vertex_kernel

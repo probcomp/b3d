@@ -35,6 +35,10 @@ class PixelRGBDDistribution(genjax.ExactDensity):
     - depth_scale: float
     - visibility_prob: float
     - depth_nonreturn_prob: float
+    - intrinsics: dict
+    - depth_nonreturn_prob_for_invisible: float
+        Depth nonreturn prob for pixels not associated with a latent point,
+        or for "invisible" pixels.
 
     The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
 
@@ -130,6 +134,9 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
     - color_scale: float
     - depth_scale: float
     - visibility_prob: float
+    - depth_nonreturn_prob: float
+    - intrinsics: dict
+    - depth_nonreturn_prob_for_invisible: float
 
     The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
     """
@@ -217,77 +224,4 @@ class FullPixelRGBDDistribution(PixelRGBDDistribution):
         )
         return jnp.where(
             is_unexplained(latent_rgbd), log_outlier_prob, score_if_latent_is_valid
-        )
-
-
-@Pytree.dataclass
-class OldOcclusionPixelRGBDDistribution(PixelRGBDDistribution):
-    """
-    Distribution args:
-    - latent_rgbd: 4-array: RGBD value.  (a value of [-1, -1, -1, -1] indicates no point hits here.)
-    - color_scale: float
-    - depth_scale: float
-    - visibility_prob: float
-    - depth_nonreturn_prob: float
-
-    The support of the distribution is [0, 1]^3 x ([near, far] + {DEPTH_NONRETURN_VALUE}).
-
-    Note that this distribution expects the observed_rgbd to be valid. If an invalid
-    pixel is observed, the logpdf will return -inf.
-    """
-
-    def sample(
-        self,
-        key: PRNGKey,
-        latent_rgbd: FloatArray,
-        color_scale: float,
-        depth_scale: float,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        intrinsics: dict,
-    ) -> FloatArray:
-        return jnp.ones((4,)) * 0.5
-
-    def logpdf(
-        self,
-        observed_rgbd: FloatArray,
-        latent_rgbd: FloatArray,
-        color_scale: float,
-        depth_scale: float,
-        visibility_prob: float,
-        depth_nonreturn_prob: float,
-        intrinsics: dict,
-    ) -> float:
-        is_depth_non_return = observed_rgbd[3] < 0.0001
-
-        visible_branch_log_score = 0.0
-        color_visible_branch_score = jax.scipy.stats.laplace.logpdf(
-            observed_rgbd[:3], latent_rgbd[:3], color_scale
-        ).sum(axis=-1)
-        depth_visible_branch_score = jnp.where(
-            is_depth_non_return,
-            jnp.log(depth_nonreturn_prob),
-            jnp.log(1.0 - depth_nonreturn_prob)
-            + jax.scipy.stats.laplace.logpdf(
-                observed_rgbd[3], latent_rgbd[3], depth_scale
-            ),
-        )
-        visible_branch_log_score = (
-            color_visible_branch_score + depth_visible_branch_score
-        )
-
-        color_not_visible_branch_score = jnp.log(1 / 1.0**3)
-        depth_not_visible_branch_score = jnp.where(
-            is_depth_non_return,
-            jnp.log(depth_nonreturn_prob),
-            jnp.log(1.0 - depth_nonreturn_prob)
-            + jnp.log(1 / (intrinsics["far"] - intrinsics["near"])),
-        )
-        not_visible_branch_log_score = (
-            color_not_visible_branch_score + depth_not_visible_branch_score
-        )
-
-        return jnp.logaddexp(
-            jnp.log(visibility_prob) + visible_branch_log_score,
-            jnp.log(1 - visibility_prob) + not_visible_branch_log_score,
         )

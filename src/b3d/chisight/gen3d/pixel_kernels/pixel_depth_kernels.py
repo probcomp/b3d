@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import b3d.chisight.gen3d.uniform_distributions as uf
 import genjax
 from b3d.modeling_utils import (
     _FIXED_DEPTH_UNIFORM_WINDOW,
@@ -83,6 +84,40 @@ class RenormalizedGaussianPixelDepthDistribution(PixelDepthDistributionForDepthR
     ) -> float:
         return genjax.truncated_normal.logpdf(
             observed_depth, latent_depth, depth_scale, near, far
+        )
+
+
+@Pytree.dataclass
+class CenteredUniformIntervalDepthDistribution(PixelDepthDistributionForDepthReturn):
+    """
+    Sample a color from a renormalized Laplace distribution centered around the given
+    latent_color (rgb value), given the color_scale (scale of the laplace).
+
+    The support of the distribution is ([0, 1]^3).
+    """
+
+    def sample(
+        self,
+        key: PRNGKey,
+        latent_depth: float,
+        depth_scale: float,
+        near: float,
+        far: float,
+    ) -> float:
+        return uf.NiceTruncatedCenteredUniform(depth_scale, near, far).sample(
+            key, latent_depth
+        )
+
+    def logpdf(
+        self,
+        observed_depth: float,
+        latent_depth: float,
+        depth_scale: float,
+        near: float,
+        far: float,
+    ) -> float:
+        return uf.NiceTruncatedCenteredUniform(depth_scale, near, far).logpdf(
+            observed_depth, latent_depth
         )
 
 

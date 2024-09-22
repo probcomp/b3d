@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import b3d.chisight.gen3d.uniform_distributions as uf
 import genjax
 import jax
 from b3d.modeling_utils import (
@@ -110,6 +111,28 @@ class RenormalizedLaplacePixelColorDistribution(PixelColorDistribution):
         return jax.vmap(renormalized_laplace.logpdf, in_axes=(0, 0, None, None, None))(
             observed_color, latent_color, color_scale, COLOR_MIN_VAL, COLOR_MAX_VAL
         )
+
+
+@Pytree.dataclass
+class CenteredUniformIntervalColorDistribution(PixelColorDistribution):
+    """
+    Sample a color from a renormalized Laplace distribution centered around the given
+    latent_color (rgb value), given the color_scale (scale of the laplace).
+
+    The support of the distribution is ([0, 1]^3).
+    """
+
+    def sample(self, key, latent_color, color_scale):
+        return jax.vmap(
+            uf.NiceTruncatedCenteredUniform(color_scale, 0.0, 1.0).sample,
+            in_axes=(0, 0),
+        )(jax.split(key, 3), latent_color)
+
+    def logpdf_per_channel(self, observed_color, latent_color, color_scale):
+        return jax.vmap(
+            uf.NiceTruncatedCenteredUniform(color_scale, 0.0, 1.0).logpdf,
+            in_axes=(0, 0),
+        )(observed_color, latent_color)
 
 
 @Pytree.dataclass

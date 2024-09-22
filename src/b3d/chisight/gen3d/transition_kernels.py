@@ -8,6 +8,7 @@ from genjax import Pytree
 from genjax.typing import ArrayLike, PRNGKey
 from tensorflow_probability.substrates import jax as tfp
 
+import b3d.chisight.gen3d.uniform_distributions as uf
 from b3d import Pose
 from b3d.chisight.dense.likelihoods.other_likelihoods import PythonMixturePixelModel
 from b3d.modeling_utils import (
@@ -60,21 +61,26 @@ class UniformDriftKernel(DriftKernel):
 
 
 @Pytree.dataclass
-class UniformColorDriftKernel(UniformDriftKernel):
+class CenteredUniformColorDriftKernel(DriftKernel):
     """A specialized uniform drift kernel with fixed min_val and max_val, with
     additional logics to handle the color channels jointly.
 
     Support: [max(0.0, prev_value - max_shift), min(1.0, prev_value + max_shift)]
     """
 
-    max_shift: float = Pytree.static()
-    min_val: float = Pytree.static(default=0.0, init=False)
-    max_val: float = Pytree.static(default=1.0, init=False)
+    epsilon: float = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_value: ArrayLike) -> ArrayLike:
+        return jax.vmap(
+            uf.NiceTruncatedCenteredUniform(self.epsilon, 0.0, 1.0).sample,
+            in_axes=(0, 0),
+        )(jax.split(key, 3), prev_value)
 
     def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
-        # the summation at the end is to ensure that we get a single value for
-        # the 3 channels (instead of 3 separate values)
-        return super().logpdf(new_value, prev_value).sum()
+        return jax.vmap(
+            uf.NiceTruncatedCenteredUniform(self.epsilon, 0.0, 1.0).logpdf,
+            in_axes=(0, 0),
+        )(new_value, prev_value).sum()
 
 
 @Pytree.dataclass
@@ -330,4 +336,4 @@ class DiscreteFlipKernel(genjax.ExactDensity):
                 jnp.log(self.p_change_to_different_value * 1 / number_of_other_values),
             )
         else:
-            return 0.0
+            return jnp.log(self.p_change_to_different_value * 0.0 + 1.0)

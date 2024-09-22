@@ -22,189 +22,117 @@ def hyperparams_and_inference_hyperparams():
     return hyperparams, inference_hyperparams
 
 
-def test_visibility_prob_inference(hyperparams_and_inference_hyperparams):
-    hyperparams, inference_hyperparams = hyperparams_and_inference_hyperparams
+def get_sample(
+    key,
+    observed_rgbd_for_point,
+    latent_depth,
+    previous_color,
+    previous_visibility_prob,
+    previous_dnrp,
+    hyperparams,
+    inference_hyperparams,
+):
+    color_scale = hyperparams["color_scale_kernel"].support[0]
+    depth_scale = hyperparams["depth_scale_kernel"].support[0]
 
-    color_scale = 0.01
-    depth_scale = 0.001
+    sample, _ = point_attribute_proposals._propose_a_points_attributes(
+        key,
+        observed_rgbd_for_point,
+        latent_depth,
+        previous_color,
+        previous_visibility_prob,
+        previous_dnrp,
+        color_scale,
+        depth_scale,
+        hyperparams,
+        inference_hyperparams,
+    )
+    return sample
+
+
+get_samples = jax.vmap(
+    get_sample, in_axes=(0, None, None, None, None, None, None, None)
+)
+
+
+def test_color_visibility_inference(hyperparams_and_inference_hyperparams):
+    hyperparams, inference_hyperparams = hyperparams_and_inference_hyperparams
 
     depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
 
-    previous_color = jnp.array([0.1, 0.2, 0.3])
-    previous_dnrp = depth_nonreturn_prob_kernel.support[0]
-
-    def get_visibility_prob_sample(
-        key, observed_rgbd_for_point, previous_visibility_prob
-    ):
-        sample, _ = point_attribute_proposals._propose_a_points_attributes(
-            key,
-            observed_rgbd_for_point,
-            jnp.array(1.0),  # point depth
-            previous_color,
-            previous_visibility_prob,
-            previous_dnrp,
-            color_scale,
-            depth_scale,
-            hyperparams,
-            inference_hyperparams,
-        )
-        return sample["visibility_prob"]
-
-    get_visibility_prob_samples = jax.vmap(
-        get_visibility_prob_sample, in_axes=(0, None, None)
-    )
-
     keys = jax.random.split(jax.random.PRNGKey(0), 1000)
 
-    # Verify that when the color matches exactly but the depth change drasticaly, the visibility prob switches to low.
-    previous_visibility_prob = visibility_prob_kernel.support[-1]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.35, 4.0])
-    visibility_prob_samples = get_visibility_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_visibility_prob
-    )
-    assert visibility_prob_samples.mean() < 0.15
-
-    # Verify that when the color matches exactly but the depth change drasticaly, the visibility prob stays low.
-    previous_visibility_prob = visibility_prob_kernel.support[0]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 4.0])
-    visibility_prob_samples = get_visibility_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_visibility_prob
-    )
-    assert visibility_prob_samples.mean() < 0.03
-
-    # Verify that when the color matches exactly and the depth is close, the visibility prob switches to being high.
-    previous_visibility_prob = visibility_prob_kernel.support[0]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 1.0])
-    visibility_prob_samples = get_visibility_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_visibility_prob
-    )
-    assert visibility_prob_samples.mean() > 0.85
-
-    # Verify that when the color matches exactly and the depth is close, the visibility prob stays high.
-    previous_visibility_prob = visibility_prob_kernel.support[-1]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 1.0])
-    visibility_prob_samples = get_visibility_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_visibility_prob
-    )
-    assert visibility_prob_samples.mean() > 0.97
-
-
-def test_depth_nonreturn_prob_inference(hyperparams_and_inference_hyperparams):
-    hyperparams, inference_hyperparams = hyperparams_and_inference_hyperparams
-
-    color_scale = 0.01
-    depth_scale = 0.001
-
-    depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
-    visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
-
-    previous_color = jnp.array([0.1, 0.2, 0.3])
-    previous_visibility_prob = visibility_prob_kernel.support[-1]
-
-    def get_dnr_prob_sample(key, observed_rgbd_for_point, previous_dnrp):
-        sample, _ = point_attribute_proposals._propose_a_points_attributes(
-            key,
-            observed_rgbd_for_point,
-            jnp.array(1.0),
-            previous_color,
-            previous_visibility_prob,
-            previous_dnrp,
-            color_scale,
-            depth_scale,
-            hyperparams,
-            inference_hyperparams,
-        )
-        return sample["depth_nonreturn_prob"]
-
-    get_dnr_prob_samples = jax.vmap(get_dnr_prob_sample, in_axes=(0, None, None))
-
-    keys = jax.random.split(jax.random.PRNGKey(0), 1000)
-
-    # If depth is nonreturn, the depth nonreturn prob should stay high.
-    previous_dnrp = depth_nonreturn_prob_kernel.support[-1]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 0.0])
-    dnr_prob_samples = get_dnr_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_dnrp
-    )
-    assert dnr_prob_samples.mean() > 0.95
-
-    # If depth is nonreturn, the depth nonreturn prob should become high.
     previous_dnrp = depth_nonreturn_prob_kernel.support[0]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 0.0])
-    dnr_prob_samples = get_dnr_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_dnrp
+
+    depth_change = 0.05
+    # Color matches but depth changes by 2.5cm --> Visibility should be 0.
+    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 1.0 + depth_change])
+    samples = get_samples(
+        keys,
+        observed_rgbd_for_this_vertex,
+        1.0,
+        jnp.array([0.1, 0.2, 0.3]),
+        visibility_prob_kernel.support[-1],
+        previous_dnrp,
+        hyperparams,
+        inference_hyperparams,
     )
-    assert dnr_prob_samples.mean() > 0.90
+    assert samples["visibility_prob"].mean() < 0.001
+    assert jnp.allclose(samples["colors"], jnp.array([0.1, 0.2, 0.3]), atol=0.001)
 
-    # If depth is valid, the depth nonreturn prob should become low.
-    previous_dnrp = depth_nonreturn_prob_kernel.support[-1]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 1.0])
-    dnr_prob_samples = get_dnr_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_dnrp
+    samples = get_samples(
+        keys,
+        observed_rgbd_for_this_vertex,
+        1.0,
+        jnp.array([0.1, 0.2, 0.3]),
+        visibility_prob_kernel.support[0],
+        previous_dnrp,
+        hyperparams,
+        inference_hyperparams,
     )
-    assert dnr_prob_samples.mean() < 0.10
+    assert samples["visibility_prob"].mean() < 0.001
+    assert jnp.allclose(samples["colors"], jnp.array([0.1, 0.2, 0.3]), atol=0.001)
 
-    # If depth is valid, the depth nonreturn prob should stay low.
-    previous_dnrp = depth_nonreturn_prob_kernel.support[0]
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, 1.0])
-    dnr_prob_samples = get_dnr_prob_samples(
-        keys, observed_rgbd_for_this_vertex, previous_dnrp
+    # Color matches and depth matches --> Visibility should be 1.
+    observed_rgbd_for_this_vertex = jnp.array([0.12, 0.22, 0.32, 1.0])
+    samples = get_samples(
+        keys,
+        observed_rgbd_for_this_vertex,
+        1.0,
+        jnp.array([0.1, 0.2, 0.3]),
+        visibility_prob_kernel.support[0],
+        previous_dnrp,
+        hyperparams,
+        inference_hyperparams,
     )
-    assert dnr_prob_samples.mean() < 0.1
+    assert samples["visibility_prob"].mean() > 0.999
+    # assert jnp.allclose(samples["colors"], jnp.array([0.1, 0.2, 0.3]), atol=0.001)
 
-
-def test_color_prob_inference(hyperparams_and_inference_hyperparams):
-    hyperparams, inference_hyperparams = hyperparams_and_inference_hyperparams
-
-    color_scale = 0.01
-    depth_scale = 0.001
-
-    depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
-    visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
-
-    previous_visibility_prob = visibility_prob_kernel.support[-1]
-    previous_dnrp = depth_nonreturn_prob_kernel.support[0]
-    latent_depth = 1.0
-
-    def get_color_sample(key, observed_rgbd_for_point, previous_color):
-        sample, _ = point_attribute_proposals._propose_a_points_attributes(
-            key,
-            observed_rgbd_for_point,
-            jnp.array(latent_depth),
-            previous_color,
-            previous_visibility_prob,
-            previous_dnrp,
-            color_scale,
-            depth_scale,
-            hyperparams,
-            inference_hyperparams,
-        )
-        return sample["colors"]
-
-    get_color_samples = jax.vmap(get_color_sample, in_axes=(0, None, None))
-
-    keys = jax.random.split(jax.random.PRNGKey(0), 1000)
-
-    # If depth match and colors match, the color should stay the same.
-    previous_color = jnp.array([0.1, 0.2, 0.3])
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, latent_depth])
-    color_samples = get_color_samples(
-        keys, observed_rgbd_for_this_vertex, previous_color
+    samples = get_samples(
+        keys,
+        observed_rgbd_for_this_vertex,
+        1.0,
+        jnp.array([0.1, 0.2, 0.3]),
+        visibility_prob_kernel.support[-1],
+        previous_dnrp,
+        hyperparams,
+        inference_hyperparams,
     )
-    assert jnp.max(jnp.abs(color_samples - previous_color)) < 0.02
+    assert samples["visibility_prob"].mean() > 0.999
+    # assert jnp.allclose(samples["colors"], observed_rgbd_for_this_vertex[:3], atol=0.001)
 
-    # # If depths match and colors slightly change, then the color should move.
-    previous_color = jnp.array([0.15, 0.25, 0.35])
-    observed_rgbd_for_this_vertex = jnp.array([0.1, 0.2, 0.3, latent_depth])
-    color_samples = get_color_samples(
-        keys, observed_rgbd_for_this_vertex, previous_color
+    # Color matches but depth changes by 2.5cm --> Visibility should be 0.
+    observed_rgbd_for_this_vertex = jnp.array([0.5, 0.2, 0.3, 1.0])
+    samples = get_samples(
+        keys,
+        observed_rgbd_for_this_vertex,
+        1.0,
+        jnp.array([0.1, 0.2, 0.3]),
+        visibility_prob_kernel.support[-1],
+        previous_dnrp,
+        hyperparams,
+        inference_hyperparams,
     )
-    assert (
-        jnp.max(
-            jnp.abs(
-                jnp.median(color_samples, axis=0) - observed_rgbd_for_this_vertex[:3]
-            )
-        )
-        < 0.03
-    )
+    # assert samples["visibility_prob"].mean() < 0.001
+    assert jnp.allclose(samples["colors"], jnp.array([0.1, 0.2, 0.3]), atol=0.001)

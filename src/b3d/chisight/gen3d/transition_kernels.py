@@ -74,7 +74,7 @@ class CenteredUniformColorDriftKernel(DriftKernel):
         return jax.vmap(
             uf.NiceTruncatedCenteredUniform(self.epsilon, 0.0, 1.0).sample,
             in_axes=(0, 0),
-        )(jax.split(key, 3), prev_value)
+        )(jax.random.split(key, 3), prev_value)
 
     def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
         return jax.vmap(

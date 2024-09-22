@@ -12,7 +12,7 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_rgbd_kernels import (
 p_resample_color = 0.005
 hyperparams = {
     "pose_kernel": transition_kernels.UniformPoseDriftKernel(max_shift=1.0),
-    "color_kernel": transition_kernels.CenteredUniformColorDriftKernel(epsilon=0.05),
+    "color_kernel": transition_kernels.GaussianColorDriftKernel(scale=0.05),
     "visibility_prob_kernel": transition_kernels.DiscreteFlipKernel(
         p_change_to_different_value=0.1, support=jnp.array([0.0, 1.0])
     ),
@@ -21,16 +21,16 @@ hyperparams = {
     ),
     "depth_scale_kernel": transition_kernels.DiscreteFlipKernel(
         p_change_to_different_value=0.1,
-        support=jnp.array([0.0025]),
+        support=jnp.array([0.005]),
     ),
     "color_scale_kernel": transition_kernels.DiscreteFlipKernel(
-        p_change_to_different_value=0.1, support=jnp.array([0.025])
+        p_change_to_different_value=0.1, support=jnp.array([0.05])
     ),
-    "image_kernel": image_kernel.UniquePixelsImageKernel(
+    "image_kernel": image_kernel.NoOcclusionPerVertexImageKernel(
         FullPixelRGBDDistribution(
-            pck.CenteredUniformIntervalColorDistribution(),
+            pck.RenormalizedGaussianPixelColorDistribution(),
             pck.UniformPixelColorDistribution(),
-            pdk.CenteredUniformIntervalDepthDistribution(),
+            pdk.RenormalizedGaussianPixelDepthDistribution(),
             pdk.UniformPixelDepthDistribution(),
         )
     ),
@@ -38,13 +38,14 @@ hyperparams = {
 }
 
 inference_hyperparams = InferenceHyperparams(
-    n_poses=4000,
+    n_poses=15000,
     do_stochastic_color_proposals=False,
     prev_color_proposal_laplace_scale=0.1,
     obs_color_proposal_laplace_scale=0.1,
     # If you don't use the UniquePixelsImageKernel, you should probably
     # change this to False.
-    in_inference_only_assoc_one_point_per_pixel=True,
+    include_q_scores_at_top_level=False,
+    in_inference_only_assoc_one_point_per_pixel=False,
 )
 
 

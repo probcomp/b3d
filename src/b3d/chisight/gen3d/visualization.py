@@ -11,7 +11,7 @@ import b3d
 def plot_samples(
     samples,
     observed_rgbd_for_point,
-    latent_rgbd_for_point,
+    latent_depth,
     previous_color,
     previous_visibility_prob,
     previous_dnrp,
@@ -44,7 +44,7 @@ def plot_samples(
         x=observed_rgbd_for_point[3], color="black", linestyle="--", label="Observed"
     )
     ax.axvline(
-        x=latent_rgbd_for_point[3], color="black", linestyle="dotted", label="Latent"
+        x=latent_depth, color="black", linestyle="dotted", label="Latent"
     )
     ax.legend()
 
@@ -72,7 +72,7 @@ def plot_samples(
 
 def create_interactive_visualization(
     observed_rgbd_for_point,
-    latent_rgbd_for_point,
+    latent_depth,
     hyperparams,
     inference_hyperparams,
     previous_color,
@@ -99,7 +99,7 @@ def create_interactive_visualization(
         samples = jax.vmap(attribute_proposal_function, in_axes=(0, *(None,) * 9))(
             jax.random.split(key, 100),
             _observed_rgbd_for_point,
-            latent_rgbd_for_point,
+            latent_depth,
             previous_color,
             previous_visibility_prob,
             previous_dnrp,
@@ -107,11 +107,11 @@ def create_interactive_visualization(
             depth_scale,
             hyperparams,
             inference_hyperparams,
-        )
+        )[0]
         plot_samples(
             samples,
             _observed_rgbd_for_point,
-            latent_rgbd_for_point,
+            latent_depth,
             previous_color,
             previous_visibility_prob,
             previous_dnrp,

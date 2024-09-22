@@ -126,7 +126,7 @@ class CenteredUniformIntervalColorDistribution(PixelColorDistribution):
         return jax.vmap(
             uf.NiceTruncatedCenteredUniform(color_scale, 0.0, 1.0).sample,
             in_axes=(0, 0),
-        )(jax.split(key, 3), latent_color)
+        )(jax.random.split(key, 3), latent_color)
 
     def logpdf_per_channel(self, observed_color, latent_color, color_scale):
         return jax.vmap(

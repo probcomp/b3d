@@ -94,6 +94,7 @@ def inference_step(
     do_advance_time=True,
     get_all_metadata=False,
     get_all_weights=False,
+    c2f_step_func=c2f_step,
 ):
     if do_advance_time:
         key, subkey = split(key)
@@ -101,7 +102,7 @@ def inference_step(
 
     for pose_proposal_args in inference_hyperparams.pose_proposal_args:
         key, subkey = split(key)
-        trace, weight, keys_to_regenerate_traces, all_poses, all_weights = c2f_step(
+        trace, weight, keys_to_regenerate_traces, all_poses, all_weights = c2f_step_func(
             subkey,
             trace,
             pose_proposal_args,
@@ -346,3 +347,5 @@ def propose_color_scale(key, trace):
     index = jax.random.categorical(k2, normalized_scores)
 
     return support[index], normalized_scores[index]
+
+

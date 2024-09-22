@@ -54,14 +54,14 @@ get_samples = jax.vmap(
     get_sample, in_axes=(0, None, None, None, None, None, None, None)
 )
 
+keys = jax.random.split(jax.random.PRNGKey(0), 1000)
+
 
 def test_color_visibility_inference(hyperparams_and_inference_hyperparams):
     hyperparams, inference_hyperparams = hyperparams_and_inference_hyperparams
-
     depth_nonreturn_prob_kernel = hyperparams["depth_nonreturn_prob_kernel"]
     visibility_prob_kernel = hyperparams["visibility_prob_kernel"]
 
-    keys = jax.random.split(jax.random.PRNGKey(0), 1000)
 
     previous_dnrp = depth_nonreturn_prob_kernel.support[0]
 
@@ -109,6 +109,7 @@ def test_color_visibility_inference(hyperparams_and_inference_hyperparams):
     assert samples["visibility_prob"].mean() > 0.999
     # assert jnp.allclose(samples["colors"], jnp.array([0.1, 0.2, 0.3]), atol=0.001)
 
+    observed_rgbd_for_this_vertex = jnp.array([0.12, 0.22, 0.32, 1.0])
     samples = get_samples(
         keys,
         observed_rgbd_for_this_vertex,
@@ -134,5 +135,5 @@ def test_color_visibility_inference(hyperparams_and_inference_hyperparams):
         hyperparams,
         inference_hyperparams,
     )
-    # assert samples["visibility_prob"].mean() < 0.001
+    assert samples["visibility_prob"].mean() < 0.001
     assert jnp.allclose(samples["colors"], jnp.array([0.1, 0.2, 0.3]), atol=0.001)

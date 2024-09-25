@@ -127,21 +127,3 @@ def test_pose_gridding():
     )
     end = time.time()
     print(f"Time taken: {(end-start)*1000} milliseconds for {ntr*nrot} poses")
-
-    # ### Visualize ###
-    # viz_grid = pose_grid_jit(
-    #     pose0,
-    #     half_dx=half_dx,
-    #     half_dy=half_dy,
-    #     half_dz=half_dz,
-    #     half_nx=half_nx,
-    #     half_ny=half_ny,
-    #     half_nz=half_nz,
-    #     half_dangle=half_d_euler,
-    #     half_n_xrot=half_n_alpha,
-    #     half_n_yrot=half_n_beta,
-    #     half_n_zrot=half_n_gamma,
-    # )
-    # b3d.rr_init("pose_grid_test")
-    # rr_log_pose_arrows_grid(viz_grid)
-    # b3d.rr_log_pose(pose0, channel="original_pose")

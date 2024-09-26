@@ -719,6 +719,30 @@ def fit_plane(point_cloud, inlier_threshold, minPoints, maxIteration):
     plane_pose = Pose(point_on_plane, Rot.from_matrix(R).as_quat())
     return plane_pose
 
+def rotation_from_axis_angle(axis, angle):
+    """Creates a rotation matrix from an axis and angle.
+
+    Args:
+        axis (jnp.ndarray): The axis vector. Shape (3,)
+        angle (float): The angle in radians.
+    Returns:
+        jnp.ndarray: The rotation matrix. Shape (3, 3)
+    """
+    sina = jnp.sin(angle)
+    cosa = jnp.cos(angle)
+    direction = axis / jnp.linalg.norm(axis)
+    # rotation matrix around unit vector
+    R = jnp.diag(jnp.array([cosa, cosa, cosa]))
+    R = R + jnp.outer(direction, direction) * (1.0 - cosa)
+    direction = direction * sina
+    R = R + jnp.array(
+        [
+            [0.0, -direction[2], direction[1]],
+            [direction[2], 0.0, -direction[0]],
+            [-direction[1], direction[0], 0.0],
+        ]
+    )
+    return R
 
 def fit_table_plane(
     point_cloud, inlier_threshold, segmentation_threshold, minPoints, maxIteration

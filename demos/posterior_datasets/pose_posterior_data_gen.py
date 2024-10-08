@@ -1,10 +1,11 @@
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import rerun as rr
 import trimesh
+
+import b3d
 from b3d import Pose
 
 rr.init("demo")

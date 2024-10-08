@@ -1,8 +1,9 @@
-import b3d
 import genjax
 import jax
 import jax.numpy as jnp
 from genjax import ChoiceMapBuilder as C
+
+import b3d
 
 from ....common.solver import Solver
 from .model import get_likelihood, model_factory, rr_log_trace

@@ -15,6 +15,124 @@ from b3d.pose import (
 )
 
 ############################
+###### gjk algorithm #######
+############################
+
+
+# Support function: finds the farthest point in a given direction
+def support_function(vertices1, vertices2, direction):
+    point1 = vertices1[jnp.argmax(jnp.dot(vertices1, direction))]
+    point2 = vertices2[jnp.argmax(jnp.dot(vertices2, -direction))]
+    return point1 - point2
+
+
+# Check if the origin is in the simplex formed by the given points
+def contains_origin(simplex, direction):
+    if len(simplex) == 2:
+        a, b = simplex
+        ab = b - a
+        ao = -a
+
+        def true_fn(_):
+            new_direction = jnp.cross(jnp.cross(ab, ao), ab)
+            return False, simplex, new_direction
+
+        def false_fn(_):
+            return False, [a, None, None], ao  # Pad with None
+
+        return jax.lax.cond(jnp.dot(ab, ao) > 0, true_fn, false_fn, None)
+
+    elif len(simplex) == 3:
+        a, b, c = simplex
+        ab = b - a
+        ac = c - a
+        ao = -a
+        abc = jnp.cross(ab, ac)
+
+        def cond1(_):
+            def cond1_true(_):
+                new_direction = jnp.cross(jnp.cross(ac, ao), ac)
+                return False, [a, c, None], new_direction  # Pad with None
+
+            def cond1_false(_):
+                return False, [a, None, None], ao  # Pad with None
+
+            return jax.lax.cond(jnp.dot(ac, ao) > 0, cond1_true, cond1_false, None)
+
+        def cond2(_):
+            def cond2_true(_):
+                new_direction = jnp.cross(jnp.cross(ab, ao), ab)
+                return False, [a, b, None], new_direction  # Pad with None
+
+            def cond2_false(_):
+                def cond3_true(_):
+                    return False, [a, b, c], abc
+
+                def cond3_false(_):
+                    return False, [a, c, b], -abc
+
+                return jax.lax.cond(jnp.dot(abc, ao) > 0, cond3_true, cond3_false, None)
+
+            return jax.lax.cond(
+                jnp.dot(jnp.cross(ab, abc), ao) > 0, cond2_true, cond2_false, None
+            )
+
+        return jax.lax.cond(jnp.dot(jnp.cross(abc, ac), ao) > 0, cond1, cond2, None)
+
+    return True, simplex, direction
+
+
+# Main GJK algorithm using jax.lax.cond
+def gjk(vertices1, vertices2):
+    direction = jnp.array([1.0, 0.0, 0.0])
+    simplex = [
+        support_function(vertices1, vertices2, direction),
+        None,
+        None,
+    ]  # Start with a fixed-size simplex list
+
+    direction = -simplex[0]
+
+    def gjk_step(i, data):
+        simplex, direction, collision_detected = data
+        new_point = support_function(vertices1, vertices2, direction)
+
+        def true_fn(_):
+            updated_simplex = [new_point if item is None else item for item in simplex]
+            return updated_simplex
+
+        def false_fn(_):
+            return simplex
+
+        # Ensure `simplex` is always the same size
+        simplex = jax.lax.cond(collision_detected, true_fn, false_fn, None)
+
+        # Check if the origin is contained in the updated simplex
+        if collision_detected:
+            is_collision, simplex, direction = contains_origin(simplex, direction)
+            collision_detected = is_collision
+
+        return simplex, direction, collision_detected
+
+    # Initialize the loop
+    simplex, direction, collision_detected = jax.lax.fori_loop(
+        0, 20, gjk_step, (simplex, direction, True)
+    )
+
+    return collision_detected
+
+
+def get_interpenetration(mesh_seq):
+    for pair in list(itertools.combinations(mesh_seq, 2)):
+        m1, m2 = pair
+        # Compute intersection volume
+        intersect = gjk(m1.vertices, m2.vertices)
+        if intersect:
+            return True
+    return False
+
+
+############################
 #### compute the volume ####
 ############################
 # @jax.jit
@@ -115,139 +233,139 @@ from b3d.pose import (
 ####################################################
 #### memory-efficient way to compute the volume ####
 ####################################################
-@jax.jit
-def ray_intersects_triangle(p0, d, v0, v1, v2):
-    epsilon = 1e-8
-    e1 = v1 - v0
-    e2 = v2 - v0
-    h = jnp.cross(d, e2)
-    a = jnp.dot(e1, h)
-    parallel = jnp.abs(a) < epsilon
-    f = jnp.where(~parallel, 1.0 / a, 0.0)
-    s = p0 - v0
-    u = f * jnp.dot(s, h)
-    q = jnp.cross(s, e1)
-    v = f * jnp.dot(d, q)
-    t = f * jnp.dot(e2, q)
-    intersects = (~parallel) & (u >= 0.0) & (v >= 0.0) & (u + v <= 1.0) & (t > epsilon)
-    return intersects
+# @jax.jit
+# def ray_intersects_triangle(p0, d, v0, v1, v2):
+#     epsilon = 1e-8
+#     e1 = v1 - v0
+#     e2 = v2 - v0
+#     h = jnp.cross(d, e2)
+#     a = jnp.dot(e1, h)
+#     parallel = jnp.abs(a) < epsilon
+#     f = jnp.where(~parallel, 1.0 / a, 0.0)
+#     s = p0 - v0
+#     u = f * jnp.dot(s, h)
+#     q = jnp.cross(s, e1)
+#     v = f * jnp.dot(d, q)
+#     t = f * jnp.dot(e2, q)
+#     intersects = (~parallel) & (u >= 0.0) & (v >= 0.0) & (u + v <= 1.0) & (t > epsilon)
+#     return intersects
 
 
-@jax.jit
-def point_in_mesh(point, vertices, faces):
-    ray_direction = jnp.array([1.0, 0.0, 0.0])
-    v0 = vertices[faces[:, 0]]
-    v1 = vertices[faces[:, 1]]
-    v2 = vertices[faces[:, 2]]
+# @jax.jit
+# def point_in_mesh(point, vertices, faces):
+#     ray_direction = jnp.array([1.0, 0.0, 0.0])
+#     v0 = vertices[faces[:, 0]]
+#     v1 = vertices[faces[:, 1]]
+#     v2 = vertices[faces[:, 2]]
 
-    def intersect_triangle(carry, i):
-        intersects = ray_intersects_triangle(point, ray_direction, v0[i], v1[i], v2[i])
-        count = carry + intersects
-        return count, None
+#     def intersect_triangle(carry, i):
+#         intersects = ray_intersects_triangle(point, ray_direction, v0[i], v1[i], v2[i])
+#         count = carry + intersects
+#         return count, None
 
-    num_faces = faces.shape[0]
-    total_intersections, _ = jax.lax.scan(intersect_triangle, 0, jnp.arange(num_faces))
-    inside = total_intersections % 2 == 1
-    return inside
-
-
-@jax.jit
-def process_batch(points, mesh1_vertices, mesh1_faces, mesh2_vertices, mesh2_faces):
-    in_mesh1 = jax.vmap(point_in_mesh, in_axes=(0, None, None))(
-        points, mesh1_vertices, mesh1_faces
-    )
-    in_mesh2 = jax.vmap(point_in_mesh, in_axes=(0, None, None))(
-        points, mesh2_vertices, mesh2_faces
-    )
-    in_both = in_mesh1 & in_mesh2
-    return in_both
+#     num_faces = faces.shape[0]
+#     total_intersections, _ = jax.lax.scan(intersect_triangle, 0, jnp.arange(num_faces))
+#     inside = total_intersections % 2 == 1
+#     return inside
 
 
-def monte_carlo_interpenetration_volume(
-    mesh1, mesh2, num_samples, key, batch_size=100000
-):
-    # Compute overlapping bounding box using JAX operations
-    min_coords1 = jnp.min(mesh1.vertices, axis=0)
-    max_coords1 = jnp.max(mesh1.vertices, axis=0)
-    min_coords2 = jnp.min(mesh2.vertices, axis=0)
-    max_coords2 = jnp.max(mesh2.vertices, axis=0)
-
-    min_coords = jnp.maximum(min_coords1, min_coords2)
-    max_coords = jnp.minimum(max_coords1, max_coords2)
-
-    # Compute overlap using JAX operations
-    overlap = jnp.all(min_coords < max_coords)
-
-    # Use lax.cond to handle control flow based on JAX arrays
-    def compute_volume(_):
-        bbox_volume = jnp.prod(max_coords - min_coords)
-
-        # Generate random points
-        num_full_batches = num_samples // batch_size
-        remainder = num_samples % batch_size
-        total_batches = num_full_batches + (1 if remainder > 0 else 0)
-
-        keys = jax.random.split(key, num=total_batches)
-
-        # Initialize total hits
-        total_hits = 0
-
-        for i in range(total_batches):
-            subkey = keys[i]
-            current_batch_size = batch_size if i < num_full_batches else remainder
-
-            points = jax.random.uniform(
-                subkey,
-                shape=(current_batch_size, 3),
-                minval=min_coords,
-                maxval=max_coords,
-            )
-
-            # Pad the last batch if necessary
-            if current_batch_size < batch_size:
-                pad_size = batch_size - current_batch_size
-                points = jnp.pad(points, ((0, pad_size), (0, 0)), mode="constant")
-
-            # Perform point-in-mesh tests
-            in_both = process_batch(
-                points, mesh1.vertices, mesh1.faces, mesh2.vertices, mesh2.faces
-            )
-
-            # Mask out the padded points
-            if current_batch_size < batch_size:
-                mask = jnp.arange(batch_size) < current_batch_size
-                in_both = in_both & mask
-
-            hits = jnp.sum(in_both[:current_batch_size])
-            total_hits += hits
-
-        interpenetration_volume = (total_hits / num_samples) * bbox_volume
-        return interpenetration_volume
-
-    # Function to return zero volume
-    def zero_volume(_):
-        return 0.0
-
-    # Use lax.cond to choose between computing volume or returning zero
-    interpenetration_volume = jax.lax.cond(
-        overlap, compute_volume, zero_volume, operand=None
-    )
-
-    return interpenetration_volume
+# @jax.jit
+# def process_batch(points, mesh1_vertices, mesh1_faces, mesh2_vertices, mesh2_faces):
+#     in_mesh1 = jax.vmap(point_in_mesh, in_axes=(0, None, None))(
+#         points, mesh1_vertices, mesh1_faces
+#     )
+#     in_mesh2 = jax.vmap(point_in_mesh, in_axes=(0, None, None))(
+#         points, mesh2_vertices, mesh2_faces
+#     )
+#     in_both = in_mesh1 & in_mesh2
+#     return in_both
 
 
-def get_interpenetration(mesh_seq, num_samples):
-    interpenetrations = []
-    for ct, pair in enumerate(list(itertools.combinations(mesh_seq, 2))):
-        m1, m2 = pair
-        # Monte Carlo parameters
-        key = jax.random.PRNGKey(ct)  # Random seed
-        # Compute intersection volume
-        intersection_volume = monte_carlo_interpenetration_volume(
-            m1, m2, num_samples, key
-        )
-        interpenetrations.append(intersection_volume)
-    return jnp.array(interpenetrations).sum()
+# def monte_carlo_interpenetration_volume(
+#     mesh1, mesh2, num_samples, key, batch_size=100000
+# ):
+#     # Compute overlapping bounding box using JAX operations
+#     min_coords1 = jnp.min(mesh1.vertices, axis=0)
+#     max_coords1 = jnp.max(mesh1.vertices, axis=0)
+#     min_coords2 = jnp.min(mesh2.vertices, axis=0)
+#     max_coords2 = jnp.max(mesh2.vertices, axis=0)
+
+#     min_coords = jnp.maximum(min_coords1, min_coords2)
+#     max_coords = jnp.minimum(max_coords1, max_coords2)
+
+#     # Compute overlap using JAX operations
+#     overlap = jnp.all(min_coords < max_coords)
+
+#     # Use lax.cond to handle control flow based on JAX arrays
+#     def compute_volume(_):
+#         bbox_volume = jnp.prod(max_coords - min_coords)
+
+#         # Generate random points
+#         num_full_batches = num_samples // batch_size
+#         remainder = num_samples % batch_size
+#         total_batches = num_full_batches + (1 if remainder > 0 else 0)
+
+#         keys = jax.random.split(key, num=total_batches)
+
+#         # Initialize total hits
+#         total_hits = 0
+
+#         for i in range(total_batches):
+#             subkey = keys[i]
+#             current_batch_size = batch_size if i < num_full_batches else remainder
+
+#             points = jax.random.uniform(
+#                 subkey,
+#                 shape=(current_batch_size, 3),
+#                 minval=min_coords,
+#                 maxval=max_coords,
+#             )
+
+#             # Pad the last batch if necessary
+#             if current_batch_size < batch_size:
+#                 pad_size = batch_size - current_batch_size
+#                 points = jnp.pad(points, ((0, pad_size), (0, 0)), mode="constant")
+
+#             # Perform point-in-mesh tests
+#             in_both = process_batch(
+#                 points, mesh1.vertices, mesh1.faces, mesh2.vertices, mesh2.faces
+#             )
+
+#             # Mask out the padded points
+#             if current_batch_size < batch_size:
+#                 mask = jnp.arange(batch_size) < current_batch_size
+#                 in_both = in_both & mask
+
+#             hits = jnp.sum(in_both[:current_batch_size])
+#             total_hits += hits
+
+#         interpenetration_volume = (total_hits / num_samples) * bbox_volume
+#         return interpenetration_volume
+
+#     # Function to return zero volume
+#     def zero_volume(_):
+#         return 0.0
+
+#     # Use lax.cond to choose between computing volume or returning zero
+#     interpenetration_volume = jax.lax.cond(
+#         overlap, compute_volume, zero_volume, operand=None
+#     )
+
+#     return interpenetration_volume
+
+
+# def get_interpenetration(mesh_seq, num_samples):
+#     interpenetrations = []
+#     for ct, pair in enumerate(list(itertools.combinations(mesh_seq, 2))):
+#         m1, m2 = pair
+#         # Monte Carlo parameters
+#         key = jax.random.PRNGKey(ct)  # Random seed
+#         # Compute intersection volume
+#         intersection_volume = monte_carlo_interpenetration_volume(
+#             m1, m2, num_samples, key
+#         )
+#         interpenetrations.append(intersection_volume)
+#     return jnp.array(interpenetrations).sum()
 
 
 #############################################################

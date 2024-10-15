@@ -110,7 +110,7 @@ def get_adam_optimization_patch_tracker(
             lambda pos, quat: Pose.from_vec(jnp.concatenate([pos, quat])),
             in_axes=(0, 0),
         )(positions, quaternions)
-        cm = jax.vmap(lambda i: C["poses", i].set(poses[i]))(jnp.arange(poses.shape[0]))
+        cm = C["poses", :].set(poses)
         cm = cm.merge(C["camera_pose"].set(b3d.Pose.identity()))
         cm = cm.merge(C["observed_image", "observed_image", "obs"].set(observed_rgbd))
         trace, weight = model.importance(

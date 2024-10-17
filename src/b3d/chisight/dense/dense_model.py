@@ -38,7 +38,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     def dense_multiobject_model(args_dict):
         meshes = args_dict["meshes"]
         likelihood_args = args_dict["likelihood_args"]
-        num_objects = args_dict["num_objects"]
+        object_ids = args_dict["object_ids"]
         if "check_interp" in args_dict:
             check_interpenetration = True
         else:
@@ -52,14 +52,14 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
 
         all_poses = []
         scaled_meshes = []
-        for i in range(num_objects.const):
+        for i, o_id in enumerate(object_ids.const):
             object_pose = (
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
-                @ f"object_pose_{i}"
+                @ f"object_pose_{o_id}"
             )
             object_scale = (
                 uniform_scale(jnp.ones(3) * 0.1, jnp.ones(3) * 10.0)
-                @ f"object_scale_{i}"
+                @ f"object_scale_{o_id}"
             )
             scaled_meshes.append(meshes[i].scale(object_scale))
             all_poses.append(object_pose)

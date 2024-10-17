@@ -69,7 +69,7 @@ def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
     return trace, key
 
 
-def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas):
+def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas, k=20):
     pose_addr = addressses.const[0]
     current_pose = trace.get_choices()[pose_addr]
     scale_addr = addressses.const[1]
@@ -97,10 +97,20 @@ def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas):
         # jax.debug.print("optimal_idx scale: {v}", v=(optimal_idx // len(all_deltas[0][i])))
         current_pose = test_poses[(optimal_idx % len(all_deltas[0][i]))]
         current_scale = test_scales[optimal_idx // len(all_deltas[0][i])]
+        if i == len(all_deltas[0]) - 1:
+            top_k_indices = jnp.argsort(all_scores)[-k:][::-1]
+            posterior_pose = [
+                test_poses[(optimal_idx % len(all_deltas[0][i]))]
+                for optimal_idx in top_k_indices
+            ]
+            posterior_scale = [
+                test_scales[optimal_idx // len(all_deltas[0][i])]
+                for optimal_idx in top_k_indices
+            ]
         # jax.debug.print("current_pose: {v}", v=current_pose)
         # jax.debug.print("current_scale: {v}", v=current_scale)
     trace = b3d.update_choices(trace, addressses, current_pose, current_scale)
-    return trace, key
+    return trace, key, posterior_pose, posterior_scale
 
 
 def _enumerate_and_select_best_move_old(trace, addressses, key, all_deltas):

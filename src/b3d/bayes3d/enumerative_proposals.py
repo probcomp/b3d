@@ -23,7 +23,7 @@ def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
         )
         current_pose = test_poses[potential_scores.argmax()]
     trace = b3d.update_choices(trace, addressses, current_pose)
-    return trace, key
+    return trace, key, potential_scores.max(), trace.get_score()
 
 
 enumerate_and_select_best_move = jax.jit(

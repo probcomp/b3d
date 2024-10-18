@@ -179,9 +179,13 @@ def test_demo():
             Pytree.const(["rgbd"]),
             rgbds[T_observed_image],
         )
-        trace, key = bayes3d.enumerate_and_select_best_move(
+        trace, key, one, two = bayes3d.enumerate_and_select_best_move(
             trace, Pytree.const(("camera_pose",)), key, all_deltas
         )
+        try:
+            assert one == two
+        except Exception:
+            print(one, "\n", two)
         viz_trace(trace, T_observed_image)
 
     # Outliers are AND of the RGB and Depth outlier masks
@@ -258,12 +262,22 @@ def test_demo():
             Pytree.const(["rgbd"]),
             rgbds[T_observed_image],
         )
-        trace, key = bayes3d.enumerate_and_select_best_move(
-            trace, Pytree.const(("camera_pose",)), key, all_deltas
-        )
-        trace, key = bayes3d.enumerate_and_select_best_move(
+
+        trace, key, three, four = bayes3d.enumerate_and_select_best_move(
             trace, Pytree.const(("object_pose_1",)), key, all_deltas
         )
+        try:
+            assert three == four
+        except Exception:
+            print("second:\n", three, "\n", four)
+
+        trace, key, one, two = bayes3d.enumerate_and_select_best_move(
+            trace, Pytree.const(("camera_pose",)), key, all_deltas
+        )
+        try:
+            assert one == two
+        except Exception:
+            print("first:\n", one, "\n", two)
 
         viz_trace(trace, T_observed_image)
 

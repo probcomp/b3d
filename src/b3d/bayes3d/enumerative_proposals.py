@@ -69,7 +69,7 @@ def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
     return trace, key
 
 
-def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas, k=20):
+def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas, k=50):
     pose_addr = addressses.const[0]
     current_pose = trace.get_choices()[pose_addr]
     scale_addr = addressses.const[1]
@@ -108,9 +108,9 @@ def _enumerate_and_select_best_move_new(trace, addressses, key, all_deltas, k=20
         test_scales[idx // len(all_deltas[0][i])] for idx in top_k_indices
     ]
     trace = b3d.update_choices(trace, addressses, current_pose, current_scale)
-    jax.debug.print("scores[0]: {v}", v=scores[0])
-    jax.debug.print("trace.get_score(): {v}", v=trace.get_score())
-    jax.debug.print("all_scores.max(): {v}", v=all_scores.max())
+    # jax.debug.print("scores[0]: {v}", v=scores[0])
+    # jax.debug.print("trace.get_score(): {v}", v=trace.get_score())
+    # jax.debug.print("all_scores.max(): {v}", v=all_scores.max())
     return trace, key, posterior_pose, posterior_scale, scores
 
 

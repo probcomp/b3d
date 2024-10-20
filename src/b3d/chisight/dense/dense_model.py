@@ -99,15 +99,15 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             likelihood_args["rasterize_results"] = rasterize_results
 
         if check_interpenetration:
-            print("checking")
+            print("checking interpenentration!")
             transformed_scaled_meshes = [
                 Mesh.transform_mesh(mesh, pose)
                 for mesh, pose in zip(scaled_meshes, all_poses)
             ]
-            # interpeneration = get_interpenetration(
-            #     transformed_scaled_meshes, args_dict["num_mc_sample"].const
-            # )
-            interpeneration = get_interpenetration(transformed_scaled_meshes)
+            interpeneration = get_interpenetration(
+                transformed_scaled_meshes, args_dict["num_mc_sample"].const
+            )
+            # interpeneration = get_interpenetration(transformed_scaled_meshes)
             likelihood_args["object_interpenetration"] = interpeneration
             likelihood_args["interpenetration_penalty"] = args_dict[
                 "interpenetration_penalty"

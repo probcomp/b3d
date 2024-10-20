@@ -1,4 +1,5 @@
 import itertools
+from functools import partial
 
 import genjax
 import jax
@@ -19,215 +20,215 @@ from b3d.pose import (
 ############################
 
 
-# Support function: finds the farthest point in a given direction
-def support_function(vertices1, vertices2, direction):
-    point1 = vertices1[jnp.argmax(jnp.dot(vertices1, direction))]
-    point2 = vertices2[jnp.argmax(jnp.dot(vertices2, -direction))]
-    return point1 - point2
+# # Support function: finds the farthest point in a given direction
+# def support_function(vertices1, vertices2, direction):
+#     point1 = vertices1[jnp.argmax(jnp.dot(vertices1, direction))]
+#     point2 = vertices2[jnp.argmax(jnp.dot(vertices2, -direction))]
+#     return point1 - point2
 
 
-# Check if the origin is in the simplex formed by the given points
-def contains_origin(simplex, direction):
-    if len(simplex) == 2:
-        a, b = simplex
-        ab = b - a
-        ao = -a
+# # Check if the origin is in the simplex formed by the given points
+# def contains_origin(simplex, direction):
+#     if len(simplex) == 2:
+#         a, b = simplex
+#         ab = b - a
+#         ao = -a
 
-        def true_fn(_):
-            new_direction = jnp.cross(jnp.cross(ab, ao), ab)
-            return False, simplex, new_direction
+#         def true_fn(_):
+#             new_direction = jnp.cross(jnp.cross(ab, ao), ab)
+#             return False, simplex, new_direction
 
-        def false_fn(_):
-            return False, [a, None, None], ao  # Pad with None
+#         def false_fn(_):
+#             return False, [a, None, None], ao  # Pad with None
 
-        return jax.lax.cond(jnp.dot(ab, ao) > 0, true_fn, false_fn, None)
+#         return jax.lax.cond(jnp.dot(ab, ao) > 0, true_fn, false_fn, None)
 
-    elif len(simplex) == 3:
-        a, b, c = simplex
-        ab = b - a
-        ac = c - a
-        ao = -a
-        abc = jnp.cross(ab, ac)
+#     elif len(simplex) == 3:
+#         a, b, c = simplex
+#         ab = b - a
+#         ac = c - a
+#         ao = -a
+#         abc = jnp.cross(ab, ac)
 
-        def cond1(_):
-            def cond1_true(_):
-                new_direction = jnp.cross(jnp.cross(ac, ao), ac)
-                return False, [a, c, None], new_direction  # Pad with None
+#         def cond1(_):
+#             def cond1_true(_):
+#                 new_direction = jnp.cross(jnp.cross(ac, ao), ac)
+#                 return False, [a, c, None], new_direction  # Pad with None
 
-            def cond1_false(_):
-                return False, [a, None, None], ao  # Pad with None
+#             def cond1_false(_):
+#                 return False, [a, None, None], ao  # Pad with None
 
-            return jax.lax.cond(jnp.dot(ac, ao) > 0, cond1_true, cond1_false, None)
+#             return jax.lax.cond(jnp.dot(ac, ao) > 0, cond1_true, cond1_false, None)
 
-        def cond2(_):
-            def cond2_true(_):
-                new_direction = jnp.cross(jnp.cross(ab, ao), ab)
-                return False, [a, b, None], new_direction  # Pad with None
+#         def cond2(_):
+#             def cond2_true(_):
+#                 new_direction = jnp.cross(jnp.cross(ab, ao), ab)
+#                 return False, [a, b, None], new_direction  # Pad with None
 
-            def cond2_false(_):
-                def cond3_true(_):
-                    return False, [a, b, c], abc
+#             def cond2_false(_):
+#                 def cond3_true(_):
+#                     return False, [a, b, c], abc
 
-                def cond3_false(_):
-                    return False, [a, c, b], -abc
+#                 def cond3_false(_):
+#                     return False, [a, c, b], -abc
 
-                return jax.lax.cond(jnp.dot(abc, ao) > 0, cond3_true, cond3_false, None)
+#                 return jax.lax.cond(jnp.dot(abc, ao) > 0, cond3_true, cond3_false, None)
 
-            return jax.lax.cond(
-                jnp.dot(jnp.cross(ab, abc), ao) > 0, cond2_true, cond2_false, None
-            )
+#             return jax.lax.cond(
+#                 jnp.dot(jnp.cross(ab, abc), ao) > 0, cond2_true, cond2_false, None
+#             )
 
-        return jax.lax.cond(jnp.dot(jnp.cross(abc, ac), ao) > 0, cond1, cond2, None)
+#         return jax.lax.cond(jnp.dot(jnp.cross(abc, ac), ao) > 0, cond1, cond2, None)
 
-    return True, simplex, direction
-
-
-# Main GJK algorithm using jax.lax.cond
-def gjk(vertices1, vertices2):
-    direction = jnp.array([1.0, 0.0, 0.0])
-    simplex = [
-        support_function(vertices1, vertices2, direction),
-        None,
-        None,
-    ]  # Start with a fixed-size simplex list
-
-    direction = -simplex[0]
-
-    def gjk_step(i, data):
-        simplex, direction, collision_detected = data
-        new_point = support_function(vertices1, vertices2, direction)
-
-        def true_fn(_):
-            updated_simplex = [new_point if item is None else item for item in simplex]
-            return updated_simplex
-
-        def false_fn(_):
-            return simplex
-
-        # Ensure `simplex` is always the same size
-        simplex = jax.lax.cond(collision_detected, true_fn, false_fn, None)
-
-        # Check if the origin is contained in the updated simplex
-        if collision_detected:
-            is_collision, simplex, direction = contains_origin(simplex, direction)
-            collision_detected = is_collision
-
-        return simplex, direction, collision_detected
-
-    # Initialize the loop
-    simplex, direction, collision_detected = jax.lax.fori_loop(
-        0, 20, gjk_step, (simplex, direction, True)
-    )
-
-    return collision_detected
+#     return True, simplex, direction
 
 
-def get_interpenetration(mesh_seq):
-    for pair in list(itertools.combinations(mesh_seq, 2)):
-        m1, m2 = pair
-        # Compute intersection volume
-        intersect = gjk(m1.vertices, m2.vertices)
-        if intersect:
-            return True
-    return False
+# # Main GJK algorithm using jax.lax.cond
+# def gjk(vertices1, vertices2):
+#     direction = jnp.array([1.0, 0.0, 0.0])
+#     simplex = [
+#         support_function(vertices1, vertices2, direction),
+#         None,
+#         None,
+#     ]  # Start with a fixed-size simplex list
+
+#     direction = -simplex[0]
+
+#     def gjk_step(i, data):
+#         simplex, direction, collision_detected = data
+#         new_point = support_function(vertices1, vertices2, direction)
+
+#         def true_fn(_):
+#             updated_simplex = [new_point if item is None else item for item in simplex]
+#             return updated_simplex
+
+#         def false_fn(_):
+#             return simplex
+
+#         # Ensure `simplex` is always the same size
+#         simplex = jax.lax.cond(collision_detected, true_fn, false_fn, None)
+
+#         # Check if the origin is contained in the updated simplex
+#         if collision_detected:
+#             is_collision, simplex, direction = contains_origin(simplex, direction)
+#             collision_detected = is_collision
+
+#         return simplex, direction, collision_detected
+
+#     # Initialize the loop
+#     simplex, direction, collision_detected = jax.lax.fori_loop(
+#         0, 20, gjk_step, (simplex, direction, True)
+#     )
+
+#     return collision_detected
+
+
+# def get_interpenetration(mesh_seq):
+#     for pair in list(itertools.combinations(mesh_seq, 2)):
+#         m1, m2 = pair
+#         # Compute intersection volume
+#         intersect = gjk(m1.vertices, m2.vertices)
+#         if intersect:
+#             return True
+#     return False
 
 
 ############################
 #### compute the volume ####
 ############################
-# @jax.jit
-# def ray_intersects_triangle(p0, d, v0, v1, v2):
-#     epsilon = 1e-6
-#     e1 = v1 - v0
-#     e2 = v2 - v0
-#     h = jnp.cross(d, e2)
-#     a = jnp.dot(e1, h)
-#     parallel = jnp.abs(a) < epsilon
-#     f = 1.0 / a
-#     s = p0 - v0
-#     u = f * jnp.dot(s, h)
-#     valid_u = (u >= 0.0) & (u <= 1.0)
-#     q = jnp.cross(s, e1)
-#     v = f * jnp.dot(d, q)
-#     valid_v = (v >= 0.0) & (u + v <= 1.0)
-#     t = f * jnp.dot(e2, q)
-#     valid_t = t > epsilon
-#     intersects = (~parallel) & valid_u & valid_v & valid_t
-#     return intersects
+@jax.jit
+def ray_intersects_triangle(p0, d, v0, v1, v2):
+    epsilon = 1e-6
+    e1 = v1 - v0
+    e2 = v2 - v0
+    h = jnp.cross(d, e2)
+    a = jnp.dot(e1, h)
+    parallel = jnp.abs(a) < epsilon
+    f = 1.0 / a
+    s = p0 - v0
+    u = f * jnp.dot(s, h)
+    valid_u = (u >= 0.0) & (u <= 1.0)
+    q = jnp.cross(s, e1)
+    v = f * jnp.dot(d, q)
+    valid_v = (v >= 0.0) & (u + v <= 1.0)
+    t = f * jnp.dot(e2, q)
+    valid_t = t > epsilon
+    intersects = (~parallel) & valid_u & valid_v & valid_t
+    return intersects
 
 
-# @jax.jit
-# def point_in_mesh(point, vertices, faces):
-#     ray_direction = jnp.array([1.0, 0.0, 0.0])  # Arbitrary direction
-#     v0 = vertices[faces[:, 0]]
-#     v1 = vertices[faces[:, 1]]
-#     v2 = vertices[faces[:, 2]]
+@jax.jit
+def point_in_mesh(point, vertices, faces):
+    ray_direction = jnp.array([1.0, 0.0, 0.0])  # Arbitrary direction
+    v0 = vertices[faces[:, 0]]
+    v1 = vertices[faces[:, 1]]
+    v2 = vertices[faces[:, 2]]
 
-#     intersects = jax.vmap(ray_intersects_triangle, in_axes=(None, None, 0, 0, 0))(
-#         point, ray_direction, v0, v1, v2
-#     )
-#     num_intersections = jnp.sum(intersects)
-#     return num_intersections % 2 == 1  # Inside if odd number of intersections
-
-
-# def min_max_coord(vertices):
-#     min_coords = jnp.min(vertices, axis=0)
-#     max_coords = jnp.max(vertices, axis=0)
-#     return min_coords, max_coords
+    intersects = jax.vmap(ray_intersects_triangle, in_axes=(None, None, 0, 0, 0))(
+        point, ray_direction, v0, v1, v2
+    )
+    num_intersections = jnp.sum(intersects)
+    return num_intersections % 2 == 1  # Inside if odd number of intersections
 
 
-# @partial(jax.jit, static_argnames=["num_samples"])
-# def monte_carlo_intersection_volume(
-#     mesh1_vertices, mesh1_faces, mesh2_vertices, mesh2_faces, num_samples, key
-# ):
-#     min_coords1, max_coords1 = min_max_coord(mesh1_vertices)
-#     min_coords2, max_coords2 = min_max_coord(mesh2_vertices)
-
-#     min_coords = jnp.maximum(min_coords1, min_coords2)
-#     max_coords = jnp.minimum(max_coords1, max_coords2)
-
-#     overlap = jnp.all(min_coords < max_coords)
-#     bbox_volume = jnp.prod(max_coords - min_coords)
-
-#     def sample_points(key):
-#         subkey_x, subkey_y, subkey_z = jax.random.split(key, 3)
-#         x = jax.random.uniform(
-#             subkey_x, shape=(num_samples,), minval=min_coords[0], maxval=max_coords[0]
-#         )
-#         y = jax.random.uniform(
-#             subkey_y, shape=(num_samples,), minval=min_coords[1], maxval=max_coords[1]
-#         )
-#         z = jax.random.uniform(
-#             subkey_z, shape=(num_samples,), minval=min_coords[2], maxval=max_coords[2]
-#         )
-#         points = jnp.stack([x, y, z], axis=1)
-#         return points
-
-#     points = sample_points(key)
-
-#     point_in_mesh_vmap = jax.vmap(point_in_mesh, in_axes=(0, None, None))
-
-#     in_mesh1 = point_in_mesh_vmap(points, mesh1_vertices, mesh1_faces)
-#     in_mesh2 = point_in_mesh_vmap(points, mesh2_vertices, mesh2_faces)
-#     in_both_meshes = in_mesh1 & in_mesh2
-
-#     hits = jnp.sum(in_both_meshes)
-#     intersection_volume = (hits / num_samples) * bbox_volume * overlap
-#     return intersection_volume
+def min_max_coord(vertices):
+    min_coords = jnp.min(vertices, axis=0)
+    max_coords = jnp.max(vertices, axis=0)
+    return min_coords, max_coords
 
 
-# def get_interpenetration(mesh_seq, num_samples):
-#     interpenetrations = []
-#     for ct, pair in enumerate(list(itertools.combinations(mesh_seq, 2))):
-#         m1, m2 = pair
-#         # Monte Carlo parameters
-#         key = jax.random.PRNGKey(ct)  # Random seed
-#         # Compute intersection volume
-#         intersection_volume = monte_carlo_intersection_volume(
-#             m1.vertices, m1.faces, m2.vertices, m2.faces, num_samples, key
-#         )
-#         interpenetrations.append(intersection_volume)
-#     return jnp.array(interpenetrations).sum()
+@partial(jax.jit, static_argnames=["num_samples"])
+def monte_carlo_intersection_volume(
+    mesh1_vertices, mesh1_faces, mesh2_vertices, mesh2_faces, num_samples, key
+):
+    min_coords1, max_coords1 = min_max_coord(mesh1_vertices)
+    min_coords2, max_coords2 = min_max_coord(mesh2_vertices)
+
+    min_coords = jnp.maximum(min_coords1, min_coords2)
+    max_coords = jnp.minimum(max_coords1, max_coords2)
+
+    overlap = jnp.all(min_coords < max_coords)
+    bbox_volume = jnp.prod(max_coords - min_coords)
+
+    def sample_points(key):
+        subkey_x, subkey_y, subkey_z = jax.random.split(key, 3)
+        x = jax.random.uniform(
+            subkey_x, shape=(num_samples,), minval=min_coords[0], maxval=max_coords[0]
+        )
+        y = jax.random.uniform(
+            subkey_y, shape=(num_samples,), minval=min_coords[1], maxval=max_coords[1]
+        )
+        z = jax.random.uniform(
+            subkey_z, shape=(num_samples,), minval=min_coords[2], maxval=max_coords[2]
+        )
+        points = jnp.stack([x, y, z], axis=1)
+        return points
+
+    points = sample_points(key)
+
+    point_in_mesh_vmap = jax.vmap(point_in_mesh, in_axes=(0, None, None))
+
+    in_mesh1 = point_in_mesh_vmap(points, mesh1_vertices, mesh1_faces)
+    in_mesh2 = point_in_mesh_vmap(points, mesh2_vertices, mesh2_faces)
+    in_both_meshes = in_mesh1 & in_mesh2
+
+    hits = jnp.sum(in_both_meshes)
+    intersection_volume = (hits / num_samples) * bbox_volume * overlap
+    return intersection_volume
+
+
+def get_interpenetration(mesh_seq, num_samples):
+    interpenetrations = []
+    for ct, pair in enumerate(list(itertools.combinations(mesh_seq, 2))):
+        m1, m2 = pair
+        # Monte Carlo parameters
+        key = jax.random.PRNGKey(ct)  # Random seed
+        # Compute intersection volume
+        intersection_volume = monte_carlo_intersection_volume(
+            m1.vertices, m1.faces, m2.vertices, m2.faces, num_samples, key
+        )
+        interpenetrations.append(intersection_volume)
+    return jnp.array(interpenetrations).sum()
 
 
 ####################################################

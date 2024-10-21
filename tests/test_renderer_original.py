@@ -1,8 +1,9 @@
 import importlib
 
-import b3d
 import jax
 import jax.numpy as jnp
+
+import b3d
 
 importlib.reload(b3d.renderer.renderer_original)
 

@@ -1,9 +1,10 @@
 import time
 from pathlib import Path
 
-import b3d
 import numpy as np
 import torch
+
+import b3d
 from b3d.io import FeatureTrackData
 from b3d.io.utils import add_argparse, path_stem
 

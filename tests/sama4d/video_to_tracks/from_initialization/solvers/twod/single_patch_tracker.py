@@ -1,4 +1,3 @@
-import b3d
 import jax
 import jax.numpy as jnp
 import matplotlib.patches as mpatches
@@ -6,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.gridspec import GridSpec
 
+import b3d
 from tests.common.solver import Solver
 
 

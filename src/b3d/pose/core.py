@@ -230,6 +230,9 @@ class Pose:
     def slice(self, i):
         return Pose(self.pos[i], self.quat[i])
 
+    def _at_set(self, i, p):
+        return Pose(self.pos.at[i].set(p.pos), self.quat.at[i].set(p.quat))
+
     def as_matrix(self):
         """Return a 4x4 pose matrix."""
         pose_matrix = jnp.zeros((*self.pos.shape[:-1], 4, 4))
@@ -273,6 +276,9 @@ class Pose:
     def scale(self, scale: Float) -> "Pose":
         # NOTE: this is useful for gradient updates.
         return Pose(self.pos * scale, self.quat * scale)
+
+    def scale_pos(self, scale: Float) -> "Pose":
+        return Pose(self.pos * scale, self.quat)
 
     def __mul__(self, scale: Float) -> "Pose":
         return self.scale(scale)

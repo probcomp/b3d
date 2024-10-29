@@ -62,6 +62,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/comm-0.2.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.2.1-py312h8572e83_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/cython-3.0.11-py312h8fd2918_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dav1d-1.2.1-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dbus-1.13.6-h5008d03_3.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/debugpy-1.8.5-py312hca68cad_0.conda
@@ -351,6 +352,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/py-opencv-4.10.0-qt6_py312h071dcc1_603.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-17.0.0-py312h9cebb41_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-core-17.0.0-py312h9cafe31_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pycocotools-2.0.8-py312h085067d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.1.4-pyhd8ed1ab_0.conda
@@ -472,7 +474,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9a/ef/44af6aded89444dc45f4466ff207a05d3376c641cf1146c03fd14c55ae64/Cython-3.0.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -550,6 +551,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/comm-0.2.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/contourpy-1.2.1-py312h0fef576_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cython-3.0.11-py312hde4cb15_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/dav1d-1.2.1-hb547adb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/debugpy-1.8.5-py312h5c2e7bc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/decorator-5.1.1-pyhd8ed1ab_0.tar.bz2
@@ -783,6 +785,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/py-opencv-4.10.0-headless_py312hd31a7ba_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyarrow-17.0.0-py312ha814d7c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyarrow-core-17.0.0-py312he20ac61_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pycocotools-2.0.8-py312hbebd99a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyobjc-core-10.3.1-py312hbb55c70_0.conda
@@ -869,7 +872,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/43/39/bdbec9142bc46605b54d674bf158a78b191c2b75be527c6dcf3e6dfe90b8/Cython-3.0.11-py2.py3-none-any.whl
       - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/10/5f9eed00b1186921e447960443f03cda6374cba8cd5cf7aff2b42ecb8a0e/dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl
@@ -940,6 +942,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/comm-0.2.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.3.0-py312h68727a3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/cython-3.0.11-py312h8fd2918_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/decorator-5.1.1-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/elfutils-0.191-h924a536_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.2.2-pyhd8ed1ab_0.conda
@@ -1084,6 +1087,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pure_eval-0.2.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-17.0.0-py312h9cebb41_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-core-17.0.0-py312h9cafe31_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pycocotools-2.0.8-py312h085067d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.1.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/python-3.12.5-h2ad013b_0_cpython.conda
@@ -1166,6 +1170,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/comm-0.2.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/contourpy-1.3.0-py312h6142ec9_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cython-3.0.11-py312hde4cb15_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/decorator-5.1.1-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.2.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/executing-2.0.1-pyhd8ed1ab_0.conda
@@ -1260,6 +1265,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pure_eval-0.2.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyarrow-17.0.0-py312ha814d7c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyarrow-core-17.0.0-py312he20ac61_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pycocotools-2.0.8-py312hbebd99a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.1.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/python-3.12.5-h30c5eda_0_cpython.conda
@@ -1408,6 +1414,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cudnn-8.9.7.29-h092f7fd_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cxx-compiler-1.7.0-h00ab1b0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/cython-3.0.11-py312h8fd2918_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/dash-2.18.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dav1d-1.2.1-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dbus-1.13.6-h5008d03_3.tar.bz2
@@ -1751,6 +1758,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/py-opencv-4.10.0-qt6_py312h071dcc1_601.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-17.0.0-py312h9cebb41_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyarrow-core-17.0.0-py312h9cafe31_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/pycocotools-2.0.8-py312h085067d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.1.4-pyhd8ed1ab_0.conda
@@ -1884,7 +1892,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/64/43/7a1259741bd989723272ac7d381a43be932422abcff09a1d9f7ba212cb74/beartype-0.18.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/9a/ef/44af6aded89444dc45f4466ff207a05d3376c641cf1146c03fd14c55ae64/Cython-3.0.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c9/d4/8cbb857612ca69763ee4f4f97c7b91659df1d373d62237cb9c772e55ae97/dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -1961,6 +1968,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/comm-0.2.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/contourpy-1.2.1-py312h0fef576_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cython-3.0.11-py312hde4cb15_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/dav1d-1.2.1-hb547adb_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/debugpy-1.8.5-py312h5c2e7bc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/decorator-5.1.1-pyhd8ed1ab_0.tar.bz2
@@ -2194,6 +2202,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/py-opencv-4.10.0-headless_py312hd31a7ba_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyarrow-17.0.0-py312ha814d7c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyarrow-core-17.0.0-py312he20ac61_1_cpu.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pycocotools-2.0.8-py312hbebd99a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-2.22-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyobjc-core-10.3.1-py312hbb55c70_0.conda
@@ -2280,7 +2289,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/49/f5/f4bfff55de6ca82445584eead7fc22f29f3d2bd66a76b8cf4c8c4feb2f32/carvekit-4.1.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/96/43/dae06432d0c4b1dc9e9149ad37b4ca8384cf6eb7700cd9215b177b914f0a/cloudpickle-3.0.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/43/39/bdbec9142bc46605b54d674bf158a78b191c2b75be527c6dcf3e6dfe90b8/Cython-3.0.11-py2.py3-none-any.whl
       - pypi: https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/datasync/datasync-0.0.2-py3-none-any.whl#sha256=ce28394757ba65fa1ff3a3010a1f67720f372c877f7d27bc23176a53e2cfa3a4
       - pypi: https://files.pythonhosted.org/packages/20/8d/778b7d51b981a96554f29136cd59ca7880bf58094338085bcf2a979a0e6a/Deprecated-1.2.14-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/10/10/5f9eed00b1186921e447960443f03cda6374cba8cd5cf7aff2b42ecb8a0e/dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl
@@ -3459,7 +3467,7 @@ packages:
   name: b3d
   version: 0.0.1
   path: .
-  sha256: b6035430434796f8dd463b35dc98dd3448356f41ce32400e6c6b39b810e53d6b
+  sha256: 22db06a559c68c87c30dbba041a12a1e44fe7a750b8f25620820b9dd5b926d47
   requires_dist:
   - python-fcl>=0.7.0.6,<0.8 ; extra == 'core'
   requires_python: '>=3.10'
@@ -5243,18 +5251,48 @@ packages:
   - pkg:pypi/cycler?source=project-defined-mapping
   size: 13458
   timestamp: 1696677888423
-- kind: pypi
+- kind: conda
   name: cython
   version: 3.0.11
-  url: https://files.pythonhosted.org/packages/43/39/bdbec9142bc46605b54d674bf158a78b191c2b75be527c6dcf3e6dfe90b8/Cython-3.0.11-py2.py3-none-any.whl
-  sha256: 0e25f6425ad4a700d7f77cd468da9161e63658837d1bc34861a9861a4ef6346d
-  requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*'
-- kind: pypi
+  build: py312h8fd2918_3
+  build_number: 3
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/cython-3.0.11-py312h8fd2918_3.conda
+  sha256: 7a888ddda463a3146949540229c70625fbefb05bcb1352cbff990f205b8392b0
+  md5: 21e433caf1bb1e4c95832f8bb731d64c
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=13
+  - libstdcxx >=13
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  license: Apache-2.0
+  license_family: APACHE
+  purls:
+  - pkg:pypi/cython?source=project-defined-mapping
+  size: 3752086
+  timestamp: 1727456382070
+- kind: conda
   name: cython
   version: 3.0.11
-  url: https://files.pythonhosted.org/packages/9a/ef/44af6aded89444dc45f4466ff207a05d3376c641cf1146c03fd14c55ae64/Cython-3.0.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  sha256: 8b14c24f1dc4c4c9d997cca8d1b7fb01187a218aab932328247dcf5694a10102
-  requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*'
+  build: py312hde4cb15_2
+  build_number: 2
+  subdir: osx-arm64
+  url: https://conda.anaconda.org/conda-forge/osx-arm64/cython-3.0.11-py312hde4cb15_2.conda
+  sha256: bd50c1d3f13403bbc96c0cd18ae95d492eda85df8ab9febe1719bf01018c6e32
+  md5: bc620580cd4cafd885769a3975c00287
+  depends:
+  - __osx >=11.0
+  - libcxx >=17
+  - python >=3.12,<3.13.0a0
+  - python >=3.12,<3.13.0a0 *_cpython
+  - python_abi 3.12.* *_cp312
+  license: Apache-2.0
+  license_family: APACHE
+  purls:
+  - pkg:pypi/cython?source=project-defined-mapping
+  size: 3395577
+  timestamp: 1725379375750
 - kind: conda
   name: dash
   version: 2.18.1
@@ -16172,6 +16210,49 @@ packages:
   - pkg:pypi/pyarrow?source=project-defined-mapping
   size: 3977905
   timestamp: 1722487471071
+- kind: conda
+  name: pycocotools
+  version: 2.0.8
+  build: py312h085067d_0
+  subdir: linux-64
+  url: https://conda.anaconda.org/conda-forge/linux-64/pycocotools-2.0.8-py312h085067d_0.conda
+  sha256: fec1a359c03dec09a11861c25b53bdce0ab26a378880bb08f09ce788717f84bb
+  md5: d1e21b1ba292391a2b0442f879ac9357
+  depends:
+  - cython
+  - libgcc-ng >=12
+  - matplotlib-base
+  - numpy >=1.19,<3
+  - python >=3.12,<3.13.0a0
+  - python_abi 3.12.* *_cp312
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/pycocotools?source=project-defined-mapping
+  size: 118048
+  timestamp: 1719291422342
+- kind: conda
+  name: pycocotools
+  version: 2.0.8
+  build: py312hbebd99a_0
+  subdir: osx-arm64
+  url: https://conda.anaconda.org/conda-forge/osx-arm64/pycocotools-2.0.8-py312hbebd99a_0.conda
+  sha256: 0dde9ec58a999e029c638360d0928db2974a6527d5cf6162483c46070abe3d63
+  md5: 35f8b1df088cb94820da3ac59312bd5a
+  depends:
+  - __osx >=11.0
+  - cython
+  - matplotlib-base
+  - numpy >=1.19,<3
+  - python >=3.12,<3.13.0a0
+  - python >=3.12,<3.13.0a0 *_cpython
+  - python_abi 3.12.* *_cp312
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/pycocotools?source=project-defined-mapping
+  size: 103003
+  timestamp: 1719291516232
 - kind: conda
   name: pycparser
   version: '2.22'

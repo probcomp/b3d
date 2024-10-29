@@ -51,6 +51,7 @@ ipympl = ">=0.9.4,<0.10"
 msgpack-numpy = ">=0.4.8,<0.5"
 h5py = ">=3.11.0,<4"
 fcl = ">=0.7.0,<0.8"
+pycocotools = ">=2.0.8,<3"
 
 [tool.pixi.activation.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"

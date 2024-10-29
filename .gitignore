@@ -21,3 +21,4 @@ __pycache__/
 docs/*
 .pixi/*
 saved_traces/*
+.DS_Store

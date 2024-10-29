@@ -25,3 +25,5 @@ __pycache__/
 *.py[cod]
 docs/*
 test_results/
+assets/physion/*
+.DS_Store

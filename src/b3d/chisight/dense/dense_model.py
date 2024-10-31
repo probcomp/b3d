@@ -35,16 +35,26 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     image_likelihood = ImageLikelihood()
 
     @genjax.gen
-    def dense_multiobject_model(args_dict):
-        meshes = args_dict["meshes"]
-        likelihood_args = args_dict["likelihood_args"]
-        object_ids = args_dict["object_ids"]
-        if "check_interp" in args_dict:
-            check_interpenetration = True
-        else:
-            check_interpenetration = False
+    # def dense_multiobject_model(args_dict):
+    def dense_multiobject_model(
+        object_ids,
+        meshes,
+        likelihood_args,
+        masked=False,
+        check_interpenetration=False,
+        num_mc_sample=None,
+        interpenetration_penalty=None,
+    ):
+        # meshes = args_dict["meshes"]
+        # likelihood_args = args_dict["likelihood_args"]
+        # object_ids = args_dict["object_ids"]
+        # if "check_interp" in args_dict:
+        #     check_interpenetration = True
+        # else:
+        #     check_interpenetration = False
 
-        if "masked" in args_dict:
+        # if "masked" in args_dict:
+        if masked:
             likelihood_args["masked"] = Pytree.const(True)
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
@@ -95,7 +105,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 scene_mesh.faces,
             )
 
-            likelihood_args["latent_rgbd"] = latent_rgbd
+            likelihood_args["latent_rgbd"] = jnp.flip(latent_rgbd, 1)
             likelihood_args["rasterize_results"] = rasterize_results
 
         if check_interpenetration:
@@ -105,13 +115,11 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
                 for mesh, pose in zip(scaled_meshes, all_poses)
             ]
             interpeneration = get_interpenetration(
-                transformed_scaled_meshes, args_dict["num_mc_sample"].const
+                transformed_scaled_meshes, num_mc_sample.const
             )
             # interpeneration = get_interpenetration(transformed_scaled_meshes)
             likelihood_args["object_interpenetration"] = interpeneration
-            likelihood_args["interpenetration_penalty"] = args_dict[
-                "interpenetration_penalty"
-            ]
+            likelihood_args["interpenetration_penalty"] = interpenetration_penalty
 
         image = image_likelihood(likelihood_args) @ "rgbd"
         return {

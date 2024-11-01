@@ -1,4 +1,4 @@
-name: Codebase tests (GPU)
+name: All tests
 
 on:
   pull_request:
@@ -42,7 +42,7 @@ jobs:
           export PATH=$HOME/.pixi/bin:$HOME/.local/bin:$PATH
 
           # install pipx and inject gcp backend
-          pixi global install pipx
+          pixi global install --force-reinstall pipx
           pipx install --force keyring==25.3.0
           pipx inject keyring \
             keyrings.google-artifactregistry-auth \

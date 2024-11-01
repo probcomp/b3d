@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import jax.random
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
 
 from b3d import Pose
 
@@ -29,7 +28,7 @@ def advance_time(key, trace, observed_rgbd):
     previous_state = trace.get_retval()["new_state"]
     trace, _, _, _ = trace.update(
         key,
-        U.g(
+        C.g(
             (Diff.no_change(hyperparams), Diff.unknown_change(previous_state)),
             C.kw(rgbd=observed_rgbd),
         ),

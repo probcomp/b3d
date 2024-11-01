@@ -1,4 +1,4 @@
-name: Codebase tests (GPU)
+name: All tests
 
 on:
   pull_request:

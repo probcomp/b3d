@@ -35,27 +35,19 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
     image_likelihood = ImageLikelihood()
 
     @genjax.gen
-    # def dense_multiobject_model(args_dict):
     def dense_multiobject_model(
         object_ids,
         meshes,
         likelihood_args,
         masked=False,
+        seg_masks=None,
         check_interpenetration=False,
         num_mc_sample=None,
         interpenetration_penalty=None,
     ):
-        # meshes = args_dict["meshes"]
-        # likelihood_args = args_dict["likelihood_args"]
-        # object_ids = args_dict["object_ids"]
-        # if "check_interp" in args_dict:
-        #     check_interpenetration = True
-        # else:
-        #     check_interpenetration = False
-
-        # if "masked" in args_dict:
         if masked:
             likelihood_args["masked"] = Pytree.const(True)
+            likelihood_args["seg_masks"] = seg_masks
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
@@ -63,15 +55,28 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         all_poses = []
         scaled_meshes = []
         for i, o_id in enumerate(object_ids.const):
+            # jax.debug.print("o_id: {x}", x=o_id)
             object_pose = (
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
                 @ f"object_pose_{o_id}"
             )
-            object_scale = (
-                uniform_scale(jnp.ones(3) * 0.1, jnp.ones(3) * 10.0)
-                @ f"object_scale_{o_id}"
+            top = 0.0
+            all_comp_poses = []
+            all_comp_meshes = []
+            for j, component in enumerate(meshes[i]):
+                object_scale = (
+                    uniform_scale(jnp.ones(3) * 0.1, jnp.ones(3) * 10.0)
+                    @ f"object_scale_{o_id}_{j}"
+                )
+                scaled_comp = component.scale(object_scale)
+                all_comp_meshes.append(scaled_comp)
+                pose = Pose.from_translation(jnp.array([0.0, top, 0.0]))
+                all_comp_poses.append(pose)
+                top += scaled_comp.vertices[:, 1].max()
+            merged_mesh = Mesh.transform_and_merge_meshes(
+                all_comp_meshes, all_comp_poses
             )
-            scaled_meshes.append(meshes[i].scale(object_scale))
+            scaled_meshes.append(merged_mesh)
             all_poses.append(object_pose)
         all_poses = Pose.stack_poses(all_poses)
 
@@ -127,6 +132,99 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             "scene_mesh": scene_mesh,
             "rgbd": image,
         }
+
+    # @genjax.gen
+    # def dense_multiobject_model(
+    #     object_ids,
+    #     meshes,
+    #     likelihood_args,
+    #     masked=False,
+    #     check_interpenetration=False,
+    #     num_mc_sample=None,
+    #     interpenetration_penalty=None,
+    # ):
+    #     # meshes = args_dict["meshes"]
+    #     # likelihood_args = args_dict["likelihood_args"]
+    #     # object_ids = args_dict["object_ids"]
+    #     # if "check_interp" in args_dict:
+    #     #     check_interpenetration = True
+    #     # else:
+    #     #     check_interpenetration = False
+
+    #     # if "masked" in args_dict:
+    #     if masked:
+    #         likelihood_args["masked"] = Pytree.const(True)
+
+    #     blur = genjax.uniform(0.0001, 100000.0) @ "blur"
+    #     likelihood_args["blur"] = blur
+
+    #     all_poses = []
+    #     scaled_meshes = []
+    #     for i, o_id in enumerate(object_ids.const):
+    #         object_pose = (
+    #             uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
+    #             @ f"object_pose_{o_id}"
+    #         )
+    #         object_scale = (
+    #             uniform_scale(jnp.ones(3) * 0.1, jnp.ones(3) * 10.0)
+    #             @ f"object_scale_{o_id}"
+    #         )
+    #         scaled_meshes.append(meshes[i].scale(object_scale))
+    #         all_poses.append(object_pose)
+    #     all_poses = Pose.stack_poses(all_poses)
+
+    #     camera_pose = (
+    #         uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
+    #     )
+
+    #     scene_mesh = Mesh.transform_and_merge_meshes(
+    #         scaled_meshes, all_poses
+    #     ).transform(camera_pose.inv())
+    #     likelihood_args["scene_mesh"] = scene_mesh
+
+    #     depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"
+    #     likelihood_args["depth_noise_variance"] = depth_noise_variance
+    #     color_noise_variance = genjax.uniform(0.0001, 100000.0) @ "color_noise_variance"
+    #     likelihood_args["color_noise_variance"] = color_noise_variance
+
+    #     outlier_probability = genjax.uniform(0.01, 1.0) @ "outlier_probability"
+    #     likelihood_args["outlier_probability"] = outlier_probability
+
+    #     if renderer is not None:
+    #         rasterize_results = renderer.rasterize(
+    #             scene_mesh.vertices, scene_mesh.faces
+    #         )
+    #         latent_rgbd = renderer.interpolate(
+    #             jnp.concatenate(
+    #                 [scene_mesh.vertex_attributes, scene_mesh.vertices[..., -1:]],
+    #                 axis=-1,
+    #             ),
+    #             rasterize_results,
+    #             scene_mesh.faces,
+    #         )
+
+    #         likelihood_args["latent_rgbd"] = jnp.flip(latent_rgbd, 1)
+    #         likelihood_args["rasterize_results"] = rasterize_results
+
+    #     if check_interpenetration:
+    #         print("checking interpenentration!")
+    #         transformed_scaled_meshes = [
+    #             Mesh.transform_mesh(mesh, pose)
+    #             for mesh, pose in zip(scaled_meshes, all_poses)
+    #         ]
+    #         interpeneration = get_interpenetration(
+    #             transformed_scaled_meshes, num_mc_sample.const
+    #         )
+    #         # interpeneration = get_interpenetration(transformed_scaled_meshes)
+    #         likelihood_args["object_interpenetration"] = interpeneration
+    #         likelihood_args["interpenetration_penalty"] = interpenetration_penalty
+
+    #     image = image_likelihood(likelihood_args) @ "rgbd"
+    #     return {
+    #         "likelihood_args": likelihood_args,
+    #         "scene_mesh": scene_mesh,
+    #         "rgbd": image,
+    #     }
 
     @jax.jit
     def info_from_trace(trace):

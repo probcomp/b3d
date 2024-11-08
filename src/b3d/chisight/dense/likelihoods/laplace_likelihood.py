@@ -11,9 +11,9 @@ def likelihood_func(observed_rgbd, likelihood_args):
 
     valid_window = latent_rgbd[..., 3] > 0.0
     if "masked" in likelihood_args:
-        seg_masks = likelihood_args["seg_masks"]
-        valid_window_seg = seg_masks.sum(axis=2) == 0.0
-        valid_window = jnp.multiply(valid_window_seg, valid_window)
+        # seg_masks = likelihood_args["seg_masks"]
+        # valid_window_seg = seg_masks.sum(axis=2) == 0.0
+        # valid_window = jnp.multiply(valid_window_seg, valid_window)
 
         valid_window_rgb = observed_rgbd[..., 3] > 0.0
         invalid_window = jnp.multiply(valid_window_rgb, ~valid_window)

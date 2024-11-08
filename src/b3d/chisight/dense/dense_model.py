@@ -40,14 +40,14 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         meshes,
         likelihood_args,
         masked=False,
-        seg_masks=None,
+        # seg_masks=None,
         check_interpenetration=False,
         num_mc_sample=None,
         interpenetration_penalty=None,
     ):
         if masked:
             likelihood_args["masked"] = Pytree.const(True)
-            likelihood_args["seg_masks"] = seg_masks
+            # likelihood_args["seg_masks"] = seg_masks
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur

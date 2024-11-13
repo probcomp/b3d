@@ -50,6 +50,9 @@ from b3d.types import Array, Int, Matrix3x3, Matrix3x4, Point3D
 #
 # # # # # # # # # # # # # # # # # # # #
 def angle_between(v, w):
+    """
+    Returns angles (in radians) between two arrays of vectors.
+    """
     v = v / jnp.linalg.norm(v, axis=-1, keepdims=True)
     w = w / jnp.linalg.norm(w, axis=-1, keepdims=True)
     return jnp.arccos((v * w).sum(-1))
@@ -57,7 +60,7 @@ def angle_between(v, w):
 
 def distance_to_line(uv, ell):
     """
-    Returns the distance of a 2D image point to a line.
+    Returns the distance (in pixels) of a 2D image point to a line.
 
     Args:
         uv: 2D image point
@@ -433,13 +436,17 @@ triangulate_linear_hartley = jax.vmap(_triangulate_linear_hartley, (None, None, 
 
 
 def in_front_count(cam0, cam1, xs_world: Point3D) -> Int:
-    """Count the world points that are in front of both cameras."""
+    """
+    Count the world points that are in front of both cameras.
+    """
+    # NOTE: This is used to filter out the correct camera pose possible candiates.
     ys0 = cam0.inv()(xs_world)
     ys1 = cam1.inv()(xs_world)
     return jnp.sum((ys0[:, 2] > 0) & (ys1[:, 2] > 0))
 
 
 def find_best_chirality(cams, ys0, ys1):
+    """Find the camera pose that has the most points in front of it."""
     xss = jax.vmap(triangulate_linear_hartley, (None, 0, None, None))(
         Pose.id(), cams, ys0, ys1
     )

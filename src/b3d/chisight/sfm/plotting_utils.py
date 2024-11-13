@@ -9,6 +9,7 @@ from b3d.utils import downsize_images
 
 
 def quick_plot_images(imgs, ax=None, figsize=(3, 3), downsize=10):
+    """Plot an overview of a list of images."""
     n = imgs.shape[0]
     figsize = (figsize[0] * n, figsize[1])
     if ax is None:
@@ -23,6 +24,9 @@ def quick_plot_images(imgs, ax=None, figsize=(3, 3), downsize=10):
 
 
 def create_box_mesh(dims=np.array([1.0, 1.0, 1.0])):
+    """
+    Create a box mesh (tuple of vertices, triangle indices, and vertex normals) with the given dimensions.
+    """
     # Define the 8 vertices of the box
     w, h, d = dims / 2.0
     vertex_positions = np.array(
@@ -61,6 +65,10 @@ def create_box_mesh(dims=np.array([1.0, 1.0, 1.0])):
 
 
 def create_box_mesh2(dims=np.array([1.0, 1.0, 1.0])):
+    """
+    Create a box mesh (tuple of vertices, triangle indices, and vertex normals) with the given dimensions.
+    This version has a bigger front face.
+    """
     # Define the 8 vertices of the box
     w, h, d = dims / 2.0
     vertex_positions = np.array(

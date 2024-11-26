@@ -7,7 +7,7 @@ from genjax import Pytree
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
-from b3d.modeling_utils import get_interpenetration, uniform_pose, uniform_scale
+from b3d.modeling_utils import uniform_pose, uniform_scale
 
 
 def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
@@ -39,23 +39,13 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         object_ids,
         meshes,
         likelihood_args,
-        masked=False,
-        # seg_masks=None,
-        check_interpenetration=False,
-        num_mc_sample=None,
-        interpenetration_penalty=None,
     ):
-        if masked:
-            likelihood_args["masked"] = Pytree.const(True)
-            # likelihood_args["seg_masks"] = seg_masks
-
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
 
         all_poses = []
         scaled_meshes = []
-        for i, o_id in enumerate(object_ids.const):
-            # jax.debug.print("o_id: {x}", x=o_id)
+        for o_id, mesh_composite in zip(object_ids.const, meshes):
             object_pose = (
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
                 @ f"object_pose_{o_id}"
@@ -63,10 +53,10 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             top = 0.0
             all_comp_poses = []
             all_comp_meshes = []
-            for j, component in enumerate(meshes[i]):
+            for i, component in enumerate(mesh_composite):
                 object_scale = (
-                    uniform_scale(jnp.ones(3) * 0.1, jnp.ones(3) * 10.0)
-                    @ f"object_scale_{o_id}_{j}"
+                    uniform_scale(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
+                    @ f"object_scale_{o_id}_{i}"
                 )
                 scaled_comp = component.scale(object_scale)
                 all_comp_meshes.append(scaled_comp)
@@ -87,7 +77,11 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         scene_mesh = Mesh.transform_and_merge_meshes(
             scaled_meshes, all_poses
         ).transform(camera_pose.inv())
-        likelihood_args["scene_mesh"] = scene_mesh
+
+        likelihood_args["scene_mesh"] = [
+            Mesh.transform_mesh(mesh, pose)
+            for mesh, pose in zip(scaled_meshes, all_poses)
+        ]
 
         depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"
         likelihood_args["depth_noise_variance"] = depth_noise_variance
@@ -112,19 +106,6 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
 
             likelihood_args["latent_rgbd"] = jnp.flip(latent_rgbd, 1)
             likelihood_args["rasterize_results"] = rasterize_results
-
-        if check_interpenetration:
-            print("checking interpenentration!")
-            transformed_scaled_meshes = [
-                Mesh.transform_mesh(mesh, pose)
-                for mesh, pose in zip(scaled_meshes, all_poses)
-            ]
-            interpeneration = get_interpenetration(
-                transformed_scaled_meshes, num_mc_sample.const
-            )
-            # interpeneration = get_interpenetration(transformed_scaled_meshes)
-            likelihood_args["object_interpenetration"] = interpeneration
-            likelihood_args["interpenetration_penalty"] = interpenetration_penalty
 
         image = image_likelihood(likelihood_args) @ "rgbd"
         return {

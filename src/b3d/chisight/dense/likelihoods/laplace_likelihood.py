@@ -1,6 +1,8 @@
 import jax
 import jax.numpy as jnp
 
+from b3d.modeling_utils import get_interpenetration
+
 
 @jax.jit
 def likelihood_func(observed_rgbd, likelihood_args):
@@ -9,14 +11,10 @@ def likelihood_func(observed_rgbd, likelihood_args):
     depth_variance = likelihood_args["depth_noise_variance"]
     outlier_probability = likelihood_args["outlier_probability"]
 
-    valid_window = latent_rgbd[..., 3] > 0.0
-    if "masked" in likelihood_args:
-        # seg_masks = likelihood_args["seg_masks"]
-        # valid_window_seg = seg_masks.sum(axis=2) == 0.0
-        # valid_window = jnp.multiply(valid_window_seg, valid_window)
-
-        valid_window_rgb = observed_rgbd[..., 3] > 0.0
-        invalid_window = jnp.multiply(valid_window_rgb, ~valid_window)
+    valid_window = latent_rgbd[..., 0:3].sum(axis=2) > 0.0  # latent_rgbd[..., 3] > 0.0
+    if likelihood_args["masked"].const:
+        observed_window = observed_rgbd[..., 0:3].sum(axis=2) > 0.0
+        invalid_window = jnp.multiply(observed_window, ~valid_window)
         near = 0.001
         far = jnp.inf
     else:
@@ -40,12 +38,15 @@ def likelihood_func(observed_rgbd, likelihood_args):
     )
 
     score = pixelwise_score.sum()
-    if "object_interpenetration" in likelihood_args.keys():
-        interpenetration_penalty = likelihood_args["interpenetration_penalty"]
-        interpeneration = likelihood_args["object_interpenetration"]
-        # jax.debug.print("interpeneration: {v}", v=interpeneration)
-        interpeneration_score = interpenetration_penalty.const * interpeneration
-        # jax.debug.print("interpeneration_score: {v}", v=interpeneration_score)
+
+    if likelihood_args["check_interp"].const:
+        interpeneration = get_interpenetration(
+            likelihood_args["scene_mesh"], likelihood_args["num_mc_sample"].const
+        )
+        interpeneration_score = (
+            likelihood_args["interp_penalty"].const * interpeneration
+        )
+        jax.debug.print("interpeneration_score: {v}", v=interpeneration_score)
         score -= interpeneration_score
 
     return {

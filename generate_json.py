@@ -323,7 +323,11 @@ num_initial_sample = 1
 num_iterations = 100
 fps = 100
 smoothing_window_size = 1
-
+num_pose_grid = 11
+position_search_thr = 0.1
+# needs to be odd
+num_scale_grid = 11
+scale_search_thr = 0.2
 
 # paths for reading physion metadata
 data_path = "/home/haoliangwang/data/"
@@ -356,9 +360,6 @@ onlyhdf5 = [f for f in listdir(scenario_path) if isfile(join(scenario_path, f)) 
 save_path = '/ccn2/u/haw027/b3d_ipe/num_obj'
 
 
-num_pose_grid = 11
-position_search_thr = 0.1
-
 # Gridding on translation only.
 translation_deltas = b3d.Pose.concatenate_poses(
     [
@@ -389,10 +390,6 @@ rotation_deltas = b3d.Pose.concatenate_poses(
 )
 all_deltas = b3d.Pose.stack_poses([translation_deltas, rotation_deltas])
 
-# needs to be odd
-num_scale_grid = 11
-scale_search_thr = 0.2
-
 scale_deltas = jnp.stack(
                 jnp.meshgrid(
                     jnp.linspace(-scale_search_thr, scale_search_thr, num_scale_grid),
@@ -401,8 +398,6 @@ scale_deltas = jnp.stack(
                 ),
                 axis=-1,
             ).reshape(-1, 3)
-
-
 
 
 for hdf5_file in onlyhdf5:

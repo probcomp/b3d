@@ -225,8 +225,8 @@ with h5py.File(stim_path, "r") as f:
         im_seg = np.array(
             Image.open(io.BytesIO(f["frames"][key]["images"]["_id_cam0"][:]))
         )
-        if complicated:
-            im_seg = update_img_seg(f, im_seg)
+        # if complicated:
+        #     im_seg = update_img_seg(f, im_seg)
         seg_arr.append(im_seg)
     depth_arr = jnp.asarray(depth_arr)
     image_arr = jnp.asarray(image_arr) / 255
@@ -442,8 +442,8 @@ im_segs = jax.image.resize(
 num_inference_step = 5
 im_seg = im_segs[START_T]
 for i, (o_id, color) in enumerate(zip(object_ids, object_segmentation_colors)):
-    if color not in np.unique(im_seg.reshape(-1, im_seg.shape[2]), axis=0):
-        continue
+    # if color not in np.unique(im_seg.reshape(-1, im_seg.shape[2]), axis=0):
+    #     continue
     area = get_mask_area(im_seg, [color])
     image_masked = blackout_image(rgbds[START_T], area)
 
@@ -502,7 +502,7 @@ for i, (o_id, color) in enumerate(zip(object_ids, object_segmentation_colors)):
         trace, _ = importance_jit(
             jax.random.PRNGKey(0),
             genjax.ChoiceMap.d(choice_map),
-            (Pytree.const(("0",)), [mesh], likelihood_args),
+            (Pytree.const(("0",)), [[mesh]], likelihood_args),
         )
 
         for j, seed in enumerate(range(num_inference_step)):

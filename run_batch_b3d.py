@@ -414,7 +414,6 @@ parser.add_argument("scenario", help=".r3d File", type=str)
 args = parser.parse_args()
 scenario = args.scenario
 
-vfov = 54.43222
 near_plane = 0.1
 far_plane = 100
 im_width = 350
@@ -569,7 +568,7 @@ for hdf5_file in onlyhdf5:
         # Motice that hfov and vfov are different if height != width
         # We can also get the intrinsic matrix from opengl's perspective matrix.
         # http://kgeorge.github.io/2014/03/08/calculating-opengl-perspective-matrix-from-opencv-intrinsic-matrix
-        vfov = vfov / 180.0 * np.pi
+        vfov = 54.43222 / 180.0 * np.pi
         tan_half_vfov = np.tan(vfov / 2.0)
         tan_half_hfov = tan_half_vfov * width / float(height)
         fx = width / 2.0 / tan_half_hfov  # focal length in pixel space

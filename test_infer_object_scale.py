@@ -469,7 +469,7 @@ for i, (o_id, color) in enumerate(zip(object_ids, object_segmentation_colors)):
     if complicated:
         pass
     else:
-        name = model_names[i]
+        name = model_names[i].decode("utf-8")
         trim = ordered_all_meshes[name]
         bounding_box = trim.bounding_box
         bbox_corners = bounding_box.vertices

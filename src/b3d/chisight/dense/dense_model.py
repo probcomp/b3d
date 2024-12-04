@@ -66,6 +66,7 @@ def advance_time(key, trace, observed_rgbd):
     Returns a trace where previous_state (stored in the arguments)
     and new_state (sampled in the choices and returned) are identical.
     """
+    # this is where interesting things happen: calculate the linear and angular velocities and update.
     trace, _, _, _ = trace.update(
         key,
         U.g(

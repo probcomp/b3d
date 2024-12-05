@@ -45,47 +45,6 @@ def quaternion_to_euler_angles(quaternion):
     return rot_euler
 
 
-def unproject_pixels(mask, depth_map, cam_matrix, fx, fy):
-    """
-    pts: [N, 2] pixel coords
-    depth: [N, ] depth values
-    returns: [N, 3] world coords
-    """
-    depth = depth_map[mask]
-    pts = np.array([[x, y] for x, y in zip(np.nonzero(mask)[0], np.nonzero(mask)[1])])
-    camera_matrix = np.linalg.inv(cam_matrix.reshape((4, 4)))
-
-    # Different from real-world camera coordinate system.
-    # OpenGL uses negative z axis as the camera front direction.
-    # x axes are same, hence y axis is reversed as well.
-    # Source: https://learnopengl.com/Getting-started/Camera
-    rot = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-    camera_matrix = np.dot(camera_matrix, rot)
-
-    height = depth_map.shape[0]
-    width = depth_map.shape[1]
-
-    img_pixs = pts[:, [1, 0]].T
-    img_pix_ones = np.concatenate((img_pixs, np.ones((1, img_pixs.shape[1]))))
-
-    # Calculate the intrinsic matrix from vertical_fov.
-    # Motice that hfov and vfov are different if height != width
-    # We can also get the intrinsic matrix from opengl's perspective matrix.
-    # http://kgeorge.github.io/2014/03/08/calculating-opengl-perspective-matrix-from-opencv-intrinsic-matrix
-    intrinsics = np.array([[fx, 0, width / 2.0], [0, fy, height / 2.0], [0, 0, 1]])
-    img_inv = np.linalg.inv(intrinsics[:3, :3])
-    cam_img_mat = np.dot(img_inv, img_pix_ones)
-
-    points_in_cam = np.multiply(cam_img_mat, depth.reshape(-1))
-    points_in_cam = np.concatenate(
-        (points_in_cam, np.ones((1, points_in_cam.shape[1]))), axis=0
-    )
-    points_in_world = np.dot(camera_matrix, points_in_cam)
-    points_in_world = points_in_world[:3, :].T  # .reshape(3, height, width)
-
-    return points_in_world
-
-
 def blackout_image(depth_map, area):
     # zero_depth_map = np.ones(depth_map.shape)
     zero_depth_map = np.zeros(depth_map.shape)
@@ -104,15 +63,19 @@ def get_mask_area(seg_img, colors):
 
 
 def find_missing_values(nums):
-    # Determine the range of integers (from the smallest to the largest)
     full_range = set(range(min(nums), max(nums) + 1))
-    # Find the missing values by subtracting the set of given numbers
     missing_values = sorted(list(full_range - set(nums)))
     return missing_values
 
 
 def main(
-    hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, use_gt=False
+    hdf5_file_path,
+    scenario,
+    mesh_file_path,
+    save_path,
+    pred_file_path,
+    use_gt=False,
+    masked=True,
 ):
     def initial_samples(num_sample):
         trunc = [0, 1]
@@ -176,11 +139,9 @@ def main(
                     scale_list.append((f"object_scale_{o_id}_{i}", j))
                     obj_names[f"object_name_{o_id}_{i}"] = val[-1][i]
 
-            choice_map = dict(
+            pre_dict = (
                 [
                     ("camera_pose", camera_pose),
-                    ("rgbd", blackout_image(rgbds[START_T], all_areas[START_T])),
-                    # ("rgbd", rgbds[START_T]),
                     ("depth_noise_variance", 0.01),
                     ("color_noise_variance", 1),
                     ("outlier_probability", 0.1),
@@ -188,6 +149,14 @@ def main(
                 + pose_list
                 + scale_list
             )
+
+            if masked:
+                pre_dict += [
+                    ("rgbd", blackout_image(rgbds[START_T], all_areas[START_T]))
+                ]
+            else:
+                pre_dict += [("rgbd", rgbds[START_T])]
+            choice_map = dict(pre_dict)
 
             trace, _ = importance_jit(
                 jax.random.PRNGKey(0),
@@ -480,7 +449,7 @@ def main(
         "cy": renderer.cy,
         "image_width": Pytree.const(renderer.width),
         "image_height": Pytree.const(renderer.height),
-        "masked": Pytree.const(True),
+        "masked": Pytree.const(masked),
         "check_interp": Pytree.const(True),
         "num_mc_sample": Pytree.const(500),
         "interp_penalty": Pytree.const(1000),
@@ -652,27 +621,23 @@ def main(
         )
         all_areas = []
         for im_seg in im_segs:
-            all_area = im_seg != jnp.array([0, 0, 0])
-            all_area = all_area.min(-1).astype("float32")
-            all_area = all_area.reshape(
-                (all_area.shape[-1], all_area.shape[-1])
-            ).astype(bool)
+            all_area = np.any(im_seg != jnp.array([0, 0, 0]), axis=-1)
             all_areas.append(all_area)
 
         mc_obj_cat_samples = re_weight(pose_scale_mesh_list, vis_index)
         vis_index += num_inference_step
         best_mc_obj_cat_sample = max(mc_obj_cat_samples, key=lambda x: x[0])
-        choice_map = dict(
-            [
-                ("camera_pose", camera_pose),
-                ("rgbd", blackout_image(rgbds[START_T], all_areas[START_T])),
-                # ("rgbd", rgbds[START_T]),
-                ("depth_noise_variance", 0.01),
-                ("color_noise_variance", 1),
-                ("outlier_probability", 0.1),
-            ]
-            + [(feature, val) for feature, val in best_mc_obj_cat_sample[1].items()]
-        )
+        pre_dict = [
+            ("camera_pose", camera_pose),
+            ("depth_noise_variance", 0.01),
+            ("color_noise_variance", 1),
+            ("outlier_probability", 0.1),
+        ] + [(feature, val) for feature, val in best_mc_obj_cat_sample[1].items()]
+        if masked:
+            pre_dict += [("rgbd", blackout_image(rgbds[START_T], all_areas[START_T]))]
+        else:
+            pre_dict += [("rgbd", rgbds[START_T])]
+        choice_map = dict(pre_dict)
 
         trace_post_obj_cat_inference, _ = importance_jit(
             jax.random.PRNGKey(0),
@@ -690,12 +655,20 @@ def main(
         for T_observed_image in range(FINAL_T):
             posterior_across_frames["pose"].append({})
             # Constrain on new RGB and Depth data.
-            trace = b3d.update_choices(
-                trace,
-                Pytree.const(("rgbd",)),
-                blackout_image(rgbds[T_observed_image], all_areas[T_observed_image]),
-                # rgbds[T_observed_image],
-            )
+            if masked:
+                trace = b3d.update_choices(
+                    trace,
+                    Pytree.const(("rgbd",)),
+                    blackout_image(
+                        rgbds[T_observed_image], all_areas[T_observed_image]
+                    ),
+                )
+            else:
+                trace = b3d.update_choices(
+                    trace,
+                    Pytree.const(("rgbd",)),
+                    rgbds[T_observed_image],
+                )
             for o_id in best_mc_obj_cat_sample[2].const:
                 trace, key, posterior_poses, scores = (
                     bayes3d.enumerate_and_select_best_move_pose(
@@ -872,4 +845,6 @@ if __name__ == "__main__":
     )
     save_path = "/home/haoliangwang/data/b3d_tracking_results"
     pred_file_path = "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_first.json"
-    main(hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path)
+    main(
+        hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, masked=True
+    )

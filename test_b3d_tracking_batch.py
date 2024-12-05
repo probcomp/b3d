@@ -19,6 +19,7 @@ import h5py
 import jax
 import jax.numpy as jnp
 import numpy as np
+import rerun as rr
 import trimesh
 from genjax import Pytree
 from PIL import Image
@@ -33,33 +34,10 @@ def scale_mesh(vertices, scale_factor):
     return vertices_copy
 
 
-def euler_angles_to_quaternion(euler: np.ndarray) -> np.ndarray:
-    """
-    Convert Euler angles to a quaternion.
-
-    Source: https://pastebin.com/riRLRvch
-
-    :param euler: The Euler angles vector.
-
-    :return: The quaternion representation of the Euler angles.
-    """
-    pitch = np.radians(euler[0] * 0.5)
-    cp = np.cos(pitch)
-    sp = np.sin(pitch)
-
-    yaw = np.radians(euler[1] * 0.5)
-    cy = np.cos(yaw)
-    sy = np.sin(yaw)
-
-    roll = np.radians(euler[2] * 0.5)
-    cr = np.cos(roll)
-    sr = np.sin(roll)
-
-    x = sy * cp * sr + cy * sp * cr
-    y = sy * cp * cr - cy * sp * sr
-    z = cy * cp * sr - sy * sp * cr
-    w = cy * cp * cr + sy * sp * sr
-    return np.array([x, y, z, w])
+def quaternion_to_euler_angles(quaternion):
+    rot = Rotation.from_quat(quaternion)
+    rot_euler = rot.as_euler("xyz", degrees=True)
+    return rot_euler
 
 
 def unproject_pixels(mask, depth_map, cam_matrix, fx, fy):
@@ -120,276 +98,6 @@ def get_mask_area(seg_img, colors):
     return reduce(np.logical_or, arrs)
 
 
-def initial_samples(num_sample):
-    trunc = [0, 1]
-    if num_sample > np.power(len(trunc), len(object_ids)):
-        num_sample = np.power(len(trunc), len(object_ids))
-    all_comb = [trunc for _ in range(len(object_ids))]
-    product = [element for element in itertools.product(*all_comb)]
-    product.remove(tuple([0 for _ in range(len(object_ids))]))
-    samples = random.sample(product, num_sample - 1)
-    samples.append(tuple([0 for _ in range(len(object_ids))]))
-    return samples
-
-
-def sample_from_posterior(num_sample, log_probs_categories, option="rank"):
-    log_probs = [item[0] for item in log_probs_categories]
-    categories = [item[1] for item in log_probs_categories]
-    num_categories = len(log_probs)
-
-    if option == "uniform":
-
-        def draw_single_sample():
-            index = np.random.choice(num_categories)
-            return categories[index]
-    elif option == "veridical":
-
-        def draw_single_sample():
-            # see this: https://stackoverflow.com/questions/58339083/how-to-sample-from-a-log-probability-distribution
-            gumbels = np.random.gumbel(size=num_categories)
-            index = np.argmax(log_probs + gumbels)
-            return categories[index]
-    elif option == "rank":
-
-        def draw_single_sample():
-            weights = np.array([1 / (n + 1) for n in range(num_categories)])
-            weights_norm = weights / weights.sum()
-            index = np.random.choice(num_categories, p=weights_norm)
-            return categories[index]
-    elif option == "mix":
-
-        def draw_single_sample():
-            t = 0.5
-            t * np.array(log_probs) + (1 - t) * (1 / num_categories)
-            return
-    else:
-        raise NotImplementedError
-
-    samples = []
-    np.random.seed(42)
-    for _ in range(num_sample):
-        sample = draw_single_sample()
-        samples.append(sample)
-    return samples
-
-
-def re_weight(pose_scale_mesh_list):
-    def _re_weight(pose_scale_mesh):
-        num_inference_step = 5
-
-        pose_list = []
-        scale_list = []
-        for o_id, val in pose_scale_mesh.items():
-            pose_list.append((f"object_pose_{o_id}", val[0]))
-            for i, j in enumerate(val[1]):
-                scale_list.append((f"object_scale_{o_id}_{i}", j))
-
-        choice_map = dict(
-            [
-                ("camera_pose", camera_pose),
-                ("rgbd", blackout_image(rgbds[START_T], all_areas[START_T])),
-                # ("rgbd", rgbds[START_T]),
-                ("depth_noise_variance", 0.01),
-                ("color_noise_variance", 1),
-                ("outlier_probability", 0.1),
-            ]
-            + pose_list
-            + scale_list
-        )
-
-        trace, _ = importance_jit(
-            jax.random.PRNGKey(0),
-            genjax.ChoiceMap.d(choice_map),
-            (
-                Pytree.const([o_id for o_id in pose_scale_mesh.keys()]),
-                [val[2] for val in pose_scale_mesh.values()],
-                likelihood_args,
-            ),
-        )
-
-        scales_scores = {}
-        key = jax.random.PRNGKey(0)
-        for iter in range(num_inference_step):
-            for o_id in pose_scale_mesh.keys():
-                trace, key, _, _ = bayes3d.enumerate_and_select_best_move_pose(
-                    trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
-                )
-                components = [
-                    item[0]
-                    for item in scale_list
-                    if item[0].startswith(f"object_scale_{o_id}")
-                ]
-                for component in components:
-                    trace, key, posterior_scales, scores = (
-                        bayes3d.enumerate_and_select_best_move_scale(
-                            trace, Pytree.const((component,)), key, scale_deltas
-                        )
-                    )
-                    if iter == num_inference_step - 1:
-                        scales_scores[component] = [
-                            (score.astype(float).item(), posterior_scale)
-                            for (score, posterior_scale) in zip(
-                                scores, posterior_scales
-                            )
-                        ]
-        return trace, scales_scores  # , idxs
-
-    re_weighted_samples = []
-    for pose_scale_mesh in pose_scale_mesh_list:
-        trace, scales_scores = _re_weight(pose_scale_mesh)
-        best_choices = trace.get_choices()
-        best_pose_scale = []
-        meshes = {}
-        obj_names = {}
-        for o_id, val in pose_scale_mesh.items():
-            best_pose_scale.append(
-                (f"object_pose_{o_id}", best_choices[f"object_pose_{o_id}"])
-            )
-            for j in range(len(val[1])):
-                best_pose_scale.append(
-                    (
-                        f"object_scale_{o_id}_{j}",
-                        best_choices[f"object_scale_{o_id}_{j}"],
-                    )
-                )
-                obj_names[f"object_name_{o_id}_{j}"] = val[-1][j]
-            meshes[o_id] = val[2]
-        re_weighted_samples.append(
-            [
-                trace.get_score().item(),
-                best_pose_scale,
-                Pytree.const([o_id for o_id in pose_scale_mesh.keys()]),
-                meshes,
-                scales_scores,
-                obj_names,
-            ]
-        )
-    return re_weighted_samples
-
-
-def get_object_id_from_composite_id(key):
-    if int(key.split("_")[-2]) == base_id:
-        o_id = composite_mapping["_".join(key.split("_")[-2:])]
-    else:
-        o_id = key.split("_")[-2]
-    return o_id
-
-
-def get_all_component_poses(
-    best_mc_obj_cat_sample,
-    pose_samples_from_posterior,
-    composite_scales,
-    reversed_composite_mapping,
-):
-    best_mc_obj_cat_sample[3][base_id]
-    composite_ids = list(reversed_composite_mapping.keys())[1:]
-    for composite_id in composite_ids:
-        pose_samples_from_posterior[composite_id] = [[]]
-    for i, base_pose in enumerate(pose_samples_from_posterior[base_id]):
-        assert len(pose_samples_from_posterior[base_id]) == len(
-            composite_scales[base_id]
-        )
-        best_base_pose = base_pose[1]
-        top = (
-            best_mc_obj_cat_sample[3][base_id][0].vertices[:, 1].max()
-            * composite_scales[base_id][i]["y"]
-        )
-        for j, composite_id in enumerate(composite_ids):
-            pose = b3d.Pose.from_translation(jnp.array([0.0, top, 0.0]))
-            pose_samples_from_posterior[composite_id][0].append(base_pose[0] @ pose)
-            pose_samples_from_posterior[composite_id].append(best_base_pose @ pose)
-            top += (
-                best_mc_obj_cat_sample[3][base_id][j + 1].vertices[:, 1].max()
-                * composite_scales[composite_id][i]["y"]
-            )
-
-
-def get_all_component_velocities():
-    return
-
-
-def get_posterior_poses_for_frame(
-    frame, num_sample, posterior_across_frames, best_mc_obj_cat_sample, json_file
-):
-    pose_samples_from_posterior = {}
-    for o_id, poses in posterior_across_frames["pose"][frame].items():
-        best_pose = poses[1]
-        pose_samples_from_posterior[o_id] = [
-            [pose for pose in sample_from_posterior(num_sample, poses[0])],
-            best_pose,
-        ]
-        if o_id == base_id:
-            get_all_component_poses(
-                best_mc_obj_cat_sample,
-                pose_samples_from_posterior,
-                json_file["scale"],
-                {value: key for key, value in composite_mapping.items()},
-            )
-    return pose_samples_from_posterior
-
-
-def quaternion_to_euler_angles(quaternion):
-    rot = Rotation.from_quat(quaternion)
-    rot_euler = rot.as_euler("xyz", degrees=True)
-    return rot_euler
-
-
-def compute_velocity(
-    key,
-    name,
-    scale,
-    pose_samples_from_posterior_last_frame,
-    pose_samples_from_posterior_window_frame,
-    dt,
-):
-    def compute_center_of_mass(pose_samples_from_posterior):
-        object_pose_idx = np.random.choice(len(pose_samples_from_posterior))
-        object_pose = pose_samples_from_posterior[object_pose_idx]
-        q = object_pose._quaternion
-        bounding_box_transform = bounding_box_b3d.transform(object_pose)
-        bounding_box_transform = trimesh.Trimesh(
-            bounding_box_transform.vertices, bounding_box_transform.faces
-        )
-        center_of_mass = bounding_box_transform.center_mass
-        return center_of_mass, q
-
-    np.random.seed(key)
-    trim = ordered_all_meshes[name]
-    mesh_tri = trimesh.Trimesh(
-        vertices=scale_mesh(trim.vertices, scale), faces=trim.faces
-    )
-    oriented_bbox = mesh_tri.bounding_box
-    bounding_box_b3d = b3d.Mesh.from_trimesh(oriented_bbox)
-
-    pos_now, q_now = compute_center_of_mass(pose_samples_from_posterior_last_frame)
-    pos_last, q_last = compute_center_of_mass(pose_samples_from_posterior_window_frame)
-    linear_vel = (pos_now - pos_last) / dt
-
-    angular_velocity = (2 / dt) * np.array(
-        [
-            q_last[0] * q_now[1]
-            - q_last[1] * q_now[0]
-            - q_last[2] * q_now[3]
-            + q_last[3] * q_now[2],
-            q_last[0] * q_now[2]
-            + q_last[1] * q_now[3]
-            - q_last[2] * q_now[0]
-            - q_last[3] * q_now[1],
-            q_last[0] * q_now[3]
-            - q_last[1] * q_now[2]
-            + q_last[2] * q_now[1]
-            - q_last[3] * q_now[0],
-        ]
-    )
-    ang_vel = np.dot(angular_velocity, np.array([[0, 0, 1], [0, -1, 0], [-1, 0, 0]]))
-
-    return {"x": linear_vel[0], "y": linear_vel[1], "z": linear_vel[2]}, {
-        "x": ang_vel[0],
-        "y": ang_vel[1],
-        "z": ang_vel[2],
-    }
-
-
 def find_missing_values(nums):
     """
     Finds the missing values from a list of continuous integers.
@@ -408,13 +116,252 @@ def find_missing_values(nums):
 
 
 def main(
-    use_gt,
-    hdf5_file_path,
-    scenario,
-    mesh_file_path,
-    save_path=None,
-    pred_file_path=None,
+    hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, use_gt=False
 ):
+    def initial_samples(num_sample):
+        trunc = [0, 1]
+        if num_sample > np.power(len(trunc), len(object_ids)):
+            num_sample = np.power(len(trunc), len(object_ids))
+        all_comb = [trunc for _ in range(len(object_ids))]
+        product = [element for element in itertools.product(*all_comb)]
+        product.remove(tuple([0 for _ in range(len(object_ids))]))
+        samples = random.sample(product, num_sample - 1)
+        samples.append(tuple([0 for _ in range(len(object_ids))]))
+        return samples
+
+    def sample_from_posterior(num_sample, log_probs_categories, option="rank"):
+        log_probs = [item[0] for item in log_probs_categories]
+        categories = [item[1] for item in log_probs_categories]
+        num_categories = len(log_probs)
+
+        if option == "uniform":
+
+            def draw_single_sample():
+                index = np.random.choice(num_categories)
+                return categories[index]
+        elif option == "veridical":
+
+            def draw_single_sample():
+                # see this: https://stackoverflow.com/questions/58339083/how-to-sample-from-a-log-probability-distribution
+                gumbels = np.random.gumbel(size=num_categories)
+                index = np.argmax(log_probs + gumbels)
+                return categories[index]
+        elif option == "rank":
+
+            def draw_single_sample():
+                weights = np.array([1 / (n + 1) for n in range(num_categories)])
+                weights_norm = weights / weights.sum()
+                index = np.random.choice(num_categories, p=weights_norm)
+                return categories[index]
+        elif option == "mix":
+
+            def draw_single_sample():
+                t = 0.5
+                t * np.array(log_probs) + (1 - t) * (1 / num_categories)
+                return
+        else:
+            raise NotImplementedError
+
+        samples = []
+        np.random.seed(42)
+        for _ in range(num_sample):
+            sample = draw_single_sample()
+            samples.append(sample)
+        return samples
+
+    def re_weight(pose_scale_mesh_list):
+        def _re_weight(pose_scale_mesh):
+            num_inference_step = 5
+
+            pose_list = []
+            scale_list = []
+            obj_names = {}
+            for o_id, val in pose_scale_mesh_list.items():
+                pose_list.append((f"object_pose_{o_id}", val[0]))
+                for i, j in enumerate(val[1]):
+                    scale_list.append((f"object_scale_{o_id}_{i}", j))
+                    obj_names[f"object_name_{o_id}_{i}"] = val[-1][i]
+
+            choice_map = dict(
+                [
+                    ("camera_pose", camera_pose),
+                    ("rgbd", blackout_image(rgbds[START_T], all_areas[START_T])),
+                    # ("rgbd", rgbds[START_T]),
+                    ("depth_noise_variance", 0.01),
+                    ("color_noise_variance", 1),
+                    ("outlier_probability", 0.1),
+                ]
+                + pose_list
+                + scale_list
+            )
+
+            trace, _ = importance_jit(
+                jax.random.PRNGKey(0),
+                genjax.ChoiceMap.d(choice_map),
+                (
+                    Pytree.const([o_id for o_id in pose_scale_mesh.keys()]),
+                    [val[2] for val in pose_scale_mesh.values()],
+                    likelihood_args,
+                ),
+            )
+
+            # scales_scores = {}
+            best_pose_scale = {}
+            key = jax.random.PRNGKey(0)
+            for iter in range(num_inference_step):
+                for o_id in pose_scale_mesh.keys():
+                    trace, key, _, _ = bayes3d.enumerate_and_select_best_move_pose(
+                        trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
+                    )
+                    if iter == num_inference_step - 1:
+                        best_pose_scale[f"object_pose_{o_id}"] = trace.get_choices()[
+                            f"object_pose_{o_id}"
+                        ]
+                    components = [
+                        item[0]
+                        for item in scale_list
+                        if item[0].startswith(f"object_scale_{o_id}")
+                    ]
+                    for component in components:
+                        trace, key, posterior_scales, scores = (
+                            bayes3d.enumerate_and_select_best_move_scale(
+                                trace, Pytree.const((component,)), key, scale_deltas
+                            )
+                        )
+                        if iter == num_inference_step - 1:
+                            best_pose_scale[component] = trace.get_choices()[component]
+                            # scales_scores[component] = [
+                            #     (score.astype(float).item(), posterior_scale)
+                            #     for (score, posterior_scale) in zip(
+                            #         scores, posterior_scales
+                            #     )
+                            # ]
+                viz_trace(trace, vis_index, cloud=True)
+                vis_index += 1
+            return trace.get_score().item(), best_pose_scale, obj_names
+
+        re_weighted_samples = []
+        for pose_scale_mesh in pose_scale_mesh_list:
+            best_score, best_pose_scale, obj_names = _re_weight(pose_scale_mesh)
+            re_weighted_samples.append(
+                [
+                    best_score,
+                    best_pose_scale,
+                    Pytree.const([o_id for o_id in pose_scale_mesh.keys()]),
+                    dict([(o_id, val[2]) for o_id, val in pose_scale_mesh.items()]),
+                    obj_names,
+                ]
+            )
+        return re_weighted_samples
+
+    def get_object_id_from_composite_id(key):
+        if int(key.split("_")[-2]) == base_id:
+            o_id = composite_mapping["_".join(key.split("_")[-2:])]
+        else:
+            o_id = key.split("_")[-2]
+        return o_id
+
+    def get_all_component_poses(
+        best_mc_obj_cat_sample,
+        pose_samples_from_posterior,
+        composite_scales,
+        reversed_composite_mapping,
+    ):
+        best_mc_obj_cat_sample[3][base_id]
+        composite_ids = list(reversed_composite_mapping.keys())[1:]
+        for composite_id in composite_ids:
+            pose_samples_from_posterior[composite_id] = [[]]
+        for i, base_pose in enumerate(pose_samples_from_posterior[base_id]):
+            assert len(pose_samples_from_posterior[base_id]) == len(
+                composite_scales[base_id]
+            )
+            best_base_pose = base_pose[-1]
+            top = (
+                best_mc_obj_cat_sample[3][base_id][0].vertices[:, 1].max()
+                * composite_scales[base_id][i]["y"]
+            )
+            for j, composite_id in enumerate(composite_ids):
+                pose = b3d.Pose.from_translation(jnp.array([0.0, top, 0.0]))
+                pose_samples_from_posterior[composite_id][0].append(base_pose[0] @ pose)
+                pose_samples_from_posterior[composite_id].append(best_base_pose @ pose)
+                top += (
+                    best_mc_obj_cat_sample[3][base_id][j + 1].vertices[:, 1].max()
+                    * composite_scales[composite_id][i]["y"]
+                )
+
+    def get_posterior_poses_for_frame(frame, num_sample, posterior_across_frames):
+        pose_samples_from_posterior = {}
+        for o_id, poses in posterior_across_frames["pose"][frame].items():
+            best_pose = poses[1]
+            pose_samples_from_posterior[o_id] = [
+                [pose for pose in sample_from_posterior(num_sample, poses[0])],
+                best_pose,
+            ]
+            if o_id == base_id:
+                get_all_component_poses(
+                    best_mc_obj_cat_sample,
+                    pose_samples_from_posterior,
+                    json_file["scale"],
+                    {value: key for key, value in composite_mapping.items()},
+                )
+        return pose_samples_from_posterior
+
+    def compute_velocity(
+        mesh,
+        scale,
+        object_pose_last_frame,
+        object_pose_window_frame,
+        dt,
+    ):
+        def compute_center_of_mass(object_pose):
+            q = object_pose._quaternion
+            bounding_box_transform = bounding_box_b3d.transform(object_pose)
+            bounding_box_transform = trimesh.Trimesh(
+                bounding_box_transform.vertices, bounding_box_transform.faces
+            )
+            center_of_mass = bounding_box_transform.center_mass
+            return center_of_mass, q
+
+        mesh_tri = trimesh.Trimesh(
+            vertices=scale_mesh(mesh.vertices, scale), faces=mesh.faces
+        )
+        oriented_bbox = mesh_tri.bounding_box
+        bounding_box_b3d = b3d.Mesh.from_trimesh(oriented_bbox)
+
+        pos_now, q_now = compute_center_of_mass(object_pose_last_frame)
+        pos_last, q_last = compute_center_of_mass(object_pose_window_frame)
+        linear_vel = (pos_now - pos_last) / dt
+
+        angular_velocity = (2 / dt) * np.array(
+            [
+                q_last[0] * q_now[1]
+                - q_last[1] * q_now[0]
+                - q_last[2] * q_now[3]
+                + q_last[3] * q_now[2],
+                q_last[0] * q_now[2]
+                + q_last[1] * q_now[3]
+                - q_last[2] * q_now[0]
+                - q_last[3] * q_now[1],
+                q_last[0] * q_now[3]
+                - q_last[1] * q_now[2]
+                + q_last[2] * q_now[1]
+                - q_last[3] * q_now[0],
+            ]
+        )
+        ang_vel = np.dot(
+            angular_velocity, np.array([[0, 0, 1], [0, -1, 0], [-1, 0, 0]])
+        )
+
+        return {"x": linear_vel[0], "y": linear_vel[1], "z": linear_vel[2]}, {
+            "x": ang_vel[0],
+            "y": ang_vel[1],
+            "z": ang_vel[2],
+        }
+
+    rr.init("demo")
+    rr.connect("127.0.0.1:8812")
+    rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
+
     near_plane = 0.1
     far_plane = 100
     im_width = 350
@@ -426,12 +373,13 @@ def main(
     FINAL_T = 45
     num_initial_sample = 1
     fps = 100
-    smoothing_window_size = 1
+    smoothing_window_size = 5
     num_pose_grid = 11
     position_search_thr = 0.1
     # needs to be odd
     num_scale_grid = 11
     scale_search_thr = 0.2
+    num_sample_from_posterior = 20
 
     with open(pred_file_path) as f:
         pred_file = json.load(f)
@@ -519,7 +467,7 @@ def main(
     b3d.reload(b3d.chisight.dense.dense_model)
     b3d.reload(b3d.chisight.dense.likelihoods.laplace_likelihood)
     likelihood_func = b3d.chisight.dense.likelihoods.laplace_likelihood.likelihood_func
-    model, _, _ = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
+    model, viz_trace, _ = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
         renderer, likelihood_func
     )
     importance_jit = jax.jit(model.importance)
@@ -537,6 +485,7 @@ def main(
         "interp_penalty": Pytree.const(1000),
     }
 
+    vis_index = 0
     for hdf5_file in onlyhdf5:
         trial_name = hdf5_file[:-5]
         print("\t", trial_name)
@@ -630,6 +579,9 @@ def main(
                             cap_id = attachment_id + 1
                             composite_mapping[f"{base_id}_1"] = cap_id
 
+        reversed_composite_mapping = dict(
+            [(value, key) for key, value in composite_mapping.items()]
+        )
         rgbds = jnp.concatenate(
             [image_arr, jnp.reshape(depth_arr, depth_arr.shape + (1,))], axis=-1
         )
@@ -645,8 +597,8 @@ def main(
             b3d.Rot.from_matrix(camera_rotation_from_matrix).as_quat(),
         )
 
+        pred_file = pred_file[trial_name]
         if use_gt:
-            pred_file = pred_file[f"{trial_name.split('/')[1]}"]
             gt_info = pred_file["scene"][0]["objects"]
             for i in range(len(gt_info)):
                 for feature in pred_file["scene"][0]["objects"][i].keys():
@@ -706,39 +658,7 @@ def main(
             ).astype(bool)
             all_areas.append(all_area)
 
-        if base_id:
-            composite = (
-                pose_scale_mesh_list[0][base_id][0],
-                [pose_scale_mesh_list[0][base_id][1][0]],
-                [pose_scale_mesh_list[0][base_id][2][0]],
-                [pose_scale_mesh_list[0][base_id][-1][0]],
-            )
-            if attachment_id:
-                composite[1].append(pose_scale_mesh_list[0][attachment_id][1][0])
-                composite[2].append(pose_scale_mesh_list[0][attachment_id][2][0])
-                composite[-1].append(pose_scale_mesh_list[0][attachment_id][-1][0])
-                if cap_id:
-                    composite[1].append(pose_scale_mesh_list[0][cap_id][1][0])
-                    composite[2].append(pose_scale_mesh_list[0][cap_id][2][0])
-                    composite[-1].append(pose_scale_mesh_list[0][cap_id][-1][0])
-
-        for this_pose_scale_mesh_list in pose_scale_mesh_list:
-            pose_scale_mesh_new = {}
-            for key, val in this_pose_scale_mesh_list.items():
-                if key in (base_id, attachment_id, cap_id):
-                    pose_scale_mesh_new[base_id] = composite
-                else:
-                    pose_scale_mesh_new[key] = val
-
-        pose_list = []
-        scale_list = []
-        for o_id, val in pose_scale_mesh_new.items():
-            pose_list.append((f"object_pose_{o_id}", val[0]))
-            for i, j in enumerate(val[1]):
-                scale_list.append((f"object_scale_{o_id}_{i}", j))
-
-        pose_scale_mesh_list_new = [pose_scale_mesh_new]
-        mc_obj_cat_samples = re_weight(pose_scale_mesh_list_new)
+        mc_obj_cat_samples = re_weight(pose_scale_mesh_list)
         best_mc_obj_cat_sample = max(mc_obj_cat_samples, key=lambda x: x[0])
         choice_map = dict(
             [
@@ -749,7 +669,7 @@ def main(
                 ("color_noise_variance", 1),
                 ("outlier_probability", 0.1),
             ]
-            + best_mc_obj_cat_sample[1]
+            + [(key, val) for key, val in best_mc_obj_cat_sample[1].items()]
         )
 
         trace_post_obj_cat_inference, _ = importance_jit(
@@ -773,8 +693,7 @@ def main(
                 blackout_image(rgbds[T_observed_image], all_areas[T_observed_image]),
                 # rgbds[T_observed_image],
             )
-
-            for o_id in pose_scale_mesh_new.keys():
+            for o_id in best_mc_obj_cat_sample[2].const:
                 trace, key, posterior_poses, scores = (
                     bayes3d.enumerate_and_select_best_move_pose(
                         trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
@@ -787,53 +706,50 @@ def main(
                     ],
                     trace.get_choices()[f"object_pose_{o_id}"],
                 ]
+            viz_trace(trace, vis_index, cloud=True)
+            vis_index += 1
+        vis_index += 1
 
         # prepare the json file to write
         json_file = {}
-        num_sample_from_posterior = 20
-
         json_file["model"] = {}
         json_file["scale"] = {}
 
-        for val in scale_list:
-            key = val[0]
-            o_id = get_object_id_from_composite_id(key)
+        for key, val in best_mc_obj_cat_sample[1].items():
+            if key.startswith("object_pose"):
+                continue
+            id_long = key
+            o_id = get_object_id_from_composite_id(id_long)
             json_file["model"][int(o_id)] = [
-                best_mc_obj_cat_sample[-1][key.replace("scale", "name")]
+                best_mc_obj_cat_sample[-1][id_long.replace("scale", "name")]
                 for _ in range(num_sample_from_posterior)
             ]
             json_file["scale"][int(o_id)] = [
                 {
-                    "x": scale[0].astype(float).item(),
-                    "y": scale[1].astype(float).item(),
-                    "z": scale[2].astype(float).item(),
+                    "x": val[0].astype(float).item(),
+                    "y": val[1].astype(float).item(),
+                    "z": val[2].astype(float).item(),
                 }
-                for scale in sample_from_posterior(
-                    num_sample_from_posterior, best_mc_obj_cat_sample[-2][key]
-                )
+                for _ in range(num_sample_from_posterior)
             ]
 
-        optim_scales = {}
-        for item in best_mc_obj_cat_sample[1]:
-            key = item[0]
-            scale = item[1]
-            if key.startswith("object_scale_"):
-                o_id = get_object_id_from_composite_id(key)
-                optim_scales[int(o_id)] = scale
+        # optim_scales = {}
+        # for item in best_mc_obj_cat_sample[1]:
+        #     key = item[0]
+        #     scale = item[1]
+        #     if key.startswith("object_scale_"):
+        #         o_id = get_object_id_from_composite_id(key)
+        #         optim_scales[int(o_id)] = scale
 
         pose_samples_from_posterior_last_frame = get_posterior_poses_for_frame(
             -1,
             num_sample_from_posterior,
             posterior_across_frames,
-            best_mc_obj_cat_sample,
-            json_file,
         )
         pose_samples_from_posterior_window_frame = get_posterior_poses_for_frame(
             -(smoothing_window_size + 1),
             num_sample_from_posterior,
             posterior_across_frames,
-            best_mc_obj_cat_sample,
-            json_file,
         )
         assert len(pose_samples_from_posterior_last_frame) == len(
             pose_samples_from_posterior_window_frame
@@ -851,7 +767,7 @@ def main(
                             else 0,
                             "z": pose._position[2].astype(float).item(),
                         }
-                        for pose in poses
+                        for pose in poses[0]
                     ],
                 )
                 for o_id, poses in pose_samples_from_posterior_last_frame.items()
@@ -873,7 +789,7 @@ def main(
                                 float
                             ),
                         }
-                        for pose in poses
+                        for pose in poses[0]
                     ],
                 )
                 for o_id, poses in pose_samples_from_posterior_last_frame.items()
@@ -886,14 +802,19 @@ def main(
                     int(o_id),
                     [
                         compute_velocity(
-                            key,
-                            json_file["model"][o_id][0],
-                            optim_scales[o_id],
-                            pose_samples_from_posterior_last_frame[o_id],
-                            pose_samples_from_posterior_window_frame[o_id],
+                            best_mc_obj_cat_sample[3][
+                                reversed_composite_mapping[o_id].split("_")[0]
+                            ][reversed_composite_mapping[o_id].split("_")[1]],
+                            best_mc_obj_cat_sample[1][
+                                f"object_scale_{reversed_composite_mapping[o_id]}"
+                            ],
+                            pose_samples_from_posterior_last_frame[o_id][0][i],
+                            pose_samples_from_posterior_window_frame[o_id][
+                                -1
+                            ],  # using optim pose for window frame
                             smoothing_window_size / fps,
                         )
-                        for key in range(num_sample_from_posterior)
+                        for i in range(num_sample_from_posterior)
                     ],
                 )
                 for o_id in pose_samples_from_posterior_last_frame.keys()
@@ -923,17 +844,15 @@ def main(
                 json_file[key][o_id] = val[object_ids[0]]
 
         with open(
-            f"/home/haoliangwang/private-physics-bench/stimuli/stimuli/generation/placement/{trial_name}.json",
+            f"{save_path}/{scenario}/{trial_name}.json",
             "w",
         ) as f:
             json.dump(json_file, f)
 
-    return
-
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("r3d_to_video_input")
-    parser.add_argument("scenario", help=".r3d File", type=str)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--scenario", default="collide", type=str)
     args = parser.parse_args()
     scenario = args.scenario
 
@@ -947,8 +866,6 @@ if __name__ == "__main__":
         data_path,
         "all_flex_meshes/core",
     )
-
-    pred_file_path = (
-        "/home/haoliangwang/data/pred_files/clip_cat/collide_kalman_last.json"
-    )
-    main(hdf5_file_path, scenario, mesh_file_path, pred_file_path)
+    save_path = "/home/haoliangwang/data/b3d_tracking_results"
+    pred_file_path = "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_first.json"
+    main(hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path)

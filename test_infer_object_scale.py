@@ -512,7 +512,6 @@ def main(
 
     with open(save_path, "w") as f:
         json.dump(all_info, f)
-    return
 
 
 if __name__ == "__main__":

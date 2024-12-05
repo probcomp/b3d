@@ -26,6 +26,11 @@ from PIL import Image
 from scipy.spatial.transform import Rotation
 
 
+def mkdir(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+
 def scale_mesh(vertices, scale_factor):
     vertices_copy = deepcopy(vertices)
     vertices_copy[:, 0] *= scale_factor[0]
@@ -99,15 +104,6 @@ def get_mask_area(seg_img, colors):
 
 
 def find_missing_values(nums):
-    """
-    Finds the missing values from a list of continuous integers.
-
-    Args:
-        nums (list): A list of integers.
-
-    Returns:
-        list: Missing integers from the range.
-    """
     # Determine the range of integers (from the smallest to the largest)
     full_range = set(range(min(nums), max(nums) + 1))
     # Find the missing values by subtracting the set of given numbers
@@ -169,14 +165,12 @@ def main(
             samples.append(sample)
         return samples
 
-    def re_weight(pose_scale_mesh_list):
-        def _re_weight(pose_scale_mesh):
-            num_inference_step = 5
-
+    def re_weight(pose_scale_mesh_list, offset):
+        def _re_weight(pose_scale_mesh, offset):
             pose_list = []
             scale_list = []
             obj_names = {}
-            for o_id, val in pose_scale_mesh_list.items():
+            for o_id, val in pose_scale_mesh.items():
                 pose_list.append((f"object_pose_{o_id}", val[0]))
                 for i, j in enumerate(val[1]):
                     scale_list.append((f"object_scale_{o_id}_{i}", j))
@@ -236,13 +230,12 @@ def main(
                             #         scores, posterior_scales
                             #     )
                             # ]
-                viz_trace(trace, vis_index, cloud=True)
-                vis_index += 1
+                viz_trace(trace, iter + offset, cloud=True)
             return trace.get_score().item(), best_pose_scale, obj_names
 
         re_weighted_samples = []
         for pose_scale_mesh in pose_scale_mesh_list:
-            best_score, best_pose_scale, obj_names = _re_weight(pose_scale_mesh)
+            best_score, best_pose_scale, obj_names = _re_weight(pose_scale_mesh, offset)
             re_weighted_samples.append(
                 [
                     best_score,
@@ -254,11 +247,18 @@ def main(
             )
         return re_weighted_samples
 
-    def get_object_id_from_composite_id(key):
-        if int(key.split("_")[-2]) == base_id:
-            o_id = composite_mapping["_".join(key.split("_")[-2:])]
+    def get_object_id_from_composite_id(feature):
+        if int(feature.split("_")[-2]) == base_id:
+            o_id = composite_mapping["_".join(feature.split("_")[-2:])]
         else:
-            o_id = key.split("_")[-2]
+            o_id = feature.split("_")[-2]
+        return o_id
+
+    def get_composite_id_from_object_id(feature):
+        if feature in list(reversed_composite_mapping.keys()):
+            o_id = reversed_composite_mapping[str(feature)]
+        else:
+            o_id = str(feature) + "_0"
         return o_id
 
     def get_all_component_poses(
@@ -302,7 +302,7 @@ def main(
                     best_mc_obj_cat_sample,
                     pose_samples_from_posterior,
                     json_file["scale"],
-                    {value: key for key, value in composite_mapping.items()},
+                    {value: feature for feature, value in composite_mapping.items()},
                 )
         return pose_samples_from_posterior
 
@@ -370,7 +370,7 @@ def main(
     height = 1024
 
     START_T = 0
-    FINAL_T = 45
+    FINAL_T = 15
     num_initial_sample = 1
     fps = 100
     smoothing_window_size = 5
@@ -380,9 +380,10 @@ def main(
     num_scale_grid = 11
     scale_search_thr = 0.2
     num_sample_from_posterior = 20
+    num_inference_step = 5
 
     with open(pred_file_path) as f:
-        pred_file = json.load(f)
+        pred_file_all = json.load(f)
 
     all_meshes = {}
     for path, dirs, files in os.walk(mesh_file_path):
@@ -505,15 +506,15 @@ def main(
         composite_mapping = {}
         with h5py.File(hdf5_file_path, "r") as f:
             # extract depth info
-            for key in f["frames"].keys():
-                depth = jnp.array(f["frames"][key]["images"]["_depth_cam0"])
+            for frame in f["frames"].keys():
+                depth = jnp.array(f["frames"][frame]["images"]["_depth_cam0"])
                 depth_arr.append(depth)
                 image = jnp.array(
-                    Image.open(io.BytesIO(f["frames"][key]["images"]["_img_cam0"][:]))
+                    Image.open(io.BytesIO(f["frames"][frame]["images"]["_img_cam0"][:]))
                 )
                 image_arr.append(image)
                 im_seg = np.array(
-                    Image.open(io.BytesIO(f["frames"][key]["images"]["_id_cam0"][:]))
+                    Image.open(io.BytesIO(f["frames"][frame]["images"]["_id_cam0"][:]))
                 )
                 seg_arr.append(im_seg)
             depth_arr = jnp.asarray(depth_arr)
@@ -580,7 +581,7 @@ def main(
                             composite_mapping[f"{base_id}_1"] = cap_id
 
         reversed_composite_mapping = dict(
-            [(value, key) for key, value in composite_mapping.items()]
+            [(value, feature) for feature, value in composite_mapping.items()]
         )
         rgbds = jnp.concatenate(
             [image_arr, jnp.reshape(depth_arr, depth_arr.shape + (1,))], axis=-1
@@ -597,7 +598,7 @@ def main(
             b3d.Rot.from_matrix(camera_rotation_from_matrix).as_quat(),
         )
 
-        pred_file = pred_file[trial_name]
+        pred_file = pred_file_all[trial_name]
         if use_gt:
             gt_info = pred_file["scene"][0]["objects"]
             for i in range(len(gt_info)):
@@ -658,7 +659,8 @@ def main(
             ).astype(bool)
             all_areas.append(all_area)
 
-        mc_obj_cat_samples = re_weight(pose_scale_mesh_list)
+        mc_obj_cat_samples = re_weight(pose_scale_mesh_list, vis_index)
+        vis_index += num_inference_step
         best_mc_obj_cat_sample = max(mc_obj_cat_samples, key=lambda x: x[0])
         choice_map = dict(
             [
@@ -669,7 +671,7 @@ def main(
                 ("color_noise_variance", 1),
                 ("outlier_probability", 0.1),
             ]
-            + [(key, val) for key, val in best_mc_obj_cat_sample[1].items()]
+            + [(feature, val) for feature, val in best_mc_obj_cat_sample[1].items()]
         )
 
         trace_post_obj_cat_inference, _ = importance_jit(
@@ -683,6 +685,7 @@ def main(
         )
 
         trace = trace_post_obj_cat_inference
+        key = jax.random.PRNGKey(0)
         posterior_across_frames = {"pose": []}
         for T_observed_image in range(FINAL_T):
             posterior_across_frames["pose"].append({})
@@ -715,10 +718,10 @@ def main(
         json_file["model"] = {}
         json_file["scale"] = {}
 
-        for key, val in best_mc_obj_cat_sample[1].items():
-            if key.startswith("object_pose"):
+        for feature, val in best_mc_obj_cat_sample[1].items():
+            if feature.startswith("object_pose"):
                 continue
-            id_long = key
+            id_long = feature
             o_id = get_object_id_from_composite_id(id_long)
             json_file["model"][int(o_id)] = [
                 best_mc_obj_cat_sample[-1][id_long.replace("scale", "name")]
@@ -803,10 +806,10 @@ def main(
                     [
                         compute_velocity(
                             best_mc_obj_cat_sample[3][
-                                reversed_composite_mapping[o_id].split("_")[0]
-                            ][reversed_composite_mapping[o_id].split("_")[1]],
+                                int(get_composite_id_from_object_id(o_id).split("_")[0])
+                            ][int(get_composite_id_from_object_id(o_id).split("_")[1])],
                             best_mc_obj_cat_sample[1][
-                                f"object_scale_{reversed_composite_mapping[o_id]}"
+                                f"object_scale_{get_composite_id_from_object_id(o_id)}"
                             ],
                             pose_samples_from_posterior_last_frame[o_id][0][i],
                             pose_samples_from_posterior_window_frame[o_id][
@@ -839,10 +842,11 @@ def main(
         json_file["angular_velocity"] = angular_velocity_dict
 
         missing = find_missing_values(object_ids)
-        for key, val in json_file.items():
+        for feature, val in json_file.items():
             for o_id in missing:
-                json_file[key][o_id] = val[object_ids[0]]
+                json_file[feature][o_id] = val[object_ids[0]]
 
+        mkdir(f"{save_path}/{scenario}/")
         with open(
             f"{save_path}/{scenario}/{trial_name}.json",
             "w",

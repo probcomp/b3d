@@ -115,8 +115,9 @@ def get_interpenetration(mesh_seq, num_samples):
     # floor interpenetration approximation
     for mesh in mesh_seq:
         bottom = mesh.vertices[:, 1].min()
-        if bottom < 0:
-            interpenetrations.append(abs(bottom))
+        interpenetrations.append(jnp.where(bottom < 0, abs(bottom), 0))
+        # if bottom < 0:
+        #     interpenetrations.append(abs(bottom))
     return jnp.array(interpenetrations).sum()
 
 

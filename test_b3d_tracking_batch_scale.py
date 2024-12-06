@@ -686,17 +686,15 @@ def main(
                 ]
                 if all_scale:
                     components = [
-                        item[0]
-                        for item in best_mc_obj_cat_sample[1]
-                        if item[0].startswith(f"object_scale_{o_id}")
+                        id_long
+                        for id_long in best_mc_obj_cat_sample[1].keys()
+                        if id_long.startswith(f"object_scale_{o_id}")
                     ]
                     for component in components:
                         trace, key, _, _ = bayes3d.enumerate_and_select_best_move_scale(
                             trace, Pytree.const((component,)), key, scale_deltas
                         )
-                        posterior_across_frames["scale"][-1][component] = (
-                            trace.get_choices()[component]
-                        )
+                        posterior_across_frames["scale"][-1][component] = trace.get_choices()[component]
             viz_trace(trace, vis_index, cloud=True)
             vis_index += 1
         vis_index += 1
@@ -844,7 +842,7 @@ def main(
         ) as f:
             json.dump(json_file, f)
 
-        return vis_index
+    return vis_index
 
 
 if __name__ == "__main__":

@@ -74,8 +74,10 @@ def main(
     mesh_file_path,
     save_path,
     pred_file_path,
+    vis_index,
     use_gt=False,
     masked=True,
+    all_scale=False,
 ):
     def initial_samples(num_sample):
         trunc = [0, 1]
@@ -455,7 +457,6 @@ def main(
         "interp_penalty": Pytree.const(1000),
     }
 
-    vis_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
         print("\t", trial_index + 1, "\t", trial_name)
@@ -651,9 +652,10 @@ def main(
 
         trace = trace_post_obj_cat_inference
         key = jax.random.PRNGKey(0)
-        posterior_across_frames = {"pose": []}
+        posterior_across_frames = {"pose": [], "scale": []}
         for T_observed_image in range(FINAL_T):
             posterior_across_frames["pose"].append({})
+            posterior_across_frames["scale"].append({})
             # Constrain on new RGB and Depth data.
             if masked:
                 trace = b3d.update_choices(
@@ -682,6 +684,19 @@ def main(
                     ],
                     trace.get_choices()[f"object_pose_{o_id}"],
                 ]
+                if all_scale:
+                    components = [
+                        item[0]
+                        for item in best_mc_obj_cat_sample[1]
+                        if item[0].startswith(f"object_scale_{o_id}")
+                    ]
+                    for component in components:
+                        trace, key, _, _ = bayes3d.enumerate_and_select_best_move_scale(
+                            trace, Pytree.const((component,)), key, scale_deltas
+                        )
+                        posterior_across_frames["scale"][-1][component] = (
+                            trace.get_choices()[component]
+                        )
             viz_trace(trace, vis_index, cloud=True)
             vis_index += 1
         vis_index += 1
@@ -690,11 +705,14 @@ def main(
         json_file = {}
         json_file["model"] = {}
         json_file["scale"] = {}
+        if all_scale:
+            best_scale = posterior_across_frames["scale"][-1]
+        else:
+            best_scale = best_mc_obj_cat_sample[1]
 
-        for feature, val in best_mc_obj_cat_sample[1].items():
-            if feature.startswith("object_pose"):
+        for id_long in best_mc_obj_cat_sample[1].keys():
+            if id_long.startswith("object_pose"):
                 continue
-            id_long = feature
             o_id = get_object_id_from_composite_id(id_long)
             json_file["model"][int(o_id)] = [
                 best_mc_obj_cat_sample[-1][id_long.replace("scale", "name")]
@@ -702,9 +720,9 @@ def main(
             ]
             json_file["scale"][int(o_id)] = [
                 {
-                    "x": val[0].astype(float).item(),
-                    "y": val[1].astype(float).item(),
-                    "z": val[2].astype(float).item(),
+                    "x": best_scale[id_long][0].astype(float).item(),
+                    "y": best_scale[id_long][1].astype(float).item(),
+                    "z": best_scale[id_long][2].astype(float).item(),
                 }
                 for _ in range(num_sample_from_posterior)
             ]
@@ -781,7 +799,7 @@ def main(
                             best_mc_obj_cat_sample[3][
                                 int(get_composite_id_from_object_id(o_id).split("_")[0])
                             ][int(get_composite_id_from_object_id(o_id).split("_")[1])],
-                            best_mc_obj_cat_sample[1][
+                            best_scale[
                                 f"object_scale_{get_composite_id_from_object_id(o_id)}"
                             ],
                             pose_samples_from_posterior_last_frame[o_id][0][i],
@@ -826,6 +844,8 @@ def main(
         ) as f:
             json.dump(json_file, f)
 
+        return vis_index
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -843,8 +863,18 @@ if __name__ == "__main__":
         data_path,
         "all_flex_meshes/core",
     )
-    save_path = "/home/haoliangwang/data/b3d_tracking_results/avg"
-    pred_file_path = "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_avg.json"
-    main(
-        hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, masked=True
-    )
+
+    vis_index = 0
+    for clip in ["first", "last", "avg"]:
+        print(f"***************{clip}***************")
+        save_path = f"/home/haoliangwang/data/b3d_tracking_results/all_scale/{clip}"
+        pred_file_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_{clip}.json"
+        vis_index = main(
+            hdf5_file_path,
+            scenario,
+            mesh_file_path,
+            save_path,
+            pred_file_path,
+            vis_index,
+            all_scale=True,
+        )

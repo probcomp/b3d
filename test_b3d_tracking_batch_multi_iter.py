@@ -19,7 +19,6 @@ import h5py
 import jax
 import jax.numpy as jnp
 import numpy as np
-import rerun as rr
 import trimesh
 from genjax import Pytree
 from PIL import Image
@@ -74,9 +73,9 @@ def main(
     mesh_file_path,
     save_path,
     pred_file_path,
+    all_scale,
     use_gt=False,
     masked=True,
-    all_scale=False,
 ):
     def initial_samples(num_sample):
         trunc = [0, 1]
@@ -172,12 +171,12 @@ def main(
             # scales_scores = {}
             best_pose_scale = {}
             key = jax.random.PRNGKey(0)
-            for iter in range(num_inference_step):
+            for iter_first in range(num_inference_step):
                 for o_id in pose_scale_mesh.keys():
                     trace, key, _, _ = bayes3d.enumerate_and_select_best_move_pose(
                         trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
                     )
-                    if iter == num_inference_step - 1:
+                    if iter_first == num_inference_step - 1:
                         best_pose_scale[f"object_pose_{o_id}"] = trace.get_choices()[
                             f"object_pose_{o_id}"
                         ]
@@ -192,7 +191,7 @@ def main(
                                 trace, Pytree.const((component,)), key, scale_deltas
                             )
                         )
-                        if iter == num_inference_step - 1:
+                        if iter_first == num_inference_step - 1:
                             best_pose_scale[component] = trace.get_choices()[component]
                             # scales_scores[component] = [
                             #     (score.astype(float).item(), posterior_scale)
@@ -200,7 +199,7 @@ def main(
                             #         scores, posterior_scales
                             #     )
                             # ]
-                viz_trace(trace, iter + offset, cloud=True)
+                # viz_trace(trace, iter_first + offset, cloud=True)
             return trace.get_score().item(), best_pose_scale, obj_names
 
         re_weighted_samples = []
@@ -328,9 +327,9 @@ def main(
             "z": ang_vel[2],
         }
 
-    rr.init("demo")
-    rr.connect("127.0.0.1:8812")
-    rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
+    # rr.init("demo")
+    # rr.connect("127.0.0.1:8812")
+    # rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
 
     near_plane = 0.1
     far_plane = 100
@@ -351,6 +350,11 @@ def main(
     scale_search_thr = 0.2
     num_sample_from_posterior = 20
     num_inference_step = 5
+    all_scale = True if all_scale == "all_scale" else False
+    if all_scale:
+        num_iter_inference_step_during_trakcing = 5
+    else:
+        num_iter_inference_step_during_trakcing = 1
 
     vis_index = 0
 
@@ -672,34 +676,48 @@ def main(
                     Pytree.const(("rgbd",)),
                     rgbds[T_observed_image],
                 )
-            for o_id in best_mc_obj_cat_sample[2].const:
-                trace, key, posterior_poses, scores = (
-                    bayes3d.enumerate_and_select_best_move_pose(
-                        trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
+
+            for iter_during in range(num_iter_inference_step_during_trakcing):
+                for o_id in best_mc_obj_cat_sample[2].const:
+                    trace, key, posterior_poses, scores = (
+                        bayes3d.enumerate_and_select_best_move_pose(
+                            trace,
+                            Pytree.const((f"object_pose_{o_id}",)),
+                            key,
+                            all_deltas,
+                        )
                     )
-                )
-                posterior_across_frames["pose"][-1][int(o_id)] = [
-                    [
-                        (score, posterior_pose)
-                        for (posterior_pose, score) in zip(posterior_poses, scores)
-                    ],
-                    trace.get_choices()[f"object_pose_{o_id}"],
-                ]
-                if all_scale:
-                    components = [
-                        id_long
-                        for id_long in best_mc_obj_cat_sample[1].keys()
-                        if id_long.startswith(f"object_scale_{o_id}")
-                    ]
-                    for component in components:
-                        trace, key, _, _ = bayes3d.enumerate_and_select_best_move_scale(
-                            trace, Pytree.const((component,)), key, scale_deltas
-                        )
-                        posterior_across_frames["scale"][-1][component] = (
-                            trace.get_choices()[component]
-                        )
-            viz_trace(trace, vis_index, cloud=True)
-            vis_index += 1
+                    if iter_during == num_iter_inference_step_during_trakcing - 1:
+                        posterior_across_frames["pose"][-1][int(o_id)] = [
+                            [
+                                (score, posterior_pose)
+                                for (posterior_pose, score) in zip(
+                                    posterior_poses, scores
+                                )
+                            ],
+                            trace.get_choices()[f"object_pose_{o_id}"],
+                        ]
+                    if all_scale:
+                        components = [
+                            id_long
+                            for id_long in best_mc_obj_cat_sample[1].keys()
+                            if id_long.startswith(f"object_scale_{o_id}")
+                        ]
+                        for component in components:
+                            trace, key, _, _ = (
+                                bayes3d.enumerate_and_select_best_move_scale(
+                                    trace, Pytree.const((component,)), key, scale_deltas
+                                )
+                            )
+                            if (
+                                iter_during
+                                == num_iter_inference_step_during_trakcing - 1
+                            ):
+                                posterior_across_frames["scale"][-1][component] = (
+                                    trace.get_choices()[component]
+                                )
+                # viz_trace(trace, vis_index, cloud=True)
+                vis_index += 1
         vis_index += 1
 
         # prepare the json file to write
@@ -849,8 +867,12 @@ def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)
+    parser.add_argument("--clip", default="first", type=str)
+    parser.add_argument("--all_scale", default="first_scale", type=str)
     args = parser.parse_args()
     scenario = args.scenario
+    clip = args.clip
+    all_scale = args.all_scale
 
     # paths for reading physion metadata
     data_path = "/home/haoliangwang/data/"
@@ -863,16 +885,7 @@ if __name__ == "__main__":
         "all_flex_meshes/core",
     )
 
-    # for clip in ["first", "last", "avg"]:
-    for clip in ["avg"]:
-        print(f"***************{clip}***************")
-        save_path = f"/home/haoliangwang/data/b3d_tracking_results/all_scale/{clip}"
-        pred_file_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_{clip}.json"
-        main(
-            hdf5_file_path,
-            scenario,
-            mesh_file_path,
-            save_path,
-            pred_file_path,
-            all_scale=True,
-        )
+    print(f"***************{clip}***************")
+    save_path = f"/home/haoliangwang/data/b3d_tracking_results/{all_scale}/{clip}"
+    pred_file_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_{clip}.json"
+    main(hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, all_scale)

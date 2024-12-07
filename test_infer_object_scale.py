@@ -518,7 +518,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)
     args = parser.parse_args()
-    use_gt_cat = False
+    use_gt_cat = True
 
     scenario = args.scenario
     print(f"{scenario}")
@@ -534,9 +534,9 @@ if __name__ == "__main__":
             "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_avg.json",
         ]
         pred_file_paths = [
-            "/home/haoliangwang/data/pred_files/clip_cat/collide_kalman_last.json",
-            "/home/haoliangwang/data/pred_files/clip_cat/collide_individual.json",
-            "/home/haoliangwang/data/pred_files/clip_cat/collide_kalman_avg.json",
+            "/home/haoliangwang/data/pred_files/clip_cat/collide_last.json",
+            "/home/haoliangwang/data/pred_files/clip_cat/collide_first.json",
+            "/home/haoliangwang/data/pred_files/clip_cat/collide_avg.json",
         ]
         for order, (save_path, pred_file_path) in enumerate(
             zip(save_paths, pred_file_paths)

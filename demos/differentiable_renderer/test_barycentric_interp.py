@@ -1,9 +1,10 @@
-import b3d
-import b3d.chisight.dense.differentiable_renderer as rendering
-import b3d.chisight.dense.likelihoods as likelihoods
 import jax
 import jax.numpy as jnp
 import rerun as rr
+
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+import b3d.chisight.dense.likelihoods as likelihoods
 from b3d import Pose
 
 # Set up OpenGL renderer

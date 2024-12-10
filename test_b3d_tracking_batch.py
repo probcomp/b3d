@@ -39,12 +39,6 @@ def scale_mesh(vertices, scale_factor):
     return vertices_copy
 
 
-def quaternion_to_euler_angles(quaternion):
-    rot = Rotation.from_quat(quaternion)
-    rot_euler = rot.as_euler("xyz", degrees=True)
-    return rot_euler
-
-
 def blackout_image(depth_map, area):
     # zero_depth_map = np.ones(depth_map.shape)
     zero_depth_map = np.zeros(depth_map.shape)
@@ -74,9 +68,10 @@ def main(
     mesh_file_path,
     save_path,
     pred_file_path,
+    all_scale="first_scale",
     use_gt=False,
     masked=True,
-    all_scale=False,
+    debug=False,
 ):
     def initial_samples(num_sample):
         trunc = [0, 1]
@@ -172,12 +167,12 @@ def main(
             # scales_scores = {}
             best_pose_scale = {}
             key = jax.random.PRNGKey(0)
-            for iter in range(num_inference_step):
+            for iter_first in range(num_inference_step):
                 for o_id in pose_scale_mesh.keys():
                     trace, key, _, _ = bayes3d.enumerate_and_select_best_move_pose(
                         trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
                     )
-                    if iter == num_inference_step - 1:
+                    if iter_first == num_inference_step - 1:
                         best_pose_scale[f"object_pose_{o_id}"] = trace.get_choices()[
                             f"object_pose_{o_id}"
                         ]
@@ -187,12 +182,15 @@ def main(
                         if item[0].startswith(f"object_scale_{o_id}")
                     ]
                     for component in components:
+                        if use_gt:
+                            best_pose_scale[component] = trace.get_choices()[component]
+                            continue
                         trace, key, posterior_scales, scores = (
                             bayes3d.enumerate_and_select_best_move_scale(
                                 trace, Pytree.const((component,)), key, scale_deltas
                             )
                         )
-                        if iter == num_inference_step - 1:
+                        if iter_first == num_inference_step - 1:
                             best_pose_scale[component] = trace.get_choices()[component]
                             # scales_scores[component] = [
                             #     (score.astype(float).item(), posterior_scale)
@@ -200,7 +198,7 @@ def main(
                             #         scores, posterior_scales
                             #     )
                             # ]
-                viz_trace(trace, iter + offset, cloud=True)
+                viz_trace(trace, iter_first + offset, cloud=True)
             return trace.get_score().item(), best_pose_scale, obj_names
 
         re_weighted_samples = []
@@ -283,7 +281,7 @@ def main(
         object_pose_window_frame,
         dt,
     ):
-        def compute_center_of_mass(object_pose):
+        def compute_center_of_mass(bounding_box_b3d, object_pose):
             q = object_pose._quaternion
             bounding_box_transform = bounding_box_b3d.transform(object_pose)
             bounding_box_transform = trimesh.Trimesh(
@@ -292,40 +290,54 @@ def main(
             center_of_mass = bounding_box_transform.center_mass
             return center_of_mass, q
 
+        def compute_angular_velocity(q1, q2, delta_t):
+            """
+            Compute angular velocity in radians per second from two quaternions.
+
+            Parameters:
+                q1 (array-like): Quaternion at the earlier time [w, x, y, z].
+                q2 (array-like): Quaternion at the later time [w, x, y, z].
+                delta_t (float): Time difference between the two quaternions.
+
+            Returns:
+                angular_velocity (numpy array): Angular velocity vector (radians per second).
+            """
+            # Convert quaternions to scipy Rotation objects
+            rot1 = Rotation.from_quat(q1)
+            rot2 = Rotation.from_quat(q2)
+
+            # Compute the relative rotation
+            relative_rotation = rot2 * rot1.inv()
+
+            # Convert the relative rotation to angle-axis representation
+            angle = relative_rotation.magnitude()  # Rotation angle in radians
+            axis = (
+                relative_rotation.as_rotvec() / angle if angle != 0 else np.zeros(3)
+            )  # Rotation axis
+
+            # Compute angular velocity
+            angular_velocity = (axis * angle) / delta_t
+            return angular_velocity
+
         mesh_tri = trimesh.Trimesh(
             vertices=scale_mesh(mesh.vertices, scale), faces=mesh.faces
         )
         oriented_bbox = mesh_tri.bounding_box
         bounding_box_b3d = b3d.Mesh.from_trimesh(oriented_bbox)
 
-        pos_now, q_now = compute_center_of_mass(object_pose_last_frame)
-        pos_last, q_last = compute_center_of_mass(object_pose_window_frame)
+        pos_now, q_now = compute_center_of_mass(
+            bounding_box_b3d, object_pose_last_frame
+        )
+        pos_last, q_last = compute_center_of_mass(
+            bounding_box_b3d, object_pose_window_frame
+        )
         linear_vel = (pos_now - pos_last) / dt
-
-        angular_velocity = (2 / dt) * np.array(
-            [
-                q_last[0] * q_now[1]
-                - q_last[1] * q_now[0]
-                - q_last[2] * q_now[3]
-                + q_last[3] * q_now[2],
-                q_last[0] * q_now[2]
-                + q_last[1] * q_now[3]
-                - q_last[2] * q_now[0]
-                - q_last[3] * q_now[1],
-                q_last[0] * q_now[3]
-                - q_last[1] * q_now[2]
-                + q_last[2] * q_now[1]
-                - q_last[3] * q_now[0],
-            ]
-        )
-        ang_vel = np.dot(
-            angular_velocity, np.array([[0, 0, 1], [0, -1, 0], [-1, 0, 0]])
-        )
+        angular_velocity = compute_angular_velocity(q_last, q_now, dt)
 
         return {"x": linear_vel[0], "y": linear_vel[1], "z": linear_vel[2]}, {
-            "x": ang_vel[0],
-            "y": ang_vel[1],
-            "z": ang_vel[2],
+            "x": angular_velocity[0].astype(float).item(),
+            "y": angular_velocity[1].astype(float).item(),
+            "z": angular_velocity[2].astype(float).item(),
         }
 
     rr.init("demo")
@@ -351,6 +363,14 @@ def main(
     scale_search_thr = 0.2
     num_sample_from_posterior = 20
     num_inference_step = 5
+    all_scale = True if all_scale == "all_scale" else False
+    if use_gt:
+        all_scale = False
+    print("all_scale: ", all_scale)
+    if all_scale:
+        num_iter_inference_step_during_trakcing = 5
+    else:
+        num_iter_inference_step_during_trakcing = 1
 
     vis_index = 0
 
@@ -672,34 +692,48 @@ def main(
                     Pytree.const(("rgbd",)),
                     rgbds[T_observed_image],
                 )
-            for o_id in best_mc_obj_cat_sample[2].const:
-                trace, key, posterior_poses, scores = (
-                    bayes3d.enumerate_and_select_best_move_pose(
-                        trace, Pytree.const((f"object_pose_{o_id}",)), key, all_deltas
+
+            for iter_during in range(num_iter_inference_step_during_trakcing):
+                for o_id in best_mc_obj_cat_sample[2].const:
+                    trace, key, posterior_poses, scores = (
+                        bayes3d.enumerate_and_select_best_move_pose(
+                            trace,
+                            Pytree.const((f"object_pose_{o_id}",)),
+                            key,
+                            all_deltas,
+                        )
                     )
-                )
-                posterior_across_frames["pose"][-1][int(o_id)] = [
-                    [
-                        (score, posterior_pose)
-                        for (posterior_pose, score) in zip(posterior_poses, scores)
-                    ],
-                    trace.get_choices()[f"object_pose_{o_id}"],
-                ]
-                if all_scale:
-                    components = [
-                        id_long
-                        for id_long in best_mc_obj_cat_sample[1].keys()
-                        if id_long.startswith(f"object_scale_{o_id}")
-                    ]
-                    for component in components:
-                        trace, key, _, _ = bayes3d.enumerate_and_select_best_move_scale(
-                            trace, Pytree.const((component,)), key, scale_deltas
-                        )
-                        posterior_across_frames["scale"][-1][component] = (
-                            trace.get_choices()[component]
-                        )
-            viz_trace(trace, vis_index, cloud=True)
-            vis_index += 1
+                    if iter_during == num_iter_inference_step_during_trakcing - 1:
+                        posterior_across_frames["pose"][-1][int(o_id)] = [
+                            [
+                                (score, posterior_pose)
+                                for (posterior_pose, score) in zip(
+                                    posterior_poses, scores
+                                )
+                            ],
+                            trace.get_choices()[f"object_pose_{o_id}"],
+                        ]
+                    if all_scale:
+                        components = [
+                            id_long
+                            for id_long in best_mc_obj_cat_sample[1].keys()
+                            if id_long.startswith(f"object_scale_{o_id}")
+                        ]
+                        for component in components:
+                            trace, key, _, _ = (
+                                bayes3d.enumerate_and_select_best_move_scale(
+                                    trace, Pytree.const((component,)), key, scale_deltas
+                                )
+                            )
+                            if (
+                                iter_during
+                                == num_iter_inference_step_during_trakcing - 1
+                            ):
+                                posterior_across_frames["scale"][-1][component] = (
+                                    trace.get_choices()[component]
+                                )
+                viz_trace(trace, vis_index, cloud=True)
+                vis_index += 1
         vis_index += 1
 
         # prepare the json file to write
@@ -774,15 +808,10 @@ def main(
                     int(o_id),
                     [
                         {
-                            "x": quaternion_to_euler_angles(pose._quaternion)[0].astype(
-                                float
-                            ),
-                            "y": quaternion_to_euler_angles(pose._quaternion)[1].astype(
-                                float
-                            ),
-                            "z": quaternion_to_euler_angles(pose._quaternion)[2].astype(
-                                float
-                            ),
+                            "x": pose._quaternion[0].astype(float).item(),
+                            "y": pose._quaternion[1].astype(float).item(),
+                            "z": pose._quaternion[2].astype(float).item(),
+                            "w": pose._quaternion[3].astype(float).item(),
                         }
                         for pose in poses[0]
                     ],
@@ -845,12 +874,38 @@ def main(
         ) as f:
             json.dump(json_file, f)
 
+        if debug:
+            # print(posterior_across_frames)
+            for frame_index, frame_info in enumerate(posterior_across_frames["pose"]):
+                for o_id, o_id_info in frame_info.items():
+                    posterior_across_frames["pose"][frame_index][o_id][1] = (
+                        o_id_info[1]._position.astype(float).tolist(),
+                        o_id_info[1]._quaternion.astype(float).tolist(),
+                    )
+                    for j, rank in enumerate(o_id_info[0]):
+                        posterior_across_frames["pose"][frame_index][o_id][0][j] = (
+                            rank[0].astype(float).item(),
+                            rank[1]._position.astype(float).tolist(),
+                            rank[1]._quaternion.astype(float).tolist(),
+                        )
+            mkdir(f"{save_path}/{scenario}_verbose/")
+            # print(posterior_across_frames)
+            with open(
+                f"{save_path}/{scenario}_verbose/{trial_name}.json",
+                "w",
+            ) as f:
+                json.dump(posterior_across_frames, f)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)
+    parser.add_argument("--clip", default="first", type=str)
+    parser.add_argument("--all_scale", default="first_scale", type=str)
     args = parser.parse_args()
     scenario = args.scenario
+    clip = args.clip
+    all_scale = args.all_scale
 
     # paths for reading physion metadata
     data_path = "/home/haoliangwang/data/"
@@ -863,16 +918,18 @@ if __name__ == "__main__":
         "all_flex_meshes/core",
     )
 
-    # for clip in ["first", "last", "avg"]:
-    for clip in ["avg"]:
-        print(f"***************{clip}***************")
-        save_path = f"/home/haoliangwang/data/b3d_tracking_results/all_scale/{clip}"
-        pred_file_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_{clip}.json"
-        main(
-            hdf5_file_path,
-            scenario,
-            mesh_file_path,
-            save_path,
-            pred_file_path,
-            all_scale=True,
-        )
+    print(f"***************{clip}***************")
+    # save_path = f"/home/haoliangwang/data/b3d_tracking_results/{all_scale}/{clip}"
+    # pred_file_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_{clip}.json"
+    # main(hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, all_scale)
+    save_path = "/home/haoliangwang/data/b3d_tracking_results/gt_all_info"
+    pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt.json"
+    main(
+        hdf5_file_path,
+        scenario,
+        mesh_file_path,
+        save_path,
+        pred_file_path,
+        use_gt=True,
+        debug=True,
+    )

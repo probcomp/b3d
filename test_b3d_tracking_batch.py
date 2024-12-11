@@ -281,13 +281,13 @@ def main(
         object_pose_window_frame,
         dt,
     ):
-        def compute_center_of_mass(bounding_box_b3d, object_pose):
+        def compute_center_of_mass(mesh, object_pose):
             q = object_pose._quaternion
-            bounding_box_transform = bounding_box_b3d.transform(object_pose)
-            bounding_box_transform = trimesh.Trimesh(
-                bounding_box_transform.vertices, bounding_box_transform.faces
+            mesh_transform = mesh.transform(object_pose)
+            mesh_transform_tri = trimesh.Trimesh(
+                mesh_transform.vertices, mesh_transform.faces
             )
-            center_of_mass = bounding_box_transform.center_mass
+            center_of_mass = mesh_transform_tri.center_mass
             return center_of_mass, q
 
         def compute_angular_velocity(q1, q2, delta_t):
@@ -319,17 +319,15 @@ def main(
             angular_velocity = (axis * angle) / delta_t
             return angular_velocity
 
-        mesh_tri = trimesh.Trimesh(
-            vertices=scale_mesh(mesh.vertices, scale), faces=mesh.faces
+        mesh = b3d.Mesh(
+            vertices=scale_mesh(mesh.vertices, scale), faces=mesh.faces, vertex_attributes=None
         )
-        oriented_bbox = mesh_tri.bounding_box
-        bounding_box_b3d = b3d.Mesh.from_trimesh(oriented_bbox)
 
         pos_now, q_now = compute_center_of_mass(
-            bounding_box_b3d, object_pose_last_frame
+            mesh, object_pose_last_frame
         )
         pos_last, q_last = compute_center_of_mass(
-            bounding_box_b3d, object_pose_window_frame
+            mesh, object_pose_window_frame
         )
         linear_vel = (pos_now - pos_last) / dt
         angular_velocity = compute_angular_velocity(q_last, q_now, dt)
@@ -422,8 +420,8 @@ def main(
                     jax.random.PRNGKey(0), num_pose_grid * num_pose_grid * num_pose_grid
                 ),
                 b3d.Pose.identity(),
-                0.0001,
-                100.0,
+                0.05,
+                1000.0,
             ),
             b3d.Pose.identity()[None, ...],
         ]

@@ -473,6 +473,7 @@ def main(
         rgb = np.asarray(ret_vals["latent_rgbd"][..., :3]) * 255
         im = Image.fromarray(rgb.astype(np.uint8))
         im.save(f"{save_path}/{trial_name}_{T_observed_image}.png")
+    print(trace.get_choices()["object_pose_1"])
 
 
 if __name__ == "__main__":

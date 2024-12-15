@@ -118,14 +118,14 @@ def main(
                             object_of_interest = o_id - 1
                             object_of_interest *= num_sim
                             id = object_of_interest + i
-                            pos = f[f"frames/{frame}/objects/positions_cam0"][:][id, :]
+                            pos = f[f"frames/{frame}/objects/positions"][:][id, :]
                             pos = {"x": pos[0], "y": pos[1], "z": pos[2]}
                             this_room_center = room_centers_kitchen[i]
                             center = combine_dicts(
                                 this_room_center, base_room_center_kitchen, operator.sub
                             )
                             pos = combine_dicts(pos, center, operator.sub)
-                            rot = f[f"frames/{frame}/objects/rotations_cam0"][:][id, :]
+                            rot = f[f"frames/{frame}/objects/rotations"][:][id, :]
                             pose_name.append(f"object_pose_{o_id}")
                             pose_val.append(
                                 b3d.Pose(

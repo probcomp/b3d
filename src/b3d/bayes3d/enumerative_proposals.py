@@ -13,7 +13,7 @@ def enumerate_and_select_best(trace, address, values):
     return trace
 
 
-def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
+def _enumerate_and_select_best_move_pose(trace, addressses, key, all_deltas, k=50):
     addr = addressses.const[0]
     current_pose = trace.get_choices()[addr]
     for i in range(len(all_deltas)):
@@ -22,12 +22,33 @@ def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
             trace, addressses, test_poses
         )
         current_pose = test_poses[potential_scores.argmax()]
+    top_k_indices = jnp.argsort(potential_scores)[-k:][::-1]
+    top_scores = [potential_scores[idx] for idx in top_k_indices]
+    posterior_poses = [test_poses[idx] for idx in top_k_indices]
     trace = b3d.update_choices(trace, addressses, current_pose)
-    return trace, key
+    return trace, key, posterior_poses, top_scores
 
 
-enumerate_and_select_best_move = jax.jit(
-    _enumerate_and_select_best_move, static_argnames=["addressses"]
+enumerate_and_select_best_move_pose = jax.jit(
+    _enumerate_and_select_best_move_pose, static_argnames=["addressses"]
+)
+
+
+def _enumerate_and_select_best_move_scale(trace, addressses, key, all_deltas, k=50):
+    addr = addressses.const[0]
+    current_scale = trace.get_choices()[addr]
+    test_scales = current_scale * all_deltas
+    potential_scores = b3d.enumerate_choices_get_scores(trace, addressses, test_scales)
+    best_scale = test_scales[potential_scores.argmax()]
+    top_k_indices = jnp.argsort(potential_scores)[-k:][::-1]
+    top_scores = [potential_scores[idx] for idx in top_k_indices]
+    posterior_scales = [test_scales[idx] for idx in top_k_indices]
+    trace = b3d.update_choices(trace, addressses, best_scale)
+    return trace, key, posterior_scales, top_scores
+
+
+enumerate_and_select_best_move_scale = jax.jit(
+    _enumerate_and_select_best_move_scale, static_argnames=["addressses"]
 )
 
 

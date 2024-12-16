@@ -13,6 +13,16 @@ Int: TypeAlias = Array
 Quaternion: TypeAlias = Array
 
 
+# # Dynamics prior
+# @Pytree.dataclass
+# class DynamicsModelVMF(genjax.ExactDensity):
+#     def sample(self, key, prev_pose, params):
+#         return sample_gaussian_vmf_pose(key, prev_pose, *params)
+
+#     def logpdf(self, new_pose, prev_pose, params):
+#         return logpdf_gaussian_vmf_pose(new_pose, prev_pose, *params)
+
+
 # GenJAX Distributions
 @jax.jit
 def sample_uniform_pose_centered(key, center_pose, low, high):
@@ -74,6 +84,19 @@ def sample_uniform_pose(key, low, high):
     quat = jax.random.normal(keys[1], (4,))
     quat = quat / jnp.linalg.norm(quat)
     return Pose(pos, quat)
+
+
+@jax.jit
+def sample_uniform_scale(key, low, high):
+    key, subkey = jax.random.split(key)
+    scale = jax.random.uniform(subkey, (3,)) * (high - low) + low
+    return scale
+
+
+def logpdf_uniform_scale(scale, low, high):
+    valid = (low <= scale) & (scale <= high)
+    scale_score = jnp.log((valid * 1.0) * (jnp.ones_like(scale) / (high - low)))
+    return scale_score.sum() + jnp.pi**2
 
 
 def logpdf_uniform_pose(pose, low, high):

@@ -16,6 +16,9 @@ authors = [{ name = "Nishad Gothoskar", email = "nishadg@mit.edu" }]
 requires-python = ">= 3.10"
 dependencies = []
 
+[project.optional-dependencies]
+core = ["python-fcl>=0.7.0.6,<0.8"]
+
 [tool.pixi.project]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64"]
@@ -44,6 +47,12 @@ b3d = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 rerun-sdk = "==0.17.0"
+ipympl = ">=0.9.4,<0.10"
+msgpack-numpy = ">=0.4.8,<0.5"
+h5py = ">=3.11.0,<4"
+fcl = ">=0.7.0,<0.8"
+pycocotools = ">=2.0.8,<3"
+ipykernel = ">=6.29.5,<7"
 
 [tool.pixi.activation.env]
 XLA_PYTHON_CLIENT_PREALLOCATE = "false"
@@ -145,6 +154,7 @@ scipy = ">=1.14.0,<1.15"
 torchvision = "==0.18.0"
 trimesh = "==4.2.4"
 tqdm = "*"
+h5py = ">=3.11.0,<3.12"
 
 # Core tasks (CPU-enabled)
 
@@ -195,6 +205,7 @@ libnvjitlink = "*"
 optax = ">=0.2.2,<0.3"
 pytorch = { version = "==2.3.0", build = "cuda12*" }
 torchvision = "==0.18.0"
+open3d = { version = "==0.18.0", build = "py312he431d9b_6" }
 
 # CUDA tasks (GPU-enabled)
 

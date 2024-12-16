@@ -163,7 +163,8 @@ class Mesh:
         return transform_mesh(self, pose)
 
     def __repr__(self) -> str:
-        return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
+        # return f"Mesh(vertices={self.vertices.shape[:-1]}, faces={self.faces.shape[:-1]}, vertex_attributes={self.vertex_attributes.shape[:-1]})"
+        return f"Mesh(vertices={self.vertices}, faces={self.faces}, vertex_attributes={self.vertex_attributes})"
 
     def __len__(self):
         # assert len(self.vertices.shape) == 3, "This is not a batched mesh object."
@@ -183,8 +184,11 @@ class Mesh:
     def rr_visualize(self, channel):
         rr_visualize_mesh(channel, self)
 
-    def scale(self, scale):
-        return Mesh(self.vertices * scale, self.faces, self.vertex_attributes)
+    def scale(self, scale) -> "Mesh":
+        self.vertices = self.vertices.at[:, 0].multiply(scale[0])
+        self.vertices = self.vertices.at[:, 1].multiply(scale[1])
+        self.vertices = self.vertices.at[:, 2].multiply(scale[2])
+        return Mesh(self.vertices, self.faces, self.vertex_attributes)
 
     @staticmethod
     def cube_mesh(dimensions=jnp.ones(3), color=jnp.array([1.0, 0.0, 0.0])):

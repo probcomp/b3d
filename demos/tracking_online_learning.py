@@ -2,6 +2,7 @@ import os
 from functools import partial
 
 import b3d
+import b3d.bayes3d as bayes3d
 import genjax
 import jax
 import jax.numpy as jnp
@@ -56,7 +57,7 @@ rgbs_resized = jnp.clip(
 color_error, depth_error = (60.0, 0.01)
 inlier_score, outlier_prob = (5.0, 0.00001)
 color_multiplier, depth_multiplier = (10000.0, 500.0)
-model_args = b3d.ModelArgs(
+model_args = bayes3d.ModelArgs(
     color_error,
     depth_error,
     inlier_score,
@@ -104,7 +105,7 @@ object_library.add_object(vertices, faces, vertex_colors)
 
 # Creates renderer and generative model.
 renderer = b3d.Renderer(image_width, image_height, fx, fy, cx, cy, near, far)
-model = b3d.model_multiobject_gl_factory(renderer)
+model = bayes3d.model_multiobject_gl_factory(renderer)
 
 # Arguments of the generative model.
 # These control the inlier / outlier decision boundary for color error and depth error.
@@ -154,14 +155,14 @@ all_deltas = Pose.stack_poses([translation_deltas, rotation_deltas])
 @partial(jax.jit, static_argnames=["addressses"])
 def enumerative_proposal(trace, addressses, key, all_deltas):
     addr = addressses.const[0]
-    current_pose = trace[addr]
+    current_pose = trace.get_choices()[addr]
     for i in range(len(all_deltas)):
         test_poses = current_pose @ all_deltas[i]
         potential_scores = b3d.enumerate_choices_get_scores(
-            trace, jax.random.PRNGKey(0), addressses, test_poses
+            trace, addressses, test_poses
         )
         current_pose = test_poses[potential_scores.argmax()]
-    trace = b3d.update_choices(trace, key, addressses, current_pose)
+    trace = b3d.update_choices(trace, addressses, current_pose)
     return trace, key
 
 
@@ -175,7 +176,7 @@ update_jit = jax.jit(model.update)
 START_T = 0
 trace, _ = importance_jit(
     jax.random.PRNGKey(0),
-    genjax.choice_map(
+    genjax.ChoiceMap.d(
         dict(
             [
                 ("camera_pose", Pose.identity()),
@@ -191,7 +192,7 @@ trace, _ = importance_jit(
     (jnp.arange(4), model_args, object_library),
 )
 # Visualize trace
-b3d.rerun_visualize_trace_t(trace, 0)
+bayes3d.rerun_visualize_trace_t(trace, 0)
 key = jax.random.PRNGKey(0)
 
 inference_data_over_time = []
@@ -202,22 +203,21 @@ for reaquisition_phase in range(len(REAQUISITION_TS) - 1):
         )
     ):
         # Constrain on new RGB and Depth data.
-        trace = b3d.update_choices_jit(
+        trace = b3d.update_choices(
             trace,
-            key,
             genjax.Pytree.const(["observed_rgb_depth"]),
             (rgbs_resized[T_observed_image], xyzs[T_observed_image, ..., 2]),
         )
         # Enumerate, score, and update  camera pose
         trace, key = enumerative_proposal(
-            trace, genjax.Pytree.const(["camera_pose"]), key, all_deltas
+            trace, genjax.Pytree.const(("camera_pose",)), key, all_deltas
         )
         for i in range(1, len(object_library.ranges)):
             # Enumerate, score, update each objects pose
             trace, key = enumerative_proposal(
-                trace, genjax.Pytree.const([f"object_pose_{i}"]), key, all_deltas
+                trace, genjax.Pytree.const((f"object_pose_{i}",)), key, all_deltas
             )
-        b3d.rerun_visualize_trace_t(trace, T_observed_image)
+        bayes3d.rerun_visualize_trace_t(trace, T_observed_image)
         inference_data_over_time.append(
             (
                 b3d.get_poses_from_trace(trace),
@@ -286,7 +286,7 @@ for reaquisition_phase in range(len(REAQUISITION_TS) - 1):
     next_object_id = len(object_library.ranges) - 1
     trace = trace.update(
         key,
-        genjax.choice_map(
+        genjax.ChoiceMap.d(
             {
                 f"object_{next_object_id}": next_object_id,  # Add identity of new object to trace.
                 f"object_pose_{next_object_id}": trace["camera_pose"]
@@ -302,7 +302,7 @@ for reaquisition_phase in range(len(REAQUISITION_TS) - 1):
             (jnp.arange(4), model_args, object_library)
         ),
     )[0]
-    b3d.rerun_visualize_trace_t(trace, REAQUISITION_T)
+    bayes3d.rerun_visualize_trace_t(trace, REAQUISITION_T)
     inference_data_over_time.append(
         (
             b3d.get_poses_from_trace(trace),
@@ -332,7 +332,7 @@ for i in tqdm(range(len(inference_data_over_time))):
             (jnp.arange(4), model_args, object_library)
         ),
     )[0]
-    b3d.rerun_visualize_trace_t(trace, t)
+    bayes3d.rerun_visualize_trace_t(trace, t)
     rr.set_time_sequence("frame", t)
 
     rgb_inliers, rgb_outliers = b3d.get_rgb_inlier_outlier_from_trace(trace)

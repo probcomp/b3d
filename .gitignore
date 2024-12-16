@@ -1,12 +1,7 @@
 *.egg-info
 *.pyc
 *.png
-assets/shared_data_bucket/*
-assets/test_results/*
-!assets/test_results/README.md
-assets/bop/*
-assets/nuscenes/*
-assets/ycbineoat/*
+assets/*
 **/.ipynb_checkpoints
 **/**.mp4
 **/**.npz
@@ -25,3 +20,6 @@ __pycache__/
 *.py[cod]
 docs/*
 test_results/
+.pixi/*
+saved_traces/*
+.DS_Store

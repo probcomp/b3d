@@ -86,5 +86,5 @@ class MeshLibrary:
         vertices = jnp.array(mesh.vertices) * vertex_scale_factor
         vertices = vertices - jnp.mean(vertices, axis=0)
         faces = jnp.array(mesh.faces)
-        vertex_colors = jnp.array(mesh.visual.to_color().vertex_colors)[..., :3] / 255.0
+        vertex_colors = jnp.array(mesh.visual.vertex_colors)[..., :3] / 255.0
         self.add_object(vertices, faces, vertex_colors)

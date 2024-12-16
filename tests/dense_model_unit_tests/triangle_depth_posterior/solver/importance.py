@@ -67,8 +67,8 @@ def importance_sample_with_depth_in_partition(
         C.d(
             {
                 "triangle_vertices": new_triangle_W,
-                "observed_rgbs": C[jnp.arange(T), "observed_rgb"].set(
-                    task_input["video"]
+                "observed_rgbs": genjax.ChoiceMap.idx(
+                    jnp.arange(T), C.n().at["observed_rgb"].set(task_input["video"])
                 ),
             }
         ),

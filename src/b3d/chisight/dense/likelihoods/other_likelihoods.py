@@ -294,7 +294,7 @@ class PythonMixturePixelModel(genjax.ExactDensity):
     def logpdf(self, observed, probs, args):
         logprobs = []
         for i, dist in enumerate(self.dists):
-            lp = dist.logpdf(observed, *args[i]) + jnp.log(probs[i])
+            lp = dist.logpdf(observed, *args[i])
             logprobs.append(lp)
         logprobs = jnp.stack(logprobs)
         # jax.debug.print("lps = {lps}", lps=logprobs)

@@ -114,7 +114,7 @@ def blur_intermediate_sample_func(key, latent_rgbd, likelihood_args):
 
 @jax.jit
 def blur_intermediate_likelihood_func(observed_rgbd, latent_rgbd, likelihood_args):
-    # k = likelihood_args["k"].unwrap()
+    # k = likelihood_args["k"].const
     color_variance = likelihood_args["color_variance_0"]
     depth_variance = likelihood_args["depth_variance_0"]
     outlier_probability = likelihood_args["outlier_probability_0"]

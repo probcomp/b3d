@@ -86,8 +86,8 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         def f(key, likelihood_args):
             return jnp.zeros(
                 (
-                    likelihood_args["image_height"].unwrap(),
-                    likelihood_args["image_width"].unwrap(),
+                    likelihood_args["image_height"].const,
+                    likelihood_args["image_width"].const,
                     4,
                 )
             )

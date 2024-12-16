@@ -19,7 +19,6 @@ assets/kitti/*
 __pycache__/
 *.py[cod]
 docs/*
-test_results/
 .pixi/*
 saved_traces/*
 .DS_Store

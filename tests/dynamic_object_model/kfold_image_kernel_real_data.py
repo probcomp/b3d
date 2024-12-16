@@ -2,10 +2,11 @@
 
 import os
 
-import b3d
-import b3d.chisight.dynamic_object_model.kfold_image_kernel as kik
 import jax
 import jax.numpy as jnp
+
+import b3d
+import b3d.chisight.dynamic_object_model.kfold_image_kernel as kik
 from b3d import Mesh
 
 b3d.rr_init("kfold_image_kernel2")

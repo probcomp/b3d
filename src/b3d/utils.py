@@ -1,3 +1,4 @@
+import functools
 import inspect
 import os
 import subprocess
@@ -132,8 +133,8 @@ def downsize_images(ims, k):
 @jax.jit
 def xyz_from_depth(z: rr.DepthImage, fx, fy, cx, cy):
     v, u = jnp.mgrid[: z.shape[0], : z.shape[1]]
-    x = (u - cx) / fx
-    y = (v - cy) / fy
+    x = (u + 0.5 - cx) / fx
+    y = (v + 0.5 - cy) / fy
     xyz = jnp.stack([x, y, jnp.ones_like(x)], axis=-1) * z[..., None]
     return xyz
 
@@ -150,10 +151,20 @@ xyz_from_depth_vectorized = jnp.vectorize(
 )
 
 
+@functools.partial(
+    jnp.vectorize,
+    signature="(3)->(2)",
+    excluded=(
+        1,
+        2,
+        3,
+        4,
+    ),
+)
 def xyz_to_pixel_coordinates(xyz, fx, fy, cx, cy):
-    x = fx * xyz[..., 0] / (xyz[..., 2]) + cx
-    y = fy * xyz[..., 1] / (xyz[..., 2]) + cy
-    return jnp.stack([y, x], axis=-1)
+    x = fx * xyz[0] / (xyz[2]) + cx
+    y = fy * xyz[1] / (xyz[2]) + cy
+    return jnp.array([y, x])
 
 
 def segment_point_cloud(point_cloud, threshold=0.01, min_points_in_cluster=0):
@@ -511,7 +522,7 @@ def multivmap(f, args=None):
 def update_choices(trace, addresses, *values):
     return trace.update(
         jax.random.PRNGKey(0),
-        genjax.ChoiceMap.d({addr: c for (addr, c) in zip(addresses.const, values)}),
+        genjax.ChoiceMap.from_mapping(zip(addresses.unwrap(), values)),
     )[0]
 
 
@@ -549,13 +560,13 @@ grid4 = multivmap(update_choices_get_score, (False, False, True, True, True, Tru
 
 @jax.jit
 def grid_trace(trace, addresses_const, values):
-    if len(addresses_const.const) == 1:
+    if len(addresses_const.unwrap()) == 1:
         return grid1(trace, addresses_const, *values)
-    elif len(addresses_const.const) == 2:
+    elif len(addresses_const.unwrap()) == 2:
         return grid2(trace, addresses_const, *values)
-    elif len(addresses_const.const) == 3:
+    elif len(addresses_const.unwrap()) == 3:
         return grid3(trace, addresses_const, *values)
-    elif len(addresses_const.const) == 4:
+    elif len(addresses_const.unwrap()) == 4:
         return grid4(trace, addresses_const, *values)
     else:
         raise ValueError("Too many addresses")
@@ -586,18 +597,24 @@ def nn_background_segmentation(images):
     return masks
 
 
-def rr_log_pose(channel, pose, scale=0.1):
-    origins = jnp.tile(pose.pos[None, ...], (3, 1))
-    colors = jnp.eye(3)
-    rr.log(
-        channel,
-        rr.Arrows3D(
-            origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors
-        ),
-    )
+# This variable can be used to know whether a rerun blueprint
+# has been logged since this rerun session was initialized.
+_blueprint_logged = False
+
+
+def get_blueprint_logged():
+    global _blueprint_logged
+    return _blueprint_logged
+
+
+def set_blueprint_logged(val):
+    global _blueprint_logged
+    _blueprint_logged = val
 
 
 def rr_init(name="demo"):
+    global _blueprint_logged
+    _blueprint_logged = False
     rr.init(name)
     rr.connect("127.0.0.1:8812")
 
@@ -627,6 +644,17 @@ def rr_log_cloud(cloud, channel="cloud", colors=None):
         rr.log(channel, rr.Points3D(cloud.reshape(-1, 3)))
     else:
         rr.log(channel, rr.Points3D(cloud.reshape(-1, 3), colors=colors.reshape(-1, 3)))
+
+
+def rr_log_pose(pose, channel="pose", scale=0.1):
+    origins = jnp.tile(pose.pos[None, ...], (3, 1))
+    colors = jnp.eye(3)
+    rr.log(
+        channel,
+        rr.Arrows3D(
+            origins=origins, vectors=pose.as_matrix()[:3, :3].T * scale, colors=colors
+        ),
+    )
 
 
 def rr_set_time(t=0):
@@ -883,3 +911,16 @@ def make_grid_points(min_vec, max_vec, num_vec):
     )
     deltas = deltas.reshape((-1, len(min_vec)), order="F")
     return deltas
+
+
+def scale_image(img, factor):
+    """Scale an image.
+
+    Args:
+        img (PIL.Image): Image to scale.
+        factor (float): Scale factor.
+    Returns:
+        PIL.Image: Scaled image.
+    """
+    w, h = img.size
+    return img.resize((int(w * factor), int(h * factor)))

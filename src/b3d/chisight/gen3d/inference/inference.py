@@ -9,7 +9,7 @@ from jax.random import split
 import b3d
 from b3d import Pose
 from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
-from b3d.chisight.gen3d.model import (
+from b3d.chisight.dense.dense_model import (
     get_hypers,
     get_new_state,
 )
@@ -30,7 +30,7 @@ def c2f_step(
     # Propose the poses
     pose_generation_keys = split(k1, inference_hyperparams.n_poses)
     proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
-        pose_generation_keys, trace, pose_proposal_args
+        pose_generation_keys, trace, addr, pose_proposal_args
     )
 
     # Generate the remaining latents to get pose scores
@@ -138,6 +138,7 @@ def get_initial_trace(
             } | initial_state
         )
     )
+    b3d.reload(b3d.chisight.dense.dense_model)
     dynamic_object_generative_model = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
         renderer, likelihood_func
     )
@@ -153,13 +154,13 @@ def get_initial_trace(
 ### Inference moves ###
 
 
-def propose_pose(key, advanced_trace, args):
+def propose_pose(key, advanced_trace, addr, args):
     """
     Propose a random pose near the previous timestep's pose.
     Returns (proposed_pose, log_proposal_density).
     """
     std, conc = args
-    previous_pose = get_new_state(advanced_trace)["pose"]
+    previous_pose = get_new_state(advanced_trace)[addr]
     pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
     log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
     return pose, log_q

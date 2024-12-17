@@ -214,44 +214,34 @@ def resize_rgbds_and_get_masks(rgbds, seg_arr, im_height, im_width):
         all_areas.append(all_area)
     return rgbds, all_areas
         
-def get_initial_state(pred_file, object_ids, object_segmentation_colors, ordered_all_meshes, seg, rgbd, hyperparams):
+def get_initial_state(pred_file, object_ids, object_segmentation_colors, meshes, seg, rgbd, hyperparams):
     pred = pred_file["scene"][0]["objects"]
-    sample = [0 for _ in range(len(object_ids))]
-    pose_scale_mesh = {}
-    for i, (o_id, color, idx) in enumerate(
-        zip(object_ids, object_segmentation_colors, sample)
+
+    initial_state = {}
+    hyperparams["meshes"] = []
+    for i, (o_id, color) in enumerate(
+        zip(object_ids, object_segmentation_colors)
     ):
         area = get_mask_area(seg, [color])
         object_colors = rgbd[..., 0:3][area]
         mean_object_colors = jnp.mean(object_colors, axis=0)
         assert not jnp.isnan(mean_object_colors).any()
-        pose_scale_mesh[o_id] = (
-            b3d.Pose(
-                jnp.array(pred[i]["location"][idx]),
-                jnp.array(pred[i]["rotation"][idx]),
-            ),
-            [jnp.array(pred[i]["scale"][idx])],
-            [
+
+        initial_state[f"object_pose_{o_id}"] = b3d.Pose(
+                jnp.array(pred[i]["location"][0]),
+                jnp.array(pred[i]["rotation"][0]),
+            )
+        initial_state[f"object_scale_{o_id}_0"] = [jnp.array(pred[i]["scale"][0])]
+        hyperparams["meshes"].append([
                 b3d.Mesh(
-                    ordered_all_meshes[pred[i]["type"][idx]].vertices,
-                    ordered_all_meshes[pred[i]["type"][idx]].faces,
+                    meshes[pred[i]["type"][0]].vertices,
+                    meshes[pred[i]["type"][0]].faces,
                     jnp.ones(
-                        ordered_all_meshes[pred[i]["type"][idx]].vertices.shape
+                        meshes[pred[i]["type"][0]].vertices.shape
                     )
                     * mean_object_colors,
                 )
-            ],
-            [pred[i]["type"][idx]],
-        )
+            ])
 
-    pose_list = []
-    scale_list = []
-    for o_id, val in pose_scale_mesh.items():
-        pose_list.append((f"object_pose_{o_id}", val[0]))
-        for i, j in enumerate(val[1]):
-            scale_list.append((f"object_scale_{o_id}_{i}", j))
-    initial_state = dict(pose_list + scale_list)
-
-    hyperparams["object_ids"] = Pytree.const([o_id for o_id in pose_scale_mesh.keys()])
-    hyperparams["meshes"] = [val[2] for val in pose_scale_mesh.values()]
-    return initial_state, hyperparams, 
+    hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
+    return initial_state, hyperparams

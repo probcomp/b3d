@@ -1,15 +1,12 @@
 import argparse
 import collections
-import itertools
 import json
 import os
-import random
 from copy import deepcopy
 from os import listdir
 from os.path import isfile, join
 
 import b3d
-import b3d.bayes3d as bayes3d
 import b3d.chisight.dense.dense_model
 import b3d.chisight.dense.likelihoods.laplace_likelihood
 import b3d.chisight.gen3d.inference.inference as inference
@@ -19,9 +16,7 @@ from b3d.chisight.gen3d.dataloading import (
     load_trial,
     resize_rgbds_and_get_masks,
 )
-import genjax
 import jax
-import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 import trimesh
@@ -33,36 +28,21 @@ def mkdir(path):
         os.makedirs(path)
 
 
-def scale_mesh(vertices, scale_factor):
-    vertices_copy = deepcopy(vertices)
-    vertices_copy[:, 0] *= scale_factor[0]
-    vertices_copy[:, 1] *= scale_factor[1]
-    vertices_copy[:, 2] *= scale_factor[2]
-    return vertices_copy
-
-
 def blackout_image(depth_map, area):
     # zero_depth_map = np.ones(depth_map.shape)
     zero_depth_map = np.zeros(depth_map.shape)
     zero_depth_map[area] = depth_map[area]
     return zero_depth_map
 
-def find_missing_values(nums):
-    full_range = set(range(min(nums), max(nums) + 1))
-    missing_values = sorted(list(full_range - set(nums)))
-    return missing_values
-
 
 def main(
     hdf5_file_path,
     scenario,
     mesh_file_path,
-    save_path,
     pred_file_path,
     all_scale="first_scale",
     use_gt=False,
     masked=True,
-    debug=False,
 ):
     rr.init("demo")
     rr.connect("127.0.0.1:8812")
@@ -118,7 +98,6 @@ def main(
         far_plane,
     )
 
-    b3d.reload(b3d.chisight.dense.dense_model)
     b3d.reload(b3d.chisight.dense.likelihoods.laplace_likelihood)
     likelihood_func = b3d.chisight.dense.likelihoods.laplace_likelihood.likelihood_func
 
@@ -151,7 +130,7 @@ def main(
                     pred_file["scene"][0]["objects"][i][feature] = [
                         pred_file["scene"][0]["objects"][i][feature]
                     ]
-        rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, composite_mapping, reversed_composite_mapping = load_trial(hdf5_file_path)
+        rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, _, _ = load_trial(hdf5_file_path)
 
         inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
         hyperparams = settings.hyperparams
@@ -160,7 +139,7 @@ def main(
         
         initial_state, hyperparams = get_initial_state(pred_file, object_ids, object_segmentation_colors, ordered_all_meshes, seg_arr[START_T], rgbds[START_T], hyperparams)
         rgbds, all_areas = resize_rgbds_and_get_masks(rgbds, seg_arr, im_height, im_width)
-        
+
         key = jax.random.PRNGKey(156)
         trace = inference.get_initial_trace(
             key, renderer, likelihood_func, hyperparams, initial_state, blackout_image(rgbds[START_T], all_areas[START_T])
@@ -174,6 +153,7 @@ def main(
                         rgbds[T], all_areas[T]
                     ),
                 inference_hyperparams,
+                [addr for addr in initial_state if addr.startswith("object_pose")]
             )
 
 if __name__ == "__main__":
@@ -207,8 +187,6 @@ if __name__ == "__main__":
         hdf5_file_path,
         scenario,
         mesh_file_path,
-        save_path,
         pred_file_path,
         use_gt=True,
-        debug=True,
     )

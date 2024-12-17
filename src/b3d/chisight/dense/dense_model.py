@@ -7,41 +7,11 @@ import rerun as rr
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
-from genjax.typing import ArrayLike, PRNGKey
 
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
 from b3d.modeling_utils import uniform_pose, uniform_scale
-
-
-@Pytree.dataclass
-class DriftKernel(genjax.ExactDensity):
-    """An abstract class that defines the common interface for drift kernels."""
-
-    @abstractmethod
-    def sample(self, key: PRNGKey, prev_value: ArrayLike) -> ArrayLike:
-        raise NotImplementedError
-
-    @abstractmethod
-    def logpdf(self, new_value: ArrayLike, prev_value: ArrayLike) -> ArrayLike:
-        raise NotImplementedError
-
-
-@Pytree.dataclass
-class GaussianVMFPoseDriftKernel(DriftKernel):
-    std: float = Pytree.static()
-    concentration: float = Pytree.static()
-
-    def sample(self, key: PRNGKey, prev_pose):
-        return Pose.sample_gaussian_vmf_pose(
-            key, prev_pose, self.std, self.concentration
-        )
-
-    def logpdf(self, new_pose, prev_pose) -> ArrayLike:
-        return Pose.logpdf_gaussian_vmf_pose(
-            new_pose, prev_pose, self.std, self.concentration
-        )
 
 
 def get_hypers(trace):
@@ -54,30 +24,6 @@ def get_prev_state(trace):
 
 def get_new_state(trace):
     return trace.get_retval()["new_state"]
-
-
-@jax.jit
-def advance_time(key, trace, observed_rgbd):
-    """
-    Advance to the next timestep, setting the new latent state to the
-    same thing as the previous latent state, and setting the new
-    observed RGBD value.
-
-    Returns a trace where previous_state (stored in the arguments)
-    and new_state (sampled in the choices and returned) are identical.
-    """
-    # this is where interesting things happen: calculate the linear and angular velocities and update.
-    trace, _, _, _ = trace.update(
-        key,
-        U.g(
-            (
-                Diff.no_change(get_hypers(trace)),
-                Diff.unknown_change(get_new_state(trace)),
-            ),
-            C.kw(rgbd=observed_rgbd),
-        ),
-    )
-    return trace
 
 
 def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func=None):

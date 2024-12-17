@@ -17,53 +17,6 @@ from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from .utils import logmeanexp, update_field
 
 
-@jax.jit
-def c2f_step(
-    key,
-    trace,
-    pose_proposal_args,
-    inference_hyperparams,
-    address,
-):
-    addr = address.unwrap()
-    k1, k2, k3 = split(key, 3)
-
-    # Propose the poses
-    pose_generation_keys = split(k1, inference_hyperparams.n_poses)
-    proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None, None))(
-        pose_generation_keys, trace, addr, pose_proposal_args
-    )
-
-    def update_and_get_scores(key, proposed_pose, trace, addr):
-        updated_trace, score = my_func(key, proposed_pose, trace, addr)
-        return updated_trace, score
-
-    param_generation_keys = split(k2, inference_hyperparams.n_poses)
-    _, p_scores = jax.lax.map(
-        lambda x: update_and_get_scores(x[0], x[1], trace, addr),
-        (param_generation_keys, proposed_poses),
-    )
-
-    # Scoring + resampling
-    weights = jnp.where(
-        inference_hyperparams.include_q_scores_at_top_level,
-        p_scores - log_q_poses,
-        p_scores,
-    )
-
-    chosen_index = jax.random.categorical(k3, weights)
-    resampled_trace, _ = update_and_get_scores(
-        param_generation_keys[chosen_index], proposed_poses[chosen_index], trace, addr
-    )
-    return (
-        resampled_trace,
-        logmeanexp(weights),
-        param_generation_keys,
-        proposed_poses,
-        weights,
-    )
-
-
 def inference_step(
     key,
     trace,
@@ -75,6 +28,51 @@ def inference_step(
     if do_advance_time:
         key, subkey = split(key)
         trace = advance_time(subkey, trace, observed_rgbd)
+    
+    @jax.jit
+    def c2f_step(
+        key,
+        trace,
+        pose_proposal_args,
+        address,
+    ):
+        addr = address.unwrap()
+        k1, k2, k3 = split(key, 3)
+
+        # Propose the poses
+        pose_generation_keys = split(k1, inference_hyperparams.n_poses)
+        proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None, None))(
+            pose_generation_keys, trace, addr, pose_proposal_args
+        )
+
+        def update_and_get_scores(key, proposed_pose, trace, addr):
+            updated_trace, score = my_func(key, proposed_pose, trace, addr)
+            return updated_trace, score
+
+        param_generation_keys = split(k2, inference_hyperparams.n_poses)
+        _, p_scores = jax.lax.map(
+            lambda x: update_and_get_scores(x[0], x[1], trace, addr),
+            (param_generation_keys, proposed_poses),
+        )
+
+        # Scoring + resampling
+        weights = jnp.where(
+            inference_hyperparams.include_q_scores_at_top_level,
+            p_scores - log_q_poses,
+            p_scores,
+        )
+
+        chosen_index = jax.random.categorical(k3, weights)
+        resampled_trace, _ = update_and_get_scores(
+            param_generation_keys[chosen_index], proposed_poses[chosen_index], trace, addr
+        )
+        return (
+            resampled_trace,
+            logmeanexp(weights),
+            param_generation_keys,
+            proposed_poses,
+            weights,
+        )
 
     for addr in addresses:
         for pose_proposal_args in inference_hyperparams.pose_proposal_args:
@@ -84,7 +82,6 @@ def inference_step(
                     subkey,
                     trace,
                     pose_proposal_args,
-                    inference_hyperparams,
                     addr,
                 )
 

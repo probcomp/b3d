@@ -8,11 +8,11 @@ from jax.random import split
 
 import b3d
 from b3d import Pose
-from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from b3d.chisight.dense.dense_model import (
     get_hypers,
     get_new_state,
 )
+from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 
 from .utils import logmeanexp, update_field
 
@@ -26,26 +26,23 @@ def c2f_step(
     addr,
 ):
     k1, k2, k3 = split(key, 3)
+    addr = addr.unwrap()
 
     # Propose the poses
     pose_generation_keys = split(k1, inference_hyperparams.n_poses)
-    proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
+    proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None, None))(
         pose_generation_keys, trace, addr, pose_proposal_args
     )
 
-    # Generate the remaining latents to get pose scores
-    def update_and_get_scores(
-        key, proposed_pose, trace
-    ):
-        key, subkey = split(key)
-        trace = update_field(subkey, trace, addr, proposed_pose)
-        return trace, trace.get_score()
-
     param_generation_keys = split(k2, inference_hyperparams.n_poses)
+
+    def update_and_get_scores(key, proposed_pose, trace, addr):
+        key, subkey = split(key)
+        updated_trace = update_field(subkey, trace, addr, proposed_pose)
+        return updated_trace, updated_trace.get_score()
+
     _, p_scores = jax.lax.map(
-        lambda x: update_and_get_scores(
-            x[0], x[1], trace
-        ),
+        lambda x: update_and_get_scores(x[0], x[1], trace, addr),
         (param_generation_keys, proposed_poses),
     )
 
@@ -58,9 +55,7 @@ def c2f_step(
 
     chosen_index = jax.random.categorical(k3, weights)
     resampled_trace, _ = update_and_get_scores(
-        param_generation_keys[chosen_index],
-        trace,
-        proposed_poses[chosen_index],
+        param_generation_keys[chosen_index], proposed_poses[chosen_index], trace, addr
     )
     return (
         resampled_trace,
@@ -86,7 +81,7 @@ def inference_step(
     for addr in addresses:
         for pose_proposal_args in inference_hyperparams.pose_proposal_args:
             key, subkey = split(key)
-            trace, weight, keys_to_regenerate_traces, all_poses, all_weights = c2f_step(
+            trace, weight, _, _, _ = c2f_step(
                 subkey,
                 trace,
                 pose_proposal_args,
@@ -121,26 +116,33 @@ def advance_time(key, trace, observed_rgbd):
 
 
 def get_initial_trace(
-    key, renderer, likelihood_func, hyperparams, initial_state, initial_observed_rgbd, get_weight=False
+    key,
+    renderer,
+    likelihood_func,
+    hyperparams,
+    initial_state,
+    initial_observed_rgbd,
+    get_weight=False,
 ):
     """
     Get the initial trace, given the initial state.
     The previous state and current state in the trace will be `initial_state`.
     """
-    choicemap = (
-        C.d(
-            {
-                "camera_pose": hyperparams["camera_pose"],
-                "color_noise_variance": hyperparams["color_noise_variance"],
-                "depth_noise_variance": hyperparams["color_noise_variance"],
-                "outlier_probability": hyperparams["outlier_probability"],
-                "rgbd": initial_observed_rgbd,
-            } | initial_state
-        )
+    choicemap = C.d(
+        {
+            "camera_pose": hyperparams["camera_pose"],
+            "color_noise_variance": hyperparams["color_noise_variance"],
+            "depth_noise_variance": hyperparams["color_noise_variance"],
+            "outlier_probability": hyperparams["outlier_probability"],
+            "rgbd": initial_observed_rgbd,
+        }
+        | initial_state
     )
     b3d.reload(b3d.chisight.dense.dense_model)
-    dynamic_object_generative_model = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
-        renderer, likelihood_func
+    dynamic_object_generative_model = (
+        b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
+            renderer, likelihood_func
+        )
     )
     trace, weight = dynamic_object_generative_model.importance(
         key, choicemap, (hyperparams, initial_state)

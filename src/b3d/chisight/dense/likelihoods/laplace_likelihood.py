@@ -12,7 +12,7 @@ def likelihood_func(observed_rgbd, likelihood_args):
     outlier_probability = likelihood_args["outlier_probability"]
 
     valid_window = latent_rgbd[..., 0:3].sum(axis=2) > 0.0  # latent_rgbd[..., 3] > 0.0
-    if likelihood_args["masked"].const:
+    if likelihood_args["masked"].unwrap():
         observed_window = observed_rgbd[..., 0:3].sum(axis=2) > 0.0
         invalid_window = jnp.multiply(observed_window, ~valid_window)
         near = 0.001
@@ -39,12 +39,12 @@ def likelihood_func(observed_rgbd, likelihood_args):
 
     score = pixelwise_score.sum()
 
-    if likelihood_args["check_interp"].const:
+    if likelihood_args["check_interp"].unwrap():
         interpeneration = get_interpenetration(
-            likelihood_args["scene_mesh"], likelihood_args["num_mc_sample"].const
+            likelihood_args["scene_mesh"], likelihood_args["num_mc_sample"].unwrap()
         )
         interpeneration_score = (
-            likelihood_args["interp_penalty"].const * interpeneration
+            likelihood_args["interp_penalty"].unwrap() * interpeneration
         )
         # jax.debug.print("interpeneration_score: {v}", v=interpeneration_score)
         score -= interpeneration_score

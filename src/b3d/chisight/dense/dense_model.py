@@ -1,12 +1,8 @@
-from abc import abstractmethod
-
 import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
-from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree
-from genjax import UpdateProblemBuilder as U
+from genjax import Pytree
 
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
@@ -66,7 +62,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         all_poses = {}
         all_scales = {}
         scaled_meshes = []
-        for o_id, mesh_composite in zip(object_ids.const, meshes):
+        for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
             object_pose = (
                 pose_kernel(previous_state[f"object_pose_{o_id}"])
                 @ f"object_pose_{o_id}"
@@ -146,6 +142,7 @@ def info_from_trace(trace, likelihood_func):
         trace.get_choices()["rgbd"],
         trace.get_retval()["likelihood_args"],
     )
+
 
 def viz_trace(trace, likelihood_func, t=0, cloud=False):
     info = info_from_trace(trace, likelihood_func)

@@ -1,12 +1,13 @@
-import os
-import h5py
-from PIL import Image
 import io
+import os
 from functools import reduce
 
+import h5py
 import jax
 import jax.numpy as jnp
+import numpy as np
 from genjax import Pytree
+from PIL import Image
 
 import b3d
 from b3d import Mesh
@@ -123,48 +124,44 @@ def load_trial(hdf5_file_path):
 
         # extract object info
         object_ids = jnp.array(f["static"]["object_ids"])
-        model_names = jnp.array(f["static"]["model_names"])
         object_segmentation_colors = jnp.array(
             f["static"]["object_segmentation_colors"]
         )
-        assert (
-            len(object_ids) == len(model_names) == len(object_segmentation_colors)
-        )
+        assert len(object_ids) == len(object_segmentation_colors)
 
         distractors = (
-            jnp.array(f["static"]["distractors"])
-            if jnp.array(f["static"]["distractors"]).size != 0
+            np.array(f["static"]["distractors"])
+            if np.array(f["static"]["distractors"]).size != 0
             else []
         )
         occluders = (
-            jnp.array(f["static"]["occluders"])
-            if jnp.array(f["static"]["occluders"]).size != 0
+            np.array(f["static"]["occluders"])
+            if np.array(f["static"]["occluders"]).size != 0
             else []
         )
-        distractors_occluders = jnp.concatenate([distractors, occluders])
+        distractors_occluders = np.concatenate([distractors, occluders])
         if len(distractors_occluders):
             object_ids = object_ids[: -len(distractors_occluders)]
-            model_names = model_names[: -len(distractors_occluders)]
             object_segmentation_colors = object_segmentation_colors[
                 : -len(distractors_occluders)
             ]
 
-        if "use_base" in jnp.array(f["static"]):
-            use_base = jnp.array(f["static"]["use_base"])
+        if "use_base" in np.array(f["static"]):
+            use_base = np.array(f["static"]["use_base"])
             if use_base:
-                base_id = jnp.array(f["static"]["base_id"])
+                base_id = np.array(f["static"]["base_id"])
                 assert base_id.size == 1
                 base_id = base_id.item()
                 composite_mapping[f"{base_id}_0"] = base_id
-        if "use_attachment" in jnp.array(f["static"]):
-            use_attachment = jnp.array(f["static"]["use_attachment"])
+        if "use_attachment" in np.array(f["static"]):
+            use_attachment = np.array(f["static"]["use_attachment"])
             if use_attachment:
-                attachment_id = jnp.array(f["static"]["attachment_id"])
+                attachment_id = np.array(f["static"]["attachment_id"])
                 assert attachment_id.size == 1
                 attachment_id = attachment_id.item()
                 composite_mapping[f"{base_id}_1"] = attachment_id
-                if "use_cap" in jnp.array(f["static"]):
-                    use_cap = jnp.array(f["static"]["use_cap"])
+                if "use_cap" in np.array(f["static"]):
+                    use_cap = np.array(f["static"]["use_cap"])
                     if use_cap:
                         cap_id = attachment_id + 1
                         composite_mapping[f"{base_id}_1"] = cap_id
@@ -186,7 +183,16 @@ def load_trial(hdf5_file_path):
         camera_position_from_matrix,
         b3d.Rot.from_matrix(camera_rotation_from_matrix).as_quat(),
     )
-    return rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, composite_mapping, reversed_composite_mapping
+    return (
+        rgbds,
+        seg_arr,
+        object_ids,
+        object_segmentation_colors,
+        camera_pose,
+        composite_mapping,
+        reversed_composite_mapping,
+    )
+
 
 def get_mask_area(seg_img, colors):
     arrs = []
@@ -196,6 +202,7 @@ def get_mask_area(seg_img, colors):
         arr = arr.reshape((arr.shape[-1], arr.shape[-1])).astype(bool)
         arrs.append(arr)
     return reduce(jnp.logical_or, arrs)
+
 
 def resize_rgbds_and_get_masks(rgbds, seg_arr, im_height, im_width):
     rgbds = jax.image.resize(
@@ -213,35 +220,36 @@ def resize_rgbds_and_get_masks(rgbds, seg_arr, im_height, im_width):
         all_area = jnp.any(im_seg != jnp.array([0, 0, 0]), axis=-1)
         all_areas.append(all_area)
     return rgbds, all_areas
-        
-def get_initial_state(pred_file, object_ids, object_segmentation_colors, meshes, seg, rgbd, hyperparams):
+
+
+def get_initial_state(
+    pred_file, object_ids, object_segmentation_colors, meshes, seg, rgbd, hyperparams
+):
     pred = pred_file["scene"][0]["objects"]
 
     initial_state = {}
     hyperparams["meshes"] = []
-    for i, (o_id, color) in enumerate(
-        zip(object_ids, object_segmentation_colors)
-    ):
+    for i, (o_id, color) in enumerate(zip(object_ids, object_segmentation_colors)):
         area = get_mask_area(seg, [color])
         object_colors = rgbd[..., 0:3][area]
         mean_object_colors = jnp.mean(object_colors, axis=0)
         assert not jnp.isnan(mean_object_colors).any()
 
         initial_state[f"object_pose_{o_id}"] = b3d.Pose(
-                jnp.array(pred[i]["location"][0]),
-                jnp.array(pred[i]["rotation"][0]),
-            )
-        initial_state[f"object_scale_{o_id}_0"] = [jnp.array(pred[i]["scale"][0])]
-        hyperparams["meshes"].append([
+            jnp.array(pred[i]["location"][0]),
+            jnp.array(pred[i]["rotation"][0]),
+        )
+        initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
+        hyperparams["meshes"].append(
+            [
                 b3d.Mesh(
                     meshes[pred[i]["type"][0]].vertices,
                     meshes[pred[i]["type"][0]].faces,
-                    jnp.ones(
-                        meshes[pred[i]["type"][0]].vertices.shape
-                    )
+                    jnp.ones(meshes[pred[i]["type"][0]].vertices.shape)
                     * mean_object_colors,
                 )
-            ])
+            ]
+        )
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
     return initial_state, hyperparams

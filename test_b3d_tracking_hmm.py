@@ -2,7 +2,6 @@ import argparse
 import collections
 import json
 import os
-from copy import deepcopy
 from os import listdir
 from os.path import isfile, join
 
@@ -11,15 +10,15 @@ import b3d.chisight.dense.dense_model
 import b3d.chisight.dense.likelihoods.laplace_likelihood
 import b3d.chisight.gen3d.inference.inference as inference
 import b3d.chisight.gen3d.settings as settings
+import jax
+import numpy as np
+import rerun as rr
+import trimesh
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
     load_trial,
     resize_rgbds_and_get_masks,
 )
-import jax
-import numpy as np
-import rerun as rr
-import trimesh
 from genjax import Pytree
 
 
@@ -109,7 +108,7 @@ def main(
         "image_width": Pytree.const(renderer.width),
         "image_height": Pytree.const(renderer.height),
         "masked": Pytree.const(masked),
-        "check_interp": Pytree.const(True),
+        "check_interp": Pytree.const(False),
         "num_mc_sample": Pytree.const(500),
         "interp_penalty": Pytree.const(1000),
     }
@@ -121,7 +120,7 @@ def main(
         trial_name = hdf5_file[:-5]
         print("\t", trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
-        
+
         pred_file = pred_file_all[trial_name]
         if use_gt:
             gt_info = pred_file["scene"][0]["objects"]
@@ -130,31 +129,53 @@ def main(
                     pred_file["scene"][0]["objects"][i][feature] = [
                         pred_file["scene"][0]["objects"][i][feature]
                     ]
-        rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, _, _ = load_trial(hdf5_file_path)
-
+        rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, _, _ = (
+            load_trial(hdf5_file_path)
+        )
+        print("finished loading files")
         inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
         hyperparams = settings.hyperparams
         hyperparams["camera_pose"] = camera_pose
         hyperparams["likelihood_args"] = likelihood_args
-        
-        initial_state, hyperparams = get_initial_state(pred_file, object_ids, object_segmentation_colors, ordered_all_meshes, seg_arr[START_T], rgbds[START_T], hyperparams)
-        rgbds, all_areas = resize_rgbds_and_get_masks(rgbds, seg_arr, im_height, im_width)
+
+        initial_state, hyperparams = get_initial_state(
+            pred_file,
+            object_ids,
+            object_segmentation_colors,
+            ordered_all_meshes,
+            seg_arr[START_T],
+            rgbds[START_T],
+            hyperparams,
+        )
+        print("finished initializing state")
+        rgbds, all_areas = resize_rgbds_and_get_masks(
+            rgbds, seg_arr, im_height, im_width
+        )
 
         key = jax.random.PRNGKey(156)
         trace = inference.get_initial_trace(
-            key, renderer, likelihood_func, hyperparams, initial_state, blackout_image(rgbds[START_T], all_areas[START_T])
+            key,
+            renderer,
+            likelihood_func,
+            hyperparams,
+            initial_state,
+            blackout_image(rgbds[START_T], all_areas[START_T]),
         )
+        print("finished initializing trace")
         for T in range(FINAL_T):
             key = b3d.split_key(key)
             trace, _ = inference.inference_step(
                 key,
                 trace,
-                blackout_image(
-                        rgbds[T], all_areas[T]
-                    ),
+                blackout_image(rgbds[T], all_areas[T]),
                 inference_hyperparams,
-                [addr for addr in initial_state if addr.startswith("object_pose")]
+                [
+                    Pytree.const(addr)
+                    for addr in initial_state
+                    if addr.startswith("object_pose")
+                ],
             )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

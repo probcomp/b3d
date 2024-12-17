@@ -13,16 +13,6 @@ Int: TypeAlias = Array
 Quaternion: TypeAlias = Array
 
 
-# # Dynamics prior
-# @Pytree.dataclass
-# class DynamicsModelVMF(genjax.ExactDensity):
-#     def sample(self, key, prev_pose, params):
-#         return sample_gaussian_vmf_pose(key, prev_pose, *params)
-
-#     def logpdf(self, new_pose, prev_pose, params):
-#         return logpdf_gaussian_vmf_pose(new_pose, prev_pose, *params)
-
-
 # GenJAX Distributions
 @jax.jit
 def sample_uniform_pose_centered(key, center_pose, low, high):

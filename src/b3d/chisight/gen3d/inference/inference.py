@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import jax.random
@@ -17,6 +19,7 @@ from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from .utils import logmeanexp, update_field
 
 
+@partial(jax.jit, static_argnames=("do_advance_time"))
 def inference_step(
     key,
     trace,
@@ -28,7 +31,7 @@ def inference_step(
     if do_advance_time:
         key, subkey = split(key)
         trace = advance_time(subkey, trace, observed_rgbd)
-    
+
     @jax.jit
     def c2f_step(
         key,
@@ -41,13 +44,14 @@ def inference_step(
 
         # Propose the poses
         pose_generation_keys = split(k1, inference_hyperparams.n_poses)
-        proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None, None))(
-            pose_generation_keys, trace, addr, pose_proposal_args
-        )
+        proposed_poses, log_q_poses = jax.vmap(
+            propose_pose, in_axes=(0, None, None, None)
+        )(pose_generation_keys, trace, addr, pose_proposal_args)
 
         def update_and_get_scores(key, proposed_pose, trace, addr):
-            updated_trace, score = my_func(key, proposed_pose, trace, addr)
-            return updated_trace, score
+            key, subkey = split(key)
+            updated_trace = update_field(subkey, trace, addr, proposed_pose)
+            return updated_trace, updated_trace.get_score()
 
         param_generation_keys = split(k2, inference_hyperparams.n_poses)
         _, p_scores = jax.lax.map(
@@ -64,7 +68,10 @@ def inference_step(
 
         chosen_index = jax.random.categorical(k3, weights)
         resampled_trace, _ = update_and_get_scores(
-            param_generation_keys[chosen_index], proposed_poses[chosen_index], trace, addr
+            param_generation_keys[chosen_index],
+            proposed_poses[chosen_index],
+            trace,
+            addr,
         )
         return (
             resampled_trace,
@@ -162,9 +169,3 @@ def propose_pose(key, advanced_trace, addr, args):
     pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
     log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
     return pose, log_q
-
-
-def my_func(key, pose, trace, addr):
-    k1, _, _, _ = split(key, 4)
-    updated_trace = update_field(k1, trace, addr, pose)
-    return updated_trace, updated_trace.get_score()

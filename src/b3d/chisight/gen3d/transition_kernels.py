@@ -34,6 +34,7 @@ class GaussianVMFPoseDriftKernel(DriftKernel):
         )
 
     def logpdf(self, new_pose, prev_pose) -> ArrayLike:
+        print(new_pose)
         return Pose.logpdf_gaussian_vmf_pose(
             new_pose, prev_pose, self.std, self.concentration
         )

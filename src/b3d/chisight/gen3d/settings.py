@@ -1,7 +1,6 @@
 import b3d.chisight.gen3d.transition_kernels as transition_kernels
 from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 
-p_resample_color = 0.005
 hyperparams = {
     "pose_kernel": transition_kernels.GaussianVMFPoseDriftKernel(0.02, 1000.0),
     "color_noise_variance": 1,

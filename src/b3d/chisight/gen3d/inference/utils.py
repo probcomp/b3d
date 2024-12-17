@@ -25,8 +25,6 @@ def update_fields(key, trace, fieldnames, values):
     corresponding values in `values`.  Returns a new trace.
     """
     hyperparams, previous_state = trace.get_args()
-    print("previous_state: ", previous_state)
-    jax.debug.print("previous_state: {v}", v=previous_state)
     trace, _, _, _ = trace.update(
         key,
         U.g(

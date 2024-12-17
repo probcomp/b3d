@@ -10,17 +10,11 @@ import b3d
 from b3d import Pose
 from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from b3d.chisight.gen3d.model import (
-    dynamic_object_generative_model,
     get_hypers,
     get_new_state,
-    get_prev_state,
-    make_colors_choicemap,
-    make_depth_nonreturn_prob_choicemap,
-    make_visibility_prob_choicemap,
 )
 
-from .point_attribute_proposals import propose_all_pointlevel_attributes
-from .utils import logmeanexp, normalize_log_scores, update_field, update_vmapped_fields
+from .utils import logmeanexp, update_field
 
 
 @jax.jit
@@ -29,8 +23,7 @@ def c2f_step(
     trace,
     pose_proposal_args,
     inference_hyperparams,
-    use_gt_pose,
-    gt_pose=b3d.Pose.identity(),
+    addr,
 ):
     k1, k2, k3 = split(key, 3)
 
@@ -39,23 +32,19 @@ def c2f_step(
     proposed_poses, log_q_poses = jax.vmap(propose_pose, in_axes=(0, None, None))(
         pose_generation_keys, trace, pose_proposal_args
     )
-    proposed_poses, log_q_poses = maybe_swap_in_gt_pose(
-        proposed_poses, log_q_poses, trace, use_gt_pose, gt_pose, pose_proposal_args
-    )
 
     # Generate the remaining latents to get pose scores
-    def propose_other_latents_given_pose_and_get_scores(
-        key, proposed_pose, trace, inference_hyperparams
+    def update_and_get_scores(
+        key, proposed_pose, trace
     ):
-        proposed_trace, log_q, _ = propose_other_latents_given_pose(
-            key, trace, proposed_pose, inference_hyperparams
-        )
-        return proposed_trace.get_score(), log_q
+        key, subkey = split(key)
+        trace = update_field(subkey, trace, addr, proposed_pose)
+        return trace, trace.get_score()
 
     param_generation_keys = split(k2, inference_hyperparams.n_poses)
-    p_scores, log_q_nonpose_latents = jax.lax.map(
-        lambda x: propose_other_latents_given_pose_and_get_scores(
-            x[0], x[1], trace, inference_hyperparams
+    _, p_scores = jax.lax.map(
+        lambda x: update_and_get_scores(
+            x[0], x[1], trace
         ),
         (param_generation_keys, proposed_poses),
     )
@@ -63,16 +52,15 @@ def c2f_step(
     # Scoring + resampling
     weights = jnp.where(
         inference_hyperparams.include_q_scores_at_top_level,
-        p_scores - log_q_poses - log_q_nonpose_latents,
+        p_scores - log_q_poses,
         p_scores,
     )
 
     chosen_index = jax.random.categorical(k3, weights)
-    resampled_trace, _, _ = propose_other_latents_given_pose(
+    resampled_trace, _ = update_and_get_scores(
         param_generation_keys[chosen_index],
         trace,
         proposed_poses[chosen_index],
-        inference_hyperparams,
     )
     return (
         resampled_trace,
@@ -88,87 +76,25 @@ def inference_step(
     trace,
     observed_rgbd,
     inference_hyperparams: InferenceHyperparams,
-    *,
-    gt_pose=b3d.Pose.identity(),
-    use_gt_pose=False,
+    addresses,
     do_advance_time=True,
-    get_all_metadata=False,
-    get_all_weights=False,
 ):
     if do_advance_time:
         key, subkey = split(key)
         trace = advance_time(subkey, trace, observed_rgbd)
 
-    for pose_proposal_args in inference_hyperparams.pose_proposal_args:
-        key, subkey = split(key)
-        trace, weight, keys_to_regenerate_traces, all_poses, all_weights = c2f_step(
-            subkey,
-            trace,
-            pose_proposal_args,
-            inference_hyperparams,
-            use_gt_pose,
-            gt_pose=gt_pose,
-        )
+    for addr in addresses:
+        for pose_proposal_args in inference_hyperparams.pose_proposal_args:
+            key, subkey = split(key)
+            trace, weight, keys_to_regenerate_traces, all_poses, all_weights = c2f_step(
+                subkey,
+                trace,
+                pose_proposal_args,
+                inference_hyperparams,
+                addr,
+            )
 
-    if get_all_metadata:
-        metadata = {}  # TODO: someone add in getting thee metadata you need
-        # Please make it relatively clean!
-        return (
-            trace,
-            weight,
-            all_weights,
-            all_poses,
-            keys_to_regenerate_traces,
-            metadata,
-        )
-    elif get_all_weights:
-        return (trace, weight, all_weights, all_poses, keys_to_regenerate_traces)
-    else:
-        return (trace, weight)
-
-
-def get_trace_generated_during_inference(
-    key,
-    trace,
-    pose,
-    inference_hyperparams,
-    do_advance_time=True,
-    observed_rgbd=None,
-    just_return_trace=True,
-):
-    """
-    Get the trace generated at pose `pose` with key `key` by inference_step,
-    when it was given `trace`, `do_advance_time`, `inference_hyperparams`,
-    and `observed_rgbd` as input.
-    """
-    if do_advance_time:
-        assert observed_rgbd is not None
-        trace = advance_time(key, trace, observed_rgbd)
-    vals = propose_other_latents_given_pose(key, trace, pose, inference_hyperparams)
-    if just_return_trace:
-        return vals[0]
-    else:
-        return vals
-
-
-def maybe_swap_in_gt_pose(
-    proposed_poses, log_q_poses, trace, use_gt_pose, gt_pose, pose_proposal_args
-):
-    proposed_poses = jax.tree.map(
-        lambda x, y: x.at[0].set(jnp.where(use_gt_pose, y, x[0])),
-        proposed_poses,
-        gt_pose,
-    )
-
-    log_q_poses = log_q_poses.at[0].set(
-        jnp.where(
-            use_gt_pose,
-            get_pose_proposal_density(gt_pose, trace, pose_proposal_args),
-            log_q_poses[0],
-        )
-    )
-
-    return proposed_poses, log_q_poses
+    return (trace, weight)
 
 
 @jax.jit
@@ -195,7 +121,7 @@ def advance_time(key, trace, observed_rgbd):
 
 
 def get_initial_trace(
-    key, hyperparams, initial_state, initial_observed_rgbd, get_weight=False
+    key, renderer, likelihood_func, hyperparams, initial_state, initial_observed_rgbd, get_weight=False
 ):
     """
     Get the initial trace, given the initial state.
@@ -204,15 +130,16 @@ def get_initial_trace(
     choicemap = (
         C.d(
             {
-                "pose": initial_state["pose"],
-                "color_scale": initial_state["color_scale"],
-                "depth_scale": initial_state["depth_scale"],
+                "camera_pose": hyperparams["camera_pose"],
+                "color_noise_variance": hyperparams["color_noise_variance"],
+                "depth_noise_variance": hyperparams["color_noise_variance"],
+                "outlier_probability": hyperparams["outlier_probability"],
                 "rgbd": initial_observed_rgbd,
-            }
+            } | initial_state
         )
-        ^ make_visibility_prob_choicemap(initial_state["visibility_prob"])
-        ^ make_colors_choicemap(initial_state["colors"])
-        ^ make_depth_nonreturn_prob_choicemap(initial_state["depth_nonreturn_prob"])
+    )
+    dynamic_object_generative_model = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
+        renderer, likelihood_func
     )
     trace, weight = dynamic_object_generative_model.importance(
         key, choicemap, (hyperparams, initial_state)
@@ -236,113 +163,3 @@ def propose_pose(key, advanced_trace, args):
     pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
     log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
     return pose, log_q
-
-
-def get_pose_proposal_density(pose, advanced_trace, args):
-    """
-    Returns the log proposal density of the given pose, conditional upon the previous pose.
-    """
-    std, conc = args
-    previous_pose = get_prev_state(advanced_trace)["pose"]
-    return Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
-
-
-def propose_other_latents_given_pose(key, advanced_trace, pose, inference_hyperparams):
-    """
-    Proposes all latents other than the pose, conditional upon the pose and observed RGBD
-    in `advanced_trace`.
-    Returns (proposed_trace, log_q) where `propose_trace` is the new trace with the
-    proposed latents (and the same pose and observed rgbd as in the given trace).
-    `log_q` is (a fair estimate of) the log proposal density.
-    """
-    k1, k2, k3, k4 = split(key, 4)
-
-    trace = update_field(k1, advanced_trace, "pose", pose)
-
-    # TODO: can toggle this on to change the inference behavior slightly...
-    # This cranks up the color scale before proposing the colors.
-    #
-    # sup = get_hypers(trace)["color_scale_kernel"].support
-    # val = get_prev_state(advanced_trace)["color_scale"]
-    # idx = jnp.argmin(jnp.abs(sup - val))
-    # newidx = jnp.minimum(idx + 1, sup.shape[0] - 1)
-    # trace = update_field(k1, trace, "color_scale", sup[newidx])
-
-    k2a, k2b = split(k2)
-    (
-        colors,
-        visibility_probs,
-        depth_nonreturn_probs,
-        log_q_point_attributes,
-        point_proposal_metadata,
-    ) = propose_all_pointlevel_attributes(k2a, trace, inference_hyperparams)
-    trace = update_vmapped_fields(
-        k2b,
-        trace,
-        ["colors", "visibility_prob", "depth_nonreturn_prob"],
-        [colors, visibility_probs, depth_nonreturn_probs],
-    )
-
-    k3a, k3b = split(k3)
-    depth_scale, log_q_ds = propose_depth_scale(k3a, trace)
-    trace = update_field(k3b, trace, "depth_scale", depth_scale)
-
-    k4a, k4b = split(k4)
-    color_scale, log_q_cs = propose_color_scale(k4a, trace)
-    trace = update_field(k4b, trace, "color_scale", color_scale)
-
-    log_q = log_q_point_attributes + log_q_ds + log_q_cs
-    return (
-        trace,
-        log_q,
-        {
-            "point_attribute_proposal_metadata": point_proposal_metadata,
-            "log_q_point_attributes": log_q_point_attributes,
-        },
-    )
-
-
-def propose_depth_scale(key, trace):
-    """
-    Propose a new global depth scale, conditioned upon the other values in `trace`.
-    Returns (depth_scale, log_q) where `depth_scale` is the proposed value and
-    `log_q` is (a fair estimate of) the log proposal density.
-    """
-    k1, k2 = split(key, 2)
-
-    def score_depth_scale(k, depth_scale):
-        newtr = update_field(k, trace, "depth_scale", depth_scale)
-        return newtr.get_score()
-
-    support = get_hypers(trace)["depth_scale_kernel"].support
-    scores = jax.vmap(score_depth_scale, in_axes=(0, 0))(
-        split(k1, len(support)), support
-    )
-
-    normalized_scores = normalize_log_scores(scores)
-    index = jax.random.categorical(k2, normalized_scores)
-
-    return support[index], normalized_scores[index]
-
-
-def propose_color_scale(key, trace):
-    """
-    Propose a new global color scale, conditioned upon the other values in `trace`.
-    Returns (color_scale, log_q) where `color_scale` is the proposed value and
-    `log_q` is (a fair estimate of) the log proposal density.
-    """
-    k1, k2 = split(key, 2)
-
-    def score_color_scale(k, color_scale):
-        newtr = update_field(k, trace, "color_scale", color_scale)
-        return newtr.get_score()
-
-    support = get_hypers(trace)["color_scale_kernel"].support
-    scores = jax.vmap(score_color_scale, in_axes=(0, 0))(
-        split(k1, len(support)), support
-    )
-
-    normalized_scores = normalize_log_scores(scores)
-    index = jax.random.categorical(k2, normalized_scores)
-
-    return support[index], normalized_scores[index]

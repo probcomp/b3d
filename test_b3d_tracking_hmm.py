@@ -39,7 +39,6 @@ def main(
     scenario,
     mesh_file_path,
     pred_file_path,
-    all_scale="first_scale",
     use_gt=False,
     masked=True,
 ):
@@ -56,10 +55,6 @@ def main(
 
     START_T = 0
     FINAL_T = 15
-    all_scale = True if all_scale == "all_scale" else False
-    if use_gt:
-        all_scale = False
-    print("all_scale: ", all_scale)
 
     with open(pred_file_path) as f:
         pred_file_all = json.load(f)
@@ -163,6 +158,7 @@ def main(
         )
         print("finished initializing trace")
         for T in range(FINAL_T):
+            print(f"time {T}")
             key = b3d.split_key(key)
             trace, _ = inference.inference_step(
                 key,
@@ -180,12 +176,8 @@ def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)
-    parser.add_argument("--clip", default="first", type=str)
-    parser.add_argument("--all_scale", default="first_scale", type=str)
     args = parser.parse_args()
     scenario = args.scenario
-    clip = args.clip
-    all_scale = args.all_scale
 
     # paths for reading physion metadata
     data_path = "/home/haoliangwang/data/"
@@ -198,10 +190,6 @@ if __name__ == "__main__":
         "all_flex_meshes/core",
     )
 
-    print(f"***************{clip}***************")
-    # save_path = f"/home/haoliangwang/data/b3d_tracking_results/{all_scale}/{clip}"
-    # pred_file_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_{clip}.json"
-    # main(hdf5_file_path, scenario, mesh_file_path, save_path, pred_file_path, all_scale)
     save_path = "/home/haoliangwang/data/b3d_tracking_results/gt_all_info"
     pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt.json"
     main(

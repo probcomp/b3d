@@ -23,10 +23,10 @@ def c2f_step(
     trace,
     pose_proposal_args,
     inference_hyperparams,
-    addr,
+    address,
 ):
+    addr = address.unwrap()
     k1, k2, k3 = split(key, 3)
-    addr = addr.unwrap()
 
     # Propose the poses
     pose_generation_keys = split(k1, inference_hyperparams.n_poses)
@@ -34,13 +34,11 @@ def c2f_step(
         pose_generation_keys, trace, addr, pose_proposal_args
     )
 
-    param_generation_keys = split(k2, inference_hyperparams.n_poses)
-
     def update_and_get_scores(key, proposed_pose, trace, addr):
-        key, subkey = split(key)
-        updated_trace = update_field(subkey, trace, addr, proposed_pose)
-        return updated_trace, updated_trace.get_score()
+        updated_trace, score = my_func(key, proposed_pose, trace, addr)
+        return updated_trace, score
 
+    param_generation_keys = split(k2, inference_hyperparams.n_poses)
     _, p_scores = jax.lax.map(
         lambda x: update_and_get_scores(x[0], x[1], trace, addr),
         (param_generation_keys, proposed_poses),
@@ -81,13 +79,14 @@ def inference_step(
     for addr in addresses:
         for pose_proposal_args in inference_hyperparams.pose_proposal_args:
             key, subkey = split(key)
-            trace, weight, _, _, _ = c2f_step(
-                subkey,
-                trace,
-                pose_proposal_args,
-                inference_hyperparams,
-                addr,
-            )
+            with jax.checking_leaks():
+                trace, weight, _, _, _ = c2f_step(
+                    subkey,
+                    trace,
+                    pose_proposal_args,
+                    inference_hyperparams,
+                    addr,
+                )
 
     return (trace, weight)
 
@@ -166,3 +165,9 @@ def propose_pose(key, advanced_trace, addr, args):
     pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
     log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
     return pose, log_q
+
+
+def my_func(key, pose, trace, addr):
+    k1, _, _, _ = split(key, 4)
+    updated_trace = update_field(k1, trace, addr, pose)
+    return updated_trace, updated_trace.get_score()

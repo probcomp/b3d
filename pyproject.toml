@@ -120,7 +120,6 @@ carvekit = "==4.1.2"
 datasync = "==0.0.2"
 genjax = "==0.6.1"
 pykitti = "==0.3.1"
-pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
 pyransac3d = ">=0.6.0,<0.7"
 torch = "*"
 
@@ -130,7 +129,6 @@ ffmpeg = "*"
 fire = ">=0.6.0,<0.7"
 imageio = "*"
 ipykernel = "*"
-ipython = ">=8.26.0,<8.27"
 jax = "*"
 jupyter = ">=1.0.0,<1.1"
 jupyterlab = "*"
@@ -173,14 +171,7 @@ cwd = "src/b3d/bucket_utils"
 [tool.pixi.feature.no-cuda]
 platforms = ["linux-64", "osx-arm64"]
 
-[tool.pixi.feature.no-cuda.target.osx-arm64.dependencies]
-jaxlib = { version = "*", build = "cpu*" }
-pytorch = { version = "==2.3.0", build = "cpu_generic*" }
 
-[tool.pixi.feature.no-cuda.target.linux-64.dependencies]
-gcc = "*"
-jaxlib = { version = "*", build = "cpu*" }
-pytorch = { version = "==2.3.0", build = "cpu_generic*" }
 
 [tool.pixi.feature.no-cuda.tasks.docs]
 description = "render docs to docs/static"

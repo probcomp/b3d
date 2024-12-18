@@ -8,7 +8,7 @@ import cv2
 import imageio
 import jax
 import jax.numpy as jnp
-import liblzfse  # https://pypi.org/project/pyliblzfse/
+# import liblzfse  # https://pypi.org/project/pyliblzfse/
 import numpy as np
 from natsort import natsorted
 from PIL import Image

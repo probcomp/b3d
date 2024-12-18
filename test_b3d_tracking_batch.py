@@ -320,15 +320,13 @@ def main(
             return angular_velocity
 
         mesh = b3d.Mesh(
-            vertices=scale_mesh(mesh.vertices, scale), faces=mesh.faces, vertex_attributes=None
+            vertices=scale_mesh(mesh.vertices, scale),
+            faces=mesh.faces,
+            vertex_attributes=None,
         )
 
-        pos_now, q_now = compute_center_of_mass(
-            mesh, object_pose_last_frame
-        )
-        pos_last, q_last = compute_center_of_mass(
-            mesh, object_pose_window_frame
-        )
+        pos_now, q_now = compute_center_of_mass(mesh, object_pose_last_frame)
+        pos_last, q_last = compute_center_of_mass(mesh, object_pose_window_frame)
         linear_vel = (pos_now - pos_last) / dt
         angular_velocity = compute_angular_velocity(q_last, q_now, dt)
 
@@ -339,7 +337,7 @@ def main(
         }
 
     rr.init("demo")
-    rr.connect("127.0.0.1:8812")
+    rr.connect("127.0.0.1:8813")
     rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
 
     near_plane = 0.1

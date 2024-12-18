@@ -599,7 +599,7 @@ def rr_log_pose(channel, pose, scale=0.1):
 
 def rr_init(name="demo"):
     rr.init(name)
-    rr.connect("127.0.0.1:8812")
+    rr.connect("127.0.0.1:8813")
 
 
 def rr_log_rgb(rgb, channel="rgb"):

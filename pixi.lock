@@ -491,7 +491,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/62/51/72c18c55cf2f46ff4f91ebcc8f75aa30f7305f3d726be3f4ebffb4ae972b/pydantic-2.10.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/c6/8ae0831bf77f356bb73127ce5a95fe115b10f820ea480abbd72d3cc7ccf3/pydantic_core-2.27.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c3/7e/e2b71b9221ccb8503dce9673e3cb36edcdc314ec374f9e69e6d38ed1abde/pykitti-0.3.1-py2.py3-none-any.whl
-      - pypi: git+https://github.com/ydkhatri/pyliblzfse.git@a8c00b6bf866410e658a82f88caa04b2cf0a5fea
       - pypi: https://files.pythonhosted.org/packages/68/6b/a4cc6a28ac80d3bccef0bf869634ee21731e1a85e5ce508c41e1ba0c8437/pyransac3d-0.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c0/00/cdb2afde2d7700d26b2df90bc40d72d18585e4f9a5d63d49b210a8d6bad0/python_fcl-0.7.0.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/e1/f4/ddd0fcdc454cf3870153ae16a818256523d31c3c8136e216bc6836ed4cd1/python_multipart-0.0.19-py3-none-any.whl
@@ -881,7 +880,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/62/51/72c18c55cf2f46ff4f91ebcc8f75aa30f7305f3d726be3f4ebffb4ae972b/pydantic-2.10.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/9e/f8063952e4a7d0127f5d1181addef9377505dcce3be224263b25c4f0bfd9/pydantic_core-2.27.1-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/c3/7e/e2b71b9221ccb8503dce9673e3cb36edcdc314ec374f9e69e6d38ed1abde/pykitti-0.3.1-py2.py3-none-any.whl
-      - pypi: git+https://github.com/ydkhatri/pyliblzfse.git@a8c00b6bf866410e658a82f88caa04b2cf0a5fea
       - pypi: https://files.pythonhosted.org/packages/68/6b/a4cc6a28ac80d3bccef0bf869634ee21731e1a85e5ce508c41e1ba0c8437/pyransac3d-0.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/08/be/4781f7da7dde661d32925c0a129d268e03e6bbe00aaa86e48af59c70da61/python_fcl-0.7.0.6-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/e1/f4/ddd0fcdc454cf3870153ae16a818256523d31c3c8136e216bc6836ed4cd1/python_multipart-0.0.19-py3-none-any.whl
@@ -1940,7 +1938,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/62/51/72c18c55cf2f46ff4f91ebcc8f75aa30f7305f3d726be3f4ebffb4ae972b/pydantic-2.10.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/8a/c6/8ae0831bf77f356bb73127ce5a95fe115b10f820ea480abbd72d3cc7ccf3/pydantic_core-2.27.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/c3/7e/e2b71b9221ccb8503dce9673e3cb36edcdc314ec374f9e69e6d38ed1abde/pykitti-0.3.1-py2.py3-none-any.whl
-      - pypi: git+https://github.com/ydkhatri/pyliblzfse.git@a8c00b6bf866410e658a82f88caa04b2cf0a5fea
       - pypi: https://files.pythonhosted.org/packages/68/6b/a4cc6a28ac80d3bccef0bf869634ee21731e1a85e5ce508c41e1ba0c8437/pyransac3d-0.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c0/00/cdb2afde2d7700d26b2df90bc40d72d18585e4f9a5d63d49b210a8d6bad0/python_fcl-0.7.0.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/e1/f4/ddd0fcdc454cf3870153ae16a818256523d31c3c8136e216bc6836ed4cd1/python_multipart-0.0.19-py3-none-any.whl
@@ -2330,7 +2327,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/62/51/72c18c55cf2f46ff4f91ebcc8f75aa30f7305f3d726be3f4ebffb4ae972b/pydantic-2.10.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/7b/9e/f8063952e4a7d0127f5d1181addef9377505dcce3be224263b25c4f0bfd9/pydantic_core-2.27.1-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/c3/7e/e2b71b9221ccb8503dce9673e3cb36edcdc314ec374f9e69e6d38ed1abde/pykitti-0.3.1-py2.py3-none-any.whl
-      - pypi: git+https://github.com/ydkhatri/pyliblzfse.git@a8c00b6bf866410e658a82f88caa04b2cf0a5fea
       - pypi: https://files.pythonhosted.org/packages/68/6b/a4cc6a28ac80d3bccef0bf869634ee21731e1a85e5ce508c41e1ba0c8437/pyransac3d-0.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/08/be/4781f7da7dde661d32925c0a129d268e03e6bbe00aaa86e48af59c70da61/python_fcl-0.7.0.6-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/e1/f4/ddd0fcdc454cf3870153ae16a818256523d31c3c8136e216bc6836ed4cd1/python_multipart-0.0.19-py3-none-any.whl
@@ -3655,7 +3651,7 @@ packages:
 - pypi: .
   name: b3d
   version: 0.0.1
-  sha256: a68a59413c2091591966b60ce13bb3b1f72c7cb90842272285cebac6b0964fa9
+  sha256: 99e23fe6d0060ddf2591cc1d389ab75b57ab6c56364c86e317890d2770832fef
   requires_dist:
   - python-fcl>=0.7.0.6,<0.8 ; extra == 'core'
   requires_python: '>=3.10'
@@ -13535,9 +13531,6 @@ packages:
   - matplotlib
   - pillow
   - pandas
-- pypi: git+https://github.com/ydkhatri/pyliblzfse.git@a8c00b6bf866410e658a82f88caa04b2cf0a5fea
-  name: pyliblzfse
-  version: 0.4.1
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/pyobjc-core-10.3.2-py312hb9d441b_0.conda
   sha256: 6c110c64e7cc0a28416414446698ab310a9261525a6aa630b2c4f50891867719
   md5: 663e894deb5a24c8931fd8224f19a1fd

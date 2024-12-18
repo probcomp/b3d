@@ -54,9 +54,12 @@ def inference_step(
             return updated_trace, updated_trace.get_score()
 
         param_generation_keys = split(k2, inference_hyperparams.n_poses)
-        _, p_scores = jax.lax.map(
-            lambda x: update_and_get_scores(x[0], x[1], trace, addr),
-            (param_generation_keys, proposed_poses),
+        # _, p_scores = jax.lax.map(
+        #     lambda x: update_and_get_scores(x[0], x[1], trace, addr),
+        #     (param_generation_keys, proposed_poses),
+        # )
+        _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, None, None))(
+            param_generation_keys, proposed_poses, trace, addr
         )
 
         # Scoring + resampling
@@ -84,13 +87,13 @@ def inference_step(
     for addr in addresses:
         for pose_proposal_args in inference_hyperparams.pose_proposal_args:
             key, subkey = split(key)
-            with jax.checking_leaks():
-                trace, weight, _, _, _ = c2f_step(
-                    subkey,
-                    trace,
-                    pose_proposal_args,
-                    addr,
-                )
+            # with jax.checking_leaks():
+            trace, weight, _, _, _ = c2f_step(
+                subkey,
+                trace,
+                pose_proposal_args,
+                addr,
+            )
 
     return (trace, weight)
 

@@ -9,5 +9,5 @@ hyperparams = {
 }
 
 inference_hyperparams = InferenceHyperparams(
-    n_poses=4000,
+    n_poses=2000,
 )

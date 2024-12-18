@@ -145,7 +145,7 @@ def get_initial_trace(
         | initial_state
     )
     b3d.reload(b3d.chisight.dense.dense_model)
-    dynamic_object_generative_model = (
+    dynamic_object_generative_model, _ = (
         b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
             renderer, likelihood_func
         )

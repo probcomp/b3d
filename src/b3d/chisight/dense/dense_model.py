@@ -133,56 +133,53 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             "new_state": all_poses | all_scales,
         }
 
-    return dense_multiobject_model
-
-
-@jax.jit
-def info_from_trace(trace, likelihood_func):
-    return likelihood_func(
-        trace.get_choices()["rgbd"],
-        trace.get_retval()["likelihood_args"],
-    )
-
-
-def viz_trace(trace, likelihood_func, t=0, cloud=False):
-    info = info_from_trace(trace, likelihood_func)
-    b3d.utils.rr_set_time(t)
-    likelihood_args = trace.get_retval()["likelihood_args"]
-    fx, fy, cx, cy = (
-        likelihood_args["fx"],
-        likelihood_args["fy"],
-        likelihood_args["cx"],
-        likelihood_args["cy"],
-    )
-
-    info = info_from_trace(trace, likelihood_func)
-    rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
-    b3d.rr_log_rgb(trace.get_choices()["rgbd"][..., :3], "image/rgb/observed")
-    b3d.rr_log_rgb(info["latent_rgbd"][..., :3], "image/rgb/latent")
-    b3d.rr_log_depth(trace.get_choices()["rgbd"][..., 3], "image/depth/observed")
-    b3d.rr_log_depth(info["latent_rgbd"][..., 3], "image/depth/latent")
-    rr.log("image/overlay/pixelwise_score", rr.DepthImage(info["pixelwise_score"]))
-
-    if cloud:
-        b3d.rr_log_cloud(
-            b3d.xyz_from_depth(
-                info["latent_rgbd"][..., 3],
-                fx,
-                fy,
-                cx,
-                cy,
-            ),
-            "latent",
+    @jax.jit
+    def info_from_trace(trace):
+        return likelihood_func(
+            trace.get_choices()["rgbd"],
+            trace.get_retval()["likelihood_args"],
         )
-        b3d.rr_log_cloud(
-            b3d.xyz_from_depth(
-                trace.get_retval()["rgbd"][..., 3],
-                fx,
-                fy,
-                cx,
-                cy,
-            ),
-            "observed",
+
+    def viz_trace(trace, t=0, cloud=False):
+        info = info_from_trace(trace)
+        b3d.utils.rr_set_time(t)
+        likelihood_args = trace.get_retval()["likelihood_args"]
+        fx, fy, cx, cy = (
+            likelihood_args["fx"],
+            likelihood_args["fy"],
+            likelihood_args["cx"],
+            likelihood_args["cy"],
         )
-    # rr.log("rgb/is_match", rr.DepthImage(intermediate_info["is_match"] * 1.0))
-    # rr.log("rgb/color_match", rr.DepthImage(intermediate_info["color_match"] * 1.0))
+
+        rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
+        b3d.rr_log_rgb(trace.get_choices()["rgbd"][..., :3], "image/rgb/observed")
+        b3d.rr_log_rgb(info["latent_rgbd"][..., :3], "image/rgb/latent")
+        b3d.rr_log_depth(trace.get_choices()["rgbd"][..., 3], "image/depth/observed")
+        b3d.rr_log_depth(info["latent_rgbd"][..., 3], "image/depth/latent")
+        rr.log("image/overlay/pixelwise_score", rr.DepthImage(info["pixelwise_score"]))
+
+        if cloud:
+            b3d.rr_log_cloud(
+                b3d.xyz_from_depth(
+                    info["latent_rgbd"][..., 3],
+                    fx,
+                    fy,
+                    cx,
+                    cy,
+                ),
+                "latent",
+            )
+            b3d.rr_log_cloud(
+                b3d.xyz_from_depth(
+                    trace.get_retval()["rgbd"][..., 3],
+                    fx,
+                    fy,
+                    cx,
+                    cy,
+                ),
+                "observed",
+            )
+        # rr.log("rgb/is_match", rr.DepthImage(intermediate_info["is_match"] * 1.0))
+        # rr.log("rgb/color_match", rr.DepthImage(intermediate_info["color_match"] * 1.0))
+
+    return dense_multiobject_model, viz_trace

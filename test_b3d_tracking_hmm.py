@@ -43,7 +43,7 @@ def main(
     masked=True,
 ):
     rr.init("demo")
-    rr.connect("127.0.0.1:8812")
+    rr.connect("127.0.0.1:8813")
     rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
 
     near_plane = 0.1
@@ -95,6 +95,10 @@ def main(
     b3d.reload(b3d.chisight.dense.likelihoods.laplace_likelihood)
     likelihood_func = b3d.chisight.dense.likelihoods.laplace_likelihood.likelihood_func
 
+    _, viz_trace = b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
+        renderer, likelihood_func
+    )
+
     likelihood_args = {
         "fx": renderer.fx,
         "fy": renderer.fy,
@@ -109,10 +113,10 @@ def main(
     }
 
     for trial_index, hdf5_file in enumerate(onlyhdf5):
-        if trial_index != 0:
+        trial_name = hdf5_file[:-5]
+        if trial_name != "pilot_it2_collision_non-sphere_box_0039":
             continue
 
-        trial_name = hdf5_file[:-5]
         print("\t", trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
 
@@ -156,6 +160,7 @@ def main(
             initial_state,
             blackout_image(rgbds[START_T], all_areas[START_T]),
         )
+        viz_trace(trace, t=0)
         print("finished initializing trace")
         for T in range(FINAL_T):
             print(f"time {T}")
@@ -171,6 +176,7 @@ def main(
                     if addr.startswith("object_pose")
                 ],
             )
+            viz_trace(trace, t=T + 1)
 
 
 if __name__ == "__main__":

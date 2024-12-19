@@ -54,7 +54,10 @@ def main(
     height = 1024
 
     START_T = 0
-    FINAL_T = 15
+    if scenario == 'collide':
+        FINAL_T = 15
+    else:
+        FINAL_T = 45
 
     with open(pred_file_path) as f:
         pred_file_all = json.load(f)
@@ -114,7 +117,7 @@ def main(
 
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if trial_name != "pilot_it2_collision_non-sphere_box_0039":
+        if trial_name != "pilot-containment-multi-bowl_0018":
             continue
 
         print("\t", trial_index + 1, "\t", trial_name)
@@ -181,7 +184,7 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="collide", type=str)
+    parser.add_argument("--scenario", default="contain", type=str)
     args = parser.parse_args()
     scenario = args.scenario
 
@@ -196,7 +199,6 @@ if __name__ == "__main__":
         "all_flex_meshes/core",
     )
 
-    save_path = "/home/haoliangwang/data/b3d_tracking_results/gt_all_info"
     pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt.json"
     main(
         hdf5_file_path,

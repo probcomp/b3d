@@ -141,7 +141,7 @@ def main(
             rgbds[START_T],
             hyperparams,
         )
-        print("initial_state", initial_state)
+        print(f"initial_state: {initial_state} \n")
         rgbds, all_areas = resize_rgbds_and_get_masks(
             rgbds, seg_arr, im_height, im_width
         )
@@ -156,7 +156,7 @@ def main(
             blackout_image(rgbds[START_T], all_areas[START_T]),
         )
         viz_trace(trace, t=0)
-        print("initial trace", trace.get_retval()['new_state'])
+        print(f"initial trace: {trace.get_retval()['new_state']} \n")
         for T in range(FINAL_T):
             print(f"time {T}")
             key = b3d.split_key(key)

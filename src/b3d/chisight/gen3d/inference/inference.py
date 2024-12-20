@@ -28,7 +28,7 @@ def inference_step(
     inference_hyperparams: InferenceHyperparams,
     addresses,
     do_advance_time=True,
-    use_previous_pose=True,
+    include_previous_pose=True,
 ):
     if do_advance_time:
         key, subkey = split(key)
@@ -50,7 +50,7 @@ def inference_step(
             propose_pose, in_axes=(0, None, None, None)
         )(pose_generation_keys, trace, addr, pose_proposal_args)
         proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
-            proposed_poses, log_q_poses, trace, addr, use_previous_pose, pose_proposal_args
+            proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
         )
 
         def update_and_get_scores(key, proposed_pose, trace, addr):
@@ -104,18 +104,18 @@ def inference_step(
 
 
 def maybe_swap_in_previous_pose(
-    proposed_poses, log_q_poses, trace, addr, use_previous_pose, pose_proposal_args
+    proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
 ):
     previous_pose, log_q = assess_previous_pose(trace, addr, pose_proposal_args)
     proposed_poses = jax.tree.map(
-        lambda x, y: x.at[0].set(jnp.where(use_previous_pose, y, x[0])),
+        lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
         proposed_poses,
         previous_pose,
     )
 
     log_q_poses = log_q_poses.at[0].set(
         jnp.where(
-            use_previous_pose,
+            include_previous_pose,
             log_q,
             log_q_poses[0],
         )
@@ -129,7 +129,7 @@ def assess_previous_pose(advanced_trace, addr, args):
     Returns the log proposal density of the given pose, conditional upon the previous pose.
     """
     std, conc = args
-    previous_pose = get_prev_state(advanced_trace)[addr]
+    previous_pose = get_new_state(advanced_trace)[addr]
     log_q = Pose.logpdf_gaussian_vmf_pose(previous_pose, previous_pose, std, conc)
     return previous_pose, log_q
 
@@ -151,12 +151,15 @@ def advance_time(key, trace, observed_rgbd):
             (
                 Diff.no_change(get_hypers(trace)),
                 Diff.unknown_change(get_new_state(trace)),
+                # Diff.no_change(get_prev_state(trace)),
+                # Diff.no_change(get_new_state(trace)),
             ),
             C.kw(rgbd=observed_rgbd),
         ),
     )
-    print("advance time: ", trace)
-    jax.debug.print("advance time: {v}", v=trace)
+    jax.debug.print("advance time prev state: {v}", v=trace.get_args()[1])
+    jax.debug.print("advance time choices: {v}", v=trace.get_sample())
+    jax.debug.print("advance time new state: {v} \n", v=trace.get_retval()['new_state'])
     return trace
 
 

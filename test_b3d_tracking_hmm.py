@@ -39,7 +39,6 @@ def main(
     scenario,
     mesh_file_path,
     pred_file_path,
-    use_gt=False,
     masked=True,
 ):
     rr.init("demo")
@@ -54,7 +53,7 @@ def main(
     height = 1024
 
     START_T = 0
-    if scenario == 'collide':
+    if scenario == "collide":
         FINAL_T = 15
     else:
         FINAL_T = 45
@@ -124,13 +123,6 @@ def main(
         hdf5_file_path = join(scenario_path, hdf5_file)
 
         pred_file = pred_file_all[trial_name]
-        if use_gt:
-            gt_info = pred_file["scene"][0]["objects"]
-            for i in range(len(gt_info)):
-                for feature in pred_file["scene"][0]["objects"][i].keys():
-                    pred_file["scene"][0]["objects"][i][feature] = [
-                        pred_file["scene"][0]["objects"][i][feature]
-                    ]
         rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, _, _ = (
             load_trial(hdf5_file_path)
         )
@@ -205,5 +197,4 @@ if __name__ == "__main__":
         scenario,
         mesh_file_path,
         pred_file_path,
-        use_gt=True,
     )

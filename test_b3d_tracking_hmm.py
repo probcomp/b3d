@@ -39,7 +39,6 @@ def main(
     scenario,
     mesh_file_path,
     pred_file_path,
-    use_gt=False,
     masked=True,
 ):
     rr.init("demo")
@@ -124,13 +123,6 @@ def main(
         hdf5_file_path = join(scenario_path, hdf5_file)
 
         pred_file = pred_file_all[trial_name]
-        if use_gt:
-            gt_info = pred_file["scene"][0]["objects"]
-            for i in range(len(gt_info)):
-                for feature in pred_file["scene"][0]["objects"][i].keys():
-                    pred_file["scene"][0]["objects"][i][feature] = [
-                        pred_file["scene"][0]["objects"][i][feature]
-                    ]
         rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, _, _ = (
             load_trial(hdf5_file_path)
         )
@@ -149,7 +141,7 @@ def main(
             rgbds[START_T],
             hyperparams,
         )
-        print("finished initializing state")
+        print("initial_state", initial_state)
         rgbds, all_areas = resize_rgbds_and_get_masks(
             rgbds, seg_arr, im_height, im_width
         )
@@ -164,7 +156,7 @@ def main(
             blackout_image(rgbds[START_T], all_areas[START_T]),
         )
         viz_trace(trace, t=0)
-        print("finished initializing trace")
+        print("initial trace", trace.get_retval()['new_state'])
         for T in range(FINAL_T):
             print(f"time {T}")
             key = b3d.split_key(key)
@@ -205,5 +197,4 @@ if __name__ == "__main__":
         scenario,
         mesh_file_path,
         pred_file_path,
-        use_gt=True,
     )

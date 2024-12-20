@@ -155,6 +155,8 @@ def advance_time(key, trace, observed_rgbd):
             C.kw(rgbd=observed_rgbd),
         ),
     )
+    print("advance time: ", trace)
+    jax.debug.print("advance time: {v}", v=trace)
     return trace
 
 

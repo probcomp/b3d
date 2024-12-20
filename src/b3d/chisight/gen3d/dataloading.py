@@ -240,6 +240,8 @@ def get_initial_state(
             jnp.array(pred[i]["rotation"][0]),
         )
         initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
+        initial_state[f"object_vel_{o_id}"] = jnp.zeros(3)
+        initial_state[f"object_ang_vel_{o_id}"] = jnp.zeros(3)
         hyperparams["meshes"].append(
             [
                 b3d.Mesh(

@@ -55,18 +55,33 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
+        vel_kernel = hyperparams["vel_kernel"]
+        ang_vel_kernel = hyperparams["ang_vel_kernel"]
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
 
         all_poses = {}
         all_scales = {}
+        all_vels = {}
+        all_ang_vels = {}
         scaled_meshes = []
         for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
+            object_vel = (
+                vel_kernel(previous_state[f"object_vel_{o_id}"])
+                @ f"object_vel_{o_id}"
+            )
+            object_ang_vel = (
+                ang_vel_kernel(previous_state[f"object_ang_vel_{o_id}"])
+                @ f"object_ang_vel_{o_id}"
+            )
             object_pose = (
-                pose_kernel(previous_state[f"object_pose_{o_id}"])
+                pose_kernel(previous_state[f"object_pose_{o_id}"], 
+                            object_vel,
+                            object_ang_vel)
                 @ f"object_pose_{o_id}"
             )
+
             top = 0.0
             all_comp_poses = []
             all_comp_meshes = []
@@ -86,6 +101,8 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             )
             scaled_meshes.append(merged_mesh)
             all_poses[f"object_pose_{o_id}"] = object_pose
+            all_vels[f"object_vel_{o_id}"] = object_vel
+            all_ang_vels[f"object_ang_vel_{o_id}"] = object_ang_vel
 
         camera_pose = (
             uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
@@ -130,7 +147,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_scales,
+            "new_state": all_poses | all_scales | all_vels | all_ang_vels,
         }
 
     @jax.jit

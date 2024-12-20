@@ -6,6 +6,7 @@ import jax.numpy as jnp
 from jax.scipy.spatial.transform import Rotation as Rot
 from jax.tree_util import register_pytree_node_class
 from tensorflow_probability.substrates import jax as tfp
+from jax.random import split
 
 Array: TypeAlias = jax.Array
 Float: TypeAlias = Array
@@ -131,6 +132,26 @@ def logpdf_gaussian_vmf_pose(pose, mean_pose, std, concentration):
         mean_pose.quat / jnp.linalg.norm(mean_pose.quat), concentration
     ).log_prob(pose.quat)
     return translation_score + quaternion_score
+
+
+@jax.jit
+def sample_gaussian_vel(key, mean_vel, std):
+    """
+    Samples velocities from a diagonal normal distribution
+    """
+
+    key, subkey = split(key)
+    var = std**2
+    x = jax.random.multivariate_normal(subkey, mean_vel, var * jnp.eye(3))
+
+    return x
+
+
+def logpdf_gaussian_vel(vel, mean_vel, std):
+    translation_score = tfp.distributions.MultivariateNormalDiag(
+        mean_vel, jnp.ones(3) * std
+    ).log_prob(vel)
+    return translation_score
 
 
 def camera_from_position_and_target(
@@ -422,10 +443,12 @@ class Pose:
     sample_gaussian_vmf_pose_vmap = jax.vmap(
         sample_gaussian_vmf_pose, in_axes=(0, None, None, None)
     )
+    sample_gaussian_vel = sample_gaussian_vel
 
     logpdf_gaussian_vmf_pose = logpdf_gaussian_vmf_pose
     logpdf_gaussian_vmf_pose_vmap = jax.jit(
         jax.vmap(logpdf_gaussian_vmf_pose, in_axes=(0, None, None, None))
     )
+    logpdf_gaussian_vel = logpdf_gaussian_vel
 
     uniform_pose_centered = uniform_pose_centered

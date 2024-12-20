@@ -1,4 +1,5 @@
 from functools import partial
+from jax.scipy.spatial.transform import Rotation
 
 import jax
 import jax.numpy as jnp
@@ -13,11 +14,10 @@ from b3d import Pose
 from b3d.chisight.dense.dense_model import (
     get_hypers,
     get_new_state,
-    get_prev_state,
 )
 from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 
-from .utils import logmeanexp, update_field
+from .utils import logmeanexp, update_vmapped_fields
 
 
 @partial(jax.jit, static_argnames=("do_advance_time"))
@@ -46,16 +46,21 @@ def inference_step(
 
         # Propose the poses
         pose_generation_keys = split(k1, inference_hyperparams.n_poses)
-        proposed_poses, log_q_poses = jax.vmap(
+        proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses = jax.vmap(
             propose_pose, in_axes=(0, None, None, None)
         )(pose_generation_keys, trace, addr, pose_proposal_args)
-        proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
-            proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
+        proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses = maybe_swap_in_previous_pose(
+            proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
         )
 
-        def update_and_get_scores(key, proposed_pose, trace, addr):
+        def update_and_get_scores(key, proposed_pose, proposed_vel, proposed_ang_vel, trace, addr):
             key, subkey = split(key)
-            updated_trace = update_field(subkey, trace, addr, proposed_pose)
+            updated_trace = update_vmapped_fields(
+                subkey,
+                trace,
+                [addr, addr.replace("pose", "vel"), addr.replace("pose", "ang_vel")],
+                [proposed_pose, proposed_vel, proposed_ang_vel],
+            )
             return updated_trace, updated_trace.get_score()
 
         param_generation_keys = split(k2, inference_hyperparams.n_poses)
@@ -63,8 +68,8 @@ def inference_step(
         #     lambda x: update_and_get_scores(x[0], x[1], trace, addr),
         #     (param_generation_keys, proposed_poses),
         # )
-        _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, None, None))(
-            param_generation_keys, proposed_poses, trace, addr
+        _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, 0, 0, None, None))(
+            param_generation_keys, proposed_poses, proposed_vels, proposed_ang_vels, trace, addr
         )
 
         # Scoring + resampling
@@ -78,6 +83,8 @@ def inference_step(
         resampled_trace, _ = update_and_get_scores(
             param_generation_keys[chosen_index],
             proposed_poses[chosen_index],
+            proposed_vels[chosen_index],
+            proposed_ang_vels[chosen_index],
             trace,
             addr,
         )
@@ -104,13 +111,23 @@ def inference_step(
 
 
 def maybe_swap_in_previous_pose(
-    proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
+    proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
 ):
     previous_pose, log_q = assess_previous_pose(trace, addr, pose_proposal_args)
     proposed_poses = jax.tree.map(
         lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
         proposed_poses,
         previous_pose,
+    )
+    proposed_vels = jax.tree.map(
+        lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
+        proposed_vels,
+        jnp.zeros(3),
+    )
+    proposed_ang_vels = jax.tree.map(
+        lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
+        proposed_ang_vels,
+        jnp.zeros(3),
     )
 
     log_q_poses = log_q_poses.at[0].set(
@@ -151,15 +168,13 @@ def advance_time(key, trace, observed_rgbd):
             (
                 Diff.no_change(get_hypers(trace)),
                 Diff.unknown_change(get_new_state(trace)),
-                # Diff.no_change(get_prev_state(trace)),
-                # Diff.no_change(get_new_state(trace)),
             ),
             C.kw(rgbd=observed_rgbd),
         ),
     )
-    jax.debug.print("advance time prev state: {v}", v=trace.get_args()[1])
-    jax.debug.print("advance time choices: {v}", v=trace.get_sample())
-    jax.debug.print("advance time new state: {v} \n", v=trace.get_retval()['new_state'])
+    # jax.debug.print("advance time prev state: {v}", v=trace.get_args()[1])
+    # jax.debug.print("advance time choices: {v}", v=trace.get_sample())
+    # jax.debug.print("advance time new state: {v} \n", v=trace.get_retval()['new_state'])
     return trace
 
 
@@ -209,8 +224,38 @@ def propose_pose(key, advanced_trace, addr, args):
     Propose a random pose near the previous timestep's pose.
     Returns (proposed_pose, log_proposal_density).
     """
+    def compute_angular_velocity(p1, p2):
+        """
+        Compute angular velocity in radians per second from two quaternions.
+
+        Parameters:
+            q1 (array-like): Quaternion at the earlier time [w, x, y, z].
+            q2 (array-like): Quaternion at the later time [w, x, y, z].
+        Returns:
+            angular_velocity (numpy array): Angular velocity vector (radians per second).
+        """
+        # Convert quaternions to scipy Rotation objects
+        rot1 = p1.rot()
+        rot2 = p2.rot()
+
+        # Compute the relative rotation
+        relative_rotation = rot2 * rot1.inv()
+
+        # Convert the relative rotation to angle-axis representation
+        angle = relative_rotation.magnitude()  # Rotation angle in radians
+        axis = (
+            relative_rotation.as_rotvec() / angle if angle != 0 else jnp.zeros(3)
+        )  # Rotation axis
+
+        # Compute angular velocity
+        angular_velocity = (axis * angle)
+        return angular_velocity
+
     std, conc = args
     previous_pose = get_new_state(advanced_trace)[addr]
     pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
     log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
-    return pose, log_q
+
+    vel = pose.pos - previous_pose.pos
+    ang_vel = compute_angular_velocity(previous_pose, pose)
+    return pose, vel, ang_vel, log_q

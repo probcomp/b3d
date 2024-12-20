@@ -22,45 +22,46 @@ class DriftKernel(genjax.ExactDensity):
         raise NotImplementedError
 
 
+@Pytree.dataclass
+class PhysicsKernel(genjax.ExactDensity):
+    """An abstract class that defines the common interface for drift kernels."""
+
+    @abstractmethod
+    def sample(self, key: PRNGKey, prev_value: ArrayLike, prev_value1: ArrayLike, prev_value2: ArrayLike) -> ArrayLike:
+        raise NotImplementedError
+
+    @abstractmethod
+    def logpdf(self, key: PRNGKey, prev_value: ArrayLike, prev_value1: ArrayLike, prev_value2: ArrayLike) -> ArrayLike:
+        raise NotImplementedError
+
+
 # Pose Drift Kernels
 
 @Pytree.dataclass
-class PhysicsPoseDriftKernel(DriftKernel):
-    """A specialized uniform drift kernel with fixed min_val and max_val, with
-    additional logics to handle the color channels jointly.
-
-    Support: [max(0.0, prev_value - max_shift), min(1.0, prev_value + max_shift)]
-    """
+class PhysicsPoseKernel(PhysicsKernel):
 
     std: float = Pytree.static()
     concentration: float = Pytree.static()
 
     def sample(self, key: PRNGKey, prev_pose, prev_vel, prev_ang_vel):
-        keys = jax.random.split(key, 2)
-        pos = (
-            jax.random.uniform(keys[0], (3,)) * (2 * self.max_shift)
-            - self.max_shift
-            + prev_pose.position
+        pos = prev_pose.pos + prev_vel
+        quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
+        predict_pose = Pose(pos, quat).normalize()
+        return Pose.sample_gaussian_vmf_pose(
+            key, predict_pose, self.std, self.concentration
         )
-        quat = jax.random.normal(keys[1], (4,))
-        quat = quat / jnp.linalg.norm(quat)
-        return Pose(pos, quat)
 
-    def logpdf(self, new_pose, prev_pose) -> ArrayLike:
-        position_delta = new_pose.pos - prev_pose.pos
-        valid = jnp.all(jnp.abs(position_delta) < self.max_shift)
-        position_score = jnp.log(
-            (valid * 1.0) * (jnp.ones_like(position_delta) / (2 * self.max_shift))
-        ).sum()
-        return position_score + jnp.pi**2
+    def logpdf(self, new_pose, prev_pose, prev_vel, prev_ang_vel) -> ArrayLike:
+        pos = prev_pose.pos + prev_vel
+        quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
+        predict_pose = Pose(pos, quat).normalize()
+        return Pose.logpdf_gaussian_vmf_pose(
+            new_pose, predict_pose, self.std, self.concentration
+        )
+
 
 @Pytree.dataclass
 class GaussianVMFPoseDriftKernel(DriftKernel):
-    """A specialized uniform drift kernel with fixed min_val and max_val, with
-    additional logics to handle the color channels jointly.
-
-    Support: [max(0.0, prev_value - max_shift), min(1.0, prev_value + max_shift)]
-    """
 
     std: float = Pytree.static()
     concentration: float = Pytree.static()
@@ -73,4 +74,21 @@ class GaussianVMFPoseDriftKernel(DriftKernel):
     def logpdf(self, new_pose, prev_pose) -> ArrayLike:
         return Pose.logpdf_gaussian_vmf_pose(
             new_pose, prev_pose, self.std, self.concentration
+        )
+
+# Velocities Drift Kernels
+
+@Pytree.dataclass
+class GaussianVelocityDriftKernel(DriftKernel):
+
+    std: float = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_vel):
+        return Pose.sample_gaussian_vel(
+            key, prev_vel, self.std
+        )
+
+    def logpdf(self, new_vel, prev_vel) -> ArrayLike:
+        return Pose.logpdf_gaussian_vel(
+            new_vel, prev_vel, self.std
         )

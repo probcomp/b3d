@@ -17,7 +17,7 @@ from b3d.chisight.dense.dense_model import (
 )
 from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 
-from .utils import logmeanexp, update_vmapped_fields
+from .utils import logmeanexp, update_fields
 
 
 @partial(jax.jit, static_argnames=("do_advance_time"))
@@ -55,7 +55,7 @@ def inference_step(
 
         def update_and_get_scores(key, proposed_pose, proposed_vel, proposed_ang_vel, trace, addr):
             key, subkey = split(key)
-            updated_trace = update_vmapped_fields(
+            updated_trace = update_fields(
                 subkey,
                 trace,
                 [addr, addr.replace("pose", "vel"), addr.replace("pose", "ang_vel")],
@@ -138,7 +138,7 @@ def maybe_swap_in_previous_pose(
         )
     )
 
-    return proposed_poses, log_q_poses
+    return proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses
 
 
 def assess_previous_pose(advanced_trace, addr, args):
@@ -224,28 +224,30 @@ def propose_pose(key, advanced_trace, addr, args):
     Propose a random pose near the previous timestep's pose.
     Returns (proposed_pose, log_proposal_density).
     """
-    def compute_angular_velocity(p1, p2):
+    def compute_angular_velocity(q1, q2):
         """
         Compute angular velocity in radians per second from two quaternions.
 
         Parameters:
-            q1 (array-like): Quaternion at the earlier time [w, x, y, z].
-            q2 (array-like): Quaternion at the later time [w, x, y, z].
+            q1 (array-like): Quaternion at the earlier time [x, y, z, w].
+            q2 (array-like): Quaternion at the later time [x, y, z, w].
         Returns:
-            angular_velocity (numpy array): Angular velocity vector (radians per second).
+            angular_velocity (array): Angular velocity vector (radians per second).
         """
         # Convert quaternions to scipy Rotation objects
-        rot1 = p1.rot()
-        rot2 = p2.rot()
+        rot1 = Rotation.from_quat(q1)
+        rot2 = Rotation.from_quat(q2)
 
         # Compute the relative rotation
         relative_rotation = rot2 * rot1.inv()
 
         # Convert the relative rotation to angle-axis representation
         angle = relative_rotation.magnitude()  # Rotation angle in radians
-        axis = (
-            relative_rotation.as_rotvec() / angle if angle != 0 else jnp.zeros(3)
-        )  # Rotation axis
+        axis = jnp.where(
+            angle != 0,
+            relative_rotation.as_rotvec()/angle,
+            jnp.zeros(3),
+        ) # Rotation axis
 
         # Compute angular velocity
         angular_velocity = (axis * angle)
@@ -257,5 +259,5 @@ def propose_pose(key, advanced_trace, addr, args):
     log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
 
     vel = pose.pos - previous_pose.pos
-    ang_vel = compute_angular_velocity(previous_pose, pose)
+    ang_vel = compute_angular_velocity(previous_pose.quat, pose.quat)
     return pose, vel, ang_vel, log_q

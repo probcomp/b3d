@@ -56,7 +56,7 @@ def main(
     if scenario == 'collide':
         FINAL_T = 15
     else:
-        FINAL_T = 45
+        FINAL_T = 250
 
     with open(pred_file_path) as f:
         pred_file_all = json.load(f)
@@ -116,7 +116,7 @@ def main(
 
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if trial_name != "pilot-containment-multi-bowl_0018":
+        if trial_name != "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_0017":
             continue
 
         print("\t", trial_index + 1, "\t", trial_name)
@@ -176,7 +176,7 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="contain", type=str)
+    parser.add_argument("--scenario", default="roll", type=str)
     args = parser.parse_args()
     scenario = args.scenario
 

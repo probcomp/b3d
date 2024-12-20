@@ -364,15 +364,6 @@ def main(
     )
 
     pred_file = pred_file_all[trial_name]
-    if use_gt:
-        gt_info = pred_file["scene"][0]["objects"]
-        for i in range(len(gt_info)):
-            for feature in pred_file["scene"][0]["objects"][i].keys():
-                pred_file["scene"][0]["objects"][i][feature] = [
-                    pred_file["scene"][0]["objects"][i][feature]
-                ]
-
-    # using the 0th frame
     pred = pred_file["scene"][0]["objects"]
     pose_scale_mesh_list = []
     for sample in initial_samples(num_initial_sample):

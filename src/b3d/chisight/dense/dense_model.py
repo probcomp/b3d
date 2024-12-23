@@ -51,12 +51,13 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         hyperparams,
         previous_state,
     ):
+        background = hyperparams["background"]
         meshes = hyperparams["meshes"]
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
-        vel_kernel = hyperparams["vel_kernel"]
-        ang_vel_kernel = hyperparams["ang_vel_kernel"]
+        # vel_kernel = hyperparams["vel_kernel"]
+        # ang_vel_kernel = hyperparams["ang_vel_kernel"]
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
@@ -64,23 +65,25 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         all_poses = {}
         all_scales = {}
         all_vels = {}
-        all_ang_vels = {}
+        # all_ang_vels = {}
         scaled_meshes = []
         for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
-            object_vel = (
-                vel_kernel(previous_state[f"object_vel_{o_id}"])
-                @ f"object_vel_{o_id}"
-            )
-            object_ang_vel = (
-                ang_vel_kernel(previous_state[f"object_ang_vel_{o_id}"])
-                @ f"object_ang_vel_{o_id}"
-            )
+            # object_vel = (
+            #     vel_kernel(previous_state[f"object_vel_{o_id}"])
+            #     @ f"object_vel_{o_id}"
+            # )
+            # object_ang_vel = (
+            #     ang_vel_kernel(previous_state[f"object_ang_vel_{o_id}"])
+            #     @ f"object_ang_vel_{o_id}"
+            # )
             object_pose = (
                 pose_kernel(previous_state[f"object_pose_{o_id}"], 
-                            object_vel,
-                            object_ang_vel)
+                            previous_state[f"object_vel_{o_id}"],
+                            )
                 @ f"object_pose_{o_id}"
             )
+            object_vel = object_pose.pos-previous_state[f"object_pose_{o_id}"].pos
+            # jax.debug.print("object_vel: {v}", v=object_vel)
 
             top = 0.0
             all_comp_poses = []
@@ -102,7 +105,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             scaled_meshes.append(merged_mesh)
             all_poses[f"object_pose_{o_id}"] = object_pose
             all_vels[f"object_vel_{o_id}"] = object_vel
-            all_ang_vels[f"object_ang_vel_{o_id}"] = object_ang_vel
+            # all_ang_vels[f"object_ang_vel_{o_id}"] = object_ang_vel
 
         camera_pose = (
             uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
@@ -140,14 +143,22 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                 scene_mesh.faces,
             )
 
-            likelihood_args["latent_rgbd"] = jnp.flip(latent_rgbd, 1)
+            # add distractor and occluders
+            latent_rgbd = jnp.flip(latent_rgbd, 1)
+            bg_rgb = background[..., :3]
+            bg_d = background[..., 3:]
+
+            latent_rgb = jnp.where(bg_rgb == jnp.array([jnp.inf, jnp.inf, jnp.inf]), latent_rgbd[..., 0:3], bg_rgb)
+            latent_d = jnp.minimum(jnp.where(latent_rgbd[..., 3:] == 0.0, 10, latent_rgbd[..., 3:]), bg_d)
+
+            likelihood_args["latent_rgbd"] = jnp.concatenate([latent_rgb, latent_d], axis=-1)
             likelihood_args["rasterize_results"] = rasterize_results
 
         image = image_likelihood(likelihood_args) @ "rgbd"
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_scales | all_vels | all_ang_vels,
+            "new_state": all_poses | all_scales | all_vels,
         }
 
     @jax.jit
@@ -157,7 +168,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             trace.get_retval()["likelihood_args"],
         )
 
-    def viz_trace(trace, t=0, cloud=False):
+    def viz_trace(trace, t=0, cloud=True):
         info = info_from_trace(trace)
         b3d.utils.rr_set_time(t)
         likelihood_args = trace.get_retval()["likelihood_args"]

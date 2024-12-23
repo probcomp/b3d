@@ -1,5 +1,4 @@
 import io
-import os
 from functools import reduce
 
 import h5py
@@ -10,81 +9,6 @@ from genjax import Pytree
 from PIL import Image
 
 import b3d
-from b3d import Mesh
-
-
-def load_scene(scene_id, FRAME_RATE=50, subdir="test", T0=0):
-    num_scenes = b3d.io.data_loader.get_ycbv_num_images(scene_id, subdir=subdir)
-
-    image_ids = range(1, num_scenes + 1, FRAME_RATE)
-    all_data = b3d.io.get_ycbv_data(scene_id, image_ids, subdir=subdir)
-
-    ycb_dir = os.path.join(b3d.utils.get_assets_path(), "bop/ycbv")
-    meshes = [
-        Mesh.from_obj_file(
-            os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
-        ).scale(0.001)
-        for id in all_data[T0]["object_types"]
-    ]
-
-    image_height, image_width = all_data[T0]["rgbd"].shape[:2]
-    fx, fy, cx, cy = all_data[T0]["camera_intrinsics"]
-    scaling_factor = 1.0
-    renderer = b3d.renderer.renderer_original.RendererOriginal(
-        image_width * scaling_factor,
-        image_height * scaling_factor,
-        fx * scaling_factor,
-        fy * scaling_factor,
-        cx * scaling_factor,
-        cy * scaling_factor,
-        0.01,
-        4.0,
-    )
-
-    intrinsics = {
-        "fx": fx,
-        "fy": fy,
-        "cx": cx,
-        "cy": cy,
-        "image_height": Pytree.const(image_height),
-        "image_width": Pytree.const(image_width),
-        "near": 0.01,
-        "far": 3.0,
-    }
-
-    initial_object_poses = all_data[T0]["object_poses"]
-
-    return all_data, meshes, renderer, intrinsics, initial_object_poses
-
-
-def load_object_given_scene(all_data, meshes, renderer, OBJECT_INDEX, T0=0):
-    T = T0
-    fx, fy, cx, cy = all_data[T]["camera_intrinsics"]
-
-    template_pose = (
-        all_data[T]["camera_pose"].inv() @ all_data[T]["object_poses"][OBJECT_INDEX]
-    )
-    rendered_rgbd = renderer.render_rgbd_from_mesh(
-        meshes[OBJECT_INDEX].transform(template_pose)
-    )
-    xyz_rendered = b3d.xyz_from_depth(rendered_rgbd[..., 3], fx, fy, cx, cy)
-
-    xyz_observed = b3d.xyz_from_depth(all_data[T]["rgbd"][..., 3], fx, fy, cx, cy)
-    mask = (
-        all_data[T]["masks"][OBJECT_INDEX]
-        * (xyz_observed[..., 2] > 0)
-        * (jnp.linalg.norm(xyz_rendered - xyz_observed, axis=-1) < 0.01)
-    )
-    model_vertices = template_pose.inv().apply(xyz_rendered[mask])
-    model_colors = all_data[T]["rgbd"][..., :3][mask]
-
-    subset = jax.random.permutation(jax.random.PRNGKey(0), len(model_vertices))[
-        : min(10000, len(model_vertices))
-    ]
-    model_vertices = model_vertices[subset]
-    model_colors = model_colors[subset]
-
-    return (template_pose, model_vertices, model_colors)
 
 
 def load_trial(hdf5_file_path):
@@ -129,6 +53,8 @@ def load_trial(hdf5_file_path):
         )
         assert len(object_ids) == len(object_segmentation_colors)
 
+        background_areas = np.zeros((image_arr.shape[1], image_arr.shape[2]))
+
         distractors = (
             np.array(f["static"]["distractors"])
             if np.array(f["static"]["distractors"]).size != 0
@@ -141,6 +67,9 @@ def load_trial(hdf5_file_path):
         )
         distractors_occluders = np.concatenate([distractors, occluders])
         if len(distractors_occluders):
+            background_areas = get_mask_area(seg_arr[0], object_segmentation_colors[
+                -len(distractors_occluders):
+            ])
             object_ids = object_ids[: -len(distractors_occluders)]
             object_segmentation_colors = object_segmentation_colors[
                 : -len(distractors_occluders)
@@ -188,6 +117,7 @@ def load_trial(hdf5_file_path):
         seg_arr,
         object_ids,
         object_segmentation_colors,
+        background_areas,
         camera_pose,
         composite_mapping,
         reversed_composite_mapping,
@@ -204,22 +134,28 @@ def get_mask_area(seg_img, colors):
     return reduce(jnp.logical_or, arrs)
 
 
-def resize_rgbds_and_get_masks(rgbds, seg_arr, im_height, im_width):
+def resize_rgbds_and_get_masks(rgbds, seg_arr, background_areas, im_height, im_width):
     rgbds = jax.image.resize(
         rgbds,
         (rgbds.shape[0], im_height, im_width, *rgbds.shape[3:]),
         method="linear",
     )
+    background_areas = jax.image.resize(
+        background_areas,
+        (im_height, im_width),
+        method="linear",
+    ).astype(bool)
     im_segs = jax.image.resize(
         seg_arr,
         (seg_arr.shape[0], im_height, im_width, *seg_arr.shape[3:]),
         method="linear",
     )
-    all_areas = []
+    all_valid_areas = []
     for im_seg in im_segs:
-        all_area = jnp.any(im_seg != jnp.array([0, 0, 0]), axis=-1)
-        all_areas.append(all_area)
-    return rgbds, all_areas
+        all_valid_area = jnp.any(im_seg != jnp.array([0, 0, 0]), axis=-1)
+        all_valid_areas.append(all_valid_area)
+
+    return rgbds, all_valid_areas, background_areas
 
 
 def get_initial_state(
@@ -241,7 +177,7 @@ def get_initial_state(
         )
         initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
         initial_state[f"object_vel_{o_id}"] = jnp.zeros(3)
-        initial_state[f"object_ang_vel_{o_id}"] = jnp.zeros(3)
+        # initial_state[f"object_ang_vel_{o_id}"] = jnp.zeros(3)
         hyperparams["meshes"].append(
             [
                 b3d.Mesh(

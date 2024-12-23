@@ -27,11 +27,11 @@ class PhysicsKernel(genjax.ExactDensity):
     """An abstract class that defines the common interface for drift kernels."""
 
     @abstractmethod
-    def sample(self, key: PRNGKey, prev_value: ArrayLike, prev_value1: ArrayLike, prev_value2: ArrayLike) -> ArrayLike:
+    def sample(self, key: PRNGKey, prev_value: ArrayLike, prev_value1: ArrayLike) -> ArrayLike:
         raise NotImplementedError
 
     @abstractmethod
-    def logpdf(self, key: PRNGKey, prev_value: ArrayLike, prev_value1: ArrayLike, prev_value2: ArrayLike) -> ArrayLike:
+    def logpdf(self, key: PRNGKey, prev_value: ArrayLike, prev_value1: ArrayLike) -> ArrayLike:
         raise NotImplementedError
 
 
@@ -43,18 +43,20 @@ class PhysicsPoseKernel(PhysicsKernel):
     std: float = Pytree.static()
     concentration: float = Pytree.static()
 
-    def sample(self, key: PRNGKey, prev_pose, prev_vel, prev_ang_vel):
+    def sample(self, key: PRNGKey, prev_pose, prev_vel):
         pos = prev_pose.pos + prev_vel
-        quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
-        predict_pose = Pose(pos, quat).normalize()
+        # quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
+        # predict_pose = Pose(pos, quat).normalize()
+        predict_pose = Pose(pos, prev_pose.quat)
         return Pose.sample_gaussian_vmf_pose(
             key, predict_pose, self.std, self.concentration
         )
 
-    def logpdf(self, new_pose, prev_pose, prev_vel, prev_ang_vel) -> ArrayLike:
+    def logpdf(self, new_pose, prev_pose, prev_vel) -> ArrayLike:
         pos = prev_pose.pos + prev_vel
-        quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
-        predict_pose = Pose(pos, quat).normalize()
+        # quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
+        # predict_pose = Pose(pos, quat).normalize()
+        predict_pose = Pose(pos, prev_pose.quat)
         return Pose.logpdf_gaussian_vmf_pose(
             new_pose, predict_pose, self.std, self.concentration
         )

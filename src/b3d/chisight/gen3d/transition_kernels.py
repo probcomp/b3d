@@ -43,20 +43,14 @@ class PhysicsPoseKernel(PhysicsKernel):
     std: float = Pytree.static()
     concentration: float = Pytree.static()
 
-    def sample(self, key: PRNGKey, prev_pose, prev_vel):
-        pos = prev_pose.pos + prev_vel
-        # quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
-        # predict_pose = Pose(pos, quat).normalize()
-        predict_pose = Pose(pos, prev_pose.quat)
+    def sample(self, key: PRNGKey, prev_pose, prev_vel, prev_ang_vel):
+        predict_pose = Pose.next_pose_from_previous(prev_pose, prev_vel, prev_ang_vel)
         return Pose.sample_gaussian_vmf_pose(
             key, predict_pose, self.std, self.concentration
         )
 
-    def logpdf(self, new_pose, prev_pose, prev_vel) -> ArrayLike:
-        pos = prev_pose.pos + prev_vel
-        # quat = prev_pose.quat + 0.5 * jnp.array([0, prev_ang_vel[0], prev_ang_vel[1], prev_ang_vel[2]]) * prev_pose.quat
-        # predict_pose = Pose(pos, quat).normalize()
-        predict_pose = Pose(pos, prev_pose.quat)
+    def logpdf(self, new_pose, prev_pose, prev_vel, prev_ang_vel) -> ArrayLike:
+        predict_pose = Pose.next_pose_from_previous(prev_pose, prev_vel, prev_ang_vel)
         return Pose.logpdf_gaussian_vmf_pose(
             new_pose, predict_pose, self.std, self.concentration
         )

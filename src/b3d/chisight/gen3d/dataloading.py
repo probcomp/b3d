@@ -176,6 +176,10 @@ def get_initial_state(
             jnp.array(pred[i]["rotation"][0]),
         )
         initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
+        # if o_id == 3:
+        #     initial_state[f"object_vel_{o_id}"] = jnp.array([0.063420634, 2.0810217e-06, 3.2106633e-05])
+        # else:
+        #     initial_state[f"object_vel_{o_id}"] = jnp.zeros(3)
         initial_state[f"object_vel_{o_id}"] = jnp.zeros(3)
         # initial_state[f"object_ang_vel_{o_id}"] = jnp.zeros(3)
         hyperparams["meshes"].append(
@@ -190,4 +194,5 @@ def get_initial_state(
         )
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
+    # hyperparams["object_ids"] = [o_id for o_id in object_ids]
     return initial_state, hyperparams

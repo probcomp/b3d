@@ -7,7 +7,7 @@ from genjax import Pytree
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
-from b3d.modeling_utils import uniform_pose, uniform_scale
+from b3d.modeling_utils import uniform_pose, uniform_3d_vec
 
 
 def get_hypers(trace):
@@ -56,7 +56,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
-        # vel_kernel = hyperparams["vel_kernel"]
+        vel_kernel = hyperparams["vel_kernel"]
         # ang_vel_kernel = hyperparams["ang_vel_kernel"]
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
@@ -67,30 +67,79 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         all_vels = {}
         # all_ang_vels = {}
         scaled_meshes = []
-        for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
-            # object_vel = (
-            #     vel_kernel(previous_state[f"object_vel_{o_id}"])
-            #     @ f"object_vel_{o_id}"
-            # )
+
+        def init_pose_and_vel(o_id):
+            object_vel = (
+                    vel_kernel(jnp.zeros(3))
+                    @ f"object_vel_{o_id}"
+                )
+            object_pose = (
+                uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
+                @ f"object_pose_{o_id}"
+            )
+            return object_vel, object_pose
+        
+        def update_pose_and_vel(o_id):
+            object_vel = (
+                vel_kernel(previous_state[f"object_vel_{o_id}"])
+                @ f"object_vel_{o_id}"
+            )
             # object_ang_vel = (
             #     ang_vel_kernel(previous_state[f"object_ang_vel_{o_id}"])
             #     @ f"object_ang_vel_{o_id}"
             # )
+            object_ang_vel = jnp.zeros(3)
             object_pose = (
                 pose_kernel(previous_state[f"object_pose_{o_id}"], 
-                            previous_state[f"object_vel_{o_id}"],
+                            object_vel,
+                            object_ang_vel
                             )
                 @ f"object_pose_{o_id}"
             )
-            object_vel = object_pose.pos-previous_state[f"object_pose_{o_id}"].pos
-            # jax.debug.print("object_vel: {v}", v=object_vel)
+            return object_vel, object_pose
+        
+        for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
+        # for o_id, mesh_composite in zip(object_ids, meshes):
+            object_vel, object_pose = jax.lax.cond(jnp.less_equal(previous_state['t'], 0), 
+                                                   init_pose_and_vel, 
+                                                   update_pose_and_vel,
+                                                   o_id)
+            # if previous_state['t'] <= 0:
+            #     object_vel = (
+            #         uniform_3d_vec(jnp.ones(3) * 0.0, jnp.ones(3) * 10.0)
+            #         @ f"object_vel_{o_id}"
+            #     )
+            #     object_pose = (
+            #         uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
+            #         @ f"object_pose_{o_id}"
+            #     )
+            # else:
+            # object_vel = (
+            #     vel_kernel(previous_state[f"object_vel_{o_id}"])
+            #     @ f"object_vel_{o_id}"
+            # )
+            # # object_ang_vel = (
+            # #     ang_vel_kernel(previous_state[f"object_ang_vel_{o_id}"])
+            # #     @ f"object_ang_vel_{o_id}"
+            # # )
+            # object_pose = (
+            #     pose_kernel(previous_state[f"object_pose_{o_id}"], 
+            #                 object_vel,
+            #                 jnp.zeros(3)
+            #                 )
+            #     @ f"object_pose_{o_id}"
+            # )
+            # object_vel = (
+            #     vel_kernel(object_pose.pos-previous_state[f"object_pose_{o_id}"].pos)
+            #     @ f"object_vel_{o_id}"
+            # )
 
             top = 0.0
             all_comp_poses = []
             all_comp_meshes = []
             for i, component in enumerate(mesh_composite):
                 object_scale = (
-                    uniform_scale(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
+                    uniform_3d_vec(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
                     @ f"object_scale_{o_id}_{i}"
                 )
                 all_scales[f"object_scale_{o_id}_{i}"] = object_scale
@@ -158,7 +207,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_scales | all_vels,
+            "new_state": all_poses | all_scales | all_vels | {'t': previous_state['t']+1},
         }
 
     @jax.jit

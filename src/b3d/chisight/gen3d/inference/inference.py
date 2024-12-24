@@ -49,23 +49,23 @@ def inference_step(
         # proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses = jax.vmap(
         #     propose_pose, in_axes=(0, None, None, None)
         # )(pose_generation_keys, trace, addr, pose_proposal_args)
-        proposed_poses, log_q_poses = jax.vmap(
-            propose_pose, in_axes=(0, None, None, None)
+        proposed_vels, proposed_poses, log_q = jax.vmap(
+            propose_vel_and_pose, in_axes=(0, None, None, None)
         )(pose_generation_keys, trace, addr, pose_proposal_args)
         # proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses = maybe_swap_in_previous_pose(
         #     proposed_poses, proposed_vels, proposed_ang_vels, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
         # )
-        proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
-            proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
+        proposed_poses, log_q = maybe_swap_in_previous_pose(
+            proposed_vels, proposed_poses, log_q, trace, addr, include_previous_pose, pose_proposal_args
         )
 
-        def update_and_get_scores(key, proposed_pose, trace, addr):
+        def update_and_get_scores(key, proposed_vels, proposed_pose, trace, addr):
             key, subkey = split(key)
-            updated_trace = update_field(
+            updated_trace = update_fields(
                 subkey,
                 trace,
-                addr,
-                proposed_pose
+                [addr.replace('pose', 'vel'), addr],
+                [proposed_vels, proposed_pose]
             )
             return updated_trace, updated_trace.get_score()
 
@@ -74,20 +74,21 @@ def inference_step(
         #     lambda x: update_and_get_scores(x[0], x[1], trace, addr),
         #     (param_generation_keys, proposed_poses),
         # )
-        _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, None, None))(
-            param_generation_keys, proposed_poses, trace, addr
+        _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, 0, None, None))(
+            param_generation_keys, proposed_vels, proposed_poses, trace, addr
         )
 
         # Scoring + resampling
         weights = jnp.where(
             inference_hyperparams.include_q_scores_at_top_level,
-            p_scores - log_q_poses,
+            p_scores - log_q,
             p_scores,
         )
 
         chosen_index = jax.random.categorical(k3, weights)
         resampled_trace, _ = update_and_get_scores(
             param_generation_keys[chosen_index],
+            proposed_vels[chosen_index],
             proposed_poses[chosen_index],
             trace,
             addr,
@@ -103,7 +104,6 @@ def inference_step(
     for addr in addresses:
         for pose_proposal_args in inference_hyperparams.pose_proposal_args:
             key, subkey = split(key)
-            # with jax.checking_leaks():
             trace, weight, _, _, _ = c2f_step(
                 subkey,
                 trace,
@@ -115,7 +115,7 @@ def inference_step(
 
 
 def maybe_swap_in_previous_pose(
-    proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
+    proposed_vels, proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
 ):
     previous_pose, log_q = assess_previous_pose(trace, addr, pose_proposal_args)
     proposed_poses = jax.tree.map(
@@ -123,11 +123,11 @@ def maybe_swap_in_previous_pose(
         proposed_poses,
         previous_pose,
     )
-    # proposed_vels = jax.tree.map(
-    #     lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
-    #     proposed_vels,
-    #     jnp.zeros(3),
-    # )
+    proposed_vels = jax.tree.map(
+        lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
+        proposed_vels,
+        jnp.zeros(3),
+    )
     # proposed_ang_vels = jax.tree.map(
     #     lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
     #     proposed_ang_vels,
@@ -166,8 +166,8 @@ def advance_time(key, trace, observed_rgbd):
     Returns a trace where previous_state (stored in the arguments)
     and new_state (sampled in the choices and returned) are identical.
     """
-    # jax.debug.print("advance time prev state: {v} \n", v=trace.get_args()[1])
-    # jax.debug.print("advance time new state: {v} \n", v=get_new_state(trace))
+    jax.debug.print("advance time prev state: {v} \n", v=trace.get_args()[1])
+    jax.debug.print("advance time new state: {v} \n", v=get_new_state(trace))
     trace, _, _, _ = trace.update(
         key,
         U.g(
@@ -178,8 +178,8 @@ def advance_time(key, trace, observed_rgbd):
             C.kw(rgbd=observed_rgbd),
         ),
     )
-    # jax.debug.print("advance time prev state: {v} \n", v=trace.get_args()[1])
-    # jax.debug.print("advance time new state: {v} \n", v=get_new_state(trace))
+    jax.debug.print("advance time prev state: {v} \n", v=trace.get_args()[1])
+    jax.debug.print("advance time new state: {v} \n", v=get_new_state(trace))
     return trace
 
 
@@ -204,7 +204,8 @@ def get_initial_trace(
             "outlier_probability": hyperparams["outlier_probability"],
             "rgbd": initial_observed_rgbd,
         }
-        | dict([(k, v) for k, v in initial_state.items() if not k.startswith("object_vel")])
+        # | dict([(k, v) for k, v in initial_state.items() if not k.startswith("object_vel")])
+        | initial_state
     )
     b3d.reload(b3d.chisight.dense.dense_model)
     dynamic_object_generative_model, _ = (
@@ -212,8 +213,16 @@ def get_initial_trace(
             renderer, likelihood_func
         )
     )
+
+    ground_state = {}
+    for k in initial_state.keys():
+        if k.startswith("object_pose"):
+            ground_state[k] = Pose.identity()
+        elif k.startswith("object_vel"):
+            ground_state[k] = jnp.zeros(3)
+    
     trace, weight = dynamic_object_generative_model.importance(
-        key, choicemap, (hyperparams, initial_state)
+        key, choicemap, (hyperparams, ground_state | {'t': -1})
     )
     if get_weight:
         return trace, weight
@@ -224,7 +233,7 @@ def get_initial_trace(
 ### Inference moves ###
 
 
-def propose_pose(key, advanced_trace, addr, args):
+def propose_vel_and_pose(key, advanced_trace, addr, args):
     """
     Propose a random pose near the previous timestep's pose.
     Returns (proposed_pose, log_proposal_density).
@@ -259,11 +268,21 @@ def propose_pose(key, advanced_trace, addr, args):
     #     return angular_velocity
 
     std, conc = args
+
+    previous_vel = get_new_state(advanced_trace)[addr.replace('pose', 'vel')]
+    vel = Pose.sample_gaussian_vel(
+            key, previous_vel, std
+        )
+    log_v = Pose.logpdf_gaussian_vel(
+            vel, previous_vel, std
+        )
+    
     previous_pose = get_new_state(advanced_trace)[addr]
-    pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
-    log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
+    predicted_pose = Pose.next_pose_from_previous(previous_pose, vel, jnp.zeros(3))
+    pose = Pose.sample_gaussian_vmf_pose(key, predicted_pose, std, conc)
+    log_p = Pose.logpdf_gaussian_vmf_pose(pose, predicted_pose, std, conc)
 
     # vel = pose.pos - previous_pose.pos
     # ang_vel = compute_angular_velocity(previous_pose.quat, pose.quat)
-    return pose, log_q
+    return vel, pose, log_p+log_v
     # return pose, vel, ang_vel, log_q

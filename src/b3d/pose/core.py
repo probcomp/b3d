@@ -78,13 +78,13 @@ def sample_uniform_pose(key, low, high):
 
 
 @jax.jit
-def sample_uniform_scale(key, low, high):
+def sample_uniform_3d_vec(key, low, high):
     key, subkey = jax.random.split(key)
     scale = jax.random.uniform(subkey, (3,)) * (high - low) + low
     return scale
 
 
-def logpdf_uniform_scale(scale, low, high):
+def logpdf_uniform_3d_vec(scale, low, high):
     valid = (low <= scale) & (scale <= high)
     scale_score = jnp.log((valid * 1.0) * (jnp.ones_like(scale) / (high - low)))
     return scale_score.sum() + jnp.pi**2
@@ -177,6 +177,13 @@ def camera_from_position_and_target(
 
     rotation_matrix = jnp.hstack([x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1)])
     return Pose(position, Rot.from_matrix(rotation_matrix).as_quat())
+
+
+def next_pose_from_previous(prev_pose, vel, ang_vel):
+    pos = prev_pose.pos + vel
+    quat = prev_pose.quat + 0.5 * jnp.array([0, ang_vel[0], ang_vel[1], ang_vel[2]]) * prev_pose.quat
+    next_pose = Pose(pos, quat).normalize()
+    return next_pose
 
 
 @register_pytree_node_class
@@ -452,3 +459,5 @@ class Pose:
     logpdf_gaussian_vel = logpdf_gaussian_vel
 
     uniform_pose_centered = uniform_pose_centered
+
+    next_pose_from_previous = next_pose_from_previous

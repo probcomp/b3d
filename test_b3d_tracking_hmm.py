@@ -4,6 +4,8 @@ import json
 import os
 from os import listdir
 from os.path import isfile, join
+import rerun as rr
+import trimesh
 
 import b3d
 import b3d.chisight.dense.dense_model
@@ -11,15 +13,14 @@ import b3d.chisight.dense.likelihoods.laplace_likelihood
 import b3d.chisight.gen3d.inference.inference as inference
 import b3d.chisight.gen3d.settings as settings
 import jax
-import numpy as np
-import rerun as rr
-import trimesh
+import jax.numpy as jnp
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
     load_trial,
     resize_rgbds_and_get_masks,
 )
 from genjax import Pytree
+from b3d.chisight.dense.dense_model import get_new_state
 
 
 def mkdir(path):
@@ -27,10 +28,9 @@ def mkdir(path):
         os.makedirs(path)
 
 
-def blackout_image(depth_map, area):
-    # zero_depth_map = np.ones(depth_map.shape)
-    zero_depth_map = np.zeros(depth_map.shape)
-    zero_depth_map[area] = depth_map[area]
+def foreground_background(depth_map, area, val):
+    zero_depth_map = jnp.full(depth_map.shape, val)
+    zero_depth_map = zero_depth_map.at[area].set(depth_map[area])
     return zero_depth_map
 
 
@@ -47,8 +47,8 @@ def main(
 
     near_plane = 0.1
     far_plane = 100
-    im_width = 350
-    im_height = 350
+    im_width = 200
+    im_height = 200
     width = 1024
     height = 1024
 
@@ -77,8 +77,8 @@ def main(
     ]
 
     scaling_factor = im_height / height
-    vfov = 54.43222 / 180.0 * np.pi
-    tan_half_vfov = np.tan(vfov / 2.0)
+    vfov = 54.43222 / 180.0 * jnp.pi
+    tan_half_vfov = jnp.tan(vfov / 2.0)
     tan_half_hfov = tan_half_vfov * width / float(height)
     fx = width / 2.0 / tan_half_hfov  # focal length in pixel space
     fy = height / 2.0 / tan_half_vfov
@@ -116,14 +116,14 @@ def main(
 
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if trial_name != "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_0017":
+        if trial_name != "pilot-containment-multi-bowl_0018":
             continue
 
         print("\t", trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
 
         pred_file = pred_file_all[trial_name]
-        rgbds, seg_arr, object_ids, object_segmentation_colors, camera_pose, _, _ = (
+        rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _ = (
             load_trial(hdf5_file_path)
         )
         print("finished loading files")
@@ -142,9 +142,10 @@ def main(
             hyperparams,
         )
         print("finished initializing state")
-        rgbds, all_areas = resize_rgbds_and_get_masks(
-            rgbds, seg_arr, im_height, im_width
+        rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
+            rgbds, seg_arr, background_areas, im_height, im_width
         )
+        hyperparams["background"] = jnp.asarray([foreground_background(rgbds[t], background_areas[t], jnp.inf) for t in range(rgbds.shape[0])])
 
         key = jax.random.PRNGKey(156)
         trace = inference.get_initial_trace(
@@ -153,7 +154,7 @@ def main(
             likelihood_func,
             hyperparams,
             initial_state,
-            blackout_image(rgbds[START_T], all_areas[START_T]),
+            foreground_background(rgbds[START_T], all_areas[START_T], 0.0),
         )
         viz_trace(trace, t=0)
         print("finished initializing trace")
@@ -163,7 +164,7 @@ def main(
             trace, _ = inference.inference_step(
                 key,
                 trace,
-                blackout_image(rgbds[T], all_areas[T]),
+                foreground_background(rgbds[T], all_areas[T], 0.0),
                 inference_hyperparams,
                 [
                     Pytree.const(addr)
@@ -171,12 +172,13 @@ def main(
                     if addr.startswith("object_pose")
                 ],
             )
-            viz_trace(trace, t=T + 1)
+            viz_trace(trace, t=T+1)
+            print(get_new_state(trace), '\n')
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="roll", type=str)
+    parser.add_argument("--scenario", default="contain", type=str)
     args = parser.parse_args()
     scenario = args.scenario
 

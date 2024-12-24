@@ -51,6 +51,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         hyperparams,
         previous_state,
     ):
+        background = hyperparams["background"][previous_state["t"]]
         meshes = hyperparams["meshes"]
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
@@ -123,14 +124,21 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                 scene_mesh.faces,
             )
 
-            likelihood_args["latent_rgbd"] = jnp.flip(latent_rgbd, 1)
+            # add distractor and occluders
+            latent_rgbd = jnp.flip(latent_rgbd, 1)
+            bg_rgb = background[..., :3]
+            bg_d = background[..., 3:]
+            latent_rgb = jnp.where(bg_rgb == jnp.array([jnp.inf, jnp.inf, jnp.inf]), latent_rgbd[..., 0:3], bg_rgb)
+            latent_d = jnp.minimum(jnp.where(latent_rgbd[..., 3:] == 0.0, 10, latent_rgbd[..., 3:]), bg_d)
+            
+            likelihood_args["latent_rgbd"] = jnp.concatenate([latent_rgb, latent_d], axis=-1)
             likelihood_args["rasterize_results"] = rasterize_results
 
         image = image_likelihood(likelihood_args) @ "rgbd"
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_scales,
+            "new_state": all_poses | all_scales | {"t": previous_state["t"] + 1},
         }
 
     @jax.jit
@@ -140,7 +148,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             trace.get_retval()["likelihood_args"],
         )
 
-    def viz_trace(trace, t=0, cloud=False):
+    def viz_trace(trace, t=0, cloud=True):
         info = info_from_trace(trace)
         b3d.utils.rr_set_time(t)
         likelihood_args = trace.get_retval()["likelihood_args"]

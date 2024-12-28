@@ -4,8 +4,6 @@ import json
 import os
 from os import listdir
 from os.path import isfile, join
-import rerun as rr
-import trimesh
 
 import b3d
 import b3d.chisight.dense.dense_model
@@ -14,13 +12,15 @@ import b3d.chisight.gen3d.inference.inference as inference
 import b3d.chisight.gen3d.settings as settings
 import jax
 import jax.numpy as jnp
+import rerun as rr
+import trimesh
+from b3d.chisight.dense.dense_model import get_new_state
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
     load_trial,
     resize_rgbds_and_get_masks,
 )
 from genjax import Pytree
-from b3d.chisight.dense.dense_model import get_new_state
 
 
 def mkdir(path):
@@ -116,16 +116,23 @@ def main(
 
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if trial_name != "pilot-containment-multi-bowl_0018":
+        if trial_name != "pilot_it2_collision_simple_box_0015":
             continue
 
         print("\t", trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
 
         pred_file = pred_file_all[trial_name]
-        rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _ = (
-            load_trial(hdf5_file_path)
-        )
+        (
+            rgbds,
+            seg_arr,
+            object_ids,
+            object_segmentation_colors,
+            background_areas,
+            camera_pose,
+            _,
+            _,
+        ) = load_trial(hdf5_file_path)
         print("finished loading files")
         inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
         hyperparams = settings.hyperparams
@@ -145,7 +152,12 @@ def main(
         rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
             rgbds, seg_arr, background_areas, im_height, im_width
         )
-        hyperparams["background"] = jnp.asarray([foreground_background(rgbds[t], background_areas[t], jnp.inf) for t in range(rgbds.shape[0])])
+        hyperparams["background"] = jnp.asarray(
+            [
+                foreground_background(rgbds[t], background_areas[t], jnp.inf)
+                for t in range(rgbds.shape[0])
+            ]
+        )
 
         key = jax.random.PRNGKey(156)
         trace = inference.get_initial_trace(
@@ -158,6 +170,11 @@ def main(
         )
         viz_trace(trace, t=0)
         print("finished initializing trace")
+        rasterize_results = trace.get_retval()["likelihood_args"]["rasterize_results"]
+        print("rasterize_results: ", rasterize_results.shape)
+        print("rasterize_results: ", rasterize_results[200, 200])
+        print("rasterize_results: ", rasterize_results)
+
         for T in range(FINAL_T):
             print(f"time {T}")
             key = b3d.split_key(key)
@@ -172,13 +189,13 @@ def main(
                     if addr.startswith("object_pose")
                 ],
             )
-            viz_trace(trace, t=T+1)
-            print(get_new_state(trace), '\n')
+            viz_trace(trace, t=T + 1)
+            print(get_new_state(trace), "\n")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="contain", type=str)
+    parser.add_argument("--scenario", default="collide", type=str)
     args = parser.parse_args()
     scenario = args.scenario
 

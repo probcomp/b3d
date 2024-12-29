@@ -20,6 +20,16 @@ from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from .utils import logmeanexp, update_field
 
 
+def update_mesh(trace):
+    """
+    Update the mesh of the object, given the current state.
+    """
+    scene_mesh = trace.get_retval()["likelihood_args"]["scene_mesh"]
+    rasterize_results = trace.get_retval()["likelihood_args"]["rasterize_results"]
+    triangle_ids = rasterize_results[:, :, -1]
+    return trace
+
+
 @partial(jax.jit, static_argnames=("do_advance_time"))
 def inference_step(
     key,

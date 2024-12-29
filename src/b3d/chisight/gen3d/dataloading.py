@@ -163,7 +163,7 @@ def get_initial_state(
     pred = pred_file["scene"][0]["objects"]
 
     initial_state = {}
-    hyperparams["meshes"] = []
+    initial_state["meshes"] = []
     for i, (o_id, color) in enumerate(zip(object_ids, object_segmentation_colors)):
         area = get_mask_area(seg, [color])
         object_colors = rgbd[..., 0:3][area]
@@ -175,7 +175,7 @@ def get_initial_state(
             jnp.array(pred[i]["rotation"][0]),
         )
         initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
-        hyperparams["meshes"].append(
+        initial_state["meshes"].append(
             [
                 b3d.Mesh(
                     meshes[pred[i]["type"][0]].vertices,

@@ -52,10 +52,11 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         previous_state,
     ):
         background = hyperparams["background"][previous_state["t"]]
-        meshes = hyperparams["meshes"]
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
+
+        meshes = previous_state["meshes"]
 
         blur = genjax.uniform(0.0001, 100000.0) @ "blur"
         likelihood_args["blur"] = blur
@@ -138,7 +139,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_scales | {"t": previous_state["t"] + 1},
+            "new_state": all_poses | all_scales | {"t": previous_state["t"] + 1, "meshes": previous_state["meshes"]},
         }
 
     @jax.jit

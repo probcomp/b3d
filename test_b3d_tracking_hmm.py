@@ -169,11 +169,13 @@ def main(
             foreground_background(rgbds[START_T], all_areas[START_T], 0.0),
         )
         viz_trace(trace, t=0)
-        print("finished initializing trace")
-        rasterize_results = trace.get_retval()["likelihood_args"]["rasterize_results"]
-        print("rasterize_results: ", rasterize_results.shape)
-        print("rasterize_results: ", rasterize_results[200, 200])
-        print("rasterize_results: ", rasterize_results)
+        # print("finished initializing trace")
+        # rasterize_results = trace.get_retval()["likelihood_args"]["rasterize_results"]
+        # print("rasterize_results: ", rasterize_results.shape)
+        # import sys
+        # import numpy as np
+        # np.set_printoptions(threshold=sys.maxsize)
+        # print("rasterize_results: ", rasterize_results[:, :, -1])
 
         for T in range(FINAL_T):
             print(f"time {T}")
@@ -189,6 +191,7 @@ def main(
                     if addr.startswith("object_pose")
                 ],
             )
+            trace, _ = inference.update_mesh(trace)
             viz_trace(trace, t=T + 1)
             print(get_new_state(trace), "\n")
 

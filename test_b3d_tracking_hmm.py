@@ -24,11 +24,6 @@ from genjax import Pytree
 from b3d.chisight.dense.dense_model import get_new_state
 
 
-def mkdir(path):
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-
 def foreground_background(depth_map, area, val):
     zero_depth_map = jnp.full(depth_map.shape, val)
     zero_depth_map = zero_depth_map.at[area].set(depth_map[area])
@@ -42,6 +37,7 @@ def main(
     pred_file_path,
     save_path,
     masked=True,
+    debug=True,
 ):
     rr.init("demo")
     rr.connect("127.0.0.1:8813")
@@ -49,8 +45,8 @@ def main(
 
     near_plane = 0.1
     far_plane = 100
-    im_width = 200
-    im_height = 200
+    im_width = 350
+    im_height = 350
     width = 1024
     height = 1024
 
@@ -119,7 +115,7 @@ def main(
     viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        # if trial_name != "pilot-containment-multi-bowl_0018":
+        # if trial_name != "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_0017":
         #     continue
 
         print(trial_index + 1, "\t", trial_name)
@@ -165,8 +161,6 @@ def main(
         posterior_across_frames = {"pose": []}
         for T in range(FINAL_T):
             print(f"time {T}")
-            # posterior_across_frames["pose"].append({})
-
             key = b3d.split_key(key)
             trace, posterior_across_frames = inference.inference_step(
                 key,
@@ -181,19 +175,17 @@ def main(
             )
             viz_trace(trace, t=viz_index+T+1)
             print(get_new_state(trace), '\n')
-        viz_index += 1
+        viz_index += FINAL_T+1
 
-        results = write_json(pred_file,
+        write_json(pred_file,
                    hyperparams,
                    posterior_across_frames,
+                   save_path,
+                   scenario,
+                   trial_name,
+                   debug=debug,
         )
-        mkdir(f"{save_path}/{scenario}/")
-        with open(
-            f"{save_path}/{scenario}/{trial_name}.json",
-            "w",
-        ) as f:
-            json.dump(results, f)
-
+        
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)

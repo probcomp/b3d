@@ -115,7 +115,7 @@ def load_trial(hdf5_file_path):
     return (
         rgbds,
         seg_arr,
-        object_ids,
+        sorted(object_ids),
         object_segmentation_colors,
         background_areas,
         camera_pose,

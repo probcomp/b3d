@@ -97,7 +97,7 @@ def inference_step(
 
     this_frame_posterior = {}
     for addr in addresses:
-        for pose_proposal_args in inference_hyperparams.pose_proposal_args:
+        for i, pose_proposal_args in enumerate(inference_hyperparams.pose_proposal_args):
             key, subkey = split(key)
             trace, _, _, proposed_poses, weights = c2f_step(
                 subkey,
@@ -105,11 +105,12 @@ def inference_step(
                 pose_proposal_args,
                 addr,
             )
-        top_k_indices = jnp.argsort(weights)[-k:][::-1]
-        top_scores = [weights[idx] for idx in top_k_indices]
-        posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
-        this_frame_posterior[int(addr.unwrap().split('_')[-1])] = ([(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)], trace.get_choices()[addr.unwrap()],
-        )
+            if i == 0:
+                top_k_indices = jnp.argsort(weights)[-k:][::-1]
+                top_scores = [weights[idx] for idx in top_k_indices]
+                posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
+                this_frame_posterior[int(addr.unwrap().split('_')[-1])] = [[(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)]]
+        this_frame_posterior[int(addr.unwrap().split('_')[-1])].append(trace.get_choices()[addr.unwrap()])
     posterior_across_frames["pose"].append(this_frame_posterior)
 
     return (trace, posterior_across_frames)
@@ -200,7 +201,7 @@ def get_initial_trace(
         )
     )
     trace, weight = dynamic_object_generative_model.importance(
-        key, choicemap, (hyperparams, initial_state | {'t': -1})
+        key, choicemap, (hyperparams, dict([(k, v) for k, v in initial_state.items() if not k.startswith('object_scale')]) | {'t': -1})
     )
     if get_weight:
         return trace, weight

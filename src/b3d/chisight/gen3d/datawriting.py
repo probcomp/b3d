@@ -2,6 +2,8 @@ from scipy.spatial.transform import Rotation
 from copy import deepcopy
 import trimesh
 import numpy as np
+import os
+import json
 
 import b3d
 
@@ -9,6 +11,12 @@ import b3d
 NUM_SAMPLE_FROM_POSTERIOR = 20
 SMOOTHING_WINDOW_SIZE = 3
 FPS = 100
+STATIC_POSITION_THRESHHOLD = 0.007
+STATIC_ROTATION_THRESHHOLD = 0.001
+
+def mkdir(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
 
 def find_missing_values(nums):
@@ -17,7 +25,7 @@ def find_missing_values(nums):
     return missing_values
 
 
-def compute_velocity(
+def compute_linear_velocity(
     mesh,
     scale,
     object_pose_last_frame,
@@ -32,47 +40,45 @@ def compute_velocity(
         center_of_mass = mesh_transform_tri.center_mass
         return center_of_mass
 
-    def compute_angular_velocity(q1, q2, delta_t):
-        """
-        Compute angular velocity in radians per second from two quaternions.
-
-        Parameters:
-            q1 (array-like): Quaternion at the earlier time [w, x, y, z].
-            q2 (array-like): Quaternion at the later time [w, x, y, z].
-            delta_t (float): Time difference between the two quaternions.
-
-        Returns:
-            angular_velocity (numpy array): Angular velocity vector (radians per second).
-        """
-        # Convert quaternions to scipy Rotation objects
-        rot1 = Rotation.from_quat(q1)
-        rot2 = Rotation.from_quat(q2)
-
-        # Compute the relative rotation
-        relative_rotation = rot2 * rot1.inv()
-
-        # Convert the relative rotation to angle-axis representation
-        angle = relative_rotation.magnitude()  # Rotation angle in radians
-        axis = (
-            relative_rotation.as_rotvec() / angle if angle != 0 else np.zeros(3)
-        )  # Rotation axis
-
-        # Compute angular velocity
-        angular_velocity = (axis * angle) / delta_t
-        return angular_velocity
-
     mesh = b3d.Mesh(
         vertices=scale_mesh(mesh.vertices, scale),
         faces=mesh.faces,
         vertex_attributes=None,
     )
-
     pos_now = compute_center_of_mass(mesh, object_pose_last_frame)
     pos_last = compute_center_of_mass(mesh, object_pose_window_frame)
     linear_vel = (pos_now - pos_last) / dt
-    angular_velocity = compute_angular_velocity(object_pose_window_frame._quaternion, object_pose_last_frame._quaternion, dt)
+    return {"x": linear_vel[0], "y": linear_vel[1], "z": linear_vel[2]}
 
-    return {"x": linear_vel[0], "y": linear_vel[1], "z": linear_vel[2]}, {
+
+def compute_angular_velocity(q1, q2, dt):
+    """
+    Compute angular velocity in radians per second from two quaternions.
+
+    Parameters:
+        q1 (array-like): Quaternion at the earlier time [w, x, y, z].
+        q2 (array-like): Quaternion at the later time [w, x, y, z].
+        dt (float): Time difference between the two quaternions.
+
+    Returns:
+        angular_velocity (numpy array): Angular velocity vector (radians per second).
+    """
+    # Convert quaternions to scipy Rotation objects
+    rot1 = Rotation.from_quat(q1)
+    rot2 = Rotation.from_quat(q2)
+
+    # Compute the relative rotation
+    relative_rotation = rot2 * rot1.inv()
+
+    # Convert the relative rotation to angle-axis representation
+    angle = relative_rotation.magnitude()  # Rotation angle in radians
+    axis = (
+        relative_rotation.as_rotvec() / angle if angle != 0 else np.zeros(3)
+    )  # Rotation axis
+
+    # Compute angular velocity
+    angular_velocity = (axis * angle) / dt
+    return {
         "x": angular_velocity[0].astype(float).item(),
         "y": angular_velocity[1].astype(float).item(),
         "z": angular_velocity[2].astype(float).item(),
@@ -129,7 +135,7 @@ def scale_mesh(vertices, scale_factor):
 #                 * composite_scales[composite_id][i]["y"]
 #             )
 
-def sample_from_posterior(num_sample, log_probs_categories, option="rank"):
+def sample_from_posterior(log_probs_categories, option="rank"):
         log_probs = [item[0] for item in log_probs_categories]
         categories = [item[1] for item in log_probs_categories]
         num_categories = len(log_probs)
@@ -160,17 +166,17 @@ def sample_from_posterior(num_sample, log_probs_categories, option="rank"):
 
         samples = []
         np.random.seed(42)
-        for _ in range(num_sample):
+        for _ in range(NUM_SAMPLE_FROM_POSTERIOR):
             sample = draw_single_sample()
             samples.append(sample)
         return samples
 
-def get_posterior_poses_for_frame(frame, num_sample, posterior_across_frames):
+def get_posterior_poses_for_frame(frame, posterior_across_frames):
     pose_samples_from_posterior = {}
     for o_id, poses in posterior_across_frames["pose"][frame].items():
         best_pose = poses[1]
         pose_samples_from_posterior[o_id] = [
-            [pose for pose in sample_from_posterior(num_sample, poses[0])],
+            [pose for pose in sample_from_posterior(poses[0])],
             best_pose,
         ]
         # if o_id == base_id:
@@ -183,7 +189,7 @@ def get_posterior_poses_for_frame(frame, num_sample, posterior_across_frames):
     return pose_samples_from_posterior
 
 
-def write_json(pred_file, hyperparams, posterior_across_frames):
+def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scenario, trial_name, debug=False):
     pred = pred_file["scene"][0]["objects"]
 
     # prepare the json file to write
@@ -207,12 +213,10 @@ def write_json(pred_file, hyperparams, posterior_across_frames):
 
     pose_samples_from_posterior_last_frame = get_posterior_poses_for_frame(
         -1,
-        NUM_SAMPLE_FROM_POSTERIOR,
         posterior_across_frames,
     )
     pose_samples_from_posterior_window_frame = get_posterior_poses_for_frame(
         -(SMOOTHING_WINDOW_SIZE + 1),
-        NUM_SAMPLE_FROM_POSTERIOR,
         posterior_across_frames,
     )
     assert len(pose_samples_from_posterior_last_frame) == len(
@@ -255,39 +259,35 @@ def write_json(pred_file, hyperparams, posterior_across_frames):
         ]
     )
 
-    velocity_dict = dict(
-        [
-            (
-                int(o_id),
-                [
-                    compute_velocity(
-                        hyperparams["meshes"][int(o_id)][0],
-                        json_file["scale"][o_id][i],
-                        pose_samples_from_posterior_last_frame[o_id][0][i],
-                        pose_samples_from_posterior_window_frame[o_id][
-                            -1
-                        ],  # using optim pose for window frame
-                        SMOOTHING_WINDOW_SIZE / FPS,
-                    )
-                    for i in range(NUM_SAMPLE_FROM_POSTERIOR)
-                ],
-            )
-            for o_id in pose_samples_from_posterior_last_frame.keys()
-        ]
-    )
-    linear_velocity_dict = dict(
-        [
-            (o_id, [value[i][0] for i in range(NUM_SAMPLE_FROM_POSTERIOR)])
-            for o_id, value in velocity_dict.items()
-        ]
-    )
-    angular_velocity_dict = dict(
-        [
-            (o_id, [value[i][1] for i in range(NUM_SAMPLE_FROM_POSTERIOR)])
-            for o_id, value in velocity_dict.items()
-        ]
-    )
+    linear_velocity_dict = {}
+    for o_id in pose_samples_from_posterior_last_frame.keys():
+        if np.allclose(pose_samples_from_posterior_last_frame[o_id][-1]._position, pose_samples_from_posterior_window_frame[o_id][-1]._position, atol=STATIC_POSITION_THRESHHOLD*SMOOTHING_WINDOW_SIZE):
+            linear_velocity_dict[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+        else:
+            linear_velocity_dict[int(o_id)] = [
+                compute_linear_velocity(
+                    hyperparams["meshes"][int(o_id)][0],
+                    json_file["scale"][o_id][i],
+                    pose_samples_from_posterior_last_frame[o_id][0][i],
+                    pose_samples_from_posterior_window_frame[o_id][-1],  # using optim pose for window frame
+                    SMOOTHING_WINDOW_SIZE / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)]
+            
 
+    angular_velocity_dict = {}
+    for o_id in pose_samples_from_posterior_last_frame.keys():
+        if np.allclose(pose_samples_from_posterior_last_frame[o_id][-1]._quaternion, pose_samples_from_posterior_window_frame[o_id][-1]._quaternion, atol=STATIC_ROTATION_THRESHHOLD*SMOOTHING_WINDOW_SIZE):
+            angular_velocity_dict[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+        else:
+            angular_velocity_dict[int(o_id)] = [
+                compute_angular_velocity(
+                    pose_samples_from_posterior_window_frame[o_id][-1]._quaternion,  # using optim pose for window frame
+                    pose_samples_from_posterior_last_frame[o_id][0][i]._quaternion,
+                    SMOOTHING_WINDOW_SIZE / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
     json_file["position"] = position_dict
     json_file["rotation"] = rotation_dict
     json_file["velocity"] = linear_velocity_dict
@@ -298,4 +298,23 @@ def write_json(pred_file, hyperparams, posterior_across_frames):
         for o_id in missing:
             json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
 
-    return json_file
+    mkdir(f"{save_path}/{scenario}/")
+    with open(f"{save_path}/{scenario}/{trial_name}.json", "w") as f:
+        json.dump(json_file, f)
+
+    if debug:
+        for frame_index, frame_info in enumerate(posterior_across_frames["pose"]):
+            for o_id, o_id_info in frame_info.items():
+                posterior_across_frames["pose"][frame_index][o_id][1] = (
+                    o_id_info[1]._position.astype(float).tolist(),
+                    o_id_info[1]._quaternion.astype(float).tolist(),
+                )
+                for j, rank in enumerate(o_id_info[0]):
+                    posterior_across_frames["pose"][frame_index][o_id][0][j] = (
+                        rank[0].astype(float).item(),
+                        rank[1]._position.astype(float).tolist(),
+                        rank[1]._quaternion.astype(float).tolist(),
+                        )
+        mkdir(f"{save_path}/{scenario}_verbose/")
+        with open(f"{save_path}/{scenario}_verbose/{trial_name}.json", "w") as f:
+            json.dump(posterior_across_frames, f)

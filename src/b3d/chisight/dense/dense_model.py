@@ -61,7 +61,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         likelihood_args["blur"] = blur
 
         all_poses = {}
-        all_scales = {}
+        # all_scales = {}
         scaled_meshes = []
         for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
             object_pose = (
@@ -76,7 +76,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                     uniform_scale(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
                     @ f"object_scale_{o_id}_{i}"
                 )
-                all_scales[f"object_scale_{o_id}_{i}"] = object_scale
+                # all_scales[f"object_scale_{o_id}_{i}"] = object_scale
                 scaled_comp = component.scale(object_scale)
                 all_comp_meshes.append(scaled_comp)
                 pose = Pose.from_translation(jnp.array([0.0, top, 0.0]))
@@ -138,7 +138,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_scales | {"t": previous_state["t"] + 1},
+            "new_state": all_poses | {"t": previous_state["t"] + 1},
         }
 
     @jax.jit

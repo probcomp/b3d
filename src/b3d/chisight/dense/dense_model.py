@@ -52,7 +52,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         previous_state,
     ):
         background = hyperparams["background"][previous_state["t"]]
-        meshes = hyperparams["meshes"]
+        meshes = hyperparams["meshes"].values()
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]

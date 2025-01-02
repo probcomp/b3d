@@ -19,6 +19,7 @@ from b3d.chisight.gen3d.dataloading import (
     load_trial,
     resize_rgbds_and_get_masks,
 )
+from b3d.chisight.gen3d.datawriting import write_json
 from genjax import Pytree
 from b3d.chisight.dense.dense_model import get_new_state
 
@@ -39,6 +40,7 @@ def main(
     scenario,
     mesh_file_path,
     pred_file_path,
+    save_path,
     masked=True,
 ):
     rr.init("demo")
@@ -114,19 +116,20 @@ def main(
         "interp_penalty": Pytree.const(1000),
     }
 
+    viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if trial_name != "pilot-containment-multi-bowl_0018":
-            continue
+        # if trial_name != "pilot-containment-multi-bowl_0018":
+        #     continue
 
-        print("\t", trial_index + 1, "\t", trial_name)
+        print(trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
 
         pred_file = pred_file_all[trial_name]
-        rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _ = (
+        rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _, = (
             load_trial(hdf5_file_path)
         )
-        print("finished loading files")
+
         inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
         hyperparams = settings.hyperparams
         hyperparams["camera_pose"] = camera_pose
@@ -141,7 +144,7 @@ def main(
             rgbds[START_T],
             hyperparams,
         )
-        print("finished initializing state")
+
         rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
             rgbds, seg_arr, background_areas, im_height, im_width
         )
@@ -156,29 +159,44 @@ def main(
             initial_state,
             foreground_background(rgbds[START_T], all_areas[START_T], 0.0),
         )
-        viz_trace(trace, t=0)
+        viz_trace(trace, t=viz_index)
         print("finished initializing trace")
+
+        posterior_across_frames = {"pose": []}
         for T in range(FINAL_T):
             print(f"time {T}")
+            # posterior_across_frames["pose"].append({})
+
             key = b3d.split_key(key)
-            trace, _ = inference.inference_step(
+            trace, posterior_across_frames = inference.inference_step(
                 key,
                 trace,
                 foreground_background(rgbds[T], all_areas[T], 0.0),
                 inference_hyperparams,
                 [
-                    Pytree.const(addr)
-                    for addr in initial_state
-                    if addr.startswith("object_pose")
+                    Pytree.const(f"object_pose_{o_id}")
+                    for o_id in object_ids
                 ],
+                posterior_across_frames
             )
-            viz_trace(trace, t=T+1)
+            viz_trace(trace, t=viz_index+T+1)
             print(get_new_state(trace), '\n')
+        viz_index += 1
 
+        results = write_json(pred_file,
+                   hyperparams,
+                   posterior_across_frames,
+        )
+        mkdir(f"{save_path}/{scenario}/")
+        with open(
+            f"{save_path}/{scenario}/{trial_name}.json",
+            "w",
+        ) as f:
+            json.dump(results, f)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="contain", type=str)
+    parser.add_argument("--scenario", default="collide", type=str)
     args = parser.parse_args()
     scenario = args.scenario
 
@@ -192,6 +210,7 @@ if __name__ == "__main__":
         data_path,
         "all_flex_meshes/core",
     )
+    save_path = "/home/haoliangwang/data/b3d_tracking_results/test"
 
     pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt.json"
     main(
@@ -199,4 +218,5 @@ if __name__ == "__main__":
         scenario,
         mesh_file_path,
         pred_file_path,
+        save_path,
     )

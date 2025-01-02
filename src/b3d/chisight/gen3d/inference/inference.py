@@ -27,8 +27,11 @@ def inference_step(
     observed_rgbd,
     inference_hyperparams: InferenceHyperparams,
     addresses,
+    posterior_across_frames,
     do_advance_time=True,
     include_previous_pose=True,
+    sample=False,
+    k=50,
 ):
     if do_advance_time:
         key, subkey = split(key)
@@ -74,7 +77,10 @@ def inference_step(
             p_scores,
         )
 
-        chosen_index = jax.random.categorical(k3, weights)
+        if sample:
+            chosen_index = jax.random.categorical(k3, weights)
+        else:
+            chosen_index = weights.argmax()
         resampled_trace, _ = update_and_get_scores(
             param_generation_keys[chosen_index],
             proposed_poses[chosen_index],
@@ -89,18 +95,24 @@ def inference_step(
             weights,
         )
 
+    this_frame_posterior = {}
     for addr in addresses:
         for pose_proposal_args in inference_hyperparams.pose_proposal_args:
             key, subkey = split(key)
-            # with jax.checking_leaks():
-            trace, weight, _, _, _ = c2f_step(
+            trace, _, _, proposed_poses, weights = c2f_step(
                 subkey,
                 trace,
                 pose_proposal_args,
                 addr,
             )
+        top_k_indices = jnp.argsort(weights)[-k:][::-1]
+        top_scores = [weights[idx] for idx in top_k_indices]
+        posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
+        this_frame_posterior[int(addr.unwrap().split('_')[-1])] = ([(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)], trace.get_choices()[addr.unwrap()],
+        )
+    posterior_across_frames["pose"].append(this_frame_posterior)
 
-    return (trace, weight)
+    return (trace, posterior_across_frames)
 
 
 def maybe_swap_in_previous_pose(

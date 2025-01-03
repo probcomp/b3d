@@ -318,3 +318,4 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
         mkdir(f"{save_path}/{scenario}_verbose/")
         with open(f"{save_path}/{scenario}_verbose/{trial_name}.json", "w") as f:
             json.dump(posterior_across_frames, f)
+    return

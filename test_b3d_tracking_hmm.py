@@ -95,9 +95,13 @@ def main(
     b3d.reload(b3d.chisight.dense.likelihoods.laplace_likelihood)
     likelihood_func = b3d.chisight.dense.likelihoods.laplace_likelihood.likelihood_func
 
-    _, viz_trace = b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
-        renderer, likelihood_func
+    b3d.reload(b3d.chisight.dense.dense_model)
+    dynamic_object_generative_model, viz_trace = (
+        b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
+            renderer, likelihood_func
+        )
     )
+    importance_jit = jax.jit(dynamic_object_generative_model.importance)
 
     likelihood_args = {
         "fx": renderer.fx,
@@ -112,11 +116,13 @@ def main(
         "interp_penalty": Pytree.const(1000),
     }
 
+    inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
+
     viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        # if trial_name != "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_0017":
-        #     continue
+        if trial_name in ["pilot_it2_collision_yeet_tdw_1_dis_1_occ_0025", "pilot_it2_collision_non-sphere_tdw_1_dis_1_occ_0025", "pilot_it2_collision_non-sphere_box_0003", "pilot_it2_collision_simple_box_1_dis_1_occ_0014", "pilot_it2_collision_simple_box_1_dis_1_occ_0034", "pilot_it2_collision_tiny_ball_box_0023", "pilot_it2_collision_yeet_tdw_1_dis_1_occ_0038"]:
+            continue
 
         print(trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
@@ -126,7 +132,6 @@ def main(
             load_trial(hdf5_file_path)
         )
 
-        inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
         hyperparams = settings.hyperparams
         hyperparams["camera_pose"] = camera_pose
         hyperparams["likelihood_args"] = likelihood_args
@@ -149,8 +154,7 @@ def main(
         key = jax.random.PRNGKey(156)
         trace = inference.get_initial_trace(
             key,
-            renderer,
-            likelihood_func,
+            importance_jit,
             hyperparams,
             initial_state,
             foreground_background(rgbds[START_T], all_areas[START_T], 0.0),

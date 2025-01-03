@@ -173,8 +173,7 @@ def advance_time(key, trace, observed_rgbd):
 
 def get_initial_trace(
     key,
-    renderer,
-    likelihood_func,
+    importance_jit,
     hyperparams,
     initial_state,
     initial_observed_rgbd,
@@ -194,13 +193,8 @@ def get_initial_trace(
         }
         | initial_state
     )
-    b3d.reload(b3d.chisight.dense.dense_model)
-    dynamic_object_generative_model, _ = (
-        b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
-            renderer, likelihood_func
-        )
-    )
-    trace, weight = dynamic_object_generative_model.importance(
+    
+    trace, weight = importance_jit(
         key, choicemap, (hyperparams, dict([(k, v) for k, v in initial_state.items() if not k.startswith('object_scale')]) | {'t': -1})
     )
     if get_weight:

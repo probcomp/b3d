@@ -133,6 +133,41 @@ def logpdf_gaussian_vmf_pose(pose, mean_pose, std, concentration):
     return translation_score + quaternion_score
 
 
+@jax.jit
+def sample_gaussian_vmf_approx_pose(key, mean_pose, std, concentration):
+    """
+    Samples poses from the product of a diagonal normal distribution (for position) and
+    a generalized von Mises-Fisher distribution (for quaternion).
+
+    Note:
+    One can view the von Mises–Fisher distribution over the n-sphere
+    as the restriction of the normal distribution on R^{n+1}
+    to the n-sphere. From this viewpoint the concentration is
+    approximateley the inverse of the variance.
+
+    See:
+    > https://en.wikipedia.org/wiki/Von_Mises%E2%80%93Fisher_distribution#Relation_to_normal_distribution
+    """
+    from b3d.utils import keysplit
+
+    _, keys = keysplit(key, 1, 2)
+    var = std**2
+    x = jax.random.multivariate_normal(keys[0], mean_pose.pos, var * jnp.eye(3))
+    q = jax.random.multivariate_normal(keys[1], mean_pose.quat, jnp.eye(4)/concentration)
+
+    return Pose(x, q).normalize()
+
+
+def logpdf_gaussian_vmf_approx_pose(pose, mean_pose, std, concentration):
+    translation_score = tfp.distributions.MultivariateNormalDiag(
+        mean_pose.pos, jnp.ones(3) * std
+    ).log_prob(pose.pos)
+    quaternion_score = tfp.distributions.MultivariateNormalDiag(
+        mean_pose.quat / jnp.linalg.norm(mean_pose.quat), jnp.ones(4) * jnp.sqrt(1/concentration)
+    ).log_prob(pose.quat)
+    return translation_score + quaternion_score
+
+
 def camera_from_position_and_target(
     position, target=jnp.array([0.0, 0.0, 0.0]), up=jnp.array([0.0, 0.0, 1.0])
 ):
@@ -426,6 +461,18 @@ class Pose:
     logpdf_gaussian_vmf_pose = logpdf_gaussian_vmf_pose
     logpdf_gaussian_vmf_pose_vmap = jax.jit(
         jax.vmap(logpdf_gaussian_vmf_pose, in_axes=(0, None, None, None))
+    )
+
+    sample_gaussian_vmf_approx_pose = sample_gaussian_vmf_approx_pose
+
+    sample_gaussian_vmf_approx_pose_jit = jax.jit(sample_gaussian_vmf_approx_pose)
+    sample_gaussian_vmf_approx_pose_vmap = jax.vmap(
+        sample_gaussian_vmf_approx_pose, in_axes=(0, None, None, None)
+    )
+
+    logpdf_gaussian_vmf_approx_pose = logpdf_gaussian_vmf_approx_pose
+    logpdf_gaussian_vmf_approx_pose_vmap = jax.jit(
+        jax.vmap(logpdf_gaussian_vmf_approx_pose, in_axes=(0, None, None, None))
     )
 
     uniform_pose_centered = uniform_pose_centered

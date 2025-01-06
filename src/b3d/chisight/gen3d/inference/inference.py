@@ -213,6 +213,6 @@ def propose_pose(key, advanced_trace, addr, args):
     """
     std, conc = args
     previous_pose = get_new_state(advanced_trace)[addr]
-    pose = Pose.sample_gaussian_vmf_pose(key, previous_pose, std, conc)
-    log_q = Pose.logpdf_gaussian_vmf_pose(pose, previous_pose, std, conc)
+    pose = Pose.sample_gaussian_vmf_approx_pose(key, previous_pose, std, conc)
+    log_q = Pose.logpdf_gaussian_vmf_approx_pose(pose, previous_pose, std, conc)
     return pose, log_q

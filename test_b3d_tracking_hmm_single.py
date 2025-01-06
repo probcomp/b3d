@@ -3,6 +3,7 @@ import json
 import os
 from os.path import join
 import trimesh
+import rerun as rr
 
 import b3d
 import b3d.chisight.dense.dense_model
@@ -31,9 +32,14 @@ def main(
     mesh_file_path,
     pred_file_path,
     save_path,
+    recording_id,
+    viz_index,
     masked=True,
     debug=True,
 ):
+    rr.init("demo", recording_id=recording_id)
+    rr.connect("127.0.0.1:8813")
+
     START_T = 0
     if scenario == "collide":
         FINAL_T = 15
@@ -80,7 +86,7 @@ def main(
     likelihood_func = b3d.chisight.dense.likelihoods.laplace_likelihood.likelihood_func
 
     b3d.reload(b3d.chisight.dense.dense_model)
-    dynamic_object_generative_model, _ = (
+    dynamic_object_generative_model, viz_trace = (
         b3d.chisight.dense.dense_model.make_dense_multiobject_dynamics_model(
             renderer, likelihood_func
         )
@@ -134,6 +140,7 @@ def main(
         initial_state,
         foreground_background(rgbds[START_T], all_areas[START_T], 0.0),
     )
+    viz_trace(trace, t=viz_index)
     # print("finished initializing trace")
 
     posterior_across_frames = {"pose": []}
@@ -151,6 +158,7 @@ def main(
             ],
             posterior_across_frames
         )
+        viz_trace(trace, t=viz_index+T+1)
         # print(get_new_state(trace), '\n')
 
     write_json(pred_file,
@@ -166,9 +174,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)
     parser.add_argument("--trial_name", default="", type=str)
+    parser.add_argument("--recording_id", default="", type=str)
+    parser.add_argument("--viz_index", default="", type=int)
     args = parser.parse_args()
     scenario = args.scenario
     trial_name = args.trial_name
+    recording_id = args.recording_id
+    viz_index = args.viz_index
 
     mesh_file_path = "/home/haoliangwang/data/all_flex_meshes/core"
     save_path = "/home/haoliangwang/data/b3d_tracking_results/test"
@@ -180,4 +192,6 @@ if __name__ == "__main__":
         mesh_file_path,
         pred_file_path,
         save_path,
+        recording_id,
+        viz_index,
     )

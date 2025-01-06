@@ -121,8 +121,6 @@ def main(
     viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if trial_name in ["pilot_it2_collision_yeet_tdw_1_dis_1_occ_0025", "pilot_it2_collision_non-sphere_tdw_1_dis_1_occ_0025", "pilot_it2_collision_non-sphere_box_0003", "pilot_it2_collision_simple_box_1_dis_1_occ_0014", "pilot_it2_collision_simple_box_1_dis_1_occ_0034", "pilot_it2_collision_tiny_ball_box_0023", "pilot_it2_collision_yeet_tdw_1_dis_1_occ_0038"]:
-            continue
 
         print(trial_index + 1, "\t", trial_name)
         hdf5_file_path = join(scenario_path, hdf5_file)
@@ -178,7 +176,7 @@ def main(
                 posterior_across_frames
             )
             viz_trace(trace, t=viz_index+T+1)
-            print(get_new_state(trace), '\n')
+            # print(get_new_state(trace), '\n')
         viz_index += FINAL_T+1
 
         write_json(pred_file,

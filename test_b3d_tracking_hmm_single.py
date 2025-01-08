@@ -4,6 +4,7 @@ import os
 from os.path import join
 import trimesh
 import rerun as rr
+import time
 
 import b3d
 import b3d.chisight.dense.dense_model
@@ -37,6 +38,7 @@ def main(
     masked=True,
     debug=True,
 ):
+    start_time = time.time()
     rr.init("demo", recording_id=recording_id)
     rr.connect("127.0.0.1:8813")
 
@@ -109,9 +111,14 @@ def main(
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
 
     hdf5_file_path = join("/home/haoliangwang/data/physion_hdf5", scenario + "_all_movies", f"{trial_name}.hdf5")
+    initalization_time = time.time()
+    print(f"Initialization time: {initalization_time - start_time}")
+
     rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _, = (
         load_trial(hdf5_file_path)
     )
+    loading_time = time.time()
+    print(f"Loading time: {loading_time - initalization_time}")
 
     hyperparams = settings.hyperparams
     hyperparams["camera_pose"] = camera_pose
@@ -126,6 +133,8 @@ def main(
         rgbds[START_T],
         hyperparams,
     )
+    first_state_time = time.time()
+    print(f"First state time: {first_state_time - loading_time}")
 
     rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
         rgbds, seg_arr, background_areas, im_height, im_width
@@ -141,10 +150,12 @@ def main(
         foreground_background(rgbds[START_T], all_areas[START_T], 0.0),
     )
     viz_trace(trace, t=viz_index)
-    # print("finished initializing trace")
+    first_trace_time = time.time()
+    print(f"First trace time: {first_trace_time - first_state_time}")
 
     posterior_across_frames = {"pose": []}
     for T in range(FINAL_T):
+        this_iteration_start_time = time.time()
         print(f"\t\t time {T}")
         key = b3d.split_key(key)
         trace, posterior_across_frames = inference.inference_step(
@@ -159,6 +170,8 @@ def main(
             posterior_across_frames
         )
         viz_trace(trace, t=viz_index+T+1)
+        this_iteration_end_time = time.time()
+        print(f"\t\t\t Iteration time: {this_iteration_end_time - this_iteration_start_time}")
         # print(get_new_state(trace), '\n')
 
     write_json(pred_file,

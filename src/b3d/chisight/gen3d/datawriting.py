@@ -260,9 +260,11 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
     )
 
     linear_velocity_dict = {}
+    linear_velocity_dict_optim = {}
     for o_id in pose_samples_from_posterior_last_frame.keys():
         if np.allclose(pose_samples_from_posterior_last_frame[o_id][-1]._position, pose_samples_from_posterior_window_frame[o_id][-1]._position, atol=STATIC_POSITION_THRESHHOLD*SMOOTHING_WINDOW_SIZE):
             linear_velocity_dict[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+            linear_velocity_dict_optim[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
         else:
             linear_velocity_dict[int(o_id)] = [
                 compute_linear_velocity(
@@ -273,17 +275,36 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
                     SMOOTHING_WINDOW_SIZE / FPS,
                 )
                 for i in range(NUM_SAMPLE_FROM_POSTERIOR)]
+            linear_velocity_dict_optim[int(o_id)] = [
+                compute_linear_velocity(
+                    hyperparams["meshes"][int(o_id)][0],
+                    json_file["scale"][o_id][i],
+                    pose_samples_from_posterior_last_frame[o_id][-1],
+                    pose_samples_from_posterior_window_frame[o_id][-1],  # using optim pose for window frame
+                    SMOOTHING_WINDOW_SIZE / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)]
             
 
     angular_velocity_dict = {}
+    angular_velocity_dict_optim = {}
     for o_id in pose_samples_from_posterior_last_frame.keys():
         if np.allclose(pose_samples_from_posterior_last_frame[o_id][-1]._quaternion, pose_samples_from_posterior_window_frame[o_id][-1]._quaternion, atol=STATIC_ROTATION_THRESHHOLD*SMOOTHING_WINDOW_SIZE):
             angular_velocity_dict[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+            angular_velocity_dict_optim[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
         else:
             angular_velocity_dict[int(o_id)] = [
                 compute_angular_velocity(
                     pose_samples_from_posterior_window_frame[o_id][-1]._quaternion,  # using optim pose for window frame
                     pose_samples_from_posterior_last_frame[o_id][0][i]._quaternion,
+                    SMOOTHING_WINDOW_SIZE / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            angular_velocity_dict_optim[int(o_id)] = [
+                compute_angular_velocity(
+                    pose_samples_from_posterior_window_frame[o_id][-1]._quaternion,  # using optim pose for window frame
+                    pose_samples_from_posterior_last_frame[o_id][-1]._quaternion,
                     SMOOTHING_WINDOW_SIZE / FPS,
                 )
                 for i in range(NUM_SAMPLE_FROM_POSTERIOR)
@@ -298,9 +319,17 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
         for o_id in missing:
             json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
 
+    json_file_optim = deepcopy(json_file)
+    json_file_optim['velocity'] = linear_velocity_dict_optim
+    json_file_optim['angular_velocity'] = angular_velocity_dict_optim
+
     mkdir(f"{save_path}/{scenario}/")
     with open(f"{save_path}/{scenario}/{trial_name}.json", "w") as f:
         json.dump(json_file, f)
+
+    mkdir(f"{save_path}/{scenario}_optim/")
+    with open(f"{save_path}/{scenario}_optim/{trial_name}.json", "w") as f:
+        json.dump(json_file_optim, f)
 
     if debug:
         for frame_index, frame_info in enumerate(posterior_across_frames["pose"]):

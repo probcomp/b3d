@@ -1,4 +1,5 @@
-from functools import partial
+import time
+import itertools
 
 import jax
 import jax.numpy as jnp
@@ -8,7 +9,6 @@ from genjax import Diff
 from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
-import b3d
 from b3d import Pose
 from b3d.chisight.dense.dense_model import (
     get_hypers,
@@ -20,31 +20,27 @@ from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 from .utils import logmeanexp, update_field
 
 
-@partial(jax.jit, static_argnames=("do_advance_time"))
+@jax.jit
 def inference_step(
     key,
     trace,
     observed_rgbd,
     inference_hyperparams: InferenceHyperparams,
     addresses,
-    posterior_across_frames,
-    do_advance_time=True,
     include_previous_pose=True,
-    sample=False,
     k=50,
 ):
-    if do_advance_time:
-        key, subkey = split(key)
-        trace = advance_time(subkey, trace, observed_rgbd)
+    key, subkey = split(key)
+    trace = advance_time(subkey, trace, observed_rgbd)
 
     @jax.jit
     def c2f_step(
         key,
         trace,
         pose_proposal_args,
-        address,
+        addr,
     ):
-        addr = address.unwrap()
+        addr = addr.unwrap()
         k1, k2, k3 = split(key, 3)
 
         # Propose the poses
@@ -77,10 +73,8 @@ def inference_step(
             p_scores,
         )
 
-        if sample:
-            chosen_index = jax.random.categorical(k3, weights)
-        else:
-            chosen_index = weights.argmax()
+        # chosen_index = jax.random.categorical(k3, weights)
+        chosen_index = weights.argmax()
         resampled_trace, _ = update_and_get_scores(
             param_generation_keys[chosen_index],
             proposed_poses[chosen_index],
@@ -90,30 +84,32 @@ def inference_step(
         return (
             resampled_trace,
             logmeanexp(weights),
-            param_generation_keys,
+            proposed_poses[chosen_index],
             proposed_poses,
             weights,
         )
 
     this_frame_posterior = {}
-    for addr in addresses:
-        for i, pose_proposal_args in enumerate(inference_hyperparams.pose_proposal_args):
-            key, subkey = split(key)
-            trace, _, _, proposed_poses, weights = c2f_step(
-                subkey,
-                trace,
-                pose_proposal_args,
-                addr,
-            )
-            if i == 0:
-                top_k_indices = jnp.argsort(weights)[-k:][::-1]
-                top_scores = [weights[idx] for idx in top_k_indices]
-                posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
-                this_frame_posterior[int(addr.unwrap().split('_')[-1])] = [[(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)]]
-        this_frame_posterior[int(addr.unwrap().split('_')[-1])].append(trace.get_choices()[addr.unwrap()])
-    posterior_across_frames["pose"].append(this_frame_posterior)
-
-    return (trace, posterior_across_frames)
+    for i, (addr, pose_proposal_args) in enumerate(itertools.product(addresses, inference_hyperparams.pose_proposal_args)):
+        key, subkey = split(key)
+        this_iteration_start_time = time.time()
+        trace, _, best_pose, proposed_poses, weights = c2f_step(
+            subkey,
+            trace,
+            pose_proposal_args,
+            addr,
+        )
+        if i%len(addresses) == 0:
+            top_k_indices = jnp.argsort(weights)[-k:][::-1]
+            top_scores = [weights[idx] for idx in top_k_indices]
+            posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
+            this_frame_posterior[int(addr.unwrap().split('_')[-1])] = [[(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)]]
+        elif (i+1)%len(addresses) == 0:
+            this_frame_posterior[int(addr.unwrap().split('_')[-1])].append(best_pose)
+        this_iteration_end_time = time.time()
+        print(f"\t\t\t c_2_f step time: {this_iteration_end_time - this_iteration_start_time}")
+    
+    return (trace, this_frame_posterior)
 
 
 def maybe_swap_in_previous_pose(

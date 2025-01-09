@@ -70,7 +70,7 @@ def main(
     vfov = 54.43222 / 180.0 * jnp.pi
     tan_half_vfov = jnp.tan(vfov / 2.0)
     tan_half_hfov = tan_half_vfov * width / float(height)
-    fx = width / 2.0 / tan_half_hfov  # focal length in pixel space
+    fx = width / 2.0 / tan_half_hfov
     fy = height / 2.0 / tan_half_vfov
 
     renderer = b3d.renderer.renderer_original.RendererOriginal(
@@ -114,8 +114,8 @@ def main(
     initalization_time = time.time()
     print(f"\t\t Initialization time: {initalization_time - start_time}")
 
-    rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _, = (
-        load_trial(hdf5_file_path)
+    rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, = (
+        load_trial(hdf5_file_path, FINAL_T)
     )
     loading_time = time.time()
     print(f"\t\t Loading time: {loading_time - initalization_time}")
@@ -156,7 +156,6 @@ def main(
     posterior_across_frames = {"pose": []}
     for T in range(FINAL_T):
         this_iteration_start_time = time.time()
-        print(f"\t\t frame {T}")
         key = b3d.split_key(key)
         trace, this_frame_posterior = inference.inference_step(
             key,
@@ -171,7 +170,7 @@ def main(
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index+T+1)
         this_iteration_end_time = time.time()
-        print(f"\t\t Iteration time: {this_iteration_end_time - this_iteration_start_time}")
+        print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}")
         # print(get_new_state(trace), '\n')
 
     write_json(pred_file,

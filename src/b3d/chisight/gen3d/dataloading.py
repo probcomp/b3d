@@ -11,22 +11,24 @@ from PIL import Image
 import b3d
 
 
-def load_trial(hdf5_file_path):
+def load_trial(hdf5_file_path, FINAL_T):
     depth_arr = []
     image_arr = []
     seg_arr = []
-    (
-        base_id,
-        attachment_id,
-        use_attachment,
-        use_base,
-        use_cap,
-        cap_id,
-    ) = None, None, None, None, None, None
-    composite_mapping = {}
+    # (
+    #     base_id,
+    #     attachment_id,
+    #     use_attachment,
+    #     use_base,
+    #     use_cap,
+    #     cap_id,
+    # ) = None, None, None, None, None, None
+    # composite_mapping = {}
     with h5py.File(hdf5_file_path, "r") as f:
         # extract depth info
         for frame in f["frames"].keys():
+            if int(frame) >= FINAL_T:
+                break
             depth = jnp.array(f["frames"][frame]["images"]["_depth_cam0"])
             depth_arr.append(depth)
             image = jnp.array(
@@ -75,29 +77,29 @@ def load_trial(hdf5_file_path):
                 : -len(distractors_occluders)
             ]
 
-        if "use_base" in np.array(f["static"]):
-            use_base = np.array(f["static"]["use_base"])
-            if use_base:
-                base_id = np.array(f["static"]["base_id"])
-                assert base_id.size == 1
-                base_id = base_id.item()
-                composite_mapping[f"{base_id}_0"] = base_id
-        if "use_attachment" in np.array(f["static"]):
-            use_attachment = np.array(f["static"]["use_attachment"])
-            if use_attachment:
-                attachment_id = np.array(f["static"]["attachment_id"])
-                assert attachment_id.size == 1
-                attachment_id = attachment_id.item()
-                composite_mapping[f"{base_id}_1"] = attachment_id
-                if "use_cap" in np.array(f["static"]):
-                    use_cap = np.array(f["static"]["use_cap"])
-                    if use_cap:
-                        cap_id = attachment_id + 1
-                        composite_mapping[f"{base_id}_1"] = cap_id
+    #     if "use_base" in np.array(f["static"]):
+    #         use_base = np.array(f["static"]["use_base"])
+    #         if use_base:
+    #             base_id = np.array(f["static"]["base_id"])
+    #             assert base_id.size == 1
+    #             base_id = base_id.item()
+    #             composite_mapping[f"{base_id}_0"] = base_id
+    #     if "use_attachment" in np.array(f["static"]):
+    #         use_attachment = np.array(f["static"]["use_attachment"])
+    #         if use_attachment:
+    #             attachment_id = np.array(f["static"]["attachment_id"])
+    #             assert attachment_id.size == 1
+    #             attachment_id = attachment_id.item()
+    #             composite_mapping[f"{base_id}_1"] = attachment_id
+    #             if "use_cap" in np.array(f["static"]):
+    #                 use_cap = np.array(f["static"]["use_cap"])
+    #                 if use_cap:
+    #                     cap_id = attachment_id + 1
+    #                     composite_mapping[f"{base_id}_1"] = cap_id
 
-    reversed_composite_mapping = dict(
-        [(value, feature) for feature, value in composite_mapping.items()]
-    )
+    # reversed_composite_mapping = dict(
+    #     [(value, feature) for feature, value in composite_mapping.items()]
+    # )
     rgbds = jnp.concatenate(
         [image_arr, jnp.reshape(depth_arr, depth_arr.shape + (1,))], axis=-1
     )
@@ -119,8 +121,8 @@ def load_trial(hdf5_file_path):
         object_segmentation_colors,
         background_areas,
         camera_pose,
-        composite_mapping,
-        reversed_composite_mapping,
+        # composite_mapping,
+        # reversed_composite_mapping,
     )
 
 

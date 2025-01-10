@@ -48,9 +48,14 @@ def inference_step(
         proposed_poses, log_q_poses = jax.vmap(
             propose_pose, in_axes=(0, None, None, None)
         )(pose_generation_keys, trace, addr, pose_proposal_args)
+        # jax.debug.print("before proposed_poses: {v}", v=proposed_poses)
         proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
             proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
         )
+        # proposed_poses, log_q_poses = filter_floor_penetration(
+        #     proposed_poses, log_q_poses, trace, addr, pose_proposal_args
+        # )
+        # jax.debug.print("after proposed_poses: {v}", v=proposed_poses)
 
         def update_and_get_scores(key, proposed_pose, trace, addr):
             key, subkey = split(key)
@@ -99,12 +104,12 @@ def inference_step(
             pose_proposal_args,
             addr,
         )
-        if i%len(addresses) == 0:
+        if i%len(inference_hyperparams.pose_proposal_args) == 0:
             top_k_indices = jnp.argsort(weights)[-k:][::-1]
             top_scores = [weights[idx] for idx in top_k_indices]
             posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
             this_frame_posterior[int(addr.unwrap().split('_')[-1])] = [[(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)]]
-        elif (i+1)%len(addresses) == 0:
+        elif (i+1)%len(inference_hyperparams.pose_proposal_args) == 0:
             this_frame_posterior[int(addr.unwrap().split('_')[-1])].append(best_pose)
         this_iteration_end_time = time.time()
         print(f"\t\t\t c_2_f step time: {this_iteration_end_time - this_iteration_start_time}")
@@ -115,7 +120,8 @@ def inference_step(
 def maybe_swap_in_previous_pose(
     proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
 ):
-    previous_pose, log_q = assess_previous_pose(trace, addr, pose_proposal_args)
+    previous_pose = get_prev_state(trace)[addr]
+    log_q = assess_previous_pose(trace, addr, previous_pose, pose_proposal_args)
     proposed_poses = jax.tree.map(
         lambda x, y: x.at[0].set(jnp.where(include_previous_pose, y, x[0])),
         proposed_poses,
@@ -133,14 +139,41 @@ def maybe_swap_in_previous_pose(
     return proposed_poses, log_q_poses
 
 
-def assess_previous_pose(advanced_trace, addr, args):
+# def filter_floor_penetration(
+#     proposed_poses, log_q_poses, trace, addr, pose_proposal_args
+# ):
+#     previous_pose = get_prev_state(trace)[addr]
+#     log_q = assess_previous_pose(trace, addr, previous_pose, pose_proposal_args)
+
+#     def replace_if_not_above_zero(proposed_poses: Pose, prev_pose: Pose, log_q_poses, log_q) -> Pose:
+#         mask = proposed_poses._position[:, 1] > 0 
+#         broadcasted_pos = jnp.broadcast_to(prev_pose._position, proposed_poses._position.shape)
+#         broadcasted_quat = jnp.broadcast_to(prev_pose._quaternion, proposed_poses._quaternion.shape)
+#         new_position = jnp.where(mask[:, None], proposed_poses._position, broadcasted_pos)
+#         new_quaternion = jnp.where(mask[:, None], proposed_poses._quaternion, broadcasted_quat)
+
+#         broadcasted_log_q = jnp.broadcast_to(log_q, log_q_poses.shape)
+#         log_q_poses = jnp.where(mask[:, None], log_q_poses, broadcasted_log_q)
+#         return Pose(new_position, new_quaternion), log_q_poses
+
+#     proposed_poses, log_q_poses = replace_if_not_above_zero(
+#         proposed_poses,
+#         previous_pose,
+#         log_q_poses,
+#         log_q
+#     )
+
+#     return proposed_poses, log_q_poses
+
+
+def assess_previous_pose(advanced_trace, addr, previous_pose, args):
     """
     Returns the log proposal density of the given pose, conditional upon the previous pose.
     """
     std, conc = args
-    previous_pose = get_prev_state(advanced_trace)[addr]
-    log_q = Pose.logpdf_gaussian_vmf_pose(previous_pose, previous_pose, std, conc)
-    return previous_pose, log_q
+    new_pose = get_new_state(advanced_trace)[addr]
+    log_q = Pose.logpdf_gaussian_vmf_pose_approx(previous_pose, new_pose, std, conc)
+    return log_q
 
 
 
@@ -209,6 +242,6 @@ def propose_pose(key, advanced_trace, addr, args):
     """
     std, conc = args
     previous_pose = get_new_state(advanced_trace)[addr]
-    pose = Pose.sample_gaussian_vmf_approx_pose(key, previous_pose, std, conc)
-    log_q = Pose.logpdf_gaussian_vmf_approx_pose(pose, previous_pose, std, conc)
+    pose = Pose.sample_gaussian_vmf_pose_approx(key, previous_pose, std, conc)
+    log_q = Pose.logpdf_gaussian_vmf_pose_approx(pose, previous_pose, std, conc)
     return pose, log_q

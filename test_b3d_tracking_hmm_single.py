@@ -103,7 +103,7 @@ def main(
         "image_width": Pytree.const(renderer.width),
         "image_height": Pytree.const(renderer.height),
         "masked": Pytree.const(masked),
-        "check_interp": Pytree.const(False),
+        "check_interp": Pytree.const(True),
         "num_mc_sample": Pytree.const(500),
         "interp_penalty": Pytree.const(1000),
     }

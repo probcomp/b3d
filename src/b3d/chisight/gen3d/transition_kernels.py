@@ -29,11 +29,11 @@ class GaussianVMFPoseDriftKernel(DriftKernel):
     concentration: float = Pytree.static()
 
     def sample(self, key: PRNGKey, prev_pose):
-        return Pose.sample_gaussian_vmf_approx_pose(
+        return Pose.sample_gaussian_vmf_pose_approx(
             key, prev_pose, self.std, self.concentration
         )
 
     def logpdf(self, new_pose, prev_pose) -> ArrayLike:
-        return Pose.logpdf_gaussian_vmf_approx_pose(
+        return Pose.logpdf_gaussian_vmf_pose_approx(
             new_pose, prev_pose, self.std, self.concentration
         )

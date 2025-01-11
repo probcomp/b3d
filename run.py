@@ -1,7 +1,7 @@
 import os
+import uuid
 from os import listdir
 from os.path import isfile, join
-import uuid
 
 data_path = "/home/haoliangwang/data/"
 hdf5_file_path = os.path.join(
@@ -9,7 +9,7 @@ hdf5_file_path = os.path.join(
     "physion_hdf5",
 )
 
-for scenario in ['collide', 'drop', 'roll', 'dominoes', 'support', 'link', 'contain']:
+for scenario in ["collide", "link", "drop", "roll", "dominoes", "support", "contain"]:
     scenario_path = join(hdf5_file_path, scenario + "_all_movies")
     onlyhdf5 = [
         f
@@ -26,8 +26,8 @@ for scenario in ['collide', 'drop', 'roll', 'dominoes', 'support', 'link', 'cont
     viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
-        if scenario != 'roll' or trial_index < 20:
-            continue
         print(trial_index + 1, "\t", trial_name)
-        os.system(f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index}")
-        viz_index += FINAL_T+1
+        os.system(
+            f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index}"
+        )
+        viz_index += FINAL_T + 1

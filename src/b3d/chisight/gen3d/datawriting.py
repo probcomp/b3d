@@ -1,18 +1,19 @@
-from scipy.spatial.transform import Rotation
-from copy import deepcopy
-import trimesh
-import numpy as np
-import os
 import json
+import os
+from copy import deepcopy
+
+import numpy as np
+import trimesh
+from scipy.spatial.transform import Rotation
 
 import b3d
-
 
 NUM_SAMPLE_FROM_POSTERIOR = 20
 SMOOTHING_WINDOW_SIZE = 3
 FPS = 100
 STATIC_POSITION_THRESHHOLD = 0.007
 STATIC_ROTATION_THRESHHOLD = 0.001
+
 
 def mkdir(path):
     if not os.path.isdir(path):
@@ -87,9 +88,9 @@ def compute_angular_velocity(q1, q2, dt):
 
 def scale_mesh(vertices, scale_factor):
     vertices_copy = deepcopy(vertices)
-    vertices_copy[:, 0] *= scale_factor['x']
-    vertices_copy[:, 1] *= scale_factor['y']
-    vertices_copy[:, 2] *= scale_factor['z']
+    vertices_copy[:, 0] *= scale_factor["x"]
+    vertices_copy[:, 1] *= scale_factor["y"]
+    vertices_copy[:, 2] *= scale_factor["z"]
     return vertices_copy
 
 
@@ -135,41 +136,47 @@ def scale_mesh(vertices, scale_factor):
 #                 * composite_scales[composite_id][i]["y"]
 #             )
 
+
 def sample_from_posterior(log_probs_categories, option="rank"):
-        log_probs = [item[0] for item in log_probs_categories]
-        categories = [item[1] for item in log_probs_categories]
-        num_categories = len(log_probs)
+    log_probs = [item[0] for item in log_probs_categories]
+    categories = [item[1] for item in log_probs_categories]
+    num_categories = len(log_probs)
 
-        if option == "uniform":
-            def draw_single_sample():
-                index = np.random.choice(num_categories)
-                return categories[index]
-        elif option == "veridical":
-            def draw_single_sample():
-                # see this: https://stackoverflow.com/questions/58339083/how-to-sample-from-a-log-probability-distribution
-                gumbels = np.random.gumbel(size=num_categories)
-                index = np.argmax(log_probs + gumbels)
-                return categories[index]
-        elif option == "rank":
-            def draw_single_sample():
-                weights = np.array([1 / (n + 1) for n in range(num_categories)])
-                weights_norm = weights / weights.sum()
-                index = np.random.choice(num_categories, p=weights_norm)
-                return categories[index]
-        elif option == "mix":
-            def draw_single_sample():
-                t = 0.5
-                t * np.array(log_probs) + (1 - t) * (1 / num_categories)
-                return
-        else:
-            raise NotImplementedError
+    if option == "uniform":
 
-        samples = []
-        np.random.seed(42)
-        for _ in range(NUM_SAMPLE_FROM_POSTERIOR):
-            sample = draw_single_sample()
-            samples.append(sample)
-        return samples
+        def draw_single_sample():
+            index = np.random.choice(num_categories)
+            return categories[index]
+    elif option == "veridical":
+
+        def draw_single_sample():
+            # see this: https://stackoverflow.com/questions/58339083/how-to-sample-from-a-log-probability-distribution
+            gumbels = np.random.gumbel(size=num_categories)
+            index = np.argmax(log_probs + gumbels)
+            return categories[index]
+    elif option == "rank":
+
+        def draw_single_sample():
+            weights = np.array([1 / (n + 1) for n in range(num_categories)])
+            weights_norm = weights / weights.sum()
+            index = np.random.choice(num_categories, p=weights_norm)
+            return categories[index]
+    elif option == "mix":
+
+        def draw_single_sample():
+            t = 0.5
+            t * np.array(log_probs) + (1 - t) * (1 / num_categories)
+            return
+    else:
+        raise NotImplementedError
+
+    samples = []
+    np.random.seed(42)
+    for _ in range(NUM_SAMPLE_FROM_POSTERIOR):
+        sample = draw_single_sample()
+        samples.append(sample)
+    return samples
+
 
 def get_posterior_poses_for_frame(frame, posterior_across_frames):
     pose_samples_from_posterior = {}
@@ -189,7 +196,15 @@ def get_posterior_poses_for_frame(frame, posterior_across_frames):
     return pose_samples_from_posterior
 
 
-def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scenario, trial_name, debug=False):
+def write_json(
+    pred_file,
+    hyperparams,
+    posterior_across_frames,
+    save_path,
+    scenario,
+    trial_name,
+    debug=False,
+):
     pred = pred_file["scene"][0]["objects"]
 
     # prepare the json file to write
@@ -199,8 +214,7 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
 
     for i, o_id in enumerate(hyperparams["object_ids"].unwrap()):
         json_file["model"][int(o_id)] = [
-            pred[i]["type"][0]
-            for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
+            pred[i]["type"][0] for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
         ]
         json_file["scale"][int(o_id)] = [
             {
@@ -260,40 +274,63 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
     linear_velocity_dict = {}
     linear_velocity_dict_optim = {}
     for o_id in pose_samples_from_posterior_last_frame.keys():
-        if np.allclose(pose_samples_from_posterior_last_frame[o_id][-1]._position, pose_samples_from_posterior_window_frame[o_id][-1]._position, atol=STATIC_POSITION_THRESHHOLD*SMOOTHING_WINDOW_SIZE):
-            linear_velocity_dict[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
-            linear_velocity_dict_optim[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+        if np.allclose(
+            pose_samples_from_posterior_last_frame[o_id][-1]._position,
+            pose_samples_from_posterior_window_frame[o_id][-1]._position,
+            atol=STATIC_POSITION_THRESHHOLD * SMOOTHING_WINDOW_SIZE,
+        ):
+            linear_velocity_dict[int(o_id)] = [
+                {"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            linear_velocity_dict_optim[int(o_id)] = [
+                {"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
         else:
             linear_velocity_dict[int(o_id)] = [
                 compute_linear_velocity(
                     hyperparams["meshes"][int(o_id)][0],
                     json_file["scale"][o_id][i],
                     pose_samples_from_posterior_last_frame[o_id][0][i],
-                    pose_samples_from_posterior_window_frame[o_id][-1],  # using optim pose for window frame
+                    pose_samples_from_posterior_window_frame[o_id][
+                        -1
+                    ],  # using optim pose for window frame
                     SMOOTHING_WINDOW_SIZE / FPS,
                 )
-                for i in range(NUM_SAMPLE_FROM_POSTERIOR)]
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
             linear_velocity_dict_optim[int(o_id)] = [
                 compute_linear_velocity(
                     hyperparams["meshes"][int(o_id)][0],
                     json_file["scale"][o_id][i],
                     pose_samples_from_posterior_last_frame[o_id][-1],
-                    pose_samples_from_posterior_window_frame[o_id][-1],  # using optim pose for window frame
+                    pose_samples_from_posterior_window_frame[o_id][
+                        -1
+                    ],  # using optim pose for window frame
                     SMOOTHING_WINDOW_SIZE / FPS,
                 )
-                for i in range(NUM_SAMPLE_FROM_POSTERIOR)]
-            
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
 
     angular_velocity_dict = {}
     angular_velocity_dict_optim = {}
     for o_id in pose_samples_from_posterior_last_frame.keys():
-        if np.allclose(pose_samples_from_posterior_last_frame[o_id][-1]._quaternion, pose_samples_from_posterior_window_frame[o_id][-1]._quaternion, atol=STATIC_ROTATION_THRESHHOLD*SMOOTHING_WINDOW_SIZE):
-            angular_velocity_dict[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
-            angular_velocity_dict_optim[int(o_id)] = [{"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+        if np.allclose(
+            pose_samples_from_posterior_last_frame[o_id][-1]._quaternion,
+            pose_samples_from_posterior_window_frame[o_id][-1]._quaternion,
+            atol=STATIC_ROTATION_THRESHHOLD * SMOOTHING_WINDOW_SIZE,
+        ):
+            angular_velocity_dict[int(o_id)] = [
+                {"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            angular_velocity_dict_optim[int(o_id)] = [
+                {"x": 0, "y": 0, "z": 0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
         else:
             angular_velocity_dict[int(o_id)] = [
                 compute_angular_velocity(
-                    pose_samples_from_posterior_window_frame[o_id][-1]._quaternion,  # using optim pose for window frame
+                    pose_samples_from_posterior_window_frame[o_id][
+                        -1
+                    ]._quaternion,  # using optim pose for window frame
                     pose_samples_from_posterior_last_frame[o_id][0][i]._quaternion,
                     SMOOTHING_WINDOW_SIZE / FPS,
                 )
@@ -301,7 +338,9 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
             ]
             angular_velocity_dict_optim[int(o_id)] = [
                 compute_angular_velocity(
-                    pose_samples_from_posterior_window_frame[o_id][-1]._quaternion,  # using optim pose for window frame
+                    pose_samples_from_posterior_window_frame[o_id][
+                        -1
+                    ]._quaternion,  # using optim pose for window frame
                     pose_samples_from_posterior_last_frame[o_id][-1]._quaternion,
                     SMOOTHING_WINDOW_SIZE / FPS,
                 )
@@ -312,14 +351,16 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
     json_file["velocity"] = linear_velocity_dict
     json_file["angular_velocity"] = angular_velocity_dict
 
-    missing = find_missing_values(np.array([int(item) for item in hyperparams["object_ids"].unwrap()]))
+    missing = find_missing_values(
+        np.array([int(item) for item in hyperparams["object_ids"].unwrap()])
+    )
     for feature, val in json_file.items():
         for o_id in missing:
             json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
 
     json_file_optim = deepcopy(json_file)
-    json_file_optim['velocity'] = linear_velocity_dict_optim
-    json_file_optim['angular_velocity'] = angular_velocity_dict_optim
+    json_file_optim["velocity"] = linear_velocity_dict_optim
+    json_file_optim["angular_velocity"] = angular_velocity_dict_optim
 
     mkdir(f"{save_path}/{scenario}/")
     with open(f"{save_path}/{scenario}/{trial_name}.json", "w") as f:
@@ -341,7 +382,7 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
                         rank[0].astype(float).item(),
                         rank[1]._position.astype(float).tolist(),
                         rank[1]._quaternion.astype(float).tolist(),
-                        )
+                    )
         mkdir(f"{save_path}/{scenario}_verbose/")
         with open(f"{save_path}/{scenario}_verbose/{trial_name}.json", "w") as f:
             json.dump(posterior_across_frames, f)

@@ -1,10 +1,8 @@
 import argparse
 import json
 import os
-from os.path import join
-import trimesh
-import rerun as rr
 import time
+from os.path import join
 
 import b3d
 import b3d.chisight.dense.dense_model
@@ -13,6 +11,8 @@ import b3d.chisight.gen3d.inference.inference as inference
 import b3d.chisight.gen3d.settings as settings
 import jax
 import jax.numpy as jnp
+import rerun as rr
+import trimesh
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
     load_trial,
@@ -26,6 +26,7 @@ def foreground_background(depth_map, area, val):
     zero_depth_map = jnp.full(depth_map.shape, val)
     zero_depth_map = zero_depth_map.at[area].set(depth_map[area])
     return zero_depth_map
+
 
 def main(
     scenario,
@@ -47,7 +48,7 @@ def main(
         FINAL_T = 15
     else:
         FINAL_T = 45
-        
+
     near_plane = 0.1
     far_plane = 100
     im_width = 350
@@ -110,13 +111,22 @@ def main(
 
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
 
-    hdf5_file_path = join("/home/haoliangwang/data/physion_hdf5", scenario + "_all_movies", f"{trial_name}.hdf5")
+    hdf5_file_path = join(
+        "/home/haoliangwang/data/physion_hdf5",
+        scenario + "_all_movies",
+        f"{trial_name}.hdf5",
+    )
     initalization_time = time.time()
     print(f"\t\t Initialization time: {initalization_time - start_time}")
 
-    rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, = (
-        load_trial(hdf5_file_path, FINAL_T)
-    )
+    (
+        rgbds,
+        seg_arr,
+        object_ids,
+        object_segmentation_colors,
+        background_areas,
+        camera_pose,
+    ) = load_trial(hdf5_file_path, FINAL_T)
     loading_time = time.time()
     print(f"\t\t Loading time: {loading_time - initalization_time}")
 
@@ -139,7 +149,12 @@ def main(
     rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
         rgbds, seg_arr, background_areas, im_height, im_width
     )
-    hyperparams["background"] = jnp.asarray([foreground_background(rgbds[t], background_areas[t], jnp.inf) for t in range(rgbds.shape[0])])
+    hyperparams["background"] = jnp.asarray(
+        [
+            foreground_background(rgbds[t], background_areas[t], jnp.inf)
+            for t in range(rgbds.shape[0])
+        ]
+    )
 
     key = jax.random.PRNGKey(156)
     trace = inference.get_initial_trace(
@@ -162,26 +177,25 @@ def main(
             trace,
             foreground_background(rgbds[T], all_areas[T], 0.0),
             inference_hyperparams,
-            [
-                Pytree.const(f"object_pose_{o_id}")
-                for o_id in object_ids
-            ],
+            [Pytree.const(f"object_pose_{o_id}") for o_id in object_ids],
         )
         posterior_across_frames["pose"].append(this_frame_posterior)
-        viz_trace(trace, t=viz_index+T+1)
+        viz_trace(trace, t=viz_index + T + 1)
         this_iteration_end_time = time.time()
         print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}")
         # print(get_new_state(trace), '\n')
 
-    write_json(pred_file,
-               hyperparams,
-               posterior_across_frames,
-               save_path,
-               scenario,
-               trial_name,
-               debug=debug,
+    write_json(
+        pred_file,
+        hyperparams,
+        posterior_across_frames,
+        save_path,
+        scenario,
+        trial_name,
+        debug=debug,
     )
-        
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)

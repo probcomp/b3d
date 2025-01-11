@@ -152,13 +152,16 @@ def sample_gaussian_vmf_pose_trunc(key, mean_pose, std, concentration):
 
     _, keys = keysplit(key, 1, 3)
     var = std**2
-    xz = jax.random.multivariate_normal(keys[0], jnp.array([mean_pose.pos[0], mean_pose.pos[2]]), var * jnp.eye(2))
+    xz = jax.random.multivariate_normal(
+        keys[0], jnp.array([mean_pose.pos[0], mean_pose.pos[2]]), var * jnp.eye(2)
+    )
     y = genjax.truncated_normal.sample(keys[1], mean_pose.pos[1], std, 0, jnp.inf)
     q = tfp.distributions.VonMisesFisher(mean_pose.quat, concentration).sample(
         seed=keys[2]
     )
 
     return Pose(jnp.array([xz[0], y, xz[2]]), q)
+
 
 def logpdf_gaussian_vmf_pose_trunc(pose, mean_pose, std, concentration):
     translation_score_xz = tfp.distributions.MultivariateNormalDiag(
@@ -192,9 +195,13 @@ def sample_gaussian_vmf_pose_approx(key, mean_pose, std, concentration):
 
     _, keys = keysplit(key, 1, 3)
     var = std**2
-    xz = jax.random.multivariate_normal(keys[0], jnp.array([mean_pose.pos[0], mean_pose.pos[2]]), var * jnp.eye(2))
+    xz = jax.random.multivariate_normal(
+        keys[0], jnp.array([mean_pose.pos[0], mean_pose.pos[2]]), var * jnp.eye(2)
+    )
     y = genjax.truncated_normal.sample(keys[1], mean_pose.pos[1], std, 0, jnp.inf)
-    q = jax.random.multivariate_normal(keys[1], mean_pose.quat, jnp.eye(4)/concentration)
+    q = jax.random.multivariate_normal(
+        keys[1], mean_pose.quat, jnp.eye(4) / concentration
+    )
 
     return Pose(jnp.array([xz[0], y, xz[2]]), q).normalize()
 
@@ -207,7 +214,7 @@ def logpdf_gaussian_vmf_pose_approx(pose, mean_pose, std, concentration):
         pose.pos[1], mean_pose.pos[1], std, 0, jnp.inf
     )
     quaternion_score = tfp.distributions.MultivariateNormalDiag(
-        mean_pose.quat, jnp.ones(4) * jnp.sqrt(1/concentration)
+        mean_pose.quat, jnp.ones(4) * jnp.sqrt(1 / concentration)
     ).log_prob(pose.quat)
     return translation_score_xz + translation_score_y + quaternion_score
 

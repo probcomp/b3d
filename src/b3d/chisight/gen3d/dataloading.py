@@ -55,7 +55,9 @@ def load_trial(hdf5_file_path, FINAL_T):
         )
         assert len(object_ids) == len(object_segmentation_colors)
 
-        background_areas = np.zeros((image_arr.shape[0], image_arr.shape[1], image_arr.shape[2]))
+        background_areas = np.zeros(
+            (image_arr.shape[0], image_arr.shape[1], image_arr.shape[2])
+        )
 
         distractors = (
             np.array(f["static"]["distractors"])
@@ -69,9 +71,14 @@ def load_trial(hdf5_file_path, FINAL_T):
         )
         distractors_occluders = np.concatenate([distractors, occluders])
         if len(distractors_occluders):
-            background_areas = jnp.asarray([get_mask_area(seg, object_segmentation_colors[
-                -len(distractors_occluders):
-            ]) for seg in seg_arr])
+            background_areas = jnp.asarray(
+                [
+                    get_mask_area(
+                        seg, object_segmentation_colors[-len(distractors_occluders) :]
+                    )
+                    for seg in seg_arr
+                ]
+            )
             object_ids = object_ids[: -len(distractors_occluders)]
             object_segmentation_colors = object_segmentation_colors[
                 : -len(distractors_occluders)
@@ -178,13 +185,13 @@ def get_initial_state(
         )
         initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
         hyperparams["meshes"][int(o_id)] = [
-                b3d.Mesh(
-                    meshes[pred[i]["type"][0]].vertices,
-                    meshes[pred[i]["type"][0]].faces,
-                    jnp.ones(meshes[pred[i]["type"][0]].vertices.shape)
-                    * mean_object_colors,
-                )
-            ]
+            b3d.Mesh(
+                meshes[pred[i]["type"][0]].vertices,
+                meshes[pred[i]["type"][0]].faces,
+                jnp.ones(meshes[pred[i]["type"][0]].vertices.shape)
+                * mean_object_colors,
+            )
+        ]
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
     return initial_state, hyperparams

@@ -128,10 +128,18 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             latent_rgbd = jnp.flip(latent_rgbd, 1)
             bg_rgb = background[..., :3]
             bg_d = background[..., 3:]
-            latent_rgb = jnp.where(bg_rgb == jnp.array([jnp.inf, jnp.inf, jnp.inf]), latent_rgbd[..., 0:3], bg_rgb)
-            latent_d = jnp.minimum(jnp.where(latent_rgbd[..., 3:] == 0.0, 10, latent_rgbd[..., 3:]), bg_d)
-            
-            likelihood_args["latent_rgbd"] = jnp.concatenate([latent_rgb, latent_d], axis=-1)
+            latent_rgb = jnp.where(
+                bg_rgb == jnp.array([jnp.inf, jnp.inf, jnp.inf]),
+                latent_rgbd[..., 0:3],
+                bg_rgb,
+            )
+            latent_d = jnp.minimum(
+                jnp.where(latent_rgbd[..., 3:] == 0.0, 10, latent_rgbd[..., 3:]), bg_d
+            )
+
+            likelihood_args["latent_rgbd"] = jnp.concatenate(
+                [latent_rgb, latent_d], axis=-1
+            )
             likelihood_args["rasterize_results"] = rasterize_results
 
         image = image_likelihood(likelihood_args) @ "rgbd"

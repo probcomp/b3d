@@ -1,11 +1,8 @@
 import argparse
-import collections
 import json
 import os
 from os import listdir
 from os.path import isfile, join
-import rerun as rr
-import trimesh
 
 import b3d
 import b3d.chisight.dense.dense_model
@@ -14,6 +11,9 @@ import b3d.chisight.gen3d.inference.inference as inference
 import b3d.chisight.gen3d.settings as settings
 import jax
 import jax.numpy as jnp
+import rerun as rr
+import trimesh
+from b3d.chisight.dense.dense_model import get_new_state
 from b3d.chisight.gen3d.dataloading import (
     get_initial_state,
     load_trial,
@@ -21,7 +21,6 @@ from b3d.chisight.gen3d.dataloading import (
 )
 from b3d.chisight.gen3d.datawriting import write_json
 from genjax import Pytree
-from b3d.chisight.dense.dense_model import get_new_state
 
 
 def foreground_background(depth_map, area, val):
@@ -48,9 +47,16 @@ def main(
     viz_index,
     debug=True,
 ):
-    rgbds, seg_arr, object_ids, object_segmentation_colors, background_areas, camera_pose, _, _, = (
-        load_trial(hdf5_file_path)
-    )
+    (
+        rgbds,
+        seg_arr,
+        object_ids,
+        object_segmentation_colors,
+        background_areas,
+        camera_pose,
+        _,
+        _,
+    ) = load_trial(hdf5_file_path)
 
     hyperparams = settings.hyperparams
     hyperparams["camera_pose"] = camera_pose
@@ -69,7 +75,12 @@ def main(
     rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
         rgbds, seg_arr, background_areas, im_height, im_width
     )
-    hyperparams["background"] = jnp.asarray([foreground_background(rgbds[t], background_areas[t], jnp.inf) for t in range(rgbds.shape[0])])
+    hyperparams["background"] = jnp.asarray(
+        [
+            foreground_background(rgbds[t], background_areas[t], jnp.inf)
+            for t in range(rgbds.shape[0])
+        ]
+    )
 
     key = jax.random.PRNGKey(156)
     trace = inference.get_initial_trace(
@@ -91,26 +102,25 @@ def main(
             trace,
             foreground_background(rgbds[T], all_areas[T], 0.0),
             inference_hyperparams,
-            [
-                Pytree.const(f"object_pose_{o_id}")
-                for o_id in object_ids
-            ],
-            posterior_across_frames
+            [Pytree.const(f"object_pose_{o_id}") for o_id in object_ids],
+            posterior_across_frames,
         )
-        viz_trace(trace, t=viz_index+T+1)
-        print(get_new_state(trace), '\n')
+        viz_trace(trace, t=viz_index + T + 1)
+        print(get_new_state(trace), "\n")
 
-    write_json(pred_file,
-               hyperparams,
-               posterior_across_frames,
-               save_path,
-               scenario,
-               trial_name,
-               debug=debug,
+    write_json(
+        pred_file,
+        hyperparams,
+        posterior_across_frames,
+        save_path,
+        scenario,
+        trial_name,
+        debug=debug,
     )
-    
+
     return
-        
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", default="collide", type=str)
@@ -235,4 +245,4 @@ if __name__ == "__main__":
             viz_trace,
             viz_index,
         )
-        viz_index += FINAL_T+1
+        viz_index += FINAL_T + 1

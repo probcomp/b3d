@@ -1,8 +1,8 @@
 import functools
 
+import genjax
 import jax
 import jax.numpy as jnp
-import genjax
 
 from b3d.modeling_utils import get_interpenetration
 
@@ -100,7 +100,6 @@ def likelihood_func(observed_rgbd, likelihood_args):
         return log_probabilities
 
     scores = likelihood_per_pixel(observed_rgbd, latent_rgbd, likelihood_args["blur"])
-
 
     valid_window = latent_rgbd[..., 0:3].sum(axis=2) > 0.0  # latent_rgbd[..., 3] > 0.0
     if likelihood_args["masked"].unwrap():

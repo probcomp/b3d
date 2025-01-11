@@ -1,6 +1,6 @@
 import itertools
-from functools import partial
 import warnings
+from functools import partial
 
 import genjax
 import jax

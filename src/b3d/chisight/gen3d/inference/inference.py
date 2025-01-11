@@ -1,7 +1,7 @@
-import time
 import itertools
-# import jax.scipy.stats as ss
+import time
 
+# import jax.scipy.stats as ss
 import jax
 import jax.numpy as jnp
 import jax.random
@@ -51,9 +51,14 @@ def inference_step(
         )(pose_generation_keys, trace, addr, pose_proposal_args)
         # jax.debug.print("rank before: {v}", v=ss.rankdata(log_q_poses))
         # jax.debug.print("score before: {v}", v=log_q_poses)
-        
+
         proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
-            proposed_poses, log_q_poses, trace, addr, include_previous_pose, pose_proposal_args
+            proposed_poses,
+            log_q_poses,
+            trace,
+            addr,
+            include_previous_pose,
+            pose_proposal_args,
         )
         # jax.debug.print("rank after: {v}", v=ss.rankdata(log_q_poses))
         # jax.debug.print("score after: {v}", v=log_q_poses)
@@ -92,7 +97,9 @@ def inference_step(
         )
 
     this_frame_posterior = {}
-    for i, (addr, pose_proposal_args) in enumerate(itertools.product(addresses, inference_hyperparams.pose_proposal_args)):
+    for i, (addr, pose_proposal_args) in enumerate(
+        itertools.product(addresses, inference_hyperparams.pose_proposal_args)
+    ):
         key, subkey = split(key)
         this_iteration_start_time = time.time()
         trace, _, best_pose, proposed_poses, weights = c2f_step(
@@ -101,16 +108,23 @@ def inference_step(
             pose_proposal_args,
             addr,
         )
-        if i%len(inference_hyperparams.pose_proposal_args) == 0:
+        if i % len(inference_hyperparams.pose_proposal_args) == 0:
             top_k_indices = jnp.argsort(weights)[-k:][::-1]
             top_scores = [weights[idx] for idx in top_k_indices]
             posterior_poses = [proposed_poses[idx] for idx in top_k_indices]
-            this_frame_posterior[int(addr.unwrap().split('_')[-1])] = [[(score, posterior_pose) for (posterior_pose, score) in zip(posterior_poses, top_scores)]]
-        elif (i+1)%len(inference_hyperparams.pose_proposal_args) == 0:
-            this_frame_posterior[int(addr.unwrap().split('_')[-1])].append(best_pose)
+            this_frame_posterior[int(addr.unwrap().split("_")[-1])] = [
+                [
+                    (score, posterior_pose)
+                    for (posterior_pose, score) in zip(posterior_poses, top_scores)
+                ]
+            ]
+        elif (i + 1) % len(inference_hyperparams.pose_proposal_args) == 0:
+            this_frame_posterior[int(addr.unwrap().split("_")[-1])].append(best_pose)
         this_iteration_end_time = time.time()
-        print(f"\t\t\t c_2_f step time: {this_iteration_end_time - this_iteration_start_time}")
-    
+        print(
+            f"\t\t\t c_2_f step time: {this_iteration_end_time - this_iteration_start_time}"
+        )
+
     return (trace, this_frame_posterior)
 
 
@@ -121,7 +135,9 @@ def maybe_swap_in_previous_pose(
     log_q = assess_previous_pose(trace, addr, previous_pose, pose_proposal_args)
     chosen_index = log_q_poses.argmin()
     proposed_poses = jax.tree.map(
-        lambda x, y: x.at[chosen_index].set(jnp.where(include_previous_pose, y, x[chosen_index])),
+        lambda x, y: x.at[chosen_index].set(
+            jnp.where(include_previous_pose, y, x[chosen_index])
+        ),
         proposed_poses,
         previous_pose,
     )
@@ -145,7 +161,6 @@ def assess_previous_pose(advanced_trace, addr, previous_pose, args):
     new_pose = get_new_state(advanced_trace)[addr]
     log_q = Pose.logpdf_gaussian_vmf_pose_approx(previous_pose, new_pose, std, conc)
     return log_q
-
 
 
 @jax.jit
@@ -193,9 +208,21 @@ def get_initial_trace(
         }
         | initial_state
     )
-    
+
     trace, weight = importance_jit(
-        key, choicemap, (hyperparams, dict([(k, v) for k, v in initial_state.items() if not k.startswith('object_scale')]) | {'t': -1})
+        key,
+        choicemap,
+        (
+            hyperparams,
+            dict(
+                [
+                    (k, v)
+                    for k, v in initial_state.items()
+                    if not k.startswith("object_scale")
+                ]
+            )
+            | {"t": -1},
+        ),
     )
     if get_weight:
         return trace, weight

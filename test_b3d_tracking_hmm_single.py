@@ -106,7 +106,7 @@ def main(
         "masked": Pytree.const(masked),
         "check_interp": Pytree.const(True),
         "num_mc_sample": Pytree.const(500),
-        "interp_penalty": Pytree.const(1000),
+        "interp_penalty": Pytree.const(1e10),
     }
 
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams

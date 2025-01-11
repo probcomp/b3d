@@ -46,7 +46,7 @@ def likelihood_func(observed_rgbd, likelihood_args):
         interpeneration_score = (
             likelihood_args["interp_penalty"].unwrap() * interpeneration
         )
-        # jax.debug.print("interpeneration_score: {v}", v=interpeneration_score)
+        # jax.debug.print("interpeneration: {v}", v=interpeneration)
         score -= interpeneration_score
 
     return {

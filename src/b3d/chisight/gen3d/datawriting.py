@@ -230,9 +230,7 @@ def write_json(pred_file, hyperparams, posterior_across_frames, save_path, scena
                 [
                     {
                         "x": pose._position[0].astype(float).item(),
-                        "y": pose._position[1].astype(float).item()
-                        if pose._position[1].astype(float).item() >= 0
-                        else 0,
+                        "y": pose._position[1].astype(float).item(),
                         "z": pose._position[2].astype(float).item(),
                     }
                     for pose in poses[0]

@@ -19,7 +19,7 @@ def log_gaussian_kernel(size: int, sigma: float) -> jnp.ndarray:
 lower_bound = jnp.array([0.0, 0.0, 0.0, 0.0])
 upper_bound = jnp.array([1.0, 1.0, 1.0, 100.0])
 
-filter_size = 3
+filter_size = 1
 
 
 @jax.jit
@@ -28,8 +28,7 @@ def likelihood_func(observed_rgbd, likelihood_args):
     color_variance = likelihood_args["color_noise_variance"]
     depth_variance = likelihood_args["depth_noise_variance"]
     outlier_probability = likelihood_args["outlier_probability"]
-    rows = likelihood_args["rows"]
-    cols = likelihood_args["cols"]
+    rows, cols = jnp.meshgrid(jnp.arange(likelihood_args["image_width"].unwrap()), jnp.arange(likelihood_args["image_height"].unwrap()))
 
     @functools.partial(
         jnp.vectorize,
@@ -100,44 +99,50 @@ def likelihood_func(observed_rgbd, likelihood_args):
         return log_probabilities
 
     scores = likelihood_per_pixel(observed_rgbd, latent_rgbd, likelihood_args["blur"])
+    score = scores.sum()
 
-    valid_window = latent_rgbd[..., 0:3].sum(axis=2) > 0.0  # latent_rgbd[..., 3] > 0.0
-    if likelihood_args["masked"].unwrap():
-        observed_window = observed_rgbd[..., 0:3].sum(axis=2) > 0.0
-        invalid_window = jnp.multiply(observed_window, ~valid_window)
-        near = 0.001
-        far = jnp.inf
-    else:
-        invalid_window = ~valid_window
-        far = 1
-        near = 0
+    pixelwise_score = jnp.zeros((observed_rgbd.shape[0], observed_rgbd.shape[1]))
+    pixelwise_score = pixelwise_score.at[rows, cols].set(scores)
 
-    pixelwise_score = (
-        jax.scipy.stats.laplace.logpdf(
-            observed_rgbd,
-            latent_rgbd,
-            jnp.array([color_variance, color_variance, color_variance, depth_variance]),
-        ).sum(-1)
-        * valid_window
-        - (jnp.log(1.0 / 1.0**3) + jnp.log(far - near)) * invalid_window
-    )
 
-    pixelwise_score = jnp.logaddexp(
-        pixelwise_score + jnp.log(1.0 - outlier_probability),
-        jnp.log(outlier_probability),
-    )
 
-    score = pixelwise_score.sum()
 
-    if likelihood_args["check_interp"].unwrap():
-        interpeneration = get_interpenetration(
-            likelihood_args["scene_mesh"], likelihood_args["num_mc_sample"].unwrap()
-        )
-        interpeneration_score = (
-            likelihood_args["interp_penalty"].unwrap() * interpeneration
-        )
-        # jax.debug.print("interpeneration_score: {v}", v=interpeneration_score)
-        score -= interpeneration_score
+    # valid_window = latent_rgbd[..., 0:3].sum(axis=2) > 0.0  # latent_rgbd[..., 3] > 0.0
+    # if likelihood_args["masked"].unwrap():
+    #     observed_window = observed_rgbd[..., 0:3].sum(axis=2) > 0.0
+    #     invalid_window = jnp.multiply(observed_window, ~valid_window)
+    #     near = 0.001
+    #     far = jnp.inf
+    # else:
+    #     invalid_window = ~valid_window
+    #     far = 1
+    #     near = 0
+
+    # pixelwise_score = (
+    #     jax.scipy.stats.laplace.logpdf(
+    #         observed_rgbd,
+    #         latent_rgbd,
+    #         jnp.array([color_variance, color_variance, color_variance, depth_variance]),
+    #     ).sum(-1)
+    #     * valid_window
+    #     - (jnp.log(1.0 / 1.0**3) + jnp.log(far - near)) * invalid_window
+    # )
+
+    # pixelwise_score = jnp.logaddexp(
+    #     pixelwise_score + jnp.log(1.0 - outlier_probability),
+    #     jnp.log(outlier_probability),
+    # )
+
+    # score = pixelwise_score.sum()
+
+    # if likelihood_args["check_interp"].unwrap():
+    #     interpeneration = get_interpenetration(
+    #         likelihood_args["scene_mesh"], likelihood_args["num_mc_sample"].unwrap()
+    #     )
+    #     interpeneration_score = (
+    #         likelihood_args["interp_penalty"].unwrap() * interpeneration
+    #     )
+    #     score -= interpeneration_score
 
     return {
         "score": score,

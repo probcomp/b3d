@@ -80,4 +80,4 @@ for scenario in ["dominoes", "support", "contain", "link"]:
         os.system(
             f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index}"
         )
-        viz_index += FINAL_T - START_T
+        viz_index += FINAL_T - START_T + 1

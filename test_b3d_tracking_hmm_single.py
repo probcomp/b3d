@@ -14,9 +14,9 @@ import jax.numpy as jnp
 import rerun as rr
 import trimesh
 from b3d.chisight.gen3d.dataloading import (
-    calculate_relevant_objects,
     get_initial_state,
     load_trial,
+    resize_rgbds_and_get_masks,
 )
 from b3d.chisight.gen3d.datawriting import write_json
 from genjax import Pytree
@@ -173,24 +173,15 @@ def main(
     print(f"\t\t First trace time: {first_trace_time - first_state_time}")
 
     posterior_across_frames = {"pose": []}
-    for i, T in enumerate(range(START_T + 1, FINAL_T)):
+    for i, T in enumerate(range(START_T, FINAL_T)):
         this_iteration_start_time = time.time()
-        relevant_objects = calculate_relevant_objects(
-            rgbds_original[T],
-            rgbds_original[T - 1],
-            seg_arr_original[T],
-            seg_arr_original[T - 1],
-            object_ids,
-            object_segmentation_colors,
-        )
-        print(f"\t\t frame {T}: relevant objects: {relevant_objects}")
         key = b3d.split_key(key)
         trace, this_frame_posterior = inference.inference_step(
             key,
             trace,
             foreground_background(rgbds[T], all_areas[T], 0.0),
             inference_hyperparams,
-            [Pytree.const(f"object_pose_{o_id}") for o_id in relevant_objects],
+            [Pytree.const(f"object_pose_{o_id}") for o_id in object_ids],
         )
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)

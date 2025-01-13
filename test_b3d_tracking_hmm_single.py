@@ -43,7 +43,11 @@ def main(
     rr.init("demo", recording_id=recording_id)
     rr.connect("127.0.0.1:8813")
 
-    START_T = 0
+    if scenario == "dominoes":
+        START_T = 14
+    else:
+        START_T = 0
+
     if scenario == "collide":
         FINAL_T = 15
     else:
@@ -169,7 +173,7 @@ def main(
     print(f"\t\t First trace time: {first_trace_time - first_state_time}")
 
     posterior_across_frames = {"pose": []}
-    for T in range(FINAL_T):
+    for i, T in enumerate(range(START_T, FINAL_T)):
         this_iteration_start_time = time.time()
         key = b3d.split_key(key)
         trace, this_frame_posterior = inference.inference_step(
@@ -180,10 +184,9 @@ def main(
             [Pytree.const(f"object_pose_{o_id}") for o_id in object_ids],
         )
         posterior_across_frames["pose"].append(this_frame_posterior)
-        viz_trace(trace, t=viz_index + T + 1)
+        viz_trace(trace, t=viz_index + i + 1)
         this_iteration_end_time = time.time()
         print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}")
-        # print(get_new_state(trace), '\n')
 
     write_json(
         pred_file,

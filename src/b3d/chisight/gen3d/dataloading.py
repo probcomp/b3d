@@ -1,12 +1,12 @@
 import io
 from functools import reduce
-
+from PIL import Image
+import numpy as np
 import h5py
+
 import jax
 import jax.numpy as jnp
-import numpy as np
 from genjax import Pytree
-from PIL import Image
 
 import b3d
 

@@ -17,7 +17,6 @@ from b3d.chisight.gen3d.dataloading import (
     calculate_relevant_objects,
     get_initial_state,
     load_trial,
-    resize_rgbds_and_get_masks,
 )
 from b3d.chisight.gen3d.datawriting import write_json
 from genjax import Pytree

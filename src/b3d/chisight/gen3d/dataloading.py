@@ -1,12 +1,12 @@
 import io
 from functools import reduce
-from PIL import Image
-import numpy as np
-import h5py
 
+import h5py
 import jax
 import jax.numpy as jnp
+import numpy as np
 from genjax import Pytree
+from PIL import Image
 
 import b3d
 
@@ -195,3 +195,20 @@ def get_initial_state(
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
     return initial_state, hyperparams
+
+
+def calculate_relevant_objects(
+    rgbds_t2, rgbds_t1, seg2, seg1, object_ids, object_segmentation_colors
+):
+    diff = rgbds_t2 - rgbds_t1
+    relevant_objects = []
+    for o_id, color in zip(object_ids, object_segmentation_colors):
+        mask1 = get_mask_area(seg1, [color])
+        area1 = diff[mask1]
+        diff_area1 = jnp.sum(area1)
+        mask2 = get_mask_area(seg2, [color])
+        area2 = diff[mask2]
+        diff_area2 = jnp.sum(area2)
+        if np.abs(diff_area1 + diff_area2) > 100.0:
+            relevant_objects.append(o_id)
+    return relevant_objects

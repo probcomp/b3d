@@ -14,6 +14,7 @@ import jax.numpy as jnp
 import rerun as rr
 import trimesh
 from b3d.chisight.gen3d.dataloading import (
+    calculate_relevant_objects,
     get_initial_state,
     load_trial,
     resize_rgbds_and_get_masks,
@@ -55,8 +56,8 @@ def main(
 
     near_plane = 0.1
     far_plane = 100
-    im_width = 350
-    im_height = 350
+    im_width = 150
+    im_height = 150
     width = 1024
     height = 1024
 
@@ -124,8 +125,8 @@ def main(
     print(f"\t\t Initialization time: {initalization_time - start_time}")
 
     (
-        rgbds,
-        seg_arr,
+        rgbds_original,
+        seg_arr_original,
         object_ids,
         object_segmentation_colors,
         background_areas,
@@ -143,15 +144,15 @@ def main(
         object_ids,
         object_segmentation_colors,
         all_meshes,
-        seg_arr[START_T],
-        rgbds[START_T],
+        seg_arr_original[START_T],
+        rgbds_original[START_T],
         hyperparams,
     )
     first_state_time = time.time()
     print(f"\t\t First state time: {first_state_time - loading_time}")
 
     rgbds, all_areas, background_areas = resize_rgbds_and_get_masks(
-        rgbds, seg_arr, background_areas, im_height, im_width
+        rgbds_original, seg_arr_original, background_areas, im_height, im_width
     )
     hyperparams["background"] = jnp.asarray(
         [
@@ -173,15 +174,24 @@ def main(
     print(f"\t\t First trace time: {first_trace_time - first_state_time}")
 
     posterior_across_frames = {"pose": []}
-    for i, T in enumerate(range(START_T, FINAL_T)):
+    for i, T in enumerate(range(START_T + 1, FINAL_T)):
         this_iteration_start_time = time.time()
+        relevant_objects = calculate_relevant_objects(
+            rgbds_original[T],
+            rgbds_original[T - 1],
+            seg_arr_original[T],
+            seg_arr_original[T - 1],
+            object_ids,
+            object_segmentation_colors,
+        )
+        print(f"\t\t frame {T}: relevant objects: {relevant_objects}")
         key = b3d.split_key(key)
         trace, this_frame_posterior = inference.inference_step(
             key,
             trace,
             foreground_background(rgbds[T], all_areas[T], 0.0),
             inference_hyperparams,
-            [Pytree.const(f"object_pose_{o_id}") for o_id in object_ids],
+            [Pytree.const(f"object_pose_{o_id}") for o_id in relevant_objects],
         )
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)

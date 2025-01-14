@@ -62,30 +62,30 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
 
         all_poses = {}
         # all_scales = {}
-        scaled_meshes = []
-        for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
+        # scaled_meshes = []
+        for o_id in object_ids.unwrap():
             object_pose = (
                 pose_kernel(previous_state[f"object_pose_{o_id}"])
                 @ f"object_pose_{o_id}"
             )
-            top = 0.0
-            all_comp_poses = []
-            all_comp_meshes = []
-            for i, component in enumerate(mesh_composite):
-                object_scale = (
-                    uniform_scale(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
-                    @ f"object_scale_{o_id}_{i}"
-                )
-                # all_scales[f"object_scale_{o_id}_{i}"] = object_scale
-                scaled_comp = component.scale(object_scale)
-                all_comp_meshes.append(scaled_comp)
-                pose = Pose.from_translation(jnp.array([0.0, top, 0.0]))
-                all_comp_poses.append(pose)
-                top += scaled_comp.vertices[:, 1].max()
-            merged_mesh = Mesh.transform_and_merge_meshes(
-                all_comp_meshes, all_comp_poses
-            )
-            scaled_meshes.append(merged_mesh)
+            # # top = 0.0
+            # all_comp_poses = [Pose.from_translation(jnp.array([0.0, 0, 0.0]))]
+            # all_comp_meshes = mesh_composite
+            # # for i, component in enumerate(mesh_composite):
+            # #     object_scale = (
+            # #         uniform_scale(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
+            # #         @ f"object_scale_{o_id}_{i}"
+            # #     )
+            # #     # all_scales[f"object_scale_{o_id}_{i}"] = object_scale
+            # #     scaled_comp = component.scale(object_scale)
+            # #     all_comp_meshes.append(scaled_comp)
+            # #     pose = Pose.from_translation(jnp.array([0.0, top, 0.0]))
+            # #     all_comp_poses.append(pose)
+            # #     top += scaled_comp.vertices[:, 1].max()
+            # merged_mesh = Mesh.transform_and_merge_meshes(
+            #     all_comp_meshes, all_comp_poses
+            # )
+            # scaled_meshes.append(merged_mesh)
             all_poses[f"object_pose_{o_id}"] = object_pose
 
         camera_pose = (
@@ -93,13 +93,13 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         )
 
         scene_mesh = Mesh.transform_and_merge_meshes(
-            scaled_meshes, Pose.stack_poses(list(all_poses.values()))
+            list(meshes), Pose.stack_poses(list(all_poses.values()))
         ).transform(camera_pose.inv())
 
         likelihood_args["scene_mesh"] = [
             Mesh.transform_mesh(mesh, pose)
             for mesh, pose in zip(
-                scaled_meshes, Pose.stack_poses(list(all_poses.values()))
+                meshes, Pose.stack_poses(list(all_poses.values()))
             )
         ]
 

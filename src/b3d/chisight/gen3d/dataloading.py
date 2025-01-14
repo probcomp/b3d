@@ -1,5 +1,6 @@
 import io
 from functools import reduce
+from copy import deepcopy
 
 import h5py
 import jax
@@ -9,6 +10,15 @@ from genjax import Pytree
 from PIL import Image
 
 import b3d
+
+
+
+def scale_mesh(vertices, scale_factor):
+    vertices_copy = deepcopy(vertices)
+    vertices_copy[:, 0] *= scale_factor[0]
+    vertices_copy[:, 1] *= scale_factor[1]
+    vertices_copy[:, 2] *= scale_factor[2]
+    return vertices_copy
 
 
 def load_trial(hdf5_file_path, FINAL_T):
@@ -183,15 +193,12 @@ def get_initial_state(
             jnp.array(pred[i]["location"][0]),
             jnp.array(pred[i]["rotation"][0]),
         )
-        initial_state[f"object_scale_{o_id}_0"] = jnp.array(pred[i]["scale"][0])
-        hyperparams["meshes"][int(o_id)] = [
-            b3d.Mesh(
-                meshes[pred[i]["type"][0]].vertices,
+        hyperparams["meshes"][int(o_id)] = b3d.Mesh(
+                scale_mesh(meshes[pred[i]["type"][0]].vertices, jnp.array(pred[i]["scale"][0])),
                 meshes[pred[i]["type"][0]].faces,
                 jnp.ones(meshes[pred[i]["type"][0]].vertices.shape)
                 * mean_object_colors,
             )
-        ]
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
     return initial_state, hyperparams
@@ -200,7 +207,7 @@ def get_initial_state(
 def calculate_relevant_objects(
     rgbds_t2, rgbds_t1, seg2, seg1, object_ids, object_segmentation_colors
 ):
-    diff = rgbds_t2 - rgbds_t1
+    diff = rgbds_t2[...,3] - rgbds_t1[...,3]
     relevant_objects = []
     for o_id, color in zip(object_ids, object_segmentation_colors):
         mask1 = get_mask_area(seg1, [color])
@@ -209,6 +216,7 @@ def calculate_relevant_objects(
         mask2 = get_mask_area(seg2, [color])
         area2 = diff[mask2]
         diff_area2 = jnp.sum(area2)
-        if np.abs(diff_area1 + diff_area2) > 100.0:
+        # print(f"\t\t\t Object {o_id}: {np.abs(diff_area1)+np.abs(diff_area2)}")
+        if np.abs(diff_area1) + np.abs(diff_area2) > 100.0:
             relevant_objects.append(o_id)
     return relevant_objects

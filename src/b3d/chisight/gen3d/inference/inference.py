@@ -214,14 +214,7 @@ def get_initial_trace(
         choicemap,
         (
             hyperparams,
-            dict(
-                [
-                    (k, v)
-                    for k, v in initial_state.items()
-                    if not k.startswith("object_scale")
-                ]
-            )
-            | {"t": -1},
+            initial_state | {"t": -1},
         ),
     )
     if get_weight:

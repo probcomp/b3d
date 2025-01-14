@@ -56,8 +56,8 @@ def main(
 
     near_plane = 0.1
     far_plane = 100
-    im_width = 150
-    im_height = 150
+    im_width = 350
+    im_height = 350
     width = 1024
     height = 1024
 
@@ -179,6 +179,7 @@ def main(
         if i == 0:
             relevant_objects = object_ids
         else:
+            # relevant_objects = object_ids
             relevant_objects = calculate_relevant_objects(
                 rgbds_original[T],
                 rgbds_original[T - 1],
@@ -187,7 +188,6 @@ def main(
                 object_ids,
                 object_segmentation_colors,
             )
-        print(f"\t\t frame {T}: relevant objects: {relevant_objects}")
         key = b3d.split_key(key)
         trace, this_frame_posterior = inference.inference_step(
             key,
@@ -199,7 +199,7 @@ def main(
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)
         this_iteration_end_time = time.time()
-        print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}")
+        print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}, relevant objects: {relevant_objects}")
 
     write_json(
         pred_file,

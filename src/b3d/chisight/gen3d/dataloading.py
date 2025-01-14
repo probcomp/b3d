@@ -59,7 +59,7 @@ def load_trial(hdf5_file_path, FINAL_T):
         ).reshape((4, 4))
 
         # extract object info
-        object_ids = jnp.array(f["static"]["object_ids"])
+        object_ids = np.array(f["static"]["object_ids"])
         object_segmentation_colors = jnp.array(
             f["static"]["object_segmentation_colors"]
         )
@@ -210,13 +210,9 @@ def calculate_relevant_objects(
     diff = rgbds_t2[...,3] - rgbds_t1[...,3]
     relevant_objects = []
     for o_id, color in zip(object_ids, object_segmentation_colors):
-        mask1 = get_mask_area(seg1, [color])
-        area1 = diff[mask1]
-        diff_area1 = jnp.sum(area1)
-        mask2 = get_mask_area(seg2, [color])
-        area2 = diff[mask2]
-        diff_area2 = jnp.sum(area2)
-        # print(f"\t\t\t Object {o_id}: {np.abs(diff_area1)+np.abs(diff_area2)}")
-        if np.abs(diff_area1) + np.abs(diff_area2) > 100.0:
+        mask = np.logical_and(get_mask_area(seg1, [color]), get_mask_area(seg2, [color]))
+        area = diff[mask]
+        diff_area = np.sum(area)
+        if np.abs(diff_area) > 0.1:
             relevant_objects.append(o_id)
     return relevant_objects

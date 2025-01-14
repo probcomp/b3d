@@ -57,8 +57,8 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
 
-        blur = genjax.uniform(0.0001, 100000.0) @ "blur"
-        likelihood_args["blur"] = blur
+        # blur = genjax.uniform(0.0001, 100000.0) @ "blur"
+        # likelihood_args["blur"] = hyperparams["blur"]
 
         all_poses = {}
         # all_scales = {}
@@ -88,9 +88,10 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             # scaled_meshes.append(merged_mesh)
             all_poses[f"object_pose_{o_id}"] = object_pose
 
-        camera_pose = (
-            uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
-        )
+        camera_pose = hyperparams["camera_pose"]
+        # (
+        #     uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
+        # )
 
         scene_mesh = Mesh.transform_and_merge_meshes(
             list(meshes), Pose.stack_poses(list(all_poses.values()))
@@ -103,13 +104,13 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             )
         ]
 
-        depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"
-        likelihood_args["depth_noise_variance"] = depth_noise_variance
-        color_noise_variance = genjax.uniform(0.0001, 100000.0) @ "color_noise_variance"
-        likelihood_args["color_noise_variance"] = color_noise_variance
+        # depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"
+        # likelihood_args["depth_noise_variance"] = hyperparams["depth_noise_variance"]
+        # color_noise_variance = genjax.uniform(0.0001, 100000.0) @ "color_noise_variance"
+        # likelihood_args["color_noise_variance"] = hyperparams["color_noise_variance"]
 
-        outlier_probability = genjax.uniform(0.01, 1.0) @ "outlier_probability"
-        likelihood_args["outlier_probability"] = outlier_probability
+        # outlier_probability = genjax.uniform(0.01, 1.0) @ "outlier_probability"
+        # likelihood_args["outlier_probability"] = hyperparams["outlier_probability"]
 
         if renderer is not None:
             rasterize_results = renderer.rasterize(

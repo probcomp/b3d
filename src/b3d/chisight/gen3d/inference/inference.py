@@ -200,10 +200,10 @@ def get_initial_trace(
     """
     choicemap = C.d(
         {
-            "camera_pose": hyperparams["camera_pose"],
-            "color_noise_variance": hyperparams["color_noise_variance"],
-            "depth_noise_variance": hyperparams["color_noise_variance"],
-            "outlier_probability": hyperparams["outlier_probability"],
+            # "camera_pose": hyperparams["camera_pose"],
+            # "color_noise_variance": hyperparams["color_noise_variance"],
+            # "depth_noise_variance": hyperparams["color_noise_variance"],
+            # "outlier_probability": hyperparams["outlier_probability"],
             "rgbd": initial_observed_rgbd,
         }
         | initial_state

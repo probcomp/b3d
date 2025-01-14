@@ -5,6 +5,7 @@ from copy import deepcopy
 import numpy as np
 import trimesh
 from scipy.spatial.transform import Rotation
+from scipy.spatial import cKDTree
 
 import b3d
 
@@ -28,7 +29,7 @@ def find_missing_values(nums):
 
 def compute_linear_velocity(
     mesh,
-    scale,
+    # scale,
     object_pose_last_frame,
     object_pose_window_frame,
     dt,
@@ -41,11 +42,11 @@ def compute_linear_velocity(
         center_of_mass = mesh_transform_tri.center_mass
         return center_of_mass
 
-    mesh = b3d.Mesh(
-        vertices=scale_mesh(mesh.vertices, scale),
-        faces=mesh.faces,
-        vertex_attributes=None,
-    )
+    # mesh = b3d.Mesh(
+    #     vertices=mesh.vertices,
+    #     faces=mesh.faces,
+    #     vertex_attributes=None,
+    # )
     pos_now = compute_center_of_mass(mesh, object_pose_last_frame)
     pos_last = compute_center_of_mass(mesh, object_pose_window_frame)
     linear_vel = (pos_now - pos_last) / dt
@@ -298,27 +299,27 @@ def write_json(
         else:
             start_smooth_frame = get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 1), len(posterior_across_frames["pose"]), 1)
             if start_smooth_frame == len(posterior_across_frames["pose"])-1:
+                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[-1]
+                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
                 linear_velocity_dict[int(o_id)] = [
                     compute_linear_velocity(
                         hyperparams["meshes"][int(o_id)],
-                        json_file["scale"][int(o_id)][i],
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0][i],
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[
-                            -1
-                        ],  # using optim pose for window frame
+                        # json_file["scale"][int(o_id)][i],
+                        sample_pt[i],
+                        anchor_pt,  # using optim pose for window frame
                         1 / FPS,
                     )
                     for i in range(NUM_SAMPLE_FROM_POSTERIOR)
                 ]
             else:
+                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[-1]
+                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
                 linear_velocity_dict[int(o_id)] = [
                     compute_linear_velocity(
                         hyperparams["meshes"][int(o_id)],
-                        json_file["scale"][int(o_id)][i],
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0][i],
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[
-                            -1
-                        ],  # using optim pose for window frame
+                        # json_file["scale"][int(o_id)][i],
+                        sample_pt[i],
+                        anchor_pt,  # using optim pose for window frame
                         (len(posterior_across_frames["pose"])-start_smooth_frame-1) / FPS,
                     )
                     for i in range(NUM_SAMPLE_FROM_POSTERIOR)
@@ -331,23 +332,23 @@ def write_json(
         else:
             start_smooth_frame = get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 1), len(posterior_across_frames["pose"]), 1)
             if start_smooth_frame == len(posterior_across_frames["pose"])-1:
+                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[-1]
+                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
                 angular_velocity_dict[int(o_id)] = [
                     compute_angular_velocity(
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[
-                            -1
-                        ]._quaternion,
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0][i]._quaternion,
+                        anchor_pt._quaternion,
+                        sample_pt[i]._quaternion,
                         1 / FPS,
                     )
                     for i in range(NUM_SAMPLE_FROM_POSTERIOR)
                 ]
             else:
+                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[-1]
+                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
                 angular_velocity_dict[int(o_id)] = [
                     compute_angular_velocity(
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[
-                            -1
-                        ]._quaternion,
-                        get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0][i]._quaternion,
+                        anchor_pt._quaternion,
+                        sample_pt[i]._quaternion,
                         (len(posterior_across_frames["pose"])-start_smooth_frame-1) / FPS,
                     )
                     for i in range(NUM_SAMPLE_FROM_POSTERIOR)
@@ -386,3 +387,57 @@ def write_json(
         with open(f"{save_path}/{scenario}_verbose/{trial_name}.json", "w") as f:
             json.dump(posterior_across_frames, f)
     return
+
+
+# measure errors
+def apply_transform(pose: np.ndarray, vertices: np.ndarray) -> np.ndarray:
+    return (pose[:3, :3] @ vertices.T + pose[:3, 3][:, None]).T
+
+
+def add_err(pred_pose: np.ndarray, gt_pose: np.ndarray, vertices: np.ndarray) -> float:
+    """Compute the Average Distance (ADD) error between the predicted pose and the
+    ground truth pose, given the vertices of the object.
+
+    References:
+    - https://github.com/thodan/bop_toolkit/blob/59c5f486fe3a7886329d9fc908935e40d3bc0248/bop_toolkit_lib/pose_error.py#L210-L224
+    - https://github.com/NVlabs/FoundationPose/blob/cd3ca4bc080529c53d5e5235212ca476d82bccf7/Utils.py#L232-L240
+    - https://github.com/chensong1995/HybridPose/blob/106c86cddaa52765eb82f17bd00fdc72b98a02ca/lib/utils.py#L36-L49
+
+    Args:
+        pred_pose (np.ndarray): A 4x4 transformation matrix representing the predicted pose.
+        gt_pose (np.ndarray): A 4x4 transformation matrix representing the ground truth pose.
+        vertices (np.ndarray): The vertices of shape (num_vertices, 3) in the object frame,
+            representing the 3D model of the object. Note that we should be using the vertices
+            from the ground truth mesh file instead of the reconstructed point cloud.
+    """
+    pred_locs = apply_transform(pred_pose, vertices)
+    gt_locs = apply_transform(gt_pose, vertices)
+    return np.linalg.norm(pred_locs - gt_locs, axis=-1).mean()
+
+
+def adds_err(pred_pose: np.ndarray, gt_pose: np.ndarray, vertices: np.ndarray) -> float:
+    """Compute the Average Closest Point Distance (ADD-S) error between the predicted pose and the
+    ground truth pose, given the vertices of the object. ADD-S is an ambiguity-invariant pose
+    error metric which takes care of both symmetric and non-symmetric objects
+
+    References:
+    - https://github.com/thodan/bop_toolkit/blob/59c5f486fe3a7886329d9fc908935e40d3bc0248/bop_toolkit_lib/pose_error.py#L227-L247
+    - https://github.com/NVlabs/FoundationPose/blob/cd3ca4bc080529c53d5e5235212ca476d82bccf7/Utils.py#L242-L253
+    - https://github.com/chensong1995/HybridPose/blob/106c86cddaa52765eb82f17bd00fdc72b98a02ca/lib/utils.py#L51-L68
+
+    Args:
+        pred_pose (np.ndarray): A 4x4 transformation matrix representing the predicted pose.
+        gt_pose (np.ndarray): A 4x4 transformation matrix representing the ground truth pose.
+        vertices (np.ndarray): The vertices of shape (num_vertices, 3) in the object frame,
+            representing the 3D model of the object. Note that we should be using the vertices
+            from the ground truth mesh file instead of the reconstructed point cloud.
+    """
+    pred_locs = apply_transform(pred_pose, vertices)
+    gt_locs = apply_transform(gt_pose, vertices)
+
+    # Calculate distances to the nearest neighbors from vertices in the
+    # ground-truth pose to vertices in the estimated pose.
+    nn_index = cKDTree(pred_locs)
+    nn_dists, _ = nn_index.query(gt_locs, k=1)
+
+    return nn_dists.mean()

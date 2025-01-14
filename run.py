@@ -54,7 +54,7 @@ hdf5_file_path = os.path.join(
     "physion_hdf5",
 )
 
-for scenario in ["dominoes", "support", "contain", "link"]:
+for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "link"]:
     scenario_path = join(hdf5_file_path, scenario + "_all_movies")
     onlyhdf5 = [
         f
@@ -79,10 +79,10 @@ for scenario in ["dominoes", "support", "contain", "link"]:
         print(trial_index + 1, "\t", trial_name)
         # if trial_name in buggy_stims or trial_name in ["pilot_dominoes_4midRM1_boxroom_0026", "pilot_dominoes_2mid_J020R15_d3chairs_o1plants_tdwroom_2_0005", "pilot_dominoes_2mid_J025R30_tdwroom_0025"]:
         #     continue
-        if (
-            trial_name != "pilot_dominoes_4mid_tdwroom_0003"
-        ):  # "pilot_dominoes_0mid_d3chairs_o1plants_tdwroom_0001": #
-            continue
+        # if (
+        #     trial_name != "pilot_dominoes_4mid_tdwroom_0003"
+        # ):  # "pilot_dominoes_0mid_d3chairs_o1plants_tdwroom_0001": #
+        #     continue
         os.system(
             f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index}"
         )

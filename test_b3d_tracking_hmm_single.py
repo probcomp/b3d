@@ -106,6 +106,9 @@ def main(
         "fy": renderer.fy,
         "cx": renderer.cx,
         "cy": renderer.cy,
+        "color_noise_variance": 1.0,
+        "depth_noise_variance": 0.01,
+        "outlier_probability": 0.1,
         "image_width": Pytree.const(renderer.width),
         "image_height": Pytree.const(renderer.height),
         "masked": Pytree.const(masked),
@@ -199,7 +202,7 @@ def main(
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)
         this_iteration_end_time = time.time()
-        print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}, relevant objects: {relevant_objects}")
+        print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}, relevant objects: {[idx for idx in relevant_objects]}")
 
     write_json(
         pred_file,

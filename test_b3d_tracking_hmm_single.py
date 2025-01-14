@@ -111,7 +111,7 @@ def main(
         "masked": Pytree.const(masked),
         "check_interp": Pytree.const(True),
         "num_mc_sample": Pytree.const(500),
-        "interp_penalty": Pytree.const(1e10),
+        "interp_penalty": Pytree.const(1e5),
     }
 
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
@@ -174,16 +174,19 @@ def main(
     print(f"\t\t First trace time: {first_trace_time - first_state_time}")
 
     posterior_across_frames = {"pose": []}
-    for i, T in enumerate(range(START_T + 1, FINAL_T)):
+    for i, T in enumerate(range(START_T, FINAL_T)):
         this_iteration_start_time = time.time()
-        relevant_objects = calculate_relevant_objects(
-            rgbds_original[T],
-            rgbds_original[T - 1],
-            seg_arr_original[T],
-            seg_arr_original[T - 1],
-            object_ids,
-            object_segmentation_colors,
-        )
+        if i == 0:
+            relevant_objects = object_ids
+        else:
+            relevant_objects = calculate_relevant_objects(
+                rgbds_original[T],
+                rgbds_original[T - 1],
+                seg_arr_original[T],
+                seg_arr_original[T - 1],
+                object_ids,
+                object_segmentation_colors,
+            )
         print(f"\t\t frame {T}: relevant objects: {relevant_objects}")
         key = b3d.split_key(key)
         trace, this_frame_posterior = inference.inference_step(

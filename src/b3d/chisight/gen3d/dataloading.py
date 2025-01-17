@@ -210,9 +210,12 @@ def calculate_relevant_objects(
     diff = rgbds_t2[...,3] - rgbds_t1[...,3]
     relevant_objects = []
     for o_id, color in zip(object_ids, object_segmentation_colors):
-        mask = np.logical_and(get_mask_area(seg1, [color]), get_mask_area(seg2, [color]))
-        area = diff[mask]
+        mask1 = get_mask_area(seg1, [color])
+        mask2 = get_mask_area(seg2, [color])
+        mask = np.logical_and(mask1, mask2)
+        area = np.abs(diff[mask])
         diff_area = np.sum(area)
-        if np.abs(diff_area) > 0.1:
+        # print(f"object {o_id} {diff_area} {np.sum(np.abs(diff[get_mask_area(seg1, [color])]))} {diff_area/np.sum(np.abs(diff[get_mask_area(seg1, [color])]))}")
+        if diff_area/diff[mask].shape[0] > 0.001:
             relevant_objects.append(o_id)
     return relevant_objects

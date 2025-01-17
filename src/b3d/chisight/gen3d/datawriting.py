@@ -27,6 +27,15 @@ def find_missing_values(nums):
     return missing_values
 
 
+def compute_center_of_mass(mesh, object_pose):
+    mesh_transform = mesh.transform(object_pose)
+    mesh_transform_tri = trimesh.Trimesh(
+        mesh_transform.vertices, mesh_transform.faces
+    )
+    center_of_mass = mesh_transform_tri.center_mass
+    return center_of_mass
+
+
 def compute_linear_velocity(
     mesh,
     # scale,
@@ -34,14 +43,6 @@ def compute_linear_velocity(
     object_pose_window_frame,
     dt,
 ):
-    def compute_center_of_mass(mesh, object_pose):
-        mesh_transform = mesh.transform(object_pose)
-        mesh_transform_tri = trimesh.Trimesh(
-            mesh_transform.vertices, mesh_transform.faces
-        )
-        center_of_mass = mesh_transform_tri.center_mass
-        return center_of_mass
-
     # mesh = b3d.Mesh(
     #     vertices=mesh.vertices,
     #     faces=mesh.faces,
@@ -49,7 +50,11 @@ def compute_linear_velocity(
     # )
     pos_now = compute_center_of_mass(mesh, object_pose_last_frame)
     pos_last = compute_center_of_mass(mesh, object_pose_window_frame)
+    # print("center now: ", pos_now)
+    # print("center last: ", pos_last)
+    # print("dt: ", dt)
     linear_vel = (pos_now - pos_last) / dt
+    # print("linear_vel: ", linear_vel)
     return {"x": linear_vel[0], "y": linear_vel[1], "z": linear_vel[2]}
 
 
@@ -179,22 +184,22 @@ def sample_from_posterior(log_probs_categories, option="rank"):
     return samples
 
 
-def get_posterior_poses_for_frame(frame, posterior_across_frames):
-    pose_samples_from_posterior = {}
-    for o_id, poses in posterior_across_frames["pose"][frame].items():
-        best_pose = poses[1]
-        pose_samples_from_posterior[o_id] = [
-            [pose for pose in sample_from_posterior(poses[0])],
-            best_pose,
-        ]
-        # if o_id == base_id:
-        #     get_all_component_poses(
-        #         best_mc_obj_cat_sample,
-        #         pose_samples_from_posterior,
-        #         json_file["scale"],
-        #         {value: feature for feature, value in composite_mapping.items()},
-        #     )
-    return pose_samples_from_posterior
+# def get_posterior_poses_for_frame(frame, posterior_across_frames):
+#     pose_samples_from_posterior = {}
+#     for o_id, poses in posterior_across_frames["pose"][frame].items():
+#         best_pose = poses[1]
+#         pose_samples_from_posterior[o_id] = [
+#             [pose for pose in sample_from_posterior(poses[0])],
+#             best_pose,
+#         ]
+#         # if o_id == base_id:
+#         #     get_all_component_poses(
+#         #         best_mc_obj_cat_sample,
+#         #         pose_samples_from_posterior,
+#         #         json_file["scale"],
+#         #         {value: feature for feature, value in composite_mapping.items()},
+#         #     )
+#     return pose_samples_from_posterior
 
 
 def get_last_appearance(posterior_across_frames, o_id, start, stop, step):
@@ -204,14 +209,14 @@ def get_last_appearance(posterior_across_frames, o_id, start, stop, step):
     return None
 
 
-def get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, frame):
+def get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, frame, c2f_level=0):
     for idx, poses in posterior_across_frames["pose"][frame].items():
         if o_id == idx:
             # print("yes!!")
             # poses = posterior_across_frames["pose"][frame][o_id]
-            best_pose = poses[1]
+            best_pose = poses[-1]
             pose_samples_from_posterior = [
-                    [pose for pose in sample_from_posterior(poses[0])],
+                    [pose for pose in sample_from_posterior(poses[0][c2f_level])],
                     best_pose,
                 ]
             return pose_samples_from_posterior
@@ -293,66 +298,115 @@ def write_json(
     )
 
     linear_velocity_dict = {}
+    linear_velocity_dict_optim = {}
     for o_id in hyperparams["object_ids"].unwrap():
+        # print("object: ", o_id)
         if o_id not in list(posterior_across_frames["pose"][-1].keys()):
             linear_velocity_dict[int(o_id)] = [{"x": 0.0, "y": 0.0, "z": 0.0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+            linear_velocity_dict_optim[int(o_id)] = [{"x": 0.0, "y": 0.0, "z": 0.0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
         else:
-            start_smooth_frame = get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 1), len(posterior_across_frames["pose"]), 1)
-            if start_smooth_frame == len(posterior_across_frames["pose"])-1:
-                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[-1]
-                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
-                linear_velocity_dict[int(o_id)] = [
-                    compute_linear_velocity(
-                        hyperparams["meshes"][int(o_id)],
-                        # json_file["scale"][int(o_id)][i],
-                        sample_pt[i],
-                        anchor_pt,  # using optim pose for window frame
-                        1 / FPS,
-                    )
-                    for i in range(NUM_SAMPLE_FROM_POSTERIOR)
-                ]
-            else:
-                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[-1]
-                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
-                linear_velocity_dict[int(o_id)] = [
-                    compute_linear_velocity(
-                        hyperparams["meshes"][int(o_id)],
-                        # json_file["scale"][int(o_id)][i],
-                        sample_pt[i],
-                        anchor_pt,  # using optim pose for window frame
-                        (len(posterior_across_frames["pose"])-start_smooth_frame-1) / FPS,
-                    )
-                    for i in range(NUM_SAMPLE_FROM_POSTERIOR)
-                ]
+            # start_smooth_frame = get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 1), len(posterior_across_frames["pose"]), 1)
+            # print("start_smooth_frame: ", get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-2, -1, -1))
+            anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-2, -1, -1))
+            sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1, c2f_level=1)
+            linear_velocity_dict[int(o_id)] = [
+                compute_linear_velocity(
+                    hyperparams["meshes"][int(o_id)],
+                    # json_file["scale"][int(o_id)][i],
+                    sample_pt[0][i],
+                    anchor_pt[-1],  # using optim pose for window frame
+                    1 / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            linear_velocity_dict_optim[int(o_id)] = [
+                compute_linear_velocity(
+                    hyperparams["meshes"][int(o_id)],
+                    # json_file["scale"][int(o_id)][i],
+                    sample_pt[-1],
+                    anchor_pt[-1],  # using optim pose for window frame
+                    1 / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            # if start_smooth_frame == len(posterior_across_frames["pose"])-1:
+            #     anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[-1]
+            #     sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
+            #     linear_velocity_dict[int(o_id)] = [
+            #         compute_linear_velocity(
+            #             hyperparams["meshes"][int(o_id)],
+            #             # json_file["scale"][int(o_id)][i],
+            #             sample_pt[i],
+            #             anchor_pt,  # using optim pose for window frame
+            #             1 / FPS,
+            #         )
+            #         for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            #     ]
+            # else:
+            #     anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[-1]
+            #     sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
+            #     linear_velocity_dict[int(o_id)] = [
+            #         compute_linear_velocity(
+            #             hyperparams["meshes"][int(o_id)],
+            #             # json_file["scale"][int(o_id)][i],
+            #             sample_pt[i],
+            #             anchor_pt,  # using optim pose for window frame
+            #             (len(posterior_across_frames["pose"])-start_smooth_frame-1) / FPS,
+            #         )
+            #         for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            #     ]
 
+            # print("anchor_pt: ", anchor_pt)
+            # print("sample_pt: ", sample_pt)
+            
     angular_velocity_dict = {}
+    angular_velocity_dict_optim = {}
     for o_id in hyperparams["object_ids"].unwrap():
         if o_id not in list(posterior_across_frames["pose"][-1].keys()):
             angular_velocity_dict[int(o_id)] = [{"x": 0.0, "y": 0.0, "z": 0.0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
+            angular_velocity_dict_optim[int(o_id)] = [{"x": 0.0, "y": 0.0, "z": 0.0} for _ in range(NUM_SAMPLE_FROM_POSTERIOR)]
         else:
-            start_smooth_frame = get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 1), len(posterior_across_frames["pose"]), 1)
-            if start_smooth_frame == len(posterior_across_frames["pose"])-1:
-                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[-1]
-                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
-                angular_velocity_dict[int(o_id)] = [
-                    compute_angular_velocity(
-                        anchor_pt._quaternion,
-                        sample_pt[i]._quaternion,
-                        1 / FPS,
-                    )
-                    for i in range(NUM_SAMPLE_FROM_POSTERIOR)
-                ]
-            else:
-                anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[-1]
-                sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
-                angular_velocity_dict[int(o_id)] = [
-                    compute_angular_velocity(
-                        anchor_pt._quaternion,
-                        sample_pt[i]._quaternion,
-                        (len(posterior_across_frames["pose"])-start_smooth_frame-1) / FPS,
-                    )
-                    for i in range(NUM_SAMPLE_FROM_POSTERIOR)
-                ]
+            anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-2, -1, -1))
+            sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1, c2f_level=1)
+            angular_velocity_dict[int(o_id)] = [
+                compute_angular_velocity(
+                    anchor_pt[-1]._quaternion,
+                    sample_pt[0][i]._quaternion,
+                    1 / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            angular_velocity_dict_optim[int(o_id)] = [
+                compute_angular_velocity(
+                    anchor_pt[-1]._quaternion,
+                    sample_pt[-1]._quaternion,
+                    1 / FPS,
+                )
+                for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            ]
+            # start_smooth_frame = get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 1), len(posterior_across_frames["pose"]), 1)
+            # if start_smooth_frame == len(posterior_across_frames["pose"])-1:
+            #     anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, get_last_appearance(posterior_across_frames, o_id, len(posterior_across_frames["pose"])-(SMOOTHING_WINDOW_SIZE + 2), -1, -1))[-1]
+            #     sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
+            #     angular_velocity_dict[int(o_id)] = [
+            #         compute_angular_velocity(
+            #             anchor_pt._quaternion,
+            #             sample_pt[i]._quaternion,
+            #             1 / FPS,
+            #         )
+            #         for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            #     ]
+            # else:
+            #     anchor_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, start_smooth_frame)[-1]
+            #     sample_pt = get_posterior_poses_for_frame_for_object(posterior_across_frames, o_id, -1)[0]
+            #     angular_velocity_dict[int(o_id)] = [
+            #         compute_angular_velocity(
+            #             anchor_pt._quaternion,
+            #             sample_pt[i]._quaternion,
+            #             (len(posterior_across_frames["pose"])-start_smooth_frame-1) / FPS,
+            #         )
+            #         for i in range(NUM_SAMPLE_FROM_POSTERIOR)
+            #     ]
 
     json_file["position"] = position_dict
     json_file["rotation"] = rotation_dict
@@ -370,19 +424,28 @@ def write_json(
     with open(f"{save_path}/{scenario}/{trial_name}.json", "w") as f:
         json.dump(json_file, f)
 
+    json_file_optim = deepcopy(json_file)
+    json_file_optim["velocity"] = linear_velocity_dict_optim
+    json_file_optim["angular_velocity"] = angular_velocity_dict_optim
+    mkdir(f"{save_path}/{scenario}_optim/")
+    with open(f"{save_path}/{scenario}_optim/{trial_name}.json", "w") as f:
+        json.dump(json_file_optim, f)
+
+
     if debug:
         for frame_index, frame_info in enumerate(posterior_across_frames["pose"]):
             for o_id, o_id_info in frame_info.items():
-                posterior_across_frames["pose"][frame_index][o_id][1] = (
-                    o_id_info[1]._position.astype(float).tolist(),
-                    o_id_info[1]._quaternion.astype(float).tolist(),
+                posterior_across_frames["pose"][frame_index][o_id][-1] = (
+                    o_id_info[-1]._position.astype(float).tolist() + o_id_info[-1]._quaternion.astype(float).tolist(),
+                    compute_center_of_mass(hyperparams["meshes"][int(o_id)], o_id_info[-1]).astype(float).tolist(),
                 )
-                for j, rank in enumerate(o_id_info[0]):
-                    posterior_across_frames["pose"][frame_index][o_id][0][j] = (
-                        rank[0].astype(float).item(),
-                        rank[1]._position.astype(float).tolist(),
-                        rank[1]._quaternion.astype(float).tolist(),
-                    )
+                for i, c2f_level in enumerate(o_id_info[0]):
+                    for j, rank in enumerate(c2f_level):
+                        posterior_across_frames["pose"][frame_index][o_id][0][i][j] = (
+                            rank[0].astype(float).item(),
+                            rank[1]._position.astype(float).tolist() + rank[1]._quaternion.astype(float).tolist(),
+                            compute_center_of_mass(hyperparams["meshes"][int(o_id)], rank[1]).astype(float).tolist(),
+                        )
         mkdir(f"{save_path}/{scenario}_verbose/")
         with open(f"{save_path}/{scenario}_verbose/{trial_name}.json", "w") as f:
             json.dump(posterior_across_frames, f)

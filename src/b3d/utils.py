@@ -657,6 +657,17 @@ def rr_log_pose(pose, channel="pose", scale=0.1):
     )
 
 
+def rr_log_posquat(posquat, channel="pose", scale=0.1):
+    position = posquat[:3]
+    origins = np.tile(position[None, ...], (3, 1))
+    colors = np.eye(3)
+    rotation_matrix = R.from_quat(posquat[3:]).as_matrix()
+    rr.log(
+        channel,
+        rr.Arrows3D(origins=origins, vectors=rotation_matrix.T * scale, colors=colors),
+    )
+
+    
 def rr_set_time(t=0):
     rr.set_time_sequence("step", t)
 

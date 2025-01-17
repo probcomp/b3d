@@ -179,10 +179,11 @@ def main(
     posterior_across_frames = {"pose": []}
     for i, T in enumerate(range(START_T, FINAL_T)):
         this_iteration_start_time = time.time()
+        key = b3d.split_key(key)
         if i == 0:
             relevant_objects = object_ids
+            xyz = False
         else:
-            # relevant_objects = object_ids
             relevant_objects = calculate_relevant_objects(
                 rgbds_original[T],
                 rgbds_original[T - 1],
@@ -191,13 +192,14 @@ def main(
                 object_ids,
                 object_segmentation_colors,
             )
-        key = b3d.split_key(key)
+            xyz = True
         trace, this_frame_posterior = inference.inference_step(
             key,
             trace,
             foreground_background(rgbds[T], all_areas[T], 0.0),
             inference_hyperparams,
             [Pytree.const(f"object_pose_{o_id}") for o_id in relevant_objects],
+            xyz,
         )
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)

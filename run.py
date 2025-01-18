@@ -62,7 +62,7 @@ for root, dirs, files in os.walk(path):
             already_existing.append(file[:-5])
 already_existing = set(already_existing)
 
-too_large_stims = ['pilot_dominoes_4mid_tdwroom_0004', 'pilot_dominoes_4mid_tdwroom_0003']
+too_large_stims = ['pilot_dominoes_4mid_tdwroom_0004', 'pilot_dominoes_4mid_tdwroom_0003', 'pilot_dominoes_4mid_tdwroom_0007', 'pilot_dominoes_4mid_tdwroom_0008', 'pilot_dominoes_4mid_tdwroom_0014', 'pilot_dominoes_4mid_tdwroom_0015', 'pilot_dominoes_4mid_tdwroom_0018', 'pilot_dominoes_4mid_tdwroom_0019', 'pilot_dominoes_4mid_tdwroom_0021']
 too_short_stims = ['pilot_it2_drop_simple_box_0018', 'pilot_it2_drop_simple_tdw_1_dis_1_occ_0001', 'pilot_it2_drop_simple_tdw_1_dis_1_occ_0003']
 for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "link"]:
     scenario_path = join(hdf5_file_path, scenario + "_all_movies")

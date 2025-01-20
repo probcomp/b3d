@@ -134,7 +134,7 @@ def load_trial(hdf5_file_path, FINAL_T):
     return (
         rgbds,
         seg_arr,
-        sorted(object_ids),
+        object_ids,
         object_segmentation_colors,
         background_areas,
         camera_pose,
@@ -183,20 +183,20 @@ def get_initial_state(
 
     initial_state = {}
     hyperparams["meshes"] = {}
-    for i, (o_id, color) in enumerate(zip(object_ids, object_segmentation_colors)):
+    for o_id, color in zip(object_ids, object_segmentation_colors):
         area = get_mask_area(seg, [color])
         object_colors = rgbd[..., 0:3][area]
         mean_object_colors = jnp.mean(object_colors, axis=0)
         assert not jnp.isnan(mean_object_colors).any()
 
         initial_state[f"object_pose_{o_id}"] = b3d.Pose(
-            jnp.array(pred[i]["location"][0]),
-            jnp.array(pred[i]["rotation"][0]),
+            jnp.array(pred[str(o_id)]["location"][0]),
+            jnp.array(pred[str(o_id)]["rotation"][0]),
         )
         hyperparams["meshes"][int(o_id)] = b3d.Mesh(
-                scale_mesh(meshes[pred[i]["type"][0]].vertices, jnp.array(pred[i]["scale"][0])),
-                meshes[pred[i]["type"][0]].faces,
-                jnp.ones(meshes[pred[i]["type"][0]].vertices.shape)
+                scale_mesh(meshes[pred[str(o_id)]["type"][0]].vertices, jnp.array(pred[str(o_id)]["scale"][0])),
+                meshes[pred[str(o_id)]["type"][0]].faces,
+                jnp.ones(meshes[pred[str(o_id)]["type"][0]].vertices.shape)
                 * mean_object_colors,
             )
 

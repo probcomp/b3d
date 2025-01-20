@@ -240,13 +240,13 @@ def write_json(
 
     for i, o_id in enumerate(hyperparams["object_ids"].unwrap()):
         json_file["model"][int(o_id)] = [
-            pred[i]["type"][0] for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
+            pred[str(o_id)]["type"][0] for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
         ]
         json_file["scale"][int(o_id)] = [
             {
-                "x": pred[i]["scale"][0][0],
-                "y": pred[i]["scale"][0][1],
-                "z": pred[i]["scale"][0][2],
+                "x": pred[str(o_id)]["scale"][0][0],
+                "y": pred[str(o_id)]["scale"][0][1],
+                "z": pred[str(o_id)]["scale"][0][2],
             }
             for _ in range(NUM_SAMPLE_FROM_POSTERIOR)
         ]

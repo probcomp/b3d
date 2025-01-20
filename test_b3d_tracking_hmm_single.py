@@ -223,16 +223,18 @@ if __name__ == "__main__":
     parser.add_argument("--trial_name", default="", type=str)
     parser.add_argument("--recording_id", default="", type=str)
     parser.add_argument("--viz_index", default="", type=int)
+    parser.add_argument("--save_path", default="", type=str)
+    parser.add_argument("--pred_file_path", default="", type=str)
     args = parser.parse_args()
     scenario = args.scenario
     trial_name = args.trial_name
     recording_id = args.recording_id
     viz_index = args.viz_index
+    save_path = args.save_path
+    pred_file_path = args.pred_file_path
 
     mesh_file_path = "/home/haoliangwang/data/all_flex_meshes/core"
-    save_path = "/home/haoliangwang/data/b3d_tracking_results/test"
-    pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt.json"
-
+    
     main(
         scenario,
         trial_name,

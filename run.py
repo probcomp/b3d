@@ -53,6 +53,8 @@ hdf5_file_path = os.path.join(
     data_path,
     "physion_hdf5",
 )
+save_path = "/home/haoliangwang/data/b3d_tracking_results/test"
+pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt_correct.json"
 
 path = '/home/haoliangwang/data/b3d_tracking_results/test/'
 already_existing = []
@@ -90,6 +92,6 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
         if (trial_name in buggy_stims) or (trial_name in already_existing) or (trial_name in too_large_stims) or (trial_name in too_short_stims):
             continue
         os.system(
-            f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index}"
+            f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --save_path {save_path} --pred_file_path {pred_file_path}"
         )
         viz_index += FINAL_T - START_T + 1

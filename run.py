@@ -1010,16 +1010,19 @@ hdf5_file_path = os.path.join(
 )
 save_path = "/home/haoliangwang/data/b3d_tracking_results/test"
 pred_file_path = "/home/haoliangwang/data/pred_files/gt_info/gt_correct.json"
+im_width = 350
+im_height = 350
 
-path = '/home/haoliangwang/data/b3d_tracking_results/test/'
+# path = '/home/haoliangwang/data/b3d_tracking_results/test/'
 already_existing = []
-for root, dirs, files in os.walk(path):
+for root, dirs, files in os.walk(save_path):
     for file in files:
         if file.endswith('.json'):
             already_existing.append(file[:-5])
 already_existing = set(already_existing)
 
-too_large_stims = ['pilot_dominoes_4mid_tdwroom_0004', 'pilot_dominoes_4mid_tdwroom_0003', 'pilot_dominoes_4mid_tdwroom_0007', 'pilot_dominoes_4mid_tdwroom_0008', 'pilot_dominoes_4mid_tdwroom_0014', 'pilot_dominoes_4mid_tdwroom_0015', 'pilot_dominoes_4mid_tdwroom_0018', 'pilot_dominoes_4mid_tdwroom_0019', 'pilot_dominoes_4mid_tdwroom_0021']
+# too_large_stims = ['pilot_dominoes_4mid_tdwroom_0004', 'pilot_dominoes_4mid_tdwroom_0003', 'pilot_dominoes_4mid_tdwroom_0007', 'pilot_dominoes_4mid_tdwroom_0008', 'pilot_dominoes_4mid_tdwroom_0014', 'pilot_dominoes_4mid_tdwroom_0015', 'pilot_dominoes_4mid_tdwroom_0018', 'pilot_dominoes_4mid_tdwroom_0019', 'pilot_dominoes_4mid_tdwroom_0021', 'pilot_towers_nb4_fr015_SJ000_gr000sph_mono1_dis0_occ0_tdwroom_stable_0016', 'pilot_towers_nb4_fr015_SJ000_gr000sph_mono1_dis0_occ0_tdwroom_stable_0011', 'pilot_towers_nb4_SJ025_mono1_dis0_occ0_tdwroom_unstable_0015', 'pilot-containment-vase_0000', 'pilot-containment-bowl-familiarization_0035', 'pilot-containment-torus_0022', 'pilot-containment-vase_torus_0032']
+too_large_stims = []
 too_short_stims = ['pilot_it2_drop_simple_box_0018', 'pilot_it2_drop_simple_tdw_1_dis_1_occ_0001', 'pilot_it2_drop_simple_tdw_1_dis_1_occ_0003']
 for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "link"]:
     scenario_path = join(hdf5_file_path, scenario + "_all_movies")
@@ -1047,6 +1050,6 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
         if (trial_name not in human_stims) or (trial_name in buggy_stims) or (trial_name in already_existing) or (trial_name in too_large_stims) or (trial_name in too_short_stims):
             continue
         os.system(
-            f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --save_path {save_path} --pred_file_path {pred_file_path}"
+            f"python /home/haoliangwang/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path}"
         )
         viz_index += FINAL_T - START_T + 1

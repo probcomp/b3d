@@ -37,7 +37,10 @@ def main(
     save_path,
     recording_id,
     viz_index,
+    im_width,
+    im_height,
     masked=True,
+    interp=False,
     debug=True,
 ):
     start_time = time.time()
@@ -55,9 +58,7 @@ def main(
         FINAL_T = 45
 
     near_plane = 0.1
-    far_plane = 100
-    im_width = 350
-    im_height = 350
+    far_plane = 100.0
     width = 1024
     height = 1024
 
@@ -112,7 +113,7 @@ def main(
         "image_width": Pytree.const(renderer.width),
         "image_height": Pytree.const(renderer.height),
         "masked": Pytree.const(masked),
-        "check_interp": Pytree.const(True),
+        "check_interp": Pytree.const(interp),
         "num_mc_sample": Pytree.const(500),
         "interp_penalty": Pytree.const(1e5),
     }
@@ -222,7 +223,9 @@ if __name__ == "__main__":
     parser.add_argument("--scenario", default="collide", type=str)
     parser.add_argument("--trial_name", default="", type=str)
     parser.add_argument("--recording_id", default="", type=str)
-    parser.add_argument("--viz_index", default="", type=int)
+    parser.add_argument("--viz_index", default=0, type=int)
+    parser.add_argument("--im_width", default=350, type=int)
+    parser.add_argument("--im_height", default=350, type=int)
     parser.add_argument("--save_path", default="", type=str)
     parser.add_argument("--pred_file_path", default="", type=str)
     args = parser.parse_args()
@@ -232,6 +235,8 @@ if __name__ == "__main__":
     viz_index = args.viz_index
     save_path = args.save_path
     pred_file_path = args.pred_file_path
+    im_width = args.im_width
+    im_height = args.im_height
 
     mesh_file_path = "/home/haoliangwang/data/all_flex_meshes/core"
     
@@ -243,4 +248,6 @@ if __name__ == "__main__":
         save_path,
         recording_id,
         viz_index,
+        im_width,
+        im_height,
     )

@@ -213,6 +213,7 @@ def calculate_relevant_objects(
         mask1 = get_mask_area(seg1, [color])
         mask2 = get_mask_area(seg2, [color])
         mask = np.logical_and(mask1, mask2)
+        # mask = np.logical_or(mask1, mask2)
         area = np.abs(diff[mask])
         diff_area = np.sum(area)
         # print(f"object {o_id} {diff_area} {np.sum(np.abs(diff[get_mask_area(seg1, [color])]))} {diff_area/np.sum(np.abs(diff[get_mask_area(seg1, [color])]))}")

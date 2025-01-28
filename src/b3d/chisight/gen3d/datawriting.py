@@ -413,12 +413,12 @@ def write_json(
     json_file["velocity"] = linear_velocity_dict
     json_file["angular_velocity"] = angular_velocity_dict
 
-    missing = find_missing_values(
-        np.array([int(item) for item in hyperparams["object_ids"].unwrap()])
-    )
-    for feature, val in json_file.items():
-        for o_id in missing:
-            json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
+    # missing = find_missing_values(
+    #     np.array([int(item) for item in hyperparams["object_ids"].unwrap()])
+    # )
+    # for feature, val in json_file.items():
+    #     for o_id in missing:
+    #         json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
 
     mkdir(f"{save_path}/{scenario}/")
     with open(f"{save_path}/{scenario}/{trial_name}.json", "w") as f:

@@ -413,20 +413,24 @@ def write_json(
     json_file["velocity"] = linear_velocity_dict
     json_file["angular_velocity"] = angular_velocity_dict
 
-    # missing = find_missing_values(
-    #     np.array([int(item) for item in hyperparams["object_ids"].unwrap()])
-    # )
-    # for feature, val in json_file.items():
-    #     for o_id in missing:
-    #         json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
+    json_file_optim = deepcopy(json_file)
+    json_file_optim["velocity"] = linear_velocity_dict_optim
+    json_file_optim["angular_velocity"] = angular_velocity_dict_optim
+
+    missing = find_missing_values(
+        np.array([int(item) for item in hyperparams["object_ids"].unwrap()])
+    )
+    for feature, val in json_file.items():
+        for o_id in missing:
+            json_file[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
+    for feature, val in json_file_optim.items():
+        for o_id in missing:
+            json_file_optim[feature][o_id] = val[int(hyperparams["object_ids"].unwrap()[0])]
 
     mkdir(f"{save_path}/{scenario}/")
     with open(f"{save_path}/{scenario}/{trial_name}.json", "w") as f:
         json.dump(json_file, f)
 
-    json_file_optim = deepcopy(json_file)
-    json_file_optim["velocity"] = linear_velocity_dict_optim
-    json_file_optim["angular_velocity"] = angular_velocity_dict_optim
     mkdir(f"{save_path}/{scenario}_optim/")
     with open(f"{save_path}/{scenario}_optim/{trial_name}.json", "w") as f:
         json.dump(json_file_optim, f)
@@ -436,15 +440,13 @@ def write_json(
         for frame_index, frame_info in enumerate(posterior_across_frames["pose"]):
             for o_id, o_id_info in frame_info.items():
                 posterior_across_frames["pose"][frame_index][o_id][-1] = (
-                    o_id_info[-1]._position.astype(float).tolist() + o_id_info[-1]._quaternion.astype(float).tolist(),
-                    compute_center_of_mass(hyperparams["meshes"][int(o_id)], o_id_info[-1]).astype(float).tolist(),
+                    o_id_info[-1]._position.astype(float).tolist() + o_id_info[-1]._quaternion.astype(float).tolist() + compute_center_of_mass(hyperparams["meshes"][int(o_id)], o_id_info[-1]).astype(float).tolist(),
                 )
                 for i, c2f_level in enumerate(o_id_info[0]):
                     for j, rank in enumerate(c2f_level):
                         posterior_across_frames["pose"][frame_index][o_id][0][i][j] = (
                             rank[0].astype(float).item(),
-                            rank[1]._position.astype(float).tolist() + rank[1]._quaternion.astype(float).tolist(),
-                            compute_center_of_mass(hyperparams["meshes"][int(o_id)], rank[1]).astype(float).tolist(),
+                            rank[1]._position.astype(float).tolist() + rank[1]._quaternion.astype(float).tolist() + compute_center_of_mass(hyperparams["meshes"][int(o_id)], rank[1]).astype(float).tolist(),
                         )
         mkdir(f"{save_path}/{scenario}_verbose/")
         with open(f"{save_path}/{scenario}_verbose/{trial_name}.json", "w") as f:

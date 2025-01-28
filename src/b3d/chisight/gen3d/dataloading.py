@@ -207,16 +207,17 @@ def get_initial_state(
 def calculate_relevant_objects(
     rgbds_t2, rgbds_t1, seg2, seg1, object_ids, object_segmentation_colors
 ):
-    diff = rgbds_t2[...,3] - rgbds_t1[...,3]
+    # diff = rgbds_t2[...,3] - rgbds_t1[...,3]
+    diff = rgbds_t2 - rgbds_t1
     relevant_objects = []
     for o_id, color in zip(object_ids, object_segmentation_colors):
         mask1 = get_mask_area(seg1, [color])
         mask2 = get_mask_area(seg2, [color])
         mask = np.logical_and(mask1, mask2)
-        # mask = np.logical_or(mask1, mask2)
         area = np.abs(diff[mask])
         diff_area = np.sum(area)
-        # print(f"object {o_id} {diff_area} {np.sum(np.abs(diff[get_mask_area(seg1, [color])]))} {diff_area/np.sum(np.abs(diff[get_mask_area(seg1, [color])]))}")
-        if diff_area/diff[mask].shape[0] > 0.001:
+        if diff[mask].shape[0] == 0:
+            relevant_objects.append(o_id)
+        elif diff_area/diff[mask].shape[0] > 0.01:
             relevant_objects.append(o_id)
     return relevant_objects

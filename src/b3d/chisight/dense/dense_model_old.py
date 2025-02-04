@@ -7,7 +7,7 @@ from genjax import Pytree
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
-from b3d.modeling_utils import uniform_pose
+from b3d.modeling_utils import uniform_pose, uniform_scale
 
 
 def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
@@ -16,8 +16,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         def f(key, likelihood_args):
             return jnp.zeros(
                 (
-                    likelihood_args["image_height"].const,
-                    likelihood_args["image_width"].const,
+                    likelihood_args["image_height"].unwrap(),
+                    likelihood_args["image_width"].unwrap(),
                     4,
                 )
             )
@@ -40,24 +40,56 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
         meshes,
         likelihood_args,
     ):
-        all_poses = {}
-        for o_id in object_ids.const:
+        blur = genjax.uniform(0.0001, 100000.0) @ "blur"
+        likelihood_args["blur"] = blur
+
+        all_poses = []
+        scaled_meshes = []
+        for o_id, mesh_composite in zip(object_ids.unwrap(), meshes):
             object_pose = (
                 uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0)
                 @ f"object_pose_{o_id}"
             )
-            all_poses[f"object_pose_{o_id}"] = object_pose
-        camera_pose = likelihood_args["camera_pose"]
+            top = 0.0
+            all_comp_poses = []
+            all_comp_meshes = []
+            for i, component in enumerate(mesh_composite):
+                object_scale = (
+                    uniform_scale(jnp.ones(3) * 0.01, jnp.ones(3) * 10.0)
+                    @ f"object_scale_{o_id}_{i}"
+                )
+                scaled_comp = component.scale(object_scale)
+                all_comp_meshes.append(scaled_comp)
+                pose = Pose.from_translation(jnp.array([0.0, top, 0.0]))
+                all_comp_poses.append(pose)
+                top += scaled_comp.vertices[:, 1].max()
+            merged_mesh = Mesh.transform_and_merge_meshes(
+                all_comp_meshes, all_comp_poses
+            )
+            scaled_meshes.append(merged_mesh)
+            all_poses.append(object_pose)
+        all_poses = Pose.stack_poses(all_poses)
+
+        camera_pose = (
+            uniform_pose(jnp.ones(3) * -100.0, jnp.ones(3) * 100.0) @ "camera_pose"
+        )
+
         scene_mesh = Mesh.transform_and_merge_meshes(
-            list(meshes), Pose.stack_poses(list(all_poses.values()))
+            scaled_meshes, all_poses
         ).transform(camera_pose.inv())
 
         likelihood_args["scene_mesh"] = [
             Mesh.transform_mesh(mesh, pose)
-            for mesh, pose in zip(
-                meshes, Pose.stack_poses(list(all_poses.values()))
-            )
+            for mesh, pose in zip(scaled_meshes, all_poses)
         ]
+
+        depth_noise_variance = genjax.uniform(0.0001, 100000.0) @ "depth_noise_variance"
+        likelihood_args["depth_noise_variance"] = depth_noise_variance
+        color_noise_variance = genjax.uniform(0.0001, 100000.0) @ "color_noise_variance"
+        likelihood_args["color_noise_variance"] = color_noise_variance
+
+        outlier_probability = genjax.uniform(0.01, 1.0) @ "outlier_probability"
+        likelihood_args["outlier_probability"] = outlier_probability
 
         if renderer is not None:
             rasterize_results = renderer.rasterize(
@@ -88,7 +120,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             trace.get_retval()["likelihood_args"],
         )
 
-    def viz_trace(trace, t=0, cloud=True):
+    def viz_trace(trace, t=0, cloud=False):
         info = info_from_trace(trace)
         b3d.utils.rr_set_time(t)
         likelihood_args = trace.get_retval()["likelihood_args"]
@@ -99,6 +131,7 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
             likelihood_args["cy"],
         )
 
+        info = info_from_trace(trace)
         rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
         b3d.rr_log_rgb(trace.get_choices()["rgbd"][..., :3], "image/rgb/observed")
         b3d.rr_log_rgb(info["latent_rgbd"][..., :3], "image/rgb/latent")

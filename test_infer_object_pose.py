@@ -16,10 +16,18 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-# import rerun as rr
+import rerun as rr
 import trimesh
 from genjax import Pytree
 from PIL import Image
+
+
+def scale_mesh(vertices, scale_factor):
+    vertices_copy = deepcopy(vertices)
+    vertices_copy[:, 0] *= scale_factor[0]
+    vertices_copy[:, 1] *= scale_factor[1]
+    vertices_copy[:, 2] *= scale_factor[2]
+    return vertices_copy
 
 
 def unproject_pixels(mask, depth_map, cam_matrix, fx, fy):
@@ -78,13 +86,6 @@ def get_mask_area(seg_img, colors):
         arrs.append(arr)
     return reduce(np.logical_or, arrs)
 
-
-def color_image(depth_map, area, color):
-    _depth_map = deepcopy(depth_map)
-    _depth_map[area] = color
-    return _depth_map
-
-
 def main(
     use_gt_cat,
     hdf5_file_path,
@@ -93,9 +94,9 @@ def main(
     save_path=None,
     pred_file_path=None,
 ):
-    # rr.init("demo")
-    # rr.connect("127.0.0.1:8812")
-    # rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
+    rr.init("demo")
+    rr.connect("127.0.0.1:8813")
+    rr.log("/", rr.ViewCoordinates.LEFT_HAND_Y_UP, static=True)
 
     im_width = 350
     im_height = 350
@@ -104,11 +105,7 @@ def main(
     near_plane = 0.1
     far_plane = 100
 
-    num_pose_grid = 11
-    position_search_thr = 0.1
-    # needs to be odd
-    num_scale_grid = 11
-    scale_search_thr = 0.2
+    num_pose_grid = 12
 
     scenario_path = os.path.join(hdf5_file_path, scenario + "_all_movies")
     onlyhdf5 = [
@@ -125,53 +122,6 @@ def main(
                 mesh = trimesh.load(os.path.join(path, name))
                 all_meshes[name[:-4]] = mesh
     ordered_all_meshes = collections.OrderedDict(sorted(all_meshes.items()))
-
-    # Gridding on translation only.
-    translation_deltas = b3d.Pose.concatenate_poses(
-        [
-            jax.vmap(lambda p: b3d.Pose.from_translation(p))(
-                jnp.stack(
-                    jnp.meshgrid(
-                        jnp.linspace(
-                            -position_search_thr, position_search_thr, num_pose_grid
-                        ),
-                        jnp.linspace(
-                            -position_search_thr, position_search_thr, num_pose_grid
-                        ),
-                        jnp.linspace(
-                            -position_search_thr, position_search_thr, num_pose_grid
-                        ),
-                    ),
-                    axis=-1,
-                ).reshape(-1, 3)
-            ),
-            b3d.Pose.identity()[None, ...],
-        ]
-    )
-    # Sample orientations from a VMF to define a "grid" over orientations.
-    rotation_deltas = b3d.Pose.concatenate_poses(
-        [
-            jax.vmap(b3d.Pose.sample_gaussian_vmf_pose, in_axes=(0, None, None, None))(
-                jax.random.split(
-                    jax.random.PRNGKey(0), num_pose_grid * num_pose_grid * num_pose_grid
-                ),
-                b3d.Pose.identity(),
-                0.1,
-                10.0,
-            ),
-            b3d.Pose.identity()[None, ...],
-        ]
-    )
-    all_deltas = b3d.Pose.stack_poses([translation_deltas, rotation_deltas])
-
-    scale_deltas = jnp.stack(
-        jnp.meshgrid(
-            jnp.linspace(1 - scale_search_thr, 1 + scale_search_thr, num_scale_grid),
-            jnp.linspace(1 - scale_search_thr, 1 + scale_search_thr, num_scale_grid),
-            jnp.linspace(1 - scale_search_thr, 1 + scale_search_thr, num_scale_grid),
-        ),
-        axis=-1,
-    ).reshape(-1, 3)
 
     scaling_factor = im_height / height
     vfov = 54.43222 / 180.0 * np.pi
@@ -193,31 +143,19 @@ def main(
     b3d.reload(b3d.chisight.dense.dense_model)
     b3d.reload(b3d.chisight.dense.likelihoods.laplace_likelihood)
     likelihood_func = b3d.chisight.dense.likelihoods.laplace_likelihood.likelihood_func
-    model, _, _ = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
+    model, viz_trace, _ = b3d.chisight.dense.dense_model.make_dense_multiobject_model(
         renderer, likelihood_func
     )
     importance_jit = jax.jit(model.importance)
 
-    likelihood_args = {
-        "fx": renderer.fx,
-        "fy": renderer.fy,
-        "cx": renderer.cx,
-        "cy": renderer.cy,
-        "image_width": Pytree.const(renderer.width),
-        "image_height": Pytree.const(renderer.height),
-        "masked": Pytree.const(True),
-        "check_interp": Pytree.const(False),
-        "num_mc_sample": Pytree.const(500),
-        "interp_penalty": Pytree.const(100),
-    }
-
     all_info = {}
-    # vis_index = 0
-    # mapping = ["bowl", "cone", "cube", "cylinder", "octahedron", "pentagon", "pipe", "platonic", "pyramid", "ramp_with_platform_30", "sphere", "torus", "triangular_prism", "cyn_cyn", "cyn_cyn_cyn", "cyn_cone"]
+    vis_index = 0
 
     for hdf5_file in onlyhdf5:
-        this_info = []
+        this_info = {}
         stim_name = hdf5_file[:-5]
+        # if stim_name != 'pilot_it2_collision_simple_box_1_dis_1_occ_0034':
+        #     continue
         print("\t", stim_name)
         stim_path = os.path.join(scenario_path, hdf5_file)
         with h5py.File(stim_path, "r") as f:
@@ -243,11 +181,12 @@ def main(
             # extract object info
             object_ids = np.array(f["static"]["object_ids"])
             model_names = np.array(f["static"]["model_names"])
+            object_scales = np.array(f["static"]["scale"])
             object_segmentation_colors = np.array(
                 f["static"]["object_segmentation_colors"]
             )
             assert (
-                len(object_ids) == len(model_names) == len(object_segmentation_colors)
+                len(object_ids) == len(object_scales) == len(model_names) == len(object_segmentation_colors)
             )
 
             distractors = (
@@ -264,6 +203,7 @@ def main(
             if len(distractors_occluders):
                 object_ids = object_ids[: -len(distractors_occluders)]
                 model_names = model_names[: -len(distractors_occluders)]
+                object_scales = object_scales[: -len(distractors_occluders)]
                 object_segmentation_colors = object_segmentation_colors[
                     : -len(distractors_occluders)
                 ]
@@ -279,10 +219,28 @@ def main(
             b3d.Rot.from_matrix(camera_rotation_from_matrix).as_quat(),
         )
 
+        likelihood_args = {
+            "fx": renderer.fx,
+            "fy": renderer.fy,
+            "cx": renderer.cx,
+            "cy": renderer.cy,
+            "image_width": Pytree.const(renderer.width),
+            "image_height": Pytree.const(renderer.height),
+            "masked": Pytree.const(True),
+            "check_interp": Pytree.const(False),
+            "num_mc_sample": Pytree.const(500),
+            "interp_penalty": Pytree.const(100),
+            "camera_pose": camera_pose,
+            "depth_noise_variance": 0.01,
+            "color_noise_variance": 1,
+            "outlier_probability": 0.1,
+        }
+
         rgbd = jnp.concatenate([image, jnp.reshape(depth, depth.shape + (1,))], axis=-1)
 
-        num_inference_step = 5
+        num_inference_step = 7
         for i, color in enumerate(object_segmentation_colors):
+            object_scale = object_scales[i]
             area = get_mask_area(im_seg, [color])
             image_masked = blackout_image(rgbd, area)
 
@@ -290,23 +248,17 @@ def main(
                 unproject_pixels(area, image_masked[..., -1], camera_matrix, fx, fy)
             )
             point_cloud_centroid = point_cloud.mean(0)
-            # point_cloud_bottom = min(point_cloud[:, 1])
-            object_pose = b3d.Pose.from_translation(point_cloud_centroid)
-            #     np.array(
-            #         [
-            #             point_cloud_centroid[0],
-            #             point_cloud_bottom,
-            #             point_cloud_centroid[2],
-            #         ]
-            #     )
-            # )
-            point_cloud_size = np.array(
-                (
-                    max(point_cloud[:, 0]) - min(point_cloud[:, 0]),
-                    max(point_cloud[:, 1]) - min(point_cloud[:, 1]),
-                    max(point_cloud[:, 2]) - min(point_cloud[:, 2]),
+            point_cloud_bottom = min(point_cloud[:, 1])
+            object_pose = b3d.Pose.from_translation(
+                np.array(
+                    [
+                        point_cloud_centroid[0],
+                        point_cloud_bottom,
+                        point_cloud_centroid[2],
+                    ]
                 )
             )
+
             object_colors = np.asarray(image_masked[..., 0:3][area])
             mean_object_colors = np.mean(object_colors, axis=0)
 
@@ -335,24 +287,13 @@ def main(
             scales = []
             for name in names:
                 trim = ordered_all_meshes[name]
-                bounding_box = trim.bounding_box
-                bbox_corners = bounding_box.vertices
-                original_size = np.array(
-                    (
-                        max(bbox_corners[:, 0]) - min(bbox_corners[:, 0]),
-                        max(bbox_corners[:, 1]) - min(bbox_corners[:, 1]),
-                        max(bbox_corners[:, 2]) - min(bbox_corners[:, 2]),
-                    )
-                )
-                object_scale = jnp.abs(point_cloud_size / original_size)
                 mesh = b3d.Mesh(
-                    trim.vertices,
+                    scale_mesh(trim.vertices, object_scale),
                     trim.faces,
                     np.ones(trim.vertices.shape) * mean_object_colors,
                 )
                 choice_map = dict(
                     [
-                        ("camera_pose", camera_pose),
                         (
                             "rgbd",
                             jax.image.resize(
@@ -361,43 +302,80 @@ def main(
                                 method="linear",
                             ),
                         ),
-                        ("depth_noise_variance", 0.01),
-                        ("color_noise_variance", 1),
-                        ("outlier_probability", 0.1),
                         ("object_pose_0", object_pose),
-                        ("object_scale_0_0", object_scale),
                     ]
                 )
 
                 trace, _ = importance_jit(
                     jax.random.PRNGKey(0),
                     genjax.ChoiceMap.d(choice_map),
-                    (Pytree.const(("0",)), [[mesh]], likelihood_args),
+                    (Pytree.const(("0",)), [mesh], likelihood_args),
                 )
 
+                position_search_thr_x = position_search_thr_y = position_search_thr_z = 0.2
+                kappa = 0.00000000001
                 for seed in range(num_inference_step):
+                    # Gridding on translation only.
+                    translation_deltas = b3d.Pose.concatenate_poses(
+                        [
+                            jax.vmap(lambda p: b3d.Pose.from_translation(p))(
+                                jnp.stack(
+                                    jnp.meshgrid(
+                                        jnp.linspace(
+                                            -position_search_thr_x, position_search_thr_x, num_pose_grid
+                                        ),
+                                        jnp.linspace(
+                                            -position_search_thr_y, position_search_thr_y, num_pose_grid
+                                        ),
+                                        jnp.linspace(
+                                            -position_search_thr_z, position_search_thr_z, num_pose_grid
+                                        ),
+                                    ),
+                                    axis=-1,
+                                ).reshape(-1, 3)
+                            ),
+                            b3d.Pose.identity()[None, ...],
+                        ]
+                    )
+                    # Sample orientations from a VMF to define a "grid" over orientations.
+                    rotation_deltas = b3d.Pose.concatenate_poses(
+                        [
+                            jax.vmap(b3d.Pose.sample_gaussian_vmf_pose_approx, in_axes=(0, None, None, None))(
+                                jax.random.split(
+                                    jax.random.PRNGKey(0), num_pose_grid * num_pose_grid * num_pose_grid
+                                ),
+                                b3d.Pose.identity(),
+                                position_search_thr_x,
+                                kappa,
+                            ),
+                            b3d.Pose.identity()[None, ...],
+                        ]
+                    )
+                    all_deltas = b3d.Pose.stack_poses([translation_deltas, rotation_deltas])
+
                     key = jax.random.PRNGKey(seed)
                     trace, key, _, _ = bayes3d.enumerate_and_select_best_move_pose(
                         trace, Pytree.const(("object_pose_0",)), key, all_deltas
                     )
-                    trace, key, _, _ = bayes3d.enumerate_and_select_best_move_scale(
-                        trace, Pytree.const(("object_scale_0_0",)), key, scale_deltas
-                    )
-                    # viz_trace(trace, vis_index, cloud=True)
-                    # vis_index += 1
+                    viz_trace(trace, vis_index, cloud=True)
+                    vis_index += 1
+                    if i < 5:
+                        position_search_thr_x *= 0.5
+                        position_search_thr_y *= 0.5
+                        position_search_thr_z *= 0.5
+                        kappa *= 10
+
                 best_pose = trace.get_choices()["object_pose_0"]
-                best_scale = trace.get_choices()["object_scale_0_0"]
                 locations.append(best_pose._position.tolist())
                 rotations.append(best_pose._quaternion.tolist())
-                scales.append(best_scale.tolist())
-            this_info.append(
-                {
+                scales.append(object_scale.tolist())
+            this_info[str(object_ids[i])] = {
                     "type": names,
                     "location": locations,
                     "rotation": rotations,
                     "scale": scales,
                 }
-            )
+            
             all_info[stim_name] = {"scene": [{"objects": this_info}]}
 
     with open(save_path, "w") as f:
@@ -406,7 +384,7 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="collide", type=str)
+    parser.add_argument("--scenario", default="contain", type=str)
     args = parser.parse_args()
     use_gt_cat = True
 
@@ -414,31 +392,5 @@ if __name__ == "__main__":
     print(f"{scenario}")
     hdf5_file_path = "/home/haoliangwang/data/physion_hdf5"
     mesh_file_path = "/home/haoliangwang/data/all_flex_meshes/core"
-    if use_gt_cat:
-        save_path = "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_gt.json"
-        main(use_gt_cat, hdf5_file_path, scenario, mesh_file_path, save_path=save_path)
-    else:
-        save_paths = [
-            "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_last.json",
-            "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_first.json",
-            "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_avg.json",
-        ]
-        pred_file_paths = [
-            "/home/haoliangwang/data/pred_files/clip_cat/collide_last.json",
-            "/home/haoliangwang/data/pred_files/clip_cat/collide_first.json",
-            "/home/haoliangwang/data/pred_files/clip_cat/collide_avg.json",
-        ]
-        for order, (save_path, pred_file_path) in enumerate(
-            zip(save_paths, pred_file_paths)
-        ):
-            print(f"***************{order}***************")
-            main(
-                use_gt_cat,
-                hdf5_file_path,
-                scenario,
-                mesh_file_path,
-                save_path=save_path,
-                pred_file_path=pred_file_path,
-            )
-        # save_path = "/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_last.json"
-        # pred_file_path = "/home/haoliangwang/data/pred_files/clip_cat/collide_kalman_last.json"
+    save_path = f"/home/haoliangwang/data/pred_files/clip_b3d_results/pose_scale_cat_using_gt_cat_and_scale_{scenario}.json"
+    main(use_gt_cat, hdf5_file_path, scenario, mesh_file_path, save_path=save_path)

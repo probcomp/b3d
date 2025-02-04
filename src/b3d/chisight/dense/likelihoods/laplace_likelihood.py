@@ -14,7 +14,11 @@ def likelihood_func(observed_rgbd, likelihood_args):
     valid_window = latent_rgbd[..., 0:3].sum(axis=2) > 0.0  # latent_rgbd[..., 3] > 0.0
     if likelihood_args["masked"].const:
         observed_window = observed_rgbd[..., 0:3].sum(axis=2) > 0.0
-        invalid_window = jnp.multiply(observed_window, ~valid_window)
+        all_area = likelihood_args["all_area"]
+        all_area_seg = all_area > 0.0
+        invalid_window = jnp.logical_or(jnp.multiply(observed_window, ~valid_window), jnp.multiply(~all_area_seg, valid_window))
+        valid_window = jnp.multiply(observed_window, valid_window)
+
         near = 0.001
         far = jnp.inf
     else:

@@ -6,6 +6,17 @@ import b3d
 from b3d.pose import Pose
 
 
+def maybe_swap_in_gt_pose(proposed_poses, gt_pose, include_previous_pose):
+    proposed_poses = jax.tree.map(
+        lambda x, y: x.at[0].set(
+            jnp.where(include_previous_pose, y, x[0])
+        ),
+        proposed_poses,
+        gt_pose,
+    )
+    return proposed_poses
+
+
 @jax.jit
 def enumerate_and_select_best(trace, address, values):
     potential_scores = b3d.enumerate_choices_get_scores(trace, address, values)
@@ -13,11 +24,12 @@ def enumerate_and_select_best(trace, address, values):
     return trace
 
 
-def _enumerate_and_select_best_move_pose(trace, addressses, key, all_deltas, k=50):
+def _enumerate_and_select_best_move_pose(trace, addressses, key, all_deltas, gt_pose=None, include_previous_pose=False, k=50):
     addr = addressses.const[0]
     current_pose = trace.get_choices()[addr]
     for i in range(len(all_deltas)):
         test_poses = current_pose @ all_deltas[i]
+        test_poses = maybe_swap_in_gt_pose(test_poses, gt_pose, include_previous_pose)
         potential_scores = b3d.enumerate_choices_get_scores(
             trace, addressses, test_poses
         )

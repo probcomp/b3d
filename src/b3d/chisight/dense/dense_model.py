@@ -101,8 +101,8 @@ def make_dense_multiobject_model(renderer, likelihood_func, sample_func=None):
 
         rr.log("image", rr.Image(trace.get_choices()["rgbd"][..., :3]))
         b3d.rr_log_rgb(trace.get_choices()["rgbd"][..., :3], "image/rgb/observed")
-        b3d.rr_log_rgb(info["latent_rgbd"][..., :3], "image/rgb/latent")
-        b3d.rr_log_depth(trace.get_choices()["rgbd"][..., 3], "image/depth/observed")
+        # b3d.rr_log_rgb(info["latent_rgbd"][..., :3], "image/rgb/latent")
+        # b3d.rr_log_depth(trace.get_choices()["rgbd"][..., 3], "image/depth/observed")
         b3d.rr_log_depth(info["latent_rgbd"][..., 3], "image/depth/latent")
         rr.log("image/overlay/pixelwise_score", rr.DepthImage(info["pixelwise_score"]))
 

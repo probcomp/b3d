@@ -1186,12 +1186,12 @@ def main(
     all_info = {}
     vis_index = 0
 
-    for hdf5_file in onlyhdf5:
+    for trial_index, hdf5_file in enumerate(onlyhdf5):
         this_info = {}
         stim_name = hdf5_file[:-5]
         if stim_name not in human_stims or stim_name in buggy_stims:
             continue
-        print("\t", stim_name)
+        print("\t", trial_index, "\t", stim_name)
         stim_path = os.path.join(scenario_path, hdf5_file)
         with h5py.File(stim_path, "r") as f:
             # extract depth info

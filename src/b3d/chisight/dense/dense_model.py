@@ -3,11 +3,11 @@ import jax
 import jax.numpy as jnp
 import rerun as rr
 from genjax import Pytree
+import warp as wp
 
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
-from b3d import Mesh, Pose
-from b3d.modeling_utils import uniform_pose, uniform_scale
+from b3d import Mesh, Pose, Physics
 
 
 def get_hypers(trace):
@@ -57,9 +57,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
 
-        # blur = genjax.uniform(0.0001, 100000.0) @ "blur"
-        # likelihood_args["blur"] = hyperparams["blur"]
-
+        stepped_model, stepped_state = Physics.step(previous_info["prev_model"], previous_info["prev_state"])
         all_poses = {}
         # all_scales = {}
         # scaled_meshes = []
@@ -68,6 +66,9 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                 pose_kernel(previous_state[f"object_pose_{o_id}"])
                 @ f"object_pose_{o_id}"
             )
+            pose_wp = wp.from_jax(previous_state[f"object_pose_{o_id}"].pos)
+            pose_wp = wp.sin(pose_wp)
+            pose = wp.to_jax(pose_wp)
             # # top = 0.0
             # all_comp_poses = [Pose.from_translation(jnp.array([0.0, 0, 0.0]))]
             # all_comp_meshes = mesh_composite

@@ -8,6 +8,7 @@ from .mesh import Mesh
 from .pose import Pose
 from .renderer import Renderer, RendererOriginal
 from .utils import *
+from .physics import Model, State
 
 __version__ = metadata.version("genjax")
 
@@ -22,9 +23,12 @@ __all__ = [
     "camera",
     "colors",
     "pose",
+    "physics",
     "types",
     "utils",
     "Pose",
+    "Model",
+    "State",
     "Rot",
     "MeshLibrary",
     "Mesh",

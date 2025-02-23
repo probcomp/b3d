@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import jax.random
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
+# from genjax import UpdateProblemBuilder as U
 from jax.random import split
 
 from b3d import Pose
@@ -178,13 +178,18 @@ def advance_time(key, trace, observed_rgbd):
     """
     trace, _, _, _ = trace.update(
         key,
-        U.g(
-            (
-                Diff.no_change(get_hypers(trace)),
-                Diff.unknown_change(get_new_state(trace)),
-            ),
-            C.kw(rgbd=observed_rgbd),
+        C.kw(rgbd=observed_rgbd),
+        (
+            Diff.no_change(get_hypers(trace)),
+            Diff.unknown_change(get_new_state(trace)),
         ),
+        # U.g(
+        #     (
+        #         Diff.no_change(get_hypers(trace)),
+        #         Diff.unknown_change(get_new_state(trace)),
+        #     ),
+        #     C.kw(rgbd=observed_rgbd),
+        # ),
     )
     return trace
 

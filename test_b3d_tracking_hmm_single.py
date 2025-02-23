@@ -32,6 +32,7 @@ def foreground_background(depth_map, area, val):
 def main(
     scenario,
     trial_name,
+    hdf5_file_path,
     mesh_file_path,
     pred_file_path,
     save_path,
@@ -45,7 +46,7 @@ def main(
 ):
     start_time = time.time()
     rr.init("demo", recording_id=recording_id)
-    rr.connect("127.0.0.1:8813")
+    rr.connect_tcp("127.0.0.1:8813")
 
     if scenario == "dominoes":
         START_T = 14
@@ -121,7 +122,7 @@ def main(
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
 
     hdf5_file_path = join(
-        "/home/haoliangwang/data/physion_hdf5",
+        hdf5_file_path,
         scenario + "_all_movies",
         f"{trial_name}.hdf5",
     )
@@ -228,6 +229,8 @@ if __name__ == "__main__":
     parser.add_argument("--im_height", default=350, type=int)
     parser.add_argument("--save_path", default="", type=str)
     parser.add_argument("--pred_file_path", default="", type=str)
+    parser.add_argument("--mesh_file_path", default="", type=str)
+    parser.add_argument("--hdf5_file_path", default="", type=str)
     args = parser.parse_args()
     scenario = args.scenario
     trial_name = args.trial_name
@@ -235,14 +238,15 @@ if __name__ == "__main__":
     viz_index = args.viz_index
     save_path = args.save_path
     pred_file_path = args.pred_file_path
+    mesh_file_path = args.mesh_file_path
+    hdf5_file_path = args.hdf5_file_path
     im_width = args.im_width
     im_height = args.im_height
-
-    mesh_file_path = "/home/haoliangwang/data/all_flex_meshes/core"
     
     main(
         scenario,
         trial_name,
+        hdf5_file_path,
         mesh_file_path,
         pred_file_path,
         save_path,

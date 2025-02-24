@@ -4,10 +4,11 @@ import jax.numpy as jnp
 import rerun as rr
 from genjax import Pytree
 import warp as wp
+from warp.jax_experimental.ffi import jax_callable
 
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
-from b3d import Mesh, Pose, Physics
+from b3d import Mesh, Pose
 
 
 def get_hypers(trace):
@@ -21,6 +22,59 @@ def get_prev_state(trace):
 def get_new_state(trace):
     return trace.get_retval()["new_state"]
 
+
+
+# @wp.kernel
+# def scale_kernel(a: wp.array(dtype=float), s: wp.array(dtype=wp.transform), output: wp.array(dtype=float)):
+#     tid = wp.tid()
+#     output[tid] = a[tid]
+
+
+# def example_func(
+#     # inputs
+#     a: wp.array(dtype=float),
+#     s: wp.array(dtype=wp.transform),
+#     # outputs
+#     b: wp.array(dtype=float),
+# ):
+#     # launch multiple kernels
+#     wp.launch(scale_kernel, dim=a.shape, inputs=[a, s], outputs=[b])
+
+# jax_func = jax_callable(example_func, num_outputs=1)
+
+
+# @jax.jit
+# def my_jax_func(model, state):
+#     jax_func(model.body_mass, state.body_q)
+
+
+@wp.kernel
+def scale_kernel(a: wp.array(dtype=float), s: float, output: wp.array(dtype=float)):
+    tid = wp.tid()
+    output[tid] = a[tid] * s
+
+def example_func(
+    # inputs
+    a: wp.array(dtype=float),
+    s: float,
+    # outputs
+    b: wp.array(dtype=float),
+):
+    # launch multiple kernels
+    if s < 0:
+        jax.debug.print("launching")
+        wp.launch(scale_kernel, dim=a.shape, inputs=[a, s], outputs=[b])
+    else:
+        jax.debug.print("not launching")
+        b = a
+
+jax_func = jax_callable(example_func)
+
+@jax.jit
+def my_jax_func(pose):
+    s = 2.0
+    c = jax_func(pose.pos, s)
+    return c
 
 def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func=None):
     if sample_func is None:
@@ -57,7 +111,8 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
 
-        stepped_model, stepped_state = Physics.step(previous_info["prev_model"], previous_info["prev_state"])
+        # stepped_model, stepped_state = Physics.step(previous_info["prev_model"], previous_info["prev_state"])
+        # c = my_jax_func(previous_state["prev_model"], previous_state["prev_state"])
         all_poses = {}
         # all_scales = {}
         # scaled_meshes = []
@@ -66,9 +121,9 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                 pose_kernel(previous_state[f"object_pose_{o_id}"])
                 @ f"object_pose_{o_id}"
             )
-            pose_wp = wp.from_jax(previous_state[f"object_pose_{o_id}"].pos)
-            pose_wp = wp.sin(pose_wp)
-            pose = wp.to_jax(pose_wp)
+            c = my_jax_func(previous_state[f"object_pose_{o_id}"])
+            jax.debug.print("before {v}", v=previous_state[f"object_pose_{o_id}"].pos)
+            jax.debug.print("after {v}", v=c)
             # # top = 0.0
             # all_comp_poses = [Pose.from_translation(jnp.array([0.0, 0, 0.0]))]
             # all_comp_meshes = mesh_composite

@@ -8,6 +8,8 @@ import jax.numpy as jnp
 import numpy as np
 from genjax import Pytree
 from PIL import Image
+import warp as wp
+import warp.sim
 
 import b3d
 
@@ -179,9 +181,18 @@ def resize_rgbds_and_get_masks(rgbds, seg_arr, background_areas, im_height, im_w
 def get_initial_state(
     pred_file, object_ids, object_segmentation_colors, meshes, seg, rgbd, hyperparams
 ):
+    
+    # builder = wp.sim.ModelBuilder()
+    # builder.set_ground_plane()
+    # model = builder.finalize()
+    # state_0 = model.state()
+    # wp.sim.eval_fk(model, model.joint_q, model.joint_qd, None, state_0)
+
     pred = pred_file["scene"][0]["objects"]
 
     initial_state = {}
+    # initial_state["prev_model"] = model
+    # initial_state["prev_state"] = state_0
     hyperparams["meshes"] = {}
     for o_id, color in zip(object_ids, object_segmentation_colors):
         area = get_mask_area(seg, [color])

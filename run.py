@@ -1045,7 +1045,7 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
         print(trial_index + 1, "\t", trial_name)
         if (trial_name not in human_stims) or (trial_name in buggy_stims) or (trial_name in already_existing) or (trial_name in too_large_stims) or (trial_name in too_short_stims):
             continue
-        os.system(
-            f"CUDA_VISIBLE_DEVICES=0 python /home/haw027/code/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
-        )
+        cmd = f"CUDA_VISIBLE_DEVICES=0 python /home/haw027/code/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
+        print(cmd)
+        os.system(cmd)
         viz_index += FINAL_T - START_T + 1

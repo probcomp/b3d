@@ -9,10 +9,9 @@ import numpy as np
 from genjax import Pytree
 from PIL import Image
 import warp as wp
-import warp.sim
+from warp.sim.model import Model
 
 import b3d
-
 
 
 def scale_mesh(vertices, scale_factor):
@@ -178,21 +177,26 @@ def resize_rgbds_and_get_masks(rgbds, seg_arr, background_areas, im_height, im_w
     return rgbds, all_areas, background_areas
 
 
+def wp_to_jax(model_wp, state_wp, g):
+    gravity = jnp.asarray([[0.0, g, 0.0]])
+    model_jax = b3d.Model(model_wp.shape_contact_pair_count, model_wp.ground, model_wp.shape_ground_contact_pair_count, wp.to_jax(model_wp.rigid_contact_count), wp.to_jax(model_wp.rigid_contact_broad_shape0), wp.to_jax(model_wp.rigid_contact_broad_shape1), wp.to_jax(model_wp.shape_contact_pairs), wp.to_jax(model_wp.shape_transform), wp.to_jax(model_wp.shape_body), wp.to_jax(model_wp.body_mass), wp.to_jax(model_wp.shape_geo.type), wp.to_jax(model_wp.shape_geo.scale), wp.to_jax(model_wp.shape_geo.source), wp.to_jax(model_wp.shape_geo.thickness), wp.to_jax(model_wp.shape_collision_radius), model_wp.rigid_contact_max, model_wp.rigid_contact_margin, wp.to_jax(model_wp.rigid_contact_point_id), wp.to_jax(model_wp.shape_ground_contact_pairs), wp.to_jax(model_wp.rigid_contact_tids), wp.to_jax(model_wp.rigid_contact_shape0), wp.to_jax(model_wp.rigid_contact_shape1), wp.to_jax(model_wp.rigid_contact_point0), wp.to_jax(model_wp.rigid_contact_point1), wp.to_jax(model_wp.rigid_contact_offset0), wp.to_jax(model_wp.rigid_contact_offset1), wp.to_jax(model_wp.rigid_contact_normal), wp.to_jax(model_wp.rigid_contact_thickness), wp.to_jax(model_wp.body_com), wp.to_jax(model_wp.body_inertia), wp.to_jax(model_wp.body_inv_mass), wp.to_jax(model_wp.body_inv_inertia), gravity, wp.to_jax(model_wp.shape_materials.ke), wp.to_jax(model_wp.shape_materials.kd), wp.to_jax(model_wp.shape_materials.kf), wp.to_jax(model_wp.shape_materials.ka), wp.to_jax(model_wp.shape_materials.mu), len(model_wp.body_mass))
+    state_jax = b3d.State(wp.to_jax(state_wp.body_q), wp.to_jax(state_wp.body_qd), wp.to_jax(state_wp.body_f))
+    return model_jax, state_jax
+
+
 def get_initial_state(
     pred_file, object_ids, object_segmentation_colors, meshes, seg, rgbd, hyperparams
 ):
-    
-    # builder = wp.sim.ModelBuilder()
-    # builder.set_ground_plane()
-    # model = builder.finalize()
-    # state_0 = model.state()
-    # wp.sim.eval_fk(model, model.joint_q, model.joint_qd, None, state_0)
+    fps = hyperparams["fps"]
+    sim_substeps = hyperparams["sim_substeps"]
+    frame_dt = 1.0 / fps
+    sim_dt = frame_dt/sim_substeps
+    hyperparams["sim_dt"] = sim_dt
 
+    builder = wp.sim.ModelBuilder(gravity=hyperparams["gravity"])
     pred = pred_file["scene"][0]["objects"]
 
     initial_state = {}
-    # initial_state["prev_model"] = model
-    # initial_state["prev_state"] = state_0
     hyperparams["meshes"] = {}
     for o_id, color in zip(object_ids, object_segmentation_colors):
         area = get_mask_area(seg, [color])
@@ -210,8 +214,40 @@ def get_initial_state(
                 jnp.ones(meshes[pred[str(o_id)]["type"][0]].vertices.shape)
                 * mean_object_colors,
             )
+        
+        b = builder.add_body(
+                origin=wp.transform(
+                    np.array(pred[str(o_id)]["location"][0]), np.array(pred[str(o_id)]["rotation"][0]),
+                )
+        )
+        builder.add_shape_mesh(
+            body=b,
+            mesh=wp.sim.Mesh(scale_mesh(meshes[pred[str(o_id)]["type"][0]].vertices, jnp.array(pred[str(o_id)]["scale"][0])), meshes[pred[str(o_id)]["type"][0]].faces),
+            pos=wp.vec3(0.0, 0.0, 0.0),
+            scale=np.array(pred[str(o_id)]["scale"][0]),
+            restitution=hyperparams["restitution"],
+            mu=hyperparams["mu"],
+            # ke=self.ke,
+            # kd=self.kd,
+            # kf=self.kf,
+            density=1e3,
+            has_ground_collision=True,
+            has_shape_collision=True
+        )
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
+
+    builder.set_ground_plane(mu=hyperparams["mu"])
+    model = builder.finalize()
+    model.ground = True
+
+    state_0 = model.state()
+    wp.sim.eval_fk(model, model.joint_q, model.joint_qd, None, state_0)
+
+    model_jax, state_0_jax = wp_to_jax(model, state_0, hyperparams["gravity"])
+    initial_state["prev_model"] = model_jax
+    initial_state["prev_state"] = state_0_jax
+
     return initial_state, hyperparams
 
 

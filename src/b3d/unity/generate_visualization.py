@@ -37,7 +37,8 @@ def resize_img(img, downscale):
 
 def create_color_map(segmentation):
     unique_ids = np.unique(segmentation)
-    color_map = np.zeros((len(unique_ids), 3), dtype=np.uint8)
+    # color_map = np.zeros((len(unique_ids), 3), dtype=np.uint8)
+    color_map = np.zeros((np.max(unique_ids) + 1, 3), dtype=np.uint8)
 
     np.random.seed(42)
     for uid in unique_ids:

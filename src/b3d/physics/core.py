@@ -93,7 +93,7 @@ class Model:
             self._rigid_contact_broad_shape0 = jnp.full_like(self._rigid_contact_broad_shape0, -1)
             self._rigid_contact_broad_shape1 = jnp.full_like(self._rigid_contact_broad_shape1, -1)
 
-        condition = jnp.logical_or(self._shape_contact_pair_count, jnp.logical_and(self._ground, self._shape_ground_contact_pair_count))
+        condition = jnp.logical_or(self._shape_contact_pair_count[0], jnp.logical_and(self._ground[0], self._shape_ground_contact_pair_count[0]))
         return jax.lax.cond(condition, lambda _: _clear(), lambda _: None, operand=None)
 
     def update_attributes(self, **kwargs):

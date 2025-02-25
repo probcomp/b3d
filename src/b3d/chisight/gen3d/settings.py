@@ -7,7 +7,7 @@ hyperparams = {
     "restitution": 0.4,
     "fps": 100,
     "sim_substeps": 10,
-    "gravity": -9.80665,
+    "g": -9.80665,
 }
 
 inference_hyperparams = InferenceHyperparams(

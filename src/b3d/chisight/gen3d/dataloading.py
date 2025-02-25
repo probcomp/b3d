@@ -177,13 +177,19 @@ def resize_rgbds_and_get_masks(rgbds, seg_arr, background_areas, im_height, im_w
     return rgbds, all_areas, background_areas
 
 
-def wp_to_jax(model_wp, state_wp, g):
-    gravity = jnp.asarray([0.0, g, 0.0])
+def wp_to_jax(model_wp, state_wp, hyperparams):
     with jax.experimental.enable_x64():
         shape_geo_source = wp.to_jax(model_wp.shape_geo.source).astype(jnp.uint64)
-    model_jax = b3d.Model(jnp.array([model_wp.shape_contact_pair_count]), jnp.array([model_wp.ground]), jnp.array([model_wp.shape_ground_contact_pair_count]), wp.to_jax(model_wp.rigid_contact_count), wp.to_jax(model_wp.rigid_contact_broad_shape0), wp.to_jax(model_wp.rigid_contact_broad_shape1), wp.to_jax(model_wp.shape_contact_pairs), wp.to_jax(model_wp.shape_transform), wp.to_jax(model_wp.shape_body), wp.to_jax(model_wp.body_mass), wp.to_jax(model_wp.shape_geo.type), wp.to_jax(model_wp.shape_geo.scale), shape_geo_source, wp.to_jax(model_wp.shape_geo.thickness), wp.to_jax(model_wp.shape_collision_radius), jnp.array([model_wp.rigid_contact_max]), jnp.array([model_wp.rigid_contact_margin]), wp.to_jax(model_wp.rigid_contact_point_id), wp.to_jax(model_wp.shape_ground_contact_pairs), wp.to_jax(model_wp.rigid_contact_tids), wp.to_jax(model_wp.rigid_contact_shape0), wp.to_jax(model_wp.rigid_contact_shape1), wp.to_jax(model_wp.rigid_contact_point0), wp.to_jax(model_wp.rigid_contact_point1), wp.to_jax(model_wp.rigid_contact_offset0), wp.to_jax(model_wp.rigid_contact_offset1), wp.to_jax(model_wp.rigid_contact_normal), wp.to_jax(model_wp.rigid_contact_thickness), wp.to_jax(model_wp.body_com), wp.to_jax(model_wp.body_inertia), wp.to_jax(model_wp.body_inv_mass), wp.to_jax(model_wp.body_inv_inertia), gravity, wp.to_jax(model_wp.shape_materials.ke), wp.to_jax(model_wp.shape_materials.kd), wp.to_jax(model_wp.shape_materials.kf), wp.to_jax(model_wp.shape_materials.ka), wp.to_jax(model_wp.shape_materials.mu), jnp.array([len(model_wp.body_mass)]))
+    
+    model_jax = b3d.Model(wp.to_jax(model_wp.rigid_contact_count), wp.to_jax(model_wp.rigid_contact_broad_shape0), wp.to_jax(model_wp.rigid_contact_broad_shape1), wp.to_jax(model_wp.shape_contact_pairs), wp.to_jax(model_wp.shape_transform), wp.to_jax(model_wp.shape_body), wp.to_jax(model_wp.body_mass), wp.to_jax(model_wp.shape_geo.type), wp.to_jax(model_wp.shape_geo.scale), shape_geo_source, wp.to_jax(model_wp.shape_geo.thickness), wp.to_jax(model_wp.shape_collision_radius), wp.to_jax(model_wp.rigid_contact_point_id), wp.to_jax(model_wp.shape_ground_contact_pairs), wp.to_jax(model_wp.rigid_contact_tids), wp.to_jax(model_wp.rigid_contact_shape0), wp.to_jax(model_wp.rigid_contact_shape1), wp.to_jax(model_wp.rigid_contact_point0), wp.to_jax(model_wp.rigid_contact_point1), wp.to_jax(model_wp.rigid_contact_offset0), wp.to_jax(model_wp.rigid_contact_offset1), wp.to_jax(model_wp.rigid_contact_normal), wp.to_jax(model_wp.rigid_contact_thickness), wp.to_jax(model_wp.body_com), wp.to_jax(model_wp.body_inertia), wp.to_jax(model_wp.body_inv_mass), wp.to_jax(model_wp.body_inv_inertia), wp.to_jax(model_wp.shape_materials.ke), wp.to_jax(model_wp.shape_materials.kd), wp.to_jax(model_wp.shape_materials.kf), wp.to_jax(model_wp.shape_materials.ka), wp.to_jax(model_wp.shape_materials.mu))
     state_jax = b3d.State(wp.to_jax(state_wp.body_q), wp.to_jax(state_wp.body_qd), wp.to_jax(state_wp.body_f))
-    return model_jax, state_jax
+    hyperparams["rigid_contact_max"] = model_wp.rigid_contact_max
+    hyperparams["shape_contact_pair_count"] = model_wp.shape_contact_pair_count
+    hyperparams["shape_ground_contact_pair_count"] = model_wp.shape_ground_contact_pair_count
+    hyperparams["rigid_contact_margin"] = model_wp.rigid_contact_margin
+    hyperparams["ground"] = model_wp.ground
+    hyperparams["body_count"] = len(model_wp.body_mass)
+    return model_jax, state_jax, hyperparams
 
 
 def get_initial_state(
@@ -195,7 +201,7 @@ def get_initial_state(
     sim_dt = frame_dt/sim_substeps
     hyperparams["sim_dt"] = sim_dt
 
-    builder = wp.sim.ModelBuilder(gravity=hyperparams["gravity"])
+    builder = wp.sim.ModelBuilder()
     pred = pred_file["scene"][0]["objects"]
 
     initial_state = {}
@@ -246,7 +252,7 @@ def get_initial_state(
     state_0 = model.state()
     wp.sim.eval_fk(model, model.joint_q, model.joint_qd, None, state_0)
 
-    model_jax, state_0_jax = wp_to_jax(model, state_0, hyperparams["gravity"])
+    model_jax, state_0_jax, hyperparams = wp_to_jax(model, state_0, hyperparams)
     initial_state["prev_model"] = model_jax
     initial_state["prev_state"] = state_0_jax
 

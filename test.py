@@ -1,5 +1,6 @@
 import json
 import os
+# os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 from os.path import join
 import trimesh
 from b3d.chisight.gen3d.dataloading import (
@@ -57,4 +58,9 @@ initial_state, hyperparams = get_initial_state(
 
 from b3d.physics.physics_utils import step
 
-stepped_model, stepped_state = step(initial_state["prev_model"], initial_state["prev_state"], hyperparams["sim_dt"])
+# stepped_model, stepped_state = step(initial_state["prev_model"], initial_state["prev_state"], hyperparams)
+for i in range(250):
+    print(f"step: {i}")
+    stepped_model, stepped_state = step(initial_state["prev_model"], initial_state["prev_state"], hyperparams)
+    initial_state["prev_model"] = stepped_model
+    initial_state["prev_state"] = stepped_state

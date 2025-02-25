@@ -8,9 +8,6 @@ class Model:
     """This class holds the non-time varying description of the system, i.e.: all geometry, constraints, and parameters used to describe the simulation."""
 
     def __init__(self, 
-                 shape_contact_pair_count, 
-                 ground, 
-                 shape_ground_contact_pair_count, 
                  rigid_contact_count, 
                  rigid_contact_broad_shape0, 
                  rigid_contact_broad_shape1, 
@@ -23,8 +20,6 @@ class Model:
                  geo_source,
                  geo_thickness,
                  shape_collision_radius, 
-                 rigid_contact_max, 
-                 rigid_contact_margin, 
                  rigid_contact_point_id, 
                  shape_ground_contact_pairs, 
                  rigid_contact_tids, 
@@ -40,16 +35,11 @@ class Model:
                  body_inertia, 
                  body_inv_mass, 
                  body_inv_inertia, 
-                 gravity, 
                  ke, 
                  kd, 
                  kf, 
                  ka, 
-                 mu,
-                 body_count):
-        self._shape_contact_pair_count = shape_contact_pair_count
-        self._ground = ground
-        self._shape_ground_contact_pair_count = shape_ground_contact_pair_count
+                 mu):
         self._rigid_contact_count = rigid_contact_count
         self._rigid_contact_broad_shape0 = rigid_contact_broad_shape0
         self._rigid_contact_broad_shape1 = rigid_contact_broad_shape1
@@ -62,8 +52,6 @@ class Model:
         self._geo_source = geo_source
         self._geo_thickness = geo_thickness
         self._shape_collision_radius = shape_collision_radius
-        self._rigid_contact_max = rigid_contact_max
-        self._rigid_contact_margin = rigid_contact_margin
         self._rigid_contact_point_id = rigid_contact_point_id
         self._shape_ground_contact_pairs = shape_ground_contact_pairs
         self._rigid_contact_tids = rigid_contact_tids
@@ -79,22 +67,16 @@ class Model:
         self._body_inertia = body_inertia
         self._body_inv_mass = body_inv_mass
         self._body_inv_inertia = body_inv_inertia
-        self._gravity = gravity
         self._ke = ke
         self._kd = kd
         self._kf = kf
         self._ka = ka
         self._mu = mu
-        self._body_count = body_count
 
     def clear_old_count(self):
-        def _clear():
-            self._rigid_contact_count = jnp.zeros_like(self._rigid_contact_count)
-            self._rigid_contact_broad_shape0 = jnp.full_like(self._rigid_contact_broad_shape0, -1)
-            self._rigid_contact_broad_shape1 = jnp.full_like(self._rigid_contact_broad_shape1, -1)
-
-        condition = jnp.logical_or(self._shape_contact_pair_count[0], jnp.logical_and(self._ground[0], self._shape_ground_contact_pair_count[0]))
-        return jax.lax.cond(condition, lambda _: _clear(), lambda _: None, operand=None)
+        self._rigid_contact_count = jnp.zeros_like(self._rigid_contact_count)
+        self._rigid_contact_broad_shape0 = jnp.full_like(self._rigid_contact_broad_shape0, -1)
+        self._rigid_contact_broad_shape1 = jnp.full_like(self._rigid_contact_broad_shape1, -1)
 
     def update_attributes(self, **kwargs):
         for attr, value in kwargs.items():
@@ -102,7 +84,7 @@ class Model:
                 setattr(self, attr, value)
 
     def tree_flatten(self):
-        return ((self._shape_contact_pair_count, self._ground, self._shape_ground_contact_pair_count, self._rigid_contact_count, self._rigid_contact_broad_shape0, self._rigid_contact_broad_shape1, self._shape_contact_pairs, self._shape_transform, self._shape_body, self._body_mass, self._geo_type, self._geo_scale, self._geo_source, self._geo_thickness, self._shape_collision_radius, self._rigid_contact_max, self._rigid_contact_margin, self._rigid_contact_point_id, self._shape_ground_contact_pairs, self._rigid_contact_tids, self._rigid_contact_shape0, self._rigid_contact_shape1, self._rigid_contact_point0, self._rigid_contact_point1, self._rigid_contact_offset0, self._rigid_contact_offset1, self._rigid_contact_normal, self._rigid_contact_thickness, self._body_com, self._body_inertia, self._body_inv_mass, self._body_inv_inertia, self._gravity, self._ke, self._kd, self._kf, self._ka, self._mu, self._body_count), None)
+        return ((self._rigid_contact_count, self._rigid_contact_broad_shape0, self._rigid_contact_broad_shape1, self._shape_contact_pairs, self._shape_transform, self._shape_body, self._body_mass, self._geo_type, self._geo_scale, self._geo_source, self._geo_thickness, self._shape_collision_radius, self._rigid_contact_point_id, self._shape_ground_contact_pairs, self._rigid_contact_tids, self._rigid_contact_shape0, self._rigid_contact_shape1, self._rigid_contact_point0, self._rigid_contact_point1, self._rigid_contact_offset0, self._rigid_contact_offset1, self._rigid_contact_normal, self._rigid_contact_thickness, self._body_com, self._body_inertia, self._body_inv_mass, self._body_inv_inertia, self._ke, self._kd, self._kf, self._ka, self._mu), None)
 
     @classmethod
     def tree_unflatten(cls, aux_data, children):

@@ -73,10 +73,10 @@ class Model:
         self._ka = ka
         self._mu = mu
 
-    def clear_old_count(self):
-        self._rigid_contact_count = jnp.zeros_like(self._rigid_contact_count)
-        self._rigid_contact_broad_shape0 = jnp.full_like(self._rigid_contact_broad_shape0, -1)
-        self._rigid_contact_broad_shape1 = jnp.full_like(self._rigid_contact_broad_shape1, -1)
+    # def clear_old_count(self):
+    #     self._rigid_contact_count = jnp.zeros_like(self._rigid_contact_count)
+    #     self._rigid_contact_broad_shape0 = jnp.full_like(self._rigid_contact_broad_shape0, -1)
+    #     self._rigid_contact_broad_shape1 = jnp.full_like(self._rigid_contact_broad_shape1, -1)
 
     def update_attributes(self, **kwargs):
         for attr, value in kwargs.items():

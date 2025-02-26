@@ -187,7 +187,7 @@ def wp_to_jax(model_wp, state_wp, hyperparams):
     hyperparams["shape_contact_pair_count"] = model_wp.shape_contact_pair_count
     hyperparams["shape_ground_contact_pair_count"] = model_wp.shape_ground_contact_pair_count
     hyperparams["rigid_contact_margin"] = model_wp.rigid_contact_margin
-    hyperparams["ground"] = model_wp.ground
+    # hyperparams["ground"] = model_wp.ground
     hyperparams["body_count"] = len(model_wp.body_mass)
     return model_jax, state_jax, hyperparams
 

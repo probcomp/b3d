@@ -542,9 +542,23 @@ def collide(
     shape_collision_radius: wp.array(dtype=float),
     rigid_contact_max: int,
     rigid_contact_margin: float,
-    ground: bool,
     shape_ground_contact_pair_count: int,
     shape_ground_contact_pairs: wp.array(dtype=int, ndim=2),
+
+    rigid_contact_count_in: wp.array(dtype=int),
+    rigid_contact_broad_shape0_in: wp.array(dtype=int),
+    rigid_contact_broad_shape1_in: wp.array(dtype=int),
+    rigid_contact_point_id_in: wp.array(dtype=int),
+    rigid_contact_shape0_in: wp.array(dtype=int),
+    rigid_contact_shape1_in: wp.array(dtype=int),
+    rigid_contact_point0_in: wp.array(dtype=wp.vec3),
+    rigid_contact_point1_in: wp.array(dtype=wp.vec3),
+    rigid_contact_offset0_in: wp.array(dtype=wp.vec3),
+    rigid_contact_offset1_in: wp.array(dtype=wp.vec3),
+    rigid_contact_normal_in: wp.array(dtype=wp.vec3),
+    rigid_contact_thickness_in: wp.array(dtype=float),
+    rigid_contact_tids_in: wp.array(dtype=int),
+
     # outputs (all are model's attributes)
     rigid_contact_count: wp.array(dtype=int),
     rigid_contact_broad_shape0: wp.array(dtype=int),
@@ -560,93 +574,109 @@ def collide(
     rigid_contact_thickness: wp.array(dtype=float),
     rigid_contact_tids: wp.array(dtype=int),
 ):
-    if shape_contact_pair_count:
-        wp.launch(
-            kernel=broadphase_collision_pairs,
-            dim=shape_contact_pair_count,
-            inputs=[
-                shape_contact_pairs,
-                body_q,
-                shape_transform,
-                shape_body,
-                body_mass,
-                geo_type,
-                geo_scale,
-                geo_source,
-                shape_collision_radius,
-                rigid_contact_max,
-                rigid_contact_margin,
-            ],
-            outputs=[
-                rigid_contact_count,
-                rigid_contact_broad_shape0,
-                rigid_contact_broad_shape1,
-                rigid_contact_point_id,
-            ],
-            record_tape=False,
-        )
+    
+    wp.copy(rigid_contact_count, rigid_contact_count_in)
+    wp.copy(rigid_contact_broad_shape0, rigid_contact_broad_shape0_in)
+    wp.copy(rigid_contact_broad_shape1, rigid_contact_broad_shape1_in)
+    wp.copy(rigid_contact_point_id, rigid_contact_point_id_in)
+    wp.copy(rigid_contact_shape0, rigid_contact_shape0_in)
+    wp.copy(rigid_contact_shape1, rigid_contact_shape1_in)
+    wp.copy(rigid_contact_point0, rigid_contact_point0_in)
+    wp.copy(rigid_contact_point1, rigid_contact_point1_in)
+    wp.copy(rigid_contact_offset0, rigid_contact_offset0_in)
+    wp.copy(rigid_contact_offset1, rigid_contact_offset1_in)
+    wp.copy(rigid_contact_normal, rigid_contact_normal_in)
+    wp.copy(rigid_contact_thickness, rigid_contact_thickness_in)
+    wp.copy(rigid_contact_tids, rigid_contact_tids_in)
 
-    if ground and shape_ground_contact_pair_count:
-        wp.launch(
-            kernel=broadphase_collision_pairs,
-            dim=shape_ground_contact_pair_count,
-            inputs=[
-                shape_ground_contact_pairs,
-                body_q,
-                shape_transform,
-                shape_body,
-                body_mass,
-                geo_type,
-                geo_scale,
-                geo_source,
-                shape_collision_radius,
-                rigid_contact_max,
-                rigid_contact_margin,
-            ],
-            outputs=[
-                rigid_contact_count,
-                rigid_contact_broad_shape0,
-                rigid_contact_broad_shape1,
-                rigid_contact_point_id,
-            ],
-            record_tape=False,
-        )
+    rigid_contact_count.zero_()
+    rigid_contact_broad_shape0.fill_(-1)
+    rigid_contact_broad_shape1.fill_(-1)
 
-    if shape_contact_pair_count or ground and shape_ground_contact_pair_count:
-        rigid_contact_count.zero_()
-        rigid_contact_tids.zero_()
-        rigid_contact_shape0.fill_(-1)
-        rigid_contact_shape1.fill_(-1)
+    wp.launch(
+        kernel=broadphase_collision_pairs,
+        dim=shape_contact_pair_count,
+        inputs=[
+            shape_contact_pairs,
+            body_q,
+            shape_transform,
+            shape_body,
+            body_mass,
+            geo_type,
+            geo_scale,
+            geo_source,
+            shape_collision_radius,
+            rigid_contact_max,
+            rigid_contact_margin,
+        ],
+        outputs=[
+            rigid_contact_count,
+            rigid_contact_broad_shape0,
+            rigid_contact_broad_shape1,
+            rigid_contact_point_id,
+        ],
+        record_tape=False,
+    )
 
-        wp.launch(
-            kernel=handle_contact_pairs,
-            dim=rigid_contact_max,
-            inputs=[
-                body_q,
-                shape_transform,
-                shape_body,
-                geo_type,
-                geo_scale,
-                geo_source,
-                geo_thickness,
-                rigid_contact_margin,
-                rigid_contact_broad_shape0,
-                rigid_contact_broad_shape1,
-                rigid_contact_point_id,
-            ],
-            outputs=[
-                rigid_contact_count,
-                rigid_contact_shape0,
-                rigid_contact_shape1,
-                rigid_contact_point0,
-                rigid_contact_point1,
-                rigid_contact_offset0,
-                rigid_contact_offset1,
-                rigid_contact_normal,
-                rigid_contact_thickness,
-                rigid_contact_tids,
-            ],
-        )
+    wp.launch(
+        kernel=broadphase_collision_pairs,
+        dim=shape_ground_contact_pair_count,
+        inputs=[
+            shape_ground_contact_pairs,
+            body_q,
+            shape_transform,
+            shape_body,
+            body_mass,
+            geo_type,
+            geo_scale,
+            geo_source,
+            shape_collision_radius,
+            rigid_contact_max,
+            rigid_contact_margin,
+        ],
+        outputs=[
+            rigid_contact_count,
+            rigid_contact_broad_shape0,
+            rigid_contact_broad_shape1,
+            rigid_contact_point_id,
+        ],
+        record_tape=False,
+    )
+
+    rigid_contact_count.zero_()
+    rigid_contact_tids.zero_()
+    rigid_contact_shape0.fill_(-1)
+    rigid_contact_shape1.fill_(-1)
+
+    wp.launch(
+        kernel=handle_contact_pairs,
+        dim=rigid_contact_max,
+        inputs=[
+            body_q,
+            shape_transform,
+            shape_body,
+            geo_type,
+            geo_scale,
+            geo_source,
+            geo_thickness,
+            rigid_contact_margin,
+            rigid_contact_broad_shape0,
+            rigid_contact_broad_shape1,
+            rigid_contact_point_id,
+        ],
+        outputs=[
+            rigid_contact_count,
+            rigid_contact_shape0,
+            rigid_contact_shape1,
+            rigid_contact_point0,
+            rigid_contact_point1,
+            rigid_contact_offset0,
+            rigid_contact_offset1,
+            rigid_contact_normal,
+            rigid_contact_thickness,
+            rigid_contact_tids,
+        ],
+    )
 
 
 def simulate(
@@ -674,11 +704,21 @@ def simulate(
     body_inv_inertia: wp.array(dtype=wp.mat33),
     g: float,
     dt: float,
+
+    body_q_in: wp.array(dtype=wp.transform),
+    body_qd_in: wp.array(dtype=wp.spatial_vector),
+    body_f_in: wp.array(dtype=wp.spatial_vector),
+
     # outputs (all are state features)
     body_q_new: wp.array(dtype=wp.transform),
     body_qd_new: wp.array(dtype=wp.spatial_vector),
     body_f: wp.array(dtype=wp.spatial_vector),
 ):
+    
+    wp.copy(body_q_new, body_q_in)
+    wp.copy(body_qd_new, body_qd_in)
+    wp.copy(body_f, body_f_in)
+
     # compute forces
     wp.launch(
         kernel=eval_rigid_contacts,
@@ -726,77 +766,80 @@ def simulate(
     )
 
 
+def step(model, state, hyperparams):
+    jax_collide = jax_callable(collide, num_outputs=13)
+    jax_simulate = jax_callable(simulate, num_outputs=3)
+
+    @partial(jax.jit, static_argnames=["rigid_contact_max", "shape_contact_pair_count", "shape_ground_contact_pair_count", "rigid_contact_margin", "body_count", "g", "dt"])
+    def warp_step(rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids, body_qd, body_f, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, shape_ground_contact_pair_count, shape_ground_contact_pairs, body_count, g, dt):
+        
+        # compute all collision info, output are all model features)
+        output_dims_coll = {"rigid_contact_count": 1, "rigid_contact_broad_shape0": rigid_contact_max, "rigid_contact_broad_shape1": rigid_contact_max, "rigid_contact_point_id": rigid_contact_max, "rigid_contact_shape0": rigid_contact_max, "rigid_contact_shape1": rigid_contact_max, "rigid_contact_point0": rigid_contact_max, "rigid_contact_point1": rigid_contact_max, "rigid_contact_offset0": rigid_contact_max, "rigid_contact_offset1": rigid_contact_max, "rigid_contact_normal": rigid_contact_max, "rigid_contact_thickness": rigid_contact_max, "rigid_contact_tids": rigid_contact_max}
+        rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids = jax_collide(shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, shape_ground_contact_pair_count, shape_ground_contact_pairs, rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids, output_dims=output_dims_coll)
+
+        # update body info, outputs are all state features)
+        output_dims_sim = {"body_q_new": body_count, "body_qd_new": body_count, "body_f": body_count}
+        body_q_new, body_qd_new, body_f_new = jax_simulate(rigid_contact_max, body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count, rigid_contact_point0, rigid_contact_point1, rigid_contact_normal, rigid_contact_shape0, rigid_contact_shape1, body_count, body_inertia, body_inv_mass, body_inv_inertia, g, dt, body_q, body_qd, body_f, output_dims=output_dims_sim)
+
+        return body_q_new, body_qd_new, body_f_new, rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids
+
+    state.clear_forces()
+
+    ## extract the current model and state parameters
+    model_attributes = vars(model)
+    rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, shape_contact_pairs, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_point_id, shape_ground_contact_pairs, rigid_contact_tids, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, body_com, body_inertia, body_inv_mass, body_inv_inertia, ke, kd, kf, ka, mu = model_attributes.values()
+    state_attributes = vars(state)
+    body_q, body_qd, body_f = state_attributes.values()
+    
+    body_q_new, body_qd_new, body_f_new, rigid_contact_count_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_shape0_new, rigid_contact_shape1_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_normal_new, rigid_contact_thickness_new, rigid_contact_tids_new = warp_step(rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids, body_qd, body_f, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs, hyperparams['body_count'], hyperparams['g'], hyperparams['sim_dt'])
+
+    ## update the model and state parameters
+    model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
+    state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new, _body_f = body_f_new)
+    
+    return model, state
+
+
+
+
+
+
+
+
+
+
+
+
 # def step(model, state, hyperparams):
 #     jax_collide = jax_callable(collide, num_outputs=13)
 #     jax_simulate = jax_callable(simulate, num_outputs=3)
 
-#     @partial(jax.jit, static_argnames=["rigid_contact_max", "shape_contact_pair_count", "shape_ground_contact_pair_count", "rigid_contact_margin", "ground", "body_count", "g", "dt"])
-#     def warp_step(body_qd, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, ground, shape_ground_contact_pair_count, shape_ground_contact_pairs, body_count, g, dt):
-#         print(f"rigid_contact_max: {rigid_contact_max}, shape_contact_pair_count: {shape_contact_pair_count}, shape_ground_contact_pair_count: {shape_ground_contact_pair_count}, rigid_contact_margin: {rigid_contact_margin}, ground: {ground}, body_count: {body_count}, g: {g}, dt: {dt}")
-        
+#     @partial(jax.jit, static_argnames=["rigid_contact_max", "shape_contact_pair_count", "shape_ground_contact_pair_count", "rigid_contact_margin", "ground"])
+#     def compute_collision(shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, ground, shape_ground_contact_pair_count, shape_ground_contact_pairs):        
 #         # compute all collision info, output are all model features)
 #         output_dims_coll = {"rigid_contact_count": 1, "rigid_contact_broad_shape0": rigid_contact_max, "rigid_contact_broad_shape1": rigid_contact_max, "rigid_contact_point_id": rigid_contact_max, "rigid_contact_shape0": rigid_contact_max, "rigid_contact_shape1": rigid_contact_max, "rigid_contact_point0": rigid_contact_max, "rigid_contact_point1": rigid_contact_max, "rigid_contact_offset0": rigid_contact_max, "rigid_contact_offset1": rigid_contact_max, "rigid_contact_normal": rigid_contact_max, "rigid_contact_thickness": rigid_contact_max, "rigid_contact_tids": rigid_contact_max}
 #         rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids = jax_collide(shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, ground, shape_ground_contact_pair_count, shape_ground_contact_pairs, output_dims=output_dims_coll)
+#         return rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids
 
+#     @partial(jax.jit, static_argnames=["rigid_contact_max", "body_count", "g", "dt"])
+#     def update_body(rigid_contact_max, body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count, rigid_contact_point0, rigid_contact_point1, rigid_contact_normal, rigid_contact_shape0, rigid_contact_shape1, body_count, body_inertia, body_inv_mass, body_inv_inertia, g, dt):
 #         # update body info, outputs are all state features)
 #         output_dims_sim = {"body_q_new": body_count, "body_qd_new": body_count, "body_f": body_count}
 #         body_q_new, body_qd_new, _ = jax_simulate(rigid_contact_max, body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count, rigid_contact_point0, rigid_contact_point1, rigid_contact_normal, rigid_contact_shape0, rigid_contact_shape1, body_count, body_inertia, body_inv_mass, body_inv_inertia, g, dt, output_dims=output_dims_sim)
-
-#         return body_q_new, body_qd_new, rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids
-#         # return None, None, None, None, None, None, None, None, None, None, None, None, None, None, None
-#         return body_q_new, body_qd_new, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_thickness, rigid_contact_tids
+#         return body_q_new, body_qd_new
 
 #     state.clear_forces()
 #     model.clear_old_count()
 
 #     model_attributes = vars(model)
-#     # Unpacking into variables
-#     # shape_contact_pair_count, ground, shape_ground_contact_pair_count, rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, shape_contact_pairs, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, rigid_contact_point_id, shape_ground_contact_pairs, rigid_contact_tids, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, body_com, body_inertia, body_inv_mass, body_inv_inertia, gravity, ke, kd, kf, ka, mu, body_count = model_attributes.values()
 #     _, _, _, shape_contact_pairs, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, _, shape_ground_contact_pairs, _, _, _, _, _, _, _, _, _, body_com, body_inertia, body_inv_mass, body_inv_inertia, ke, kd, kf, ka, mu = model_attributes.values()
 
 #     state_attributes = vars(state)
-#     # Unpacking into variables
 #     body_q, body_qd, _ = state_attributes.values()
     
-#     body_q_new, body_qd_new, rigid_contact_count_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_shape0_new, rigid_contact_shape1_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_normal_new, rigid_contact_thickness_new, rigid_contact_tids_new = warp_step(body_qd, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['ground'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs, hyperparams['body_count'], hyperparams['gravity'], hyperparams['sim_dt'])
-#     # body_q_new, body_qd_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_thickness_new, rigid_contact_tids_new= warp_step(body_qd, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['ground'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs, hyperparams['body_count'], hyperparams['gravity'], hyperparams['sim_dt'])
-#     model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
-#     # model.update_attributes(_rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
-#     state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new)
+#     rigid_contact_count_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_shape0_new, rigid_contact_shape1_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_normal_new, rigid_contact_thickness_new, rigid_contact_tids_new = compute_collision(hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['ground'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs)
+#     body_q_new, body_qd_new = update_body(hyperparams["rigid_contact_max"], body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_normal_new, rigid_contact_shape0_new, rigid_contact_shape1_new, hyperparams['body_count'], body_inertia, body_inv_mass, body_inv_inertia, hyperparams['g'], hyperparams['sim_dt'])
+#     # model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
+#     # state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new)
     
 #     return model, state
-
-
-def step(model, state, hyperparams):
-    jax_collide = jax_callable(collide, num_outputs=13)
-    jax_simulate = jax_callable(simulate, num_outputs=3)
-
-    @partial(jax.jit, static_argnames=["rigid_contact_max", "shape_contact_pair_count", "shape_ground_contact_pair_count", "rigid_contact_margin", "ground"])
-    def compute_collision(shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, ground, shape_ground_contact_pair_count, shape_ground_contact_pairs):        
-        # compute all collision info, output are all model features)
-        output_dims_coll = {"rigid_contact_count": 1, "rigid_contact_broad_shape0": rigid_contact_max, "rigid_contact_broad_shape1": rigid_contact_max, "rigid_contact_point_id": rigid_contact_max, "rigid_contact_shape0": rigid_contact_max, "rigid_contact_shape1": rigid_contact_max, "rigid_contact_point0": rigid_contact_max, "rigid_contact_point1": rigid_contact_max, "rigid_contact_offset0": rigid_contact_max, "rigid_contact_offset1": rigid_contact_max, "rigid_contact_normal": rigid_contact_max, "rigid_contact_thickness": rigid_contact_max, "rigid_contact_tids": rigid_contact_max}
-        rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids = jax_collide(shape_contact_pair_count, shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_max, rigid_contact_margin, ground, shape_ground_contact_pair_count, shape_ground_contact_pairs, output_dims=output_dims_coll)
-        return rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids
-
-    @partial(jax.jit, static_argnames=["rigid_contact_max", "body_count", "g", "dt"])
-    def update_body(rigid_contact_max, body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count, rigid_contact_point0, rigid_contact_point1, rigid_contact_normal, rigid_contact_shape0, rigid_contact_shape1, body_count, body_inertia, body_inv_mass, body_inv_inertia, g, dt):
-        # update body info, outputs are all state features)
-        output_dims_sim = {"body_q_new": body_count, "body_qd_new": body_count, "body_f": body_count}
-        body_q_new, body_qd_new, _ = jax_simulate(rigid_contact_max, body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count, rigid_contact_point0, rigid_contact_point1, rigid_contact_normal, rigid_contact_shape0, rigid_contact_shape1, body_count, body_inertia, body_inv_mass, body_inv_inertia, g, dt, output_dims=output_dims_sim)
-        return body_q_new, body_qd_new
-
-    state.clear_forces()
-    model.clear_old_count()
-
-    model_attributes = vars(model)
-    _, _, _, shape_contact_pairs, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, _, shape_ground_contact_pairs, _, _, _, _, _, _, _, _, _, body_com, body_inertia, body_inv_mass, body_inv_inertia, ke, kd, kf, ka, mu = model_attributes.values()
-
-    state_attributes = vars(state)
-    body_q, body_qd, _ = state_attributes.values()
-    
-    rigid_contact_count_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_shape0_new, rigid_contact_shape1_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_normal_new, rigid_contact_thickness_new, rigid_contact_tids_new = compute_collision(hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['ground'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs)
-    # body_q_new, body_qd_new = update_body(hyperparams["rigid_contact_max"], body_q, body_qd, body_com, ke, kd, kf, ka, mu, geo_thickness, shape_body, rigid_contact_count_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_normal_new, rigid_contact_shape0_new, rigid_contact_shape1_new, hyperparams['body_count'], body_inertia, body_inv_mass, body_inv_inertia, hyperparams['g'], hyperparams['sim_dt'])
-    # model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
-    # state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new)
-    
-    return model, state

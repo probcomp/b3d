@@ -7,7 +7,7 @@ from genjax import Pytree
 import b3d
 import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
-# from b3d.physics.physics_utils import step
+from b3d.physics.physics_utils import step
 
 def get_hypers(trace):
     return trace.get_args()[0]
@@ -56,7 +56,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
 
-        # stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams["sim_dt"])
+        stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams)
         all_poses = {}
         for o_id in object_ids.unwrap():
             object_pose = (

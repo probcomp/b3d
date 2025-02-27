@@ -144,7 +144,7 @@ def main(
     hyperparams["camera_pose"] = camera_pose
     hyperparams["likelihood_args"] = likelihood_args
 
-    initial_state, hyperparams = get_initial_state(
+    initial_state, hyperparams, _, _ = get_initial_state(
         pred_file,
         object_ids,
         object_segmentation_colors,

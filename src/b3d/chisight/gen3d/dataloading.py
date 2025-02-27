@@ -10,6 +10,7 @@ from genjax import Pytree
 from PIL import Image
 import warp as wp
 from warp.sim.model import Model
+import warp.sim.render
 
 import b3d
 
@@ -223,6 +224,8 @@ def get_initial_state(
                 * mean_object_colors,
             )
         
+        if o_id == 1:
+            continue
         b = builder.add_body(
                 origin=wp.transform(
                     np.array(pred[str(o_id)]["location"][0]), np.array(pred[str(o_id)]["rotation"][0]),
@@ -230,7 +233,7 @@ def get_initial_state(
         )
         builder.add_shape_mesh(
             body=b,
-            mesh=wp.sim.Mesh(scale_mesh(meshes[pred[str(o_id)]["type"][0]].vertices, jnp.array(pred[str(o_id)]["scale"][0])), meshes[pred[str(o_id)]["type"][0]].faces),
+            mesh=wp.sim.Mesh(meshes[pred[str(o_id)]["type"][0]].vertices, meshes[pred[str(o_id)]["type"][0]].faces),
             pos=wp.vec3(0.0, 0.0, 0.0),
             scale=np.array(pred[str(o_id)]["scale"][0]),
             restitution=hyperparams["restitution"],
@@ -256,7 +259,9 @@ def get_initial_state(
     initial_state["prev_model"] = model_jax
     initial_state["prev_state"] = state_0_jax
 
-    return initial_state, hyperparams
+    renderer = wp.sim.render.SimRenderer(model, '/home/haw027/code/b3d/test.usd', scaling=0.5)
+
+    return initial_state, hyperparams, renderer, state_0
 
 
 def calculate_relevant_objects(

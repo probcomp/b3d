@@ -783,19 +783,20 @@ def step(model, state, hyperparams):
 
         return body_q_new, body_qd_new, body_f_new, rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids
 
-    state.clear_forces()
+    for _ in range(hyperparams["sim_substeps"]):
+        state.clear_forces()
 
-    ## extract the current model and state parameters
-    model_attributes = vars(model)
-    rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, shape_contact_pairs, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_point_id, shape_ground_contact_pairs, rigid_contact_tids, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, body_com, body_inertia, body_inv_mass, body_inv_inertia, ke, kd, kf, ka, mu = model_attributes.values()
-    state_attributes = vars(state)
-    body_q, body_qd, body_f = state_attributes.values()
-    
-    body_q_new, body_qd_new, body_f_new, rigid_contact_count_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_shape0_new, rigid_contact_shape1_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_normal_new, rigid_contact_thickness_new, rigid_contact_tids_new = warp_step(rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids, body_qd, body_f, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs, hyperparams['body_count'], hyperparams['g'], hyperparams['sim_dt'])
+        ## extract the current model and state parameters
+        model_attributes = vars(model)
+        rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, shape_contact_pairs, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, rigid_contact_point_id, shape_ground_contact_pairs, rigid_contact_tids, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, body_com, body_inertia, body_inv_mass, body_inv_inertia, ke, kd, kf, ka, mu = model_attributes.values()
+        state_attributes = vars(state)
+        body_q, body_qd, body_f = state_attributes.values()
+        
+        body_q_new, body_qd_new, body_f_new, rigid_contact_count_new, rigid_contact_broad_shape0_new, rigid_contact_broad_shape1_new, rigid_contact_point_id_new, rigid_contact_shape0_new, rigid_contact_shape1_new, rigid_contact_point0_new, rigid_contact_point1_new, rigid_contact_offset0_new, rigid_contact_offset1_new, rigid_contact_normal_new, rigid_contact_thickness_new, rigid_contact_tids_new = warp_step(rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_broad_shape1, rigid_contact_point_id, rigid_contact_shape0, rigid_contact_shape1, rigid_contact_point0, rigid_contact_point1, rigid_contact_offset0, rigid_contact_offset1, rigid_contact_normal, rigid_contact_thickness, rigid_contact_tids, body_qd, body_f, body_com, ke, kd, kf, ka, mu, body_inertia, body_inv_mass, body_inv_inertia, hyperparams['shape_contact_pair_count'], shape_contact_pairs, body_q, shape_transform, shape_body, body_mass, geo_type, geo_scale, geo_source, geo_thickness, shape_collision_radius, hyperparams["rigid_contact_max"], hyperparams['rigid_contact_margin'], hyperparams['shape_ground_contact_pair_count'], shape_ground_contact_pairs, hyperparams['body_count'], hyperparams['g'], hyperparams['sim_dt'])
 
-    ## update the model and state parameters
-    model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
-    state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new, _body_f = body_f_new)
+        ## update the model and state parameters
+        model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
+        state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new, _body_f = body_f_new)
     
     return model, state
 

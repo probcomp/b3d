@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
 import time
 from os.path import join
 
@@ -119,6 +120,14 @@ def main(
         "interp_penalty": Pytree.const(1e5),
     }
 
+    physics_args = {
+        "mu": Pytree.const(0.25),
+        "restitution": Pytree.const(0.4),
+        "fps": Pytree.const(100),
+        "sim_substeps": Pytree.const(10),
+        "g": Pytree.const(-9.80665),
+    }
+
     inference_hyperparams = b3d.chisight.gen3d.settings.inference_hyperparams
 
     hdf5_file_path = join(
@@ -143,6 +152,7 @@ def main(
     hyperparams = settings.hyperparams
     hyperparams["camera_pose"] = camera_pose
     hyperparams["likelihood_args"] = likelihood_args
+    hyperparams["physics_args"] = physics_args
 
     initial_state, hyperparams, _, _ = get_initial_state(
         pred_file,

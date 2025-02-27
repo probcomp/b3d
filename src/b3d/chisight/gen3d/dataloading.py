@@ -184,23 +184,22 @@ def wp_to_jax(model_wp, state_wp, hyperparams):
     
     model_jax = b3d.Model(wp.to_jax(model_wp.rigid_contact_count), wp.to_jax(model_wp.rigid_contact_broad_shape0), wp.to_jax(model_wp.rigid_contact_broad_shape1), wp.to_jax(model_wp.shape_contact_pairs), wp.to_jax(model_wp.shape_transform), wp.to_jax(model_wp.shape_body), wp.to_jax(model_wp.body_mass), wp.to_jax(model_wp.shape_geo.type), wp.to_jax(model_wp.shape_geo.scale), shape_geo_source, wp.to_jax(model_wp.shape_geo.thickness), wp.to_jax(model_wp.shape_collision_radius), wp.to_jax(model_wp.rigid_contact_point_id), wp.to_jax(model_wp.shape_ground_contact_pairs), wp.to_jax(model_wp.rigid_contact_tids), wp.to_jax(model_wp.rigid_contact_shape0), wp.to_jax(model_wp.rigid_contact_shape1), wp.to_jax(model_wp.rigid_contact_point0), wp.to_jax(model_wp.rigid_contact_point1), wp.to_jax(model_wp.rigid_contact_offset0), wp.to_jax(model_wp.rigid_contact_offset1), wp.to_jax(model_wp.rigid_contact_normal), wp.to_jax(model_wp.rigid_contact_thickness), wp.to_jax(model_wp.body_com), wp.to_jax(model_wp.body_inertia), wp.to_jax(model_wp.body_inv_mass), wp.to_jax(model_wp.body_inv_inertia), wp.to_jax(model_wp.shape_materials.ke), wp.to_jax(model_wp.shape_materials.kd), wp.to_jax(model_wp.shape_materials.kf), wp.to_jax(model_wp.shape_materials.ka), wp.to_jax(model_wp.shape_materials.mu))
     state_jax = b3d.State(wp.to_jax(state_wp.body_q), wp.to_jax(state_wp.body_qd), wp.to_jax(state_wp.body_f))
-    hyperparams["rigid_contact_max"] = model_wp.rigid_contact_max
-    hyperparams["shape_contact_pair_count"] = model_wp.shape_contact_pair_count
-    hyperparams["shape_ground_contact_pair_count"] = model_wp.shape_ground_contact_pair_count
-    hyperparams["rigid_contact_margin"] = model_wp.rigid_contact_margin
-    # hyperparams["ground"] = model_wp.ground
-    hyperparams["body_count"] = len(model_wp.body_mass)
+    hyperparams["physics_args"]["rigid_contact_max"] = Pytree.const(model_wp.rigid_contact_max)
+    hyperparams["physics_args"]["shape_contact_pair_count"] = Pytree.const(model_wp.shape_contact_pair_count)
+    hyperparams["physics_args"]["shape_ground_contact_pair_count"] = Pytree.const(model_wp.shape_ground_contact_pair_count)
+    hyperparams["physics_args"]["rigid_contact_margin"] = Pytree.const(model_wp.rigid_contact_margin)
+    hyperparams["physics_args"]["body_count"] = Pytree.const(len(model_wp.body_mass))
     return model_jax, state_jax, hyperparams
 
 
 def get_initial_state(
     pred_file, object_ids, object_segmentation_colors, meshes, seg, rgbd, hyperparams
 ):
-    fps = hyperparams["fps"]
-    sim_substeps = hyperparams["sim_substeps"]
+    fps = hyperparams["physics_args"]["fps"].unwrap()
+    sim_substeps = hyperparams["physics_args"]["sim_substeps"].unwrap()
     frame_dt = 1.0 / fps
     sim_dt = frame_dt/sim_substeps
-    hyperparams["sim_dt"] = sim_dt
+    hyperparams["physics_args"]["sim_dt"] = Pytree.const(sim_dt)
 
     builder = wp.sim.ModelBuilder()
     pred = pred_file["scene"][0]["objects"]
@@ -236,8 +235,8 @@ def get_initial_state(
             mesh=wp.sim.Mesh(meshes[pred[str(o_id)]["type"][0]].vertices, meshes[pred[str(o_id)]["type"][0]].faces),
             pos=wp.vec3(0.0, 0.0, 0.0),
             scale=np.array(pred[str(o_id)]["scale"][0]),
-            restitution=hyperparams["restitution"],
-            mu=hyperparams["mu"],
+            restitution=hyperparams["physics_args"]["restitution"].unwrap(),
+            mu=hyperparams["physics_args"]["mu"].unwrap(),
             # ke=self.ke,
             # kd=self.kd,
             # kf=self.kf,
@@ -248,7 +247,7 @@ def get_initial_state(
 
     hyperparams["object_ids"] = Pytree.const([o_id for o_id in object_ids])
 
-    builder.set_ground_plane(mu=hyperparams["mu"])
+    builder.set_ground_plane(mu=hyperparams["physics_args"]["mu"].unwrap())
     model = builder.finalize()
     model.ground = True
 

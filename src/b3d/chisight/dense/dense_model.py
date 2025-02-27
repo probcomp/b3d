@@ -56,7 +56,8 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
 
-        stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams)
+        stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
+        
         all_poses = {}
         for o_id in object_ids.unwrap():
             object_pose = (
@@ -112,7 +113,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | {"t": previous_info["t"] + 1},
+            "new_state": all_poses | {"t": previous_info["t"] + 1, "prev_model": stepped_model, "prev_state": stepped_state},
         }
 
     @jax.jit

@@ -57,11 +57,10 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         pose_kernel = hyperparams["pose_kernel"]
 
         stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
-        
         all_poses = {}
-        for o_id in object_ids.unwrap():
+        for i, o_id in enumerate(object_ids.unwrap()):
             object_pose = (
-                pose_kernel(previous_info[f"object_pose_{o_id}"])
+                pose_kernel(stepped_state._body_q[i])
                 @ f"object_pose_{o_id}"
             )
             all_poses[f"object_pose_{o_id}"] = object_pose

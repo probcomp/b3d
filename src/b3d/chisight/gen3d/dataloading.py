@@ -189,6 +189,7 @@ def wp_to_jax(model_wp, state_wp, hyperparams):
     hyperparams["physics_args"]["shape_ground_contact_pair_count"] = Pytree.const(model_wp.shape_ground_contact_pair_count)
     hyperparams["physics_args"]["rigid_contact_margin"] = Pytree.const(model_wp.rigid_contact_margin)
     hyperparams["physics_args"]["body_count"] = Pytree.const(len(model_wp.body_mass))
+    state_jax.to_pos_quat()
     return model_jax, state_jax, hyperparams
 
 
@@ -223,8 +224,8 @@ def get_initial_state(
                 * mean_object_colors,
             )
         
-        if o_id == 1:
-            continue
+        # if o_id == 1:
+        #     continue
         b = builder.add_body(
                 origin=wp.transform(
                     np.array(pred[str(o_id)]["location"][0]), np.array(pred[str(o_id)]["rotation"][0]),

@@ -1,5 +1,7 @@
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
+import b3d
+import jax
 
 
 @register_pytree_node_class
@@ -98,6 +100,20 @@ class State:
         for attr, value in kwargs.items():
             if hasattr(self, attr):
                 setattr(self, attr, value)
+
+    def from_pos_quat(self):
+        _poses = []
+        for q in self._body_q:
+            pose = jnp.concatenate(q.flat)
+            _poses.append(pose)
+        self._body_q = jnp.asarray(_poses)
+
+    def to_pos_quat(self):
+        _poses = []
+        for q in self._body_q:
+            pose = b3d.Pose.from_vec(q)
+            _poses.append(pose)
+        self._body_q = b3d.Pose.stack_poses(_poses)
 
     def clear_forces(self):
         self._body_f = jnp.zeros_like(self._body_f)

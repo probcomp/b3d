@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 from jax.tree_util import register_pytree_node_class
 import b3d
-import jax
 
 
 @register_pytree_node_class

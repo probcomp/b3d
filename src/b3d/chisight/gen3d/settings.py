@@ -7,4 +7,7 @@ hyperparams = {
 
 inference_hyperparams = InferenceHyperparams(
     n_poses=2000,
+    n_scales=100,
+    n_vel=30,
+    n_angvel=30,
 )

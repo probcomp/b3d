@@ -35,9 +35,6 @@ numpy = { version = "1.26.4.*" }
 
 [tool.pixi.pypi-options]
 index-url = "https://pypi.org/simple"
-extra-index-urls = [
-    "https://oauth2accesstoken@us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple",
-]
 
 [tool.pixi.pypi-dependencies]
 b3d = { path = ".", editable = true }
@@ -57,7 +54,7 @@ LD_LIBRARY_PATH = "$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64"
 description = "launch vscode connected to vm (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-connect-vscode"
 cwd = "scripts"
-depends_on = ["rerun"]
+depends-on = ["rerun"]
 
 [tool.pixi.tasks.rerun]
 description = "launch rerun"
@@ -82,7 +79,7 @@ cwd = "scripts"
 description = "connect to vm through terminal (requires GCP_VM and GCP_PROJECT)"
 cmd = "./gcp.sh :gcp-connect-terminal"
 cwd = "scripts"
-depends_on = ["rerun"]
+depends-on = ["rerun"]
 
 [tool.pixi.tasks.gcp-start]
 description = "start a vm (requires GCP_VM and GCP_PROJECT)"
@@ -108,8 +105,7 @@ cwd = "scripts"
 
 [tool.pixi.feature.core.pypi-dependencies]
 carvekit = "==4.1.2"
-datasync = "==0.0.2"
-genjax = "==0.6.1"
+genjax = "*"
 pykitti = "==0.3.1"
 pyliblzfse = { git = "https://github.com/ydkhatri/pyliblzfse.git" }
 pyransac3d = ">=0.6.0,<0.7"
@@ -130,7 +126,7 @@ matplotlib = ">=3.9.1,<3.10"
 natsort = ">=8.4.0,<8.5"
 numpy = "<2.0.0"
 ninja = "*"
-optax = ">=0.2.2,<0.3"
+optax = "*"
 pdoc = "*"
 pillow = "==10.3.0"
 polars = ">=0.20,<0.21"
@@ -190,7 +186,7 @@ system-requirements = { cuda = "12" }
 cuda-toolkit = "*"
 gcc = "*"
 jax = "*"
-jaxlib = { version = "0.4.28", build = "cuda12*" }
+jaxlib = { version = "*", build = "cuda12*" }
 libnvjitlink = "*"
 optax = ">=0.2.2,<0.3"
 pytorch = { version = "==2.3.0", build = "cuda12*" }
@@ -212,18 +208,18 @@ cmd = "python -c 'import jax; print(\"jax: v{}, devices={}\".format(jax.__versio
 
 [tool.pixi.feature.cuda.tasks.sys]
 description = "gpu, torch, and jax statu"
-depends_on = ["gpu", "torch", "jax"]
+depends-on = ["gpu", "torch", "jax"]
 
 [tool.pixi.feature.cuda.tasks.test]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
-depends_on = ["sync", "rerun"]
+depends-on = ["sync", "rerun"]
 env = { TEST_TARGETS = "tests" }
 
 [tool.pixi.feature.cuda.tasks.test-ci]
 description = "run tests (optionally set TEST_TARGETS)"
 cmd = "./scripts/pytest.sh"
-depends_on = ["sync-ci"]
+depends-on = ["sync-ci"]
 
 [tool.pixi.feature.cuda.tasks.test-ci.env]
 TEST_TARGETS = "tests"

@@ -14,7 +14,7 @@ def enumerate_and_select_best(trace, address, values):
 
 
 def _enumerate_and_select_best_move(trace, addressses, key, all_deltas):
-    addr = addressses.const[0]
+    addr = addressses.unwrap()[0]
     current_pose = trace.get_choices()[addr]
     for i in range(len(all_deltas)):
         test_poses = current_pose @ all_deltas[i]

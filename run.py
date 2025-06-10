@@ -1003,10 +1003,10 @@ human_stims = ['pilot_towers_nb4_fr015_SJ000_gr01_mono1_dis0_occ0_boxroom_stable
  'pilot_it2_drop_sidezone_tdw_1_dis_1_occ_0008',
  'pilot_it2_drop_simple_tdw_1_dis_1_occ_0049']
 
-hdf5_file_path = "/ccn2/u/rmvenkat/data/testing_physion/regenerate_from_old_commit/test_humans_consolidated/lf_0"
-mesh_file_path = "/ccn2/u/rmvenkat/data/all_flex_meshes/"
-save_path = "/ccn2/u/haw027/b3d_ipe/b3d_tdw_joint/b3d_tracking_results/test"
-pred_file_path = "/ccn2/u/haw027/b3d_ipe/pred_files/gt_info/gt_correct.json"
+hdf5_file_path = "/orcd/data/jbt/001/hlwang/data/lf0"
+mesh_file_path = "/orcd/data/jbt/001/hlwang/data/all_flex_meshes/"
+save_path = "/orcd/data/jbt/001/hlwang/results/b3dipe/b3d_tracking_results/test"
+pred_file_path = "/orcd/data/jbt/001/hlwang/data/gt_correct.json"
 im_width = 350
 im_height = 350
 
@@ -1045,7 +1045,8 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
         print(trial_index + 1, "\t", trial_name)
         if (trial_name not in human_stims) or (trial_name in buggy_stims) or (trial_name in already_existing) or (trial_name in too_large_stims) or (trial_name in too_short_stims):
             continue
+        print(f"python test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}")
         os.system(
-            f"CUDA_VISIBLE_DEVICES=0 python /home/haw027/code/b3d/test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
+            f"python test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
         )
         viz_index += FINAL_T - START_T + 1

@@ -259,7 +259,7 @@ def get_initial_state(
     initial_state["prev_model"] = model_jax
     initial_state["prev_state"] = state_0_jax
 
-    renderer = wp.sim.render.SimRenderer(model, '/home/haw027/code/b3d/test.usd', scaling=0.5)
+    renderer = wp.sim.render.SimRenderer(model, '/home/hlwang/code/b3d/test.usd', scaling=0.5)
 
     return initial_state, hyperparams, renderer, state_0
 

@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
+os.environ['XLA_PYTHON_CLIENT_ALLOCATOR'] = "platform"
 import time
 from os.path import join
 
@@ -47,8 +48,9 @@ def main(
 ):
     start_time = time.time()
     rr.init("demo", recording_id=recording_id)
-    rr.connect_tcp("127.0.0.1:8813")
-
+    # rr.connect_tcp("127.0.0.1:8813")
+    rr.serve()
+    
     if scenario == "dominoes":
         START_T = 14
     else:

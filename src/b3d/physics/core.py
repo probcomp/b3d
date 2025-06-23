@@ -107,12 +107,24 @@ class State:
             _poses.append(pose)
         self._body_q = jnp.asarray(_poses)
 
+        _vels = []
+        for qd in self._body_qd:
+            vel = jnp.concatenate(qd.flat)
+            _vels.append(vel)
+        self._body_qd = jnp.asarray(_vels)
+
     def to_pos_quat(self):
         _poses = []
         for q in self._body_q:
             pose = b3d.Pose.from_vec(q)
             _poses.append(pose)
         self._body_q = b3d.Pose.stack_poses(_poses)
+
+        _vels = []
+        for qd in self._body_qd:
+            vel = b3d.Velocity.from_vec(qd)
+            _vels.append(vel)
+        self._body_qd = b3d.Velocity.stack_velocities(_vels)
 
     def clear_forces(self):
         self._body_f = jnp.zeros_like(self._body_f)

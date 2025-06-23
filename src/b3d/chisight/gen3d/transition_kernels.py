@@ -4,7 +4,7 @@ import genjax
 from genjax import Pytree
 from genjax.typing import ArrayLike, PRNGKey
 
-from b3d import Pose
+from b3d import Pose, Velocity
 
 
 @Pytree.dataclass
@@ -36,4 +36,19 @@ class GaussianVMFPoseDriftKernel(DriftKernel):
     def logpdf(self, new_pose, prev_pose) -> ArrayLike:
         return Pose.logpdf_gaussian_vmf_pose_approx(
             new_pose, prev_pose, self.std, self.concentration
+        )
+
+@Pytree.dataclass
+class GaussianVMFVelocityDriftKernel(DriftKernel):
+    std: float = Pytree.static()
+    concentration: float = Pytree.static()
+
+    def sample(self, key: PRNGKey, prev_vel):
+        return Velocity.sample_gaussian_vmf_vel_approx(
+            key, prev_vel, self.std, self.concentration
+        )
+
+    def logpdf(self, new_vel, prev_vel) -> ArrayLike:
+        return Velocity.logpdf_gaussian_vmf_vel_approx(
+            new_vel, prev_vel, self.std, self.concentration
         )

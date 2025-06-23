@@ -1,6 +1,7 @@
 *.egg-info
 *.pyc
 *.png
+*.usd
 assets/*
 **/.ipynb_checkpoints
 **/**.mp4

@@ -57,25 +57,26 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         pose_kernel = hyperparams["pose_kernel"]
         velocity_kernel = hyperparams["velocity_kernel"]
 
-        stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
         # print("pose: ", stepped_state._body_q)
         # jax.debug.print("pose: {x}", x=stepped_state._body_q)
         # print("velocities: ", stepped_state._body_qd)
         # jax.debug.print("velocities: {x}", x=stepped_state._body_qd)
+        prev_state = previous_info["prev_state"]
         all_poses = {}
         all_vels = {}
         for i, o_id in enumerate(object_ids.unwrap()):
             object_pose = (
-                pose_kernel(stepped_state._body_q[i])
+                pose_kernel(prev_state._body_q[i])
                 @ f"object_pose_{o_id}"
             )
             all_poses[f"object_pose_{o_id}"] = object_pose
             object_vel = (
-                velocity_kernel(stepped_state._body_qd[i])
+                velocity_kernel(prev_state._body_qd[i])
                 @ f"object_vel_{o_id}"
             )
             all_vels[f"object_vel_{o_id}"] = object_vel
-        stepped_state.update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()), _body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
+        prev_state.update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()), _body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
+        stepped_model, stepped_state = step(previous_info["prev_model"], prev_state, hyperparams["physics_args"])
 
         camera_pose = hyperparams["camera_pose"]
         scene_mesh = Mesh.transform_and_merge_meshes(

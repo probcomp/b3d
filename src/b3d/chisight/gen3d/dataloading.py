@@ -181,7 +181,8 @@ def resize_rgbds_and_get_masks(rgbds, seg_arr, background_areas, im_height, im_w
 def wp_to_jax(model_wp, state_wp, hyperparams):
     with jax.experimental.enable_x64():
         shape_geo_source = wp.to_jax(model_wp.shape_geo.source).astype(jnp.uint64)
-    
+    # print("init pos: ", wp.to_jax(state_wp.body_q))
+    # print("init velocities: ", wp.to_jax(state_wp.body_qd))
     model_jax = b3d.Model(wp.to_jax(model_wp.rigid_contact_count), wp.to_jax(model_wp.rigid_contact_broad_shape0), wp.to_jax(model_wp.rigid_contact_broad_shape1), wp.to_jax(model_wp.shape_contact_pairs), wp.to_jax(model_wp.shape_transform), wp.to_jax(model_wp.shape_body), wp.to_jax(model_wp.body_mass), wp.to_jax(model_wp.shape_geo.type), wp.to_jax(model_wp.shape_geo.scale), shape_geo_source, wp.to_jax(model_wp.shape_geo.thickness), wp.to_jax(model_wp.shape_collision_radius), wp.to_jax(model_wp.rigid_contact_point_id), wp.to_jax(model_wp.shape_ground_contact_pairs), wp.to_jax(model_wp.rigid_contact_tids), wp.to_jax(model_wp.rigid_contact_shape0), wp.to_jax(model_wp.rigid_contact_shape1), wp.to_jax(model_wp.rigid_contact_point0), wp.to_jax(model_wp.rigid_contact_point1), wp.to_jax(model_wp.rigid_contact_offset0), wp.to_jax(model_wp.rigid_contact_offset1), wp.to_jax(model_wp.rigid_contact_normal), wp.to_jax(model_wp.rigid_contact_thickness), wp.to_jax(model_wp.body_com), wp.to_jax(model_wp.body_inertia), wp.to_jax(model_wp.body_inv_mass), wp.to_jax(model_wp.body_inv_inertia), wp.to_jax(model_wp.shape_materials.ke), wp.to_jax(model_wp.shape_materials.kd), wp.to_jax(model_wp.shape_materials.kf), wp.to_jax(model_wp.shape_materials.ka), wp.to_jax(model_wp.shape_materials.mu))
     state_jax = b3d.State(wp.to_jax(state_wp.body_q), wp.to_jax(state_wp.body_qd), wp.to_jax(state_wp.body_f))
     hyperparams["physics_args"]["rigid_contact_max"] = Pytree.const(model_wp.rigid_contact_max)
@@ -216,6 +217,10 @@ def get_initial_state(
         initial_state[f"object_pose_{o_id}"] = b3d.Pose(
             jnp.array(pred[str(o_id)]["location"][0]),
             jnp.array(pred[str(o_id)]["rotation"][0]),
+        )
+        initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
+            jnp.array([0., 0., 0.]),
+            jnp.array([0., 0., 0.]),
         )
         hyperparams["meshes"][int(o_id)] = b3d.Mesh(
                 scale_mesh(meshes[pred[str(o_id)]["type"][0]].vertices, jnp.array(pred[str(o_id)]["scale"][0])),
@@ -258,6 +263,8 @@ def get_initial_state(
     model_jax, state_0_jax, hyperparams = wp_to_jax(model, state_0, hyperparams)
     initial_state["prev_model"] = model_jax
     initial_state["prev_state"] = state_0_jax
+    # print("state pos: ", state_0_jax._body_q)
+    # print("state velocities: ", state_0_jax._body_qd)
 
     renderer = wp.sim.render.SimRenderer(model, '/home/hlwang/code/b3d/test.usd', scaling=0.5)
 

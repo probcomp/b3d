@@ -598,13 +598,15 @@ def sample_gaussian_vmf_vel_approx(key, mean_vel, std, concentration):
     lin_vel_dir_sample = jax.random.multivariate_normal(
         keys[0], mean_vel.lin_vel_dir, jnp.eye(3) / concentration
     )
-    lin_vel_dir_new =  lin_vel_dir_sample / jnp.linalg.norm(lin_vel_dir_sample, axis=-1, keepdims=True)
+    lin_vel_dir_sample_norm = jnp.linalg.norm(lin_vel_dir_sample)
+    lin_vel_dir_new = jnp.where(lin_vel_dir_sample_norm > 0, lin_vel_dir_sample / lin_vel_dir_sample_norm, jnp.zeros_like(lin_vel_dir_sample))
     lin_vel_mag_new = genjax.truncated_normal.sample(keys[1], mean_vel.lin_vel_mag, std, - 0.00001, jnp.inf)
 
     ang_vel_dir_sample = jax.random.multivariate_normal(
         keys[2], mean_vel.ang_vel_dir, jnp.eye(3) / concentration
     )
-    ang_vel_dir_new =  ang_vel_dir_sample / jnp.linalg.norm(ang_vel_dir_sample, axis=-1, keepdims=True)
+    ang_vel_dir_sample_norm = jnp.linalg.norm(ang_vel_dir_sample)
+    ang_vel_dir_new = jnp.where(ang_vel_dir_sample_norm > 0, ang_vel_dir_sample / ang_vel_dir_sample_norm, jnp.zeros_like(ang_vel_dir_sample))
     ang_vel_mag_new = genjax.truncated_normal.sample(keys[3], mean_vel.ang_vel_mag, std, - 0.00001, jnp.inf)
 
     return Velocity(lin_vel_mag_new*lin_vel_dir_new, ang_vel_mag_new*ang_vel_dir_new)
@@ -655,19 +657,21 @@ class Velocity:
 
     @property
     def lin_vel_magnitude(self):
-        return jnp.linalg.norm(self._linvel, axis=-1, keepdims=True)
+        return jnp.linalg.norm(self._linvel)
     
     @property
     def lin_vel_direction(self):
-        return self._linvel / jnp.linalg.norm(self._linvel, axis=-1, keepdims=True)
+        norm = jnp.linalg.norm(self._linvel)
+        return jnp.where(norm > 0, self._linvel / norm, jnp.zeros_like(self._linvel))
     
     @property
     def ang_vel_magnitude(self):
-        return jnp.linalg.norm(self._angvel, axis=-1, keepdims=True)
+        return jnp.linalg.norm(self._angvel)
     
     @property
     def ang_vel_direction(self):
-        return self._angvel / jnp.linalg.norm(self._angvel, axis=-1, keepdims=True)
+        norm = jnp.linalg.norm(self._angvel)
+        return jnp.where(norm > 0, self._angvel / norm, jnp.zeros_like(self._angvel))
 
     lin_vel_mag = lin_vel_magnitude
     lin_vel_dir = lin_vel_direction

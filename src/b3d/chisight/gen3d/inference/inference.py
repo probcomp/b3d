@@ -52,12 +52,15 @@ def inference_step(
         proposed_poses, log_q_poses = jax.vmap(
             propose_pose, in_axes=(0, None, None, None, None)
         )(generation_keys, trace, addr, pose_proposal_args, xyz)
+        # jax.debug.print("proposed_poses: {v}", v=proposed_poses)
+        # jax.debug.print("log_q_poses before: {v}", v=log_q_poses)
 
+        generation_keys = split(k2, inference_hyperparams.n_poses_vels)
         proposed_vels, log_q_vels = jax.vmap(
             propose_vel, in_axes=(0, None, None, None)
         )(generation_keys, trace, addr.replace('pose', 'vel'), vel_proposal_args)
-        # jax.debug.print("rank before: {v}", v=ss.rankdata(log_q_poses))
-        # jax.debug.print("score before: {v}", v=log_q_poses)
+        # jax.debug.print("proposed_vels: {v}", v=proposed_vels)
+        # jax.debug.print("log_q_vels before: {v}", v=log_q_vels)
 
         proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
             proposed_poses,
@@ -85,17 +88,21 @@ def inference_step(
                 [proposed_pose, proposed_vel])
             return updated_trace, updated_trace.get_score()
 
-        param_generation_keys = split(k2, inference_hyperparams.n_poses_vels)
+        param_generation_keys = split(k3, inference_hyperparams.n_poses_vels)
         _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, 0, None, None, None))(
             param_generation_keys, proposed_poses, proposed_vels, trace, addr, addr.replace('pose', 'vel')
         )
-
+        # jax.debug.print("p_scores: {x}", x=p_scores)
+        # jax.debug.print("log_q_poses: {x}", x=log_q_poses)
+        # jax.debug.print("log_q_vels: {x}", x=log_q_vels)
+        # jax.debug.print("log_q_poses+log_q_vels: {x}", x=log_q_poses+log_q_vels)
         # Scoring + resampling
         weights = jnp.where(
             inference_hyperparams.include_q_scores_at_top_level,
             p_scores - (log_q_poses+log_q_vels),
             p_scores,
         )
+        # jax.debug.print("weights: {x}", x=weights)
 
         # chosen_index = jax.random.categorical(k3, weights)
         chosen_index = weights.argmax()
@@ -311,4 +318,6 @@ def propose_vel(key, advanced_trace, addr, args):
     log_v = Velocity.logpdf_gaussian_vmf_vel_approx(
             vel, previous_vel, std, conc
         )
+    # jax.debug.print("vel: {v}", v=vel)
+    # jax.debug.print("log_v: {v}", v=log_v)
     return vel, log_v

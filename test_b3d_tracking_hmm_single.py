@@ -215,6 +215,8 @@ def main(
             [Pytree.const(f"object_pose_{o_id}") for o_id in relevant_objects],
             xyz,
         )
+        for k, v in this_frame_posterior.items():
+            print(k, '\n', v[0], '\n\n\n\n\n\n\n\n\n\n\n', v[1], '\n', v[2])
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)
         this_iteration_end_time = time.time()

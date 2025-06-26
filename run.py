@@ -1,5 +1,6 @@
 import os
 import uuid
+import rerun as rr
 from os import listdir
 from os.path import isfile, join
 
@@ -24,8 +25,8 @@ buggy_stims = [
     "pilot_it2_rollingSliding_simple_ledge_tdw_1_dis_1_occ_0021",
     "pilot_it2_rollingSliding_simple_ledge_tdw_1_dis_1_occ_sphere_small_zone_0022",
     "pilot_it2_rollingSliding_simple_ramp_box_small_zone_0006",
-    "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_small_zone_0004",
-    "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_small_zone_0017",
+    # "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_small_zone_0004",
+    # "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_small_zone_0017",
     "pilot_linking_nl1-8_mg000_aCyl_bCyl_tdwroom1_long_a_0022",
     "pilot_linking_nl1-8_mg000_aCylcap_bCyl_tdwroom1_0012",
     "pilot_linking_nl1-8_mg000_aCylcap_bCyl_tdwroom_small_rings_0006",
@@ -1040,14 +1041,20 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
     if scenario == "collide":
         FINAL_T = 15
     else:
-        FINAL_T = 45
+        FINAL_T = 405
+    if scenario != "roll":
+        continue
 
     recording_id = uuid.uuid4()
+    rr.init("demo", recording_id=recording_id)
+    rr.serve_web(open_browser=True, web_port=9090, grpc_port=9876) 
     viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
         print(trial_index + 1, "\t", trial_name)
         if (trial_name not in human_stims) or (trial_name in buggy_stims) or (trial_name in already_existing) or (trial_name in too_large_stims) or (trial_name in too_short_stims):
+            continue
+        if trial_name != "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_small_zone_0017":
             continue
         cmd = f"python test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
         print(cmd)

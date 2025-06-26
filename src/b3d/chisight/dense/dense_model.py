@@ -51,7 +51,6 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         previous_info,
     ):
         background = hyperparams["background"][previous_info["t"]]
-        meshes = hyperparams["meshes"].values()
         likelihood_args = hyperparams["likelihood_args"]
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
@@ -62,6 +61,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         # jax.debug.print("before prev velocities: {x}", x=prev_state._body_qd)
         all_poses = {}
         all_vels = {}
+        meshes = []
         for i, o_id in enumerate(object_ids.unwrap()):
             object_pose = (
                 pose_kernel(stepped_state._body_q[i])
@@ -73,6 +73,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                 @ f"object_vel_{o_id}"
             )
             all_vels[f"object_vel_{o_id}"] = object_vel
+            meshes.append(hyperparams["meshes"][o_id])
             # jax.debug.print("object_pose_{x}: {y}", x=i, y=object_pose)
             # jax.debug.print("object_vel_{x}: {y}", x=i, y=object_vel)
         stepped_state.update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()), _body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
@@ -85,7 +86,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
 
         camera_pose = hyperparams["camera_pose"]
         scene_mesh = Mesh.transform_and_merge_meshes(
-            list(meshes), Pose.stack_poses(list(all_poses.values()))
+            meshes, Pose.stack_poses(list(all_poses.values()))
         ).transform(camera_pose.inv())
 
         likelihood_args["scene_mesh"] = [

@@ -49,8 +49,9 @@ def main(
     start_time = time.time()
     rr.init("demo", recording_id=recording_id)
     # rr.connect_tcp("127.0.0.1:8813")
-    rr.serve()
-    
+    # rr.serve()
+    # rr.connect("localhost:9090")
+    rr.connect_grpc("rerun+http://localhost:9876/proxy") 
     if scenario == "dominoes":
         START_T = 14
     else:
@@ -59,7 +60,7 @@ def main(
     if scenario == "collide":
         FINAL_T = 15
     else:
-        FINAL_T = 45
+        FINAL_T = 405
 
     near_plane = 0.1
     far_plane = 100.0
@@ -216,21 +217,21 @@ def main(
             xyz,
         )
         for k, v in this_frame_posterior.items():
-            print(k, '\n', v[0], '\n\n\n\n\n\n\n\n\n\n\n', v[1], '\n', v[2])
+            print(k, v[1], '\n', v[2])
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)
         this_iteration_end_time = time.time()
         print(f"\t\t frame {T}: {this_iteration_end_time - this_iteration_start_time}, relevant objects: {[idx for idx in relevant_objects]}")
 
-    write_json(
-        pred_file,
-        hyperparams,
-        posterior_across_frames,
-        save_path,
-        scenario,
-        trial_name,
-        debug=debug,
-    )
+    # write_json(
+    #     pred_file,
+    #     hyperparams,
+    #     posterior_across_frames,
+    #     save_path,
+    #     scenario,
+    #     trial_name,
+    #     debug=debug,
+    # )
 
 
 if __name__ == "__main__":

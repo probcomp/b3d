@@ -57,8 +57,10 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         velocity_kernel = hyperparams["velocity_kernel"]
 
         stepped_model, stepped_state = step(previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
-        # jax.debug.print("before prev pose: {x}", x=prev_state._body_q)
-        # jax.debug.print("before prev velocities: {x}", x=prev_state._body_qd)
+        jax.debug.print("prev pose: {x}", x=previous_info["prev_state"]._body_q)
+        jax.debug.print("prev velocities: {x}", x=previous_info["prev_state"]._body_qd)
+        jax.debug.print("stepped pose: {x}", x=stepped_state._body_q)
+        jax.debug.print("stepped velocities: {x}", x=stepped_state._body_qd)
         all_poses = {}
         all_vels = {}
         meshes = []
@@ -74,8 +76,8 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             )
             all_vels[f"object_vel_{o_id}"] = object_vel
             meshes.append(hyperparams["meshes"][o_id])
-            # jax.debug.print("object_pose_{x}: {y}", x=i, y=object_pose)
-            # jax.debug.print("object_vel_{x}: {y}", x=i, y=object_vel)
+            jax.debug.print("object_pose_{x}: {y}", x=i, y=object_pose)
+            jax.debug.print("object_vel_{x}: {y}", x=i, y=object_vel)
         stepped_state.update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()), _body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
         # prev_state.update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()))
         # jax.debug.print("prev pose: {x}", x=prev_state._body_q)
@@ -111,20 +113,21 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
 
             # add distractor and occluders
             latent_rgbd = jnp.flip(latent_rgbd, 1)
-            bg_rgb = background[..., :3]
-            bg_d = background[..., 3:]
-            latent_rgb = jnp.where(
-                bg_rgb == jnp.array([jnp.inf, jnp.inf, jnp.inf]),
-                latent_rgbd[..., 0:3],
-                bg_rgb,
-            )
-            latent_d = jnp.minimum(
-                jnp.where(latent_rgbd[..., 3:] == 0.0, 10, latent_rgbd[..., 3:]), bg_d
-            )
+            likelihood_args["latent_rgbd"] = latent_rgbd
+            # bg_rgb = background[..., :3]
+            # bg_d = background[..., 3:]
+            # latent_rgb = jnp.where(
+            #     bg_rgb == jnp.array([jnp.inf, jnp.inf, jnp.inf]),
+            #     latent_rgbd[..., 0:3],
+            #     bg_rgb,
+            # )
+            # latent_d = jnp.minimum(
+            #     jnp.where(latent_rgbd[..., 3:] == 0.0, 10, latent_rgbd[..., 3:]), bg_d
+            # )
 
-            likelihood_args["latent_rgbd"] = jnp.concatenate(
-                [latent_rgb, latent_d], axis=-1
-            )
+            # likelihood_args["latent_rgbd"] = jnp.concatenate(
+            #     [latent_rgb, latent_d], axis=-1
+            # )
             likelihood_args["rasterize_results"] = rasterize_results
 
         image = image_likelihood(likelihood_args) @ "rgbd"

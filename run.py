@@ -1041,7 +1041,7 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
     if scenario == "collide":
         FINAL_T = 15
     else:
-        FINAL_T = 405
+        FINAL_T = 150
     if scenario != "roll":
         continue
 

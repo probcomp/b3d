@@ -60,7 +60,7 @@ def main(
     if scenario == "collide":
         FINAL_T = 15
     else:
-        FINAL_T = 405
+        FINAL_T = 150
 
     near_plane = 0.1
     far_plane = 100.0
@@ -148,6 +148,11 @@ def main(
         object_segmentation_colors,
         background_areas,
         camera_pose,
+        
+        gt_pos_array,
+        gt_rot_array,
+        gt_linvel_array,
+        gt_angvel_array,
     ) = load_trial(hdf5_file_path, FINAL_T)
     loading_time = time.time()
     print(f"\t\t Loading time: {loading_time - initalization_time}")
@@ -157,7 +162,7 @@ def main(
     hyperparams["likelihood_args"] = likelihood_args
     hyperparams["physics_args"] = physics_args
 
-    initial_state, hyperparams, _, _ = get_initial_state(
+    initial_state, hyperparams, _, _, initial_warp_info = get_initial_state(
         pred_file,
         object_ids,
         object_segmentation_colors,
@@ -185,6 +190,7 @@ def main(
         importance_jit,
         hyperparams,
         initial_state,
+        initial_warp_info,
         foreground_background(rgbds[START_T], all_areas[START_T], 0.0),
     )
     viz_trace(trace, t=viz_index)
@@ -198,6 +204,7 @@ def main(
         if i == 0:
             relevant_objects = object_ids
             xyz = False
+            infer_vel = False
         else:
             relevant_objects = calculate_relevant_objects(
                 rgbds_original[T],
@@ -208,6 +215,7 @@ def main(
                 object_segmentation_colors,
             )
             xyz = True
+            infer_vel = True
         trace, this_frame_posterior = inference.inference_step(
             key,
             trace,
@@ -215,9 +223,10 @@ def main(
             inference_hyperparams,
             [Pytree.const(f"object_pose_{o_id}") for o_id in relevant_objects],
             xyz,
+            infer_vel,
         )
         for k, v in this_frame_posterior.items():
-            print(k, v[1], '\n', v[2])
+            print(k, v[1], '\nposition=', gt_pos_array[i][object_ids.index(k)], '\nquaternion=', gt_rot_array[i][object_ids.index(k)], '\n\n', v[2], '\nlinvel=', gt_linvel_array[i][object_ids.index(k)], '\nangvel=', gt_angvel_array[i][object_ids.index(k)], '\n\n\n\n')
         posterior_across_frames["pose"].append(this_frame_posterior)
         viz_trace(trace, t=viz_index + i + 1)
         this_iteration_end_time = time.time()

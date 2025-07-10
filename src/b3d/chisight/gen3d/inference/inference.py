@@ -18,7 +18,7 @@ from b3d.chisight.dense.dense_model import (
 )
 from b3d.chisight.gen3d.hyperparams import InferenceHyperparams
 
-from .utils import logmeanexp, update_fields
+from .utils import logmeanexp, update_fields, update_field
 
 
 @jax.jit
@@ -29,6 +29,7 @@ def inference_step(
     inference_hyperparams: InferenceHyperparams,
     addresses,
     xyz=True,
+    infer_vel=True,
     include_previous_pose=True,
     k=50,
 ):
@@ -37,7 +38,7 @@ def inference_step(
     trace = advance_time(subkey, trace, observed_rgbd)
 
     @jax.jit
-    def c2f_step(
+    def c2f_pose_step(
         key,
         trace,
         pose_proposal_args,
@@ -55,6 +56,74 @@ def inference_step(
         # jax.debug.print("proposed_poses: {v}", v=proposed_poses)
         # jax.debug.print("log_q_poses before: {v}", v=log_q_poses)
 
+        proposed_poses, log_q_poses = maybe_swap_in_previous_pose(
+            proposed_poses,
+            log_q_poses,
+            trace,
+            addr,
+            include_previous_pose,
+            pose_proposal_args,
+            xyz,
+        )
+        # jax.debug.print("rank after: {v}", v=ss.rankdata(log_q_poses))
+        # jax.debug.print("score after: {v}", v=log_q_poses)
+        def update_and_get_scores_pose(key, proposed_pose, trace, addr):
+            key, subkey = split(key)
+            updated_trace = update_field(subkey, trace, addr, proposed_pose)
+            return updated_trace, updated_trace.get_score()
+
+        param_generation_keys = split(k3, inference_hyperparams.n_poses_vels)
+        _, p_scores = jax.vmap(update_and_get_scores_pose, in_axes=(0, 0, None, None))(
+            param_generation_keys, proposed_poses, trace, addr
+        )
+        # jax.debug.print("p_scores: {x}", x=p_scores)
+        # jax.debug.print("log_q_poses: {x}", x=log_q_poses)
+        # jax.debug.print("log_q_vels: {x}", x=log_q_vels)
+        # jax.debug.print("log_q_poses+log_q_vels: {x}", x=log_q_poses+log_q_vels)
+        # Scoring + resampling
+        weights = jnp.where(
+            inference_hyperparams.include_q_scores_at_top_level,
+            p_scores - log_q_poses,
+            p_scores,
+        )
+        # jax.debug.print("weights: {x}", x=weights)
+
+        # chosen_index = jax.random.categorical(k3, weights)
+        chosen_index = weights.argmax()
+        resampled_trace, _ = update_and_get_scores_pose(
+            param_generation_keys[chosen_index],
+            proposed_poses[chosen_index],
+            trace,
+            addr,
+        )
+        return (
+            resampled_trace,
+            logmeanexp(weights),
+            proposed_poses[chosen_index],
+            get_zreo_vel(None),
+            proposed_poses,
+            jax.vmap(get_zreo_vel, in_axes=(0,))(generation_keys),
+            weights,
+        )
+
+    @jax.jit
+    def c2f_pose_vel_step(
+        key,
+        trace,
+        pose_proposal_args,
+        vel_proposal_args,
+        addr,
+    ):
+        addr = addr.unwrap()
+        k1, k2, k3 = split(key, 3)
+
+        # Propose the poses
+        generation_keys = split(k1, inference_hyperparams.n_poses_vels)
+        proposed_poses, log_q_poses = jax.vmap(
+            propose_pose, in_axes=(0, None, None, None, None)
+        )(generation_keys, trace, addr, pose_proposal_args, xyz)
+        # jax.debug.print("proposed_poses: {v}", v=proposed_poses)
+        # jax.debug.print("log_q_poses before: {v}", v=log_q_poses)
         generation_keys = split(k2, inference_hyperparams.n_poses_vels)
         proposed_vels, log_q_vels = jax.vmap(
             propose_vel, in_axes=(0, None, None, None)
@@ -82,14 +151,14 @@ def inference_step(
         # jax.debug.print("rank after: {v}", v=ss.rankdata(log_q_poses))
         # jax.debug.print("score after: {v}", v=log_q_poses)
 
-        def update_and_get_scores(key, proposed_pose, proposed_vel, trace, addr_pose, addr_vel):
+        def update_and_get_scores_pose_vel(key, proposed_pose, proposed_vel, trace, addr_pose, addr_vel):
             key, subkey = split(key)
             updated_trace = update_fields(subkey, trace, [addr_pose, addr_vel],
                 [proposed_pose, proposed_vel])
             return updated_trace, updated_trace.get_score()
 
         param_generation_keys = split(k3, inference_hyperparams.n_poses_vels)
-        _, p_scores = jax.vmap(update_and_get_scores, in_axes=(0, 0, 0, None, None, None))(
+        _, p_scores = jax.vmap(update_and_get_scores_pose_vel, in_axes=(0, 0, 0, None, None, None))(
             param_generation_keys, proposed_poses, proposed_vels, trace, addr, addr.replace('pose', 'vel')
         )
         # jax.debug.print("p_scores: {x}", x=p_scores)
@@ -106,7 +175,7 @@ def inference_step(
 
         # chosen_index = jax.random.categorical(k3, weights)
         chosen_index = weights.argmax()
-        resampled_trace, _ = update_and_get_scores(
+        resampled_trace, _ = update_and_get_scores_pose_vel(
             param_generation_keys[chosen_index],
             proposed_poses[chosen_index],
             proposed_vels[chosen_index],
@@ -123,20 +192,30 @@ def inference_step(
             proposed_vels,
             weights,
         )
-
+        
     this_frame_posterior = dict([(int(addr.unwrap().split("_")[-1]), [[]]) for addr in addresses])
     for i, (addr, (pose_proposal_args, vel_proposal_args)) in enumerate(
         itertools.product(addresses, zip(inference_hyperparams.pose_proposal_args, inference_hyperparams.vel_proposal_args))
     ):
         key, subkey = split(key)
         this_iteration_start_time = time.time()
-        trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = c2f_step(
-            subkey,
-            trace,
-            pose_proposal_args,
-            vel_proposal_args,
-            addr,
-        )
+        trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = jax.lax.cond(infer_vel, c2f_pose_vel_step, c2f_pose_step, subkey, trace, pose_proposal_args, vel_proposal_args, addr)
+        # if infer_vel:
+        #     trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = c2f_pose_vel_step(
+        #         subkey,
+        #         trace,
+        #         pose_proposal_args,
+        #         vel_proposal_args,
+        #         addr,
+        #     )
+        # else:
+        #     trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = c2f_pose_step(
+        #         subkey,
+        #         trace,
+        #         pose_proposal_args,
+        #         vel_proposal_args,
+        #         addr,
+        #     )
         # if i % len(inference_hyperparams.pose_proposal_args) == 0:
         top_k_indices = jnp.argsort(weights)[-k:][::-1]
         top_scores = [weights[idx] for idx in top_k_indices]
@@ -152,9 +231,9 @@ def inference_step(
             this_frame_posterior[int(addr.unwrap().split("_")[-1])].append(best_pose)
             this_frame_posterior[int(addr.unwrap().split("_")[-1])].append(best_vel)
         this_iteration_end_time = time.time()
-        print(
-            f"\t\t\t c_2_f step time: {this_iteration_end_time - this_iteration_start_time}"
-        )
+        # print(
+        #     f"\t\t\t c_2_f step time: {this_iteration_end_time - this_iteration_start_time}"
+        # )
 
     return (trace, this_frame_posterior)
 
@@ -261,6 +340,7 @@ def get_initial_trace(
     importance_jit,
     hyperparams,
     initial_state,
+    initial_warp_info,
     initial_observed_rgbd,
     get_weight=False,
 ):
@@ -284,7 +364,7 @@ def get_initial_trace(
         choicemap,
         (
             hyperparams,
-            initial_state | {"t": -1},
+            initial_warp_info,
         ),
     )
     if get_weight:
@@ -321,3 +401,6 @@ def propose_vel(key, advanced_trace, addr, args):
     # jax.debug.print("vel: {v}", v=vel)
     # jax.debug.print("log_v: {v}", v=log_v)
     return vel, log_v
+
+def get_zreo_vel(key):
+    return Velocity.zero_velocity()

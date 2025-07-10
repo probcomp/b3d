@@ -27,6 +27,11 @@ def load_trial(hdf5_file_path, FINAL_T):
     depth_arr = []
     image_arr = []
     seg_arr = []
+
+    gt_pos_array = []
+    gt_rot_array = []
+    gt_linvel_array = []
+    gt_angvel_array = []
     # (
     #     base_id,
     #     attachment_id,
@@ -37,6 +42,18 @@ def load_trial(hdf5_file_path, FINAL_T):
     # ) = None, None, None, None, None, None
     # composite_mapping = {}
     with h5py.File(hdf5_file_path, "r") as f:
+        distractors = (
+            np.array(f["static"]["distractors"])
+            if np.array(f["static"]["distractors"]).size != 0
+            else []
+        )
+        occluders = (
+            np.array(f["static"]["occluders"])
+            if np.array(f["static"]["occluders"]).size != 0
+            else []
+        )
+        distractors_occluders = np.concatenate([distractors, occluders])
+
         # extract depth info
         for frame in f["frames"].keys():
             if int(frame) >= FINAL_T:
@@ -51,9 +68,29 @@ def load_trial(hdf5_file_path, FINAL_T):
                 Image.open(io.BytesIO(f["frames"][frame]["images"]["_id_cam0"][:]))
             )
             seg_arr.append(im_seg)
+
+            pos = jnp.array(f["frames"][frame]["objects"]["positions_cam0"])
+            rot = jnp.array(f["frames"][frame]["objects"]["rotations_cam0"])
+            linvel = jnp.array(f["frames"][frame]["objects"]["velocities"])
+            angvel = jnp.array(f["frames"][frame]["objects"]["angular_velocities"])
+            if len(distractors_occluders):
+                pos = pos[: -len(distractors_occluders)]
+                rot = rot[: -len(distractors_occluders)]
+                linvel = linvel[: -len(distractors_occluders)]
+                angvel = angvel[: -len(distractors_occluders)]
+            gt_pos_array.append(pos)
+            gt_rot_array.append(rot)
+            gt_linvel_array.append(linvel)
+            gt_angvel_array.append(angvel)
+
         depth_arr = jnp.asarray(depth_arr)
         image_arr = jnp.asarray(image_arr) / 255
         seg_arr = jnp.asarray(seg_arr)
+
+        gt_pos_array = jnp.asarray(gt_pos_array)
+        gt_rot_array = jnp.asarray(gt_rot_array)
+        gt_linvel_array = jnp.asarray(gt_linvel_array)
+        gt_angvel_array = jnp.asarray(gt_angvel_array)
 
         # extract camera info
         camera_matrix = jnp.array(
@@ -61,7 +98,7 @@ def load_trial(hdf5_file_path, FINAL_T):
         ).reshape((4, 4))
 
         # extract object info
-        object_ids = np.array(f["static"]["object_ids"])
+        object_ids = np.array(f["static"]["object_ids"]).tolist()
         object_segmentation_colors = jnp.array(
             f["static"]["object_segmentation_colors"]
         )
@@ -71,17 +108,6 @@ def load_trial(hdf5_file_path, FINAL_T):
             (image_arr.shape[0], image_arr.shape[1], image_arr.shape[2])
         )
 
-        distractors = (
-            np.array(f["static"]["distractors"])
-            if np.array(f["static"]["distractors"]).size != 0
-            else []
-        )
-        occluders = (
-            np.array(f["static"]["occluders"])
-            if np.array(f["static"]["occluders"]).size != 0
-            else []
-        )
-        distractors_occluders = np.concatenate([distractors, occluders])
         if len(distractors_occluders):
             background_areas = jnp.asarray(
                 [
@@ -140,6 +166,11 @@ def load_trial(hdf5_file_path, FINAL_T):
         object_segmentation_colors,
         background_areas,
         camera_pose,
+
+        gt_pos_array,
+        gt_rot_array,
+        gt_linvel_array,
+        gt_angvel_array,
         # composite_mapping,
         # reversed_composite_mapping,
     )
@@ -218,6 +249,12 @@ def get_initial_state(
             jnp.array(pred[str(o_id)]["location"][0]),
             jnp.array(pred[str(o_id)]["rotation"][0]),
         )
+        # if o_id == 2:
+        #     initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
+        #         jnp.array([0.49467704, -0.07312627, 0.13232617]),
+        #         jnp.array([0., 0., 0.]),
+        #     )
+        # else:
         initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
             jnp.array([0., 0., 0.]),
             jnp.array([0., 0., 0.]),
@@ -261,14 +298,16 @@ def get_initial_state(
     wp.sim.eval_fk(model, model.joint_q, model.joint_qd, None, state_0)
 
     model_jax, state_0_jax, hyperparams = wp_to_jax(model, state_0, hyperparams)
-    initial_state["prev_model"] = model_jax
-    initial_state["prev_state"] = state_0_jax
+    initial_warp_info = {}
+    initial_warp_info["prev_model"] = model_jax
+    initial_warp_info["prev_state"] = state_0_jax
+    initial_warp_info["t"] = -1
     # print("state pos: ", state_0_jax._body_q)
     # print("state velocities: ", state_0_jax._body_qd)
 
     renderer = wp.sim.render.SimRenderer(model, '/home/hlwang/code/b3d/test.usd', scaling=0.5)
 
-    return initial_state, hyperparams, renderer, state_0
+    return initial_state, hyperparams, renderer, state_0, initial_warp_info
 
 
 def calculate_relevant_objects(

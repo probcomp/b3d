@@ -679,6 +679,11 @@ class Velocity:
     ang_vel_dir = ang_vel_direction
 
     @staticmethod
+    def zero_velocity():
+        """Return the identity transformation."""
+        return Velocity(jnp.zeros(3), jnp.zeros(3))
+
+    @staticmethod
     def from_vec(vel):
         """
         Creates a Velocity from a 6-vector 

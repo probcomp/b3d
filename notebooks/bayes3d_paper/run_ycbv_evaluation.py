@@ -6,13 +6,14 @@ def run_tracking(scene=None, object=None, debug=False):
     import importlib
     import os
 
-    import b3d
     import genjax
     import jax
     import jax.numpy as jnp
-    from b3d import Mesh, Pose
     from genjax import Pytree
     from tqdm import tqdm
+
+    import b3d
+    from b3d import Mesh, Pose
 
     importlib.reload(b3d.mesh)
     importlib.reload(b3d.io.data_loader)
@@ -42,7 +43,7 @@ def run_tracking(scene=None, object=None, debug=False):
 
         meshes = [
             Mesh.from_obj_file(
-                os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+                os.path.join(ycb_dir, f"models/obj_{f'{id + 1}'.rjust(6, '0')}.ply")
             ).scale(0.001)
             for id in all_data[0]["object_types"]
         ]

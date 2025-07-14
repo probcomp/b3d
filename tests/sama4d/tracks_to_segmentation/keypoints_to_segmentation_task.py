@@ -1,8 +1,8 @@
 from typing import Callable
 
-import b3d
 import jax.numpy as jnp
 
+import b3d
 from tests.common.task import Task
 
 

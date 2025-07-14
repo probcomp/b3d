@@ -174,7 +174,7 @@ def get_ycbv_test_images(ycb_dir, scene_id, images_indices, fields=[]):
 
 def get_ycb_mesh(ycb_dir, id):
     return Mesh.from_obj_file(
-        os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+        os.path.join(ycb_dir, f"models/obj_{f'{id + 1}'.rjust(6, '0')}.ply")
     ).scale(0.001)
 
 

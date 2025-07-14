@@ -77,9 +77,9 @@ class MeshLibrary:
             if self.attributes is None:
                 self.attributes = attributes
             else:
-                assert (
-                    attributes.shape[0] == vertices.shape[0]
-                ), "Attributes should be [num_vertices, num_attributes]"
+                assert attributes.shape[0] == vertices.shape[0], (
+                    "Attributes should be [num_vertices, num_attributes]"
+                )
                 self.attributes = jnp.concatenate((self.attributes, attributes))
 
     def add_trimesh(self, mesh, vertex_scale_factor=1.0):

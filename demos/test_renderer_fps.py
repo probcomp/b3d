@@ -1,7 +1,6 @@
 import os
 import time
 
-import b3d
 import b3d.nvdiffrast_original.torch as dr
 import jax
 import jax.numpy as jnp
@@ -10,6 +9,8 @@ import rerun as rr
 import torch
 import trimesh
 from b3d.renderer_original import Renderer as RendererOriginal
+
+import b3d
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -78,7 +79,7 @@ for resolution in resolutions:
     end = time.time()
     print(sum)
 
-    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
+    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep / (end - start)}")
 
 
 vertices_jax_4 = jnp.array(vertices.cpu().numpy())
@@ -116,7 +117,7 @@ for resolution in resolutions:
     end = time.time()
     print(sum)
 
-    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
+    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep / (end - start)}")
 
 
 print("JAX")
@@ -144,7 +145,7 @@ for resolution in resolutions:
         )
     end = time.time()
 
-    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
+    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep / (end - start)}")
 
 
 def convert_to_torch(x):
@@ -178,4 +179,4 @@ for resolution in resolutions:
         )
     end = time.time()
 
-    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep/(end-start)}")
+    print(f"Resolution: {resolution}x{resolution}, FPS: {num_timestep / (end - start)}")

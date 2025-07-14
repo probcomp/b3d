@@ -194,9 +194,9 @@ class FeatureTrackData:
             rgbd_images = get_or_none(data, "rgbd_images")
             if rgbd_images is None:
                 rgb_imgs = get_or_none(data, "rgb_imgs")
-                assert (
-                    rgb_imgs is not None
-                ), "One of rgbd_images or rgb_imgs must be provided."
+                assert rgb_imgs is not None, (
+                    "One of rgbd_images or rgb_imgs must be provided."
+                )
                 xyz = get_or_none(data, "xyz")
                 if xyz is not None:
                     rgbd_images = jnp.concatenate([rgb_imgs, xyz[:, :, :, 2:]], axis=-1)
@@ -330,9 +330,9 @@ class FeatureTrackData:
 
     def downscale(self, factor):
         """Downscales the rgbd images by the given factor."""
-        assert (
-            factor >= 1 and int(factor) == factor
-        ), "Factor must be an integer greater than or equal to 1."
+        assert factor >= 1 and int(factor) == factor, (
+            "Factor must be an integer greater than or equal to 1."
+        )
         factor = int(factor)
         if factor == 1:
             return self
@@ -410,7 +410,9 @@ class FeatureTrackData:
         FeatureTrackData in which no two observed keypoints
         are closer than `min_2D_distance` pixels in the first frame.
         """
-        assert self.all_points_visible_at_frame0(), "In the current implementation, all keypoints must be visible at frame 0 to filter by minimimum 2D distance."
+        assert self.all_points_visible_at_frame0(), (
+            "In the current implementation, all keypoints must be visible at frame 0 to filter by minimimum 2D distance."
+        )
         valid_indices = get_keypoint_filter(min_2D_distance)(
             self.observed_keypoints_positions[0]
         )

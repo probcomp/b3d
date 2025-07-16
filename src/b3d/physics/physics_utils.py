@@ -796,6 +796,9 @@ def warp_step(rigid_contact_count, rigid_contact_broad_shape0, rigid_contact_bro
 
 def step(model, state, hyperparams):
     state.from_pos_quat()
+    print(f"body_q inside step: {state._body_q}")
+    print(f"body_qd inside step: {state._body_qd}")
+    print(f"body_f inside step: {state._body_f}")
     for _ in range(hyperparams["sim_substeps"].unwrap()):
         state.clear_forces()
 
@@ -810,5 +813,8 @@ def step(model, state, hyperparams):
         ## update the model and state parameters
         model.update_attributes(_rigid_contact_count = rigid_contact_count_new, _rigid_contact_broad_shape0 = rigid_contact_broad_shape0_new, _rigid_contact_broad_shape1 = rigid_contact_broad_shape1_new, _rigid_contact_point_id = rigid_contact_point_id_new, _rigid_contact_shape0 = rigid_contact_shape0_new, _rigid_contact_shape1 = rigid_contact_shape1_new, _rigid_contact_point0 = rigid_contact_point0_new, _rigid_contact_point1 = rigid_contact_point1_new, _rigid_contact_offset0 = rigid_contact_offset0_new, _rigid_contact_offset1 = rigid_contact_offset1_new, _rigid_contact_normal = rigid_contact_normal_new, _rigid_contact_thickness = rigid_contact_thickness_new, _rigid_contact_tids = rigid_contact_tids_new)
         state.update_attributes(_body_q = body_q_new, _body_qd = body_qd_new, _body_f = body_f_new)
+    print(f"body_q_new inside step: {state._body_q}")
+    print(f"body_qd_new inside step: {state._body_qd}")
+    print(f"body_f_new inside step: {state._body_f}")
     state.to_pos_quat()
     return model, state

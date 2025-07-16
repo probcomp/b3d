@@ -200,22 +200,6 @@ def inference_step(
         key, subkey = split(key)
         this_iteration_start_time = time.time()
         trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = jax.lax.cond(infer_vel, c2f_pose_vel_step, c2f_pose_step, subkey, trace, pose_proposal_args, vel_proposal_args, addr)
-        # if infer_vel:
-        #     trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = c2f_pose_vel_step(
-        #         subkey,
-        #         trace,
-        #         pose_proposal_args,
-        #         vel_proposal_args,
-        #         addr,
-        #     )
-        # else:
-        #     trace, _, best_pose, best_vel, proposed_poses, proposed_vels, weights = c2f_pose_step(
-        #         subkey,
-        #         trace,
-        #         pose_proposal_args,
-        #         vel_proposal_args,
-        #         addr,
-        #     )
         # if i % len(inference_hyperparams.pose_proposal_args) == 0:
         top_k_indices = jnp.argsort(weights)[-k:][::-1]
         top_scores = [weights[idx] for idx in top_k_indices]
@@ -317,6 +301,8 @@ def advance_time(key, trace, observed_rgbd):
     Returns a trace where previous_state (stored in the arguments)
     and new_state (sampled in the choices and returned) are identical.
     """
+    # jax.debug.print("prev pose in advance time: {x}", x=get_new_state(trace)["prev_state"]._body_q)
+    # jax.debug.print("prev vel in advance time: {x}", x=get_new_state(trace)["prev_state"]._body_qd)
     trace, _, _, _ = trace.update(
         key,
         C.kw(rgbd=observed_rgbd),
@@ -324,13 +310,6 @@ def advance_time(key, trace, observed_rgbd):
             Diff.no_change(get_hypers(trace)),
             Diff.unknown_change(get_new_state(trace)),
         ),
-        # U.g(
-        #     (
-        #         Diff.no_change(get_hypers(trace)),
-        #         Diff.unknown_change(get_new_state(trace)),
-        #     ),
-        #     C.kw(rgbd=observed_rgbd),
-        # ),
     )
     return trace
 
@@ -364,14 +343,13 @@ def get_initial_trace(
         choicemap,
         (
             hyperparams,
-            initial_warp_info,
+            initial_state | initial_warp_info,
         ),
     )
     if get_weight:
         return trace, weight
     else:
         return trace
-
 
 
 def propose_pose(key, advanced_trace, addr, args, xyz):
@@ -385,10 +363,11 @@ def propose_pose(key, advanced_trace, addr, args, xyz):
     log_q = jax.lax.cond(xyz, Pose.logpdf_gaussian_vmf_pose_approx, Pose.logpdf_gaussian_vmf_pose_xz, pose, previous_pose, std, conc)
     return pose, log_q
 
+
 def propose_vel(key, advanced_trace, addr, args):
     """
-    Propose a random pose near the previous timestep's pose.
-    Returns (proposed_pose, log_proposal_density).
+    Propose a random vel near the previous timestep's ve;.
+    Returns (proposed_vel, log_proposal_density).
     """
     std, conc = args
     previous_vel = get_new_state(advanced_trace)[addr]
@@ -401,6 +380,7 @@ def propose_vel(key, advanced_trace, addr, args):
     # jax.debug.print("vel: {v}", v=vel)
     # jax.debug.print("log_v: {v}", v=log_v)
     return vel, log_v
+
 
 def get_zreo_vel(key):
     return Velocity.zero_velocity()

@@ -55,36 +55,38 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         object_ids = hyperparams["object_ids"]
         pose_kernel = hyperparams["pose_kernel"]
         velocity_kernel = hyperparams["velocity_kernel"]
-        
+
+        all_poses = {}
         all_vels = {}
+        meshes = []
         for i, o_id in enumerate(object_ids.unwrap()):
+            object_pose = (
+                pose_kernel(previous_info["prev_state"]._body_q[i])
+                @ f"object_pose_{o_id}"
+            )
+            all_poses[f"object_pose_{o_id}"] = object_pose
             object_vel = (
                 velocity_kernel(previous_info["prev_state"]._body_qd[i])
                 @ f"object_vel_{o_id}"
             )
             all_vels[f"object_vel_{o_id}"] = object_vel
-        previous_info["prev_state"].update_attributes(_body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
-        stepped_model, stepped_state = jax.lax.cond(previous_info["t"] > 0, step, keep_previous_warp_info, previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
-
-        all_poses = {}
-        meshes = []
-        for i, o_id in enumerate(object_ids.unwrap()):
-            object_pose = (
-                pose_kernel(stepped_state._body_q[i])
-                @ f"object_pose_{o_id}"
-            )
-            all_poses[f"object_pose_{o_id}"] = object_pose
             meshes.append(hyperparams["meshes"][o_id])
+        previous_info["prev_state"].update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()), _body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
+        # jax.debug.print("prev pose: {x}", x=previous_info["prev_state"]._body_q)
+        # jax.debug.print("prev velocities: {x}", x=previous_info["prev_state"]._body_qd)
+        stepped_model, stepped_state = jax.lax.cond(previous_info["t"] > 0, step, keep_previous_warp_info, previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
+        # jax.debug.print("stepped pose: {x}", x=stepped_state._body_q)
+        # jax.debug.print("stepped velocities: {x}", x=stepped_state._body_qd)
 
         camera_pose = hyperparams["camera_pose"]
         scene_mesh = Mesh.transform_and_merge_meshes(
-            meshes, Pose.stack_poses(list(all_poses.values()))
+            meshes, stepped_state._body_q
         ).transform(camera_pose.inv())
 
         likelihood_args["scene_mesh"] = [
             Mesh.transform_mesh(mesh, pose)
             for mesh, pose in zip(
-                meshes, Pose.stack_poses(list(all_poses.values()))
+                meshes, stepped_state._body_q
             )
         ]
 

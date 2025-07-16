@@ -32,6 +32,7 @@ def foreground_background(depth_map, area, val):
 
 
 def main(
+    rr_uri,
     scenario,
     trial_name,
     hdf5_file_path,
@@ -48,10 +49,7 @@ def main(
 ):
     start_time = time.time()
     rr.init("demo", recording_id=recording_id)
-    # rr.connect_tcp("127.0.0.1:8813")
-    # rr.serve()
-    # rr.connect("localhost:9090")
-    rr.connect_grpc("rerun+http://localhost:9876/proxy") 
+    rr.connect_grpc(rr_uri) 
     if scenario == "dominoes":
         START_T = 14
     else:
@@ -245,6 +243,7 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--rr_uri", default="collide", type=str)
     parser.add_argument("--scenario", default="collide", type=str)
     parser.add_argument("--trial_name", default="", type=str)
     parser.add_argument("--recording_id", default="", type=str)
@@ -256,6 +255,7 @@ if __name__ == "__main__":
     parser.add_argument("--mesh_file_path", default="", type=str)
     parser.add_argument("--hdf5_file_path", default="", type=str)
     args = parser.parse_args()
+    rr_uri = args.rr_uri
     scenario = args.scenario
     trial_name = args.trial_name
     recording_id = args.recording_id
@@ -268,6 +268,7 @@ if __name__ == "__main__":
     im_height = args.im_height
     
     main(
+        rr_uri,
         scenario,
         trial_name,
         hdf5_file_path,

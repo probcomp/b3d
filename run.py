@@ -1047,7 +1047,8 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
 
     recording_id = uuid.uuid4()
     rr.init("demo", recording_id=recording_id)
-    rr.serve_web(open_browser=True, web_port=9090, grpc_port=9876) 
+    grpc_uri = rr.serve_grpc()         
+    rr.serve_web_viewer(connect_to=grpc_uri, open_browser=True)
     viz_index = 0
     for trial_index, hdf5_file in enumerate(onlyhdf5):
         trial_name = hdf5_file[:-5]
@@ -1056,7 +1057,7 @@ for scenario in ["collide", "drop", "roll", "dominoes", "support", "contain", "l
             continue
         if trial_name != "pilot_it2_rollingSliding_simple_ramp_tdw_1_dis_1_occ_small_zone_0017":
             continue
-        cmd = f"python test_b3d_tracking_hmm_single.py --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
+        cmd = f"python test_b3d_tracking_hmm_single.py --rr_uri {grpc_uri} --scenario {scenario} --trial_name {trial_name} --recording_id {recording_id} --viz_index {viz_index} --im_width {im_width} --im_height {im_height} --save_path {save_path} --pred_file_path {pred_file_path} --mesh_file_path {mesh_file_path} --hdf5_file_path {hdf5_file_path}"
         print(cmd)
         os.system(cmd)
         viz_index += FINAL_T - START_T + 1

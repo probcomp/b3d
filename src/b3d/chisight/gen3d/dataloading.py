@@ -245,20 +245,19 @@ def get_initial_state(
         mean_object_colors = jnp.mean(object_colors, axis=0)
         assert not jnp.isnan(mean_object_colors).any()
 
+        loc = np.array(pred[str(o_id)]["location"][0])
+        # Check if loc[1] is close to 0
+        # if jnp.isclose(loc[1], 0.0):
+        # loc[1] += 0.01
+
         initial_state[f"object_pose_{o_id}"] = b3d.Pose(
-            jnp.array(pred[str(o_id)]["location"][0]),
+            jnp.array(loc),
             jnp.array(pred[str(o_id)]["rotation"][0]),
         )
-        # if o_id == 2:
-        #     initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
-        #         jnp.array([0.49467704, -0.07312627, 0.13232617]),
-        #         jnp.array([0., 0., 0.]),
-        #     )
-        # else:
-        initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
-            jnp.array([0., 0., 0.]),
-            jnp.array([0., 0., 0.]),
-        )
+        # initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
+        #     jnp.array([0., 0., 0.]),
+        #     jnp.array([0., 0., 0.]),
+        # )
         hyperparams["meshes"][int(o_id)] = b3d.Mesh(
                 scale_mesh(meshes[pred[str(o_id)]["type"][0]].vertices, jnp.array(pred[str(o_id)]["scale"][0])),
                 meshes[pred[str(o_id)]["type"][0]].faces,
@@ -266,15 +265,17 @@ def get_initial_state(
                 * mean_object_colors,
             )
         
-        # if o_id == 1:
-        #     continue
         b = builder.add_body(
                 origin=wp.transform(
-                    np.array(pred[str(o_id)]["location"][0]), np.array(pred[str(o_id)]["rotation"][0]),
+                    loc, np.array(pred[str(o_id)]["rotation"][0]),
                 )
         )
+        if o_id != 2:
+            body = -1
+        else:
+            body = b
         builder.add_shape_mesh(
-            body=b,
+            body=body,
             mesh=wp.sim.Mesh(meshes[pred[str(o_id)]["type"][0]].vertices, meshes[pred[str(o_id)]["type"][0]].faces),
             pos=wp.vec3(0.0, 0.0, 0.0),
             scale=np.array(pred[str(o_id)]["scale"][0]),

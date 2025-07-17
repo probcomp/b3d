@@ -351,6 +351,38 @@ def get_initial_trace(
     else:
         return trace
 
+def get_initial_particles(
+    keys,
+    importance_vmap,
+    hyperparams,
+    initial_state,
+    initial_warp_info,
+    initial_observed_rgbd,
+    get_weight=False,
+):
+    """
+    Get the initial trace, given the initial state.
+    The previous state and current state in the trace will be `initial_state`.
+    """
+    choicemap = C.d(
+        {
+            "rgbd": initial_observed_rgbd,
+        }
+        | initial_state
+    )
+
+    init_particles, init_weights = importance_vmap(
+        keys,
+        choicemap,
+        (
+            hyperparams,
+            initial_state | initial_warp_info,
+        ),
+    )
+    if get_weight:
+        return init_particles, init_weights
+    else:
+        return init_particles
 
 def propose_pose(key, advanced_trace, addr, args, xyz):
     """

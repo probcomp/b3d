@@ -254,10 +254,10 @@ def get_initial_state(
             jnp.array(loc),
             jnp.array(pred[str(o_id)]["rotation"][0]),
         )
-        # initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
-        #     jnp.array([0., 0., 0.]),
-        #     jnp.array([0., 0., 0.]),
-        # )
+        initial_state[f"object_vel_{o_id}"] = b3d.Velocity(
+            jnp.array([0., 0., 0.]),
+            jnp.array([0., 0., 0.]),
+        )
         hyperparams["meshes"][int(o_id)] = b3d.Mesh(
                 scale_mesh(meshes[pred[str(o_id)]["type"][0]].vertices, jnp.array(pred[str(o_id)]["scale"][0])),
                 meshes[pred[str(o_id)]["type"][0]].faces,

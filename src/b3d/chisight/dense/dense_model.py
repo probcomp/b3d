@@ -63,14 +63,14 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
                 @ f"object_vel_{o_id}"
             )
             all_vels[f"object_vel_{o_id}"] = object_vel
-        jax.debug.print("prev pose: {x}", x=previous_info["prev_state"]._body_q)
-        jax.debug.print("prev velocities: {x}", x=previous_info["prev_state"]._body_qd)
-        previous_info["prev_state"].update_attributes(_body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
-        jax.debug.print("updated vel pose: {x}", x=previous_info["prev_state"]._body_q)
-        jax.debug.print("updated vel velocities: {x}", x=previous_info["prev_state"]._body_qd)
-        stepped_model, stepped_state = jax.lax.cond(previous_info["t"] > 0, step, keep_previous_warp_info, previous_info["prev_model"], previous_info["prev_state"], hyperparams["physics_args"])
-        jax.debug.print("stepped pose: {x}", x=stepped_state._body_q)
-        jax.debug.print("stepped velocities: {x}", x=stepped_state._body_qd)
+        # jax.debug.print("prev pose: {x}", x=previous_info["prev_state"]._body_q)
+        # jax.debug.print("prev velocities: {x}", x=previous_info["prev_state"]._body_qd)
+        noisified_prev_state = previous_info["prev_state"].update_attributes(body_qd = b3d.Velocity.stack_velocities(all_vels.values()))
+        # jax.debug.print("updated vel pose: {x}", x=previous_info["prev_state"]._body_q)
+        # jax.debug.print("updated vel velocities: {x}", x=previous_info["prev_state"]._body_qd)
+        stepped_model, stepped_state = jax.lax.cond(previous_info["t"] > 0, step, keep_previous_warp_info, previous_info["prev_model"], noisified_prev_state, hyperparams["physics_args"])
+        # jax.debug.print("stepped pose: {x}", x=stepped_state._body_q)
+        # jax.debug.print("stepped velocities: {x}", x=stepped_state._body_qd)
 
         all_poses = {}
         meshes = []
@@ -81,9 +81,9 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
             )
             all_poses[f"object_pose_{o_id}"] = object_pose
             meshes.append(hyperparams["meshes"][o_id])
-        stepped_state.update_attributes(_body_q = b3d.Pose.stack_poses(all_poses.values()))
-        jax.debug.print("updated pose pose: {x}", x=stepped_state._body_q)
-        jax.debug.print("updated pose velocities: {x}", x=stepped_state._body_qd)
+        noisified_stepped_state = stepped_state.update_attributes(body_q = b3d.Pose.stack_poses(all_poses.values()))
+        # jax.debug.print("updated pose pose: {x}", x=stepped_state._body_q)
+        # jax.debug.print("updated pose velocities: {x}", x=stepped_state._body_qd)
 
         camera_pose = hyperparams["camera_pose"]
         scene_mesh = Mesh.transform_and_merge_meshes(
@@ -133,7 +133,7 @@ def make_dense_multiobject_dynamics_model(renderer, likelihood_func, sample_func
         return {
             "likelihood_args": likelihood_args,
             "rgbd": image,
-            "new_state": all_poses | all_vels | {"t": previous_info["t"] + 1, "prev_model": stepped_model, "prev_state": stepped_state},
+            "new_state": all_poses | all_vels | {"t": previous_info["t"] + 1, "prev_model": stepped_model, "prev_state": noisified_stepped_state},
         }
 
     def keep_previous_warp_info(prev_model, prev_state, physics_args):

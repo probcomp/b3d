@@ -125,8 +125,10 @@ class ProjectiveGaussianMixture(ExactDensity):
         _, keys = keysplit(key, 1, 2)
         i = jax.random.categorical(keys[0], log_weights)
         jbinder = (  # noqa: E731
-            lambda j: lambda key, mus, covs, cam, intr: projective_gaussian.sample(
-                key, mus[j], covs[j], cam, intr
+            lambda j: (
+                lambda key, mus, covs, cam, intr: projective_gaussian.sample(
+                    key, mus[j], covs[j], cam, intr
+                )
             )
         )
         branches = [jbinder(j) for j in jnp.arange(log_weights.shape[0])]

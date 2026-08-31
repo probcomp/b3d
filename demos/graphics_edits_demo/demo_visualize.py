@@ -2,14 +2,15 @@
 import os
 import pickle
 
-import b3d
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 import trimesh
-from b3d import Pose
 from tqdm import tqdm
+
+import b3d
+from b3d import Pose
 
 rr.init("demo_visualize3")
 rr.connect("127.0.0.1:8812")

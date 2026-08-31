@@ -1,11 +1,12 @@
 import argparse
 import time
 
-import b3d
 import jax
 import jax.numpy as jnp
-from b3d import Mesh, Pose
 from tqdm import tqdm
+
+import b3d
+from b3d import Mesh, Pose
 
 b3d.rr_init("acquire_object_model")
 

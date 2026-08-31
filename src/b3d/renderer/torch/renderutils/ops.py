@@ -141,9 +141,9 @@ def xfm_points(points, matrix, use_python=False):
         out = _xfm_func.apply(points, matrix, True)
 
     if torch.is_anomaly_enabled():
-        assert torch.all(
-            torch.isfinite(out)
-        ), "Output of xfm_points contains inf or NaN"
+        assert torch.all(torch.isfinite(out)), (
+            "Output of xfm_points contains inf or NaN"
+        )
     return out
 
 
@@ -167,7 +167,7 @@ def xfm_vectors(vectors, matrix, use_python=False):
         out = _xfm_func.apply(vectors, matrix, False)
 
     if torch.is_anomaly_enabled():
-        assert torch.all(
-            torch.isfinite(out)
-        ), "Output of xfm_vectors contains inf or NaN"
+        assert torch.all(torch.isfinite(out)), (
+            "Output of xfm_vectors contains inf or NaN"
+        )
     return out

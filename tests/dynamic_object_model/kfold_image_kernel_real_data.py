@@ -2,10 +2,11 @@
 
 import os
 
-import b3d
 import b3d.chisight.dynamic_object_model.kfold_image_kernel as kik
 import jax
 import jax.numpy as jnp
+
+import b3d
 from b3d import Mesh
 
 b3d.rr_init("kfold_image_kernel2")
@@ -27,7 +28,7 @@ def test_sampling_on_real_data():
 
     meshes = [
         Mesh.from_obj_file(
-            os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+            os.path.join(ycb_dir, f"models/obj_{f'{id + 1}'.rjust(6, '0')}.ply")
         ).scale(0.001)
         for id in all_data[0]["object_types"]
     ]

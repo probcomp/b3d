@@ -1,5 +1,6 @@
-import b3d
 import jax
+
+import b3d
 from b3d.chisight.patch_tracking_2d.patch_tracker import PatchTracker2D
 
 

@@ -9,7 +9,6 @@ import jax.tree_util as jtu
 from genjax import Pytree
 from tensorflow_probability.substrates import jax as tfp
 
-import b3d
 import b3d.modeling_utils
 
 

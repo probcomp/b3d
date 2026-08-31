@@ -7,17 +7,18 @@
 import os
 import unittest
 
-import b3d
-import b3d.bayes3d as bayes3d
 import genjax
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import rerun as rr
 import trimesh
-from b3d import Pose
 from genjax import Pytree
 from tqdm import tqdm
+
+import b3d
+import b3d.bayes3d as bayes3d
+from b3d import Pose
 
 
 class UpsamplingRenderer(b3d.Renderer):

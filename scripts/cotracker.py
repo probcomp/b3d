@@ -1,9 +1,10 @@
 import time
 from pathlib import Path
 
-import b3d
 import numpy as np
 import torch
+
+import b3d
 from b3d.io import FeatureTrackData
 from b3d.io.utils import add_argparse, path_stem
 
@@ -52,7 +53,7 @@ def _cotracker(source_path, target_dir=None, grid_size=50):
     )  # B T N 2,  B T N 1
     t1 = time.time()
 
-    print(f"Cotracker took {t1-t0:.2f} seconds.")
+    print(f"Cotracker took {t1 - t0:.2f} seconds.")
 
     pred_tracks_ = pred_tracks.cpu().numpy()
     pred_visibility_ = pred_visibility.cpu().numpy()

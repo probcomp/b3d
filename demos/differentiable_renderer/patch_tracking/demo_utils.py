@@ -1,10 +1,11 @@
 import os
 
-import b3d
-import b3d.utils as utils
 import jax
 import jax.numpy as jnp
 import trimesh
+
+import b3d
+import b3d.utils as utils
 from b3d import Pose
 
 ### Utils ###

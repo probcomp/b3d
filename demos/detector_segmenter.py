@@ -1,7 +1,6 @@
 import io
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import numpy
@@ -18,6 +17,8 @@ from transformers import (
     OwlViTProcessor,
 )
 from transformers.models.detr.feature_extraction_detr import rgb_to_id
+
+import b3d
 
 processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
 model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")

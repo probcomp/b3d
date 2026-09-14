@@ -1,9 +1,10 @@
-import b3d
-import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import rerun as rr
+
+import b3d
+import b3d.chisight.dense.differentiable_renderer as differentiable_renderer
 
 from ...common.task import Task
 
@@ -313,9 +314,9 @@ class TrianglePosteriorGridApproximationTask(Task):
         return jnp.stack([self.get_image_at_frame(i) for i in range(self.n_frames())])
 
     def visualize_scene(self):
-        assert (
-            self.n_frames() == 1
-        ), "Current visualizer only configured for single-frame scenes"
+        assert self.n_frames() == 1, (
+            "Current visualizer only configured for single-frame scenes"
+        )
         self.maybe_initialize_rerun()
 
         v, f, vc = b3d.utils.triangle_color_mesh_to_vertex_color_mesh(

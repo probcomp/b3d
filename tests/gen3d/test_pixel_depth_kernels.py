@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import pytest
+
 from b3d.chisight.gen3d.pixel_kernels.pixel_depth_kernels import (
     DEPTH_NONRETURN_VAL,
     UNEXPLAINED_DEPTH_NONRETURN_PROB,

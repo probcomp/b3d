@@ -1,10 +1,10 @@
 import os
 
-import b3d
 import genjax
 import jax
 import rerun as rr
 
+import b3d
 import demos.mesh_fitting.model as m
 import demos.mesh_fitting.utils as u
 

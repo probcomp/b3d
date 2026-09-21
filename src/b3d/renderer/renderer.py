@@ -403,9 +403,9 @@ def _build_rasterize_fwd_primitive(r: "Renderer"):
 
         num_images = poses_aval.shape[0]
         num_objects = ranges_aval.shape[0]
-        assert (
-            num_objects == poses_aval.shape[1]
-        ), f"Number of poses {poses_aval.shape[1]} should match number of objects {num_objects}"
+        assert num_objects == poses_aval.shape[1], (
+            f"Number of poses {poses_aval.shape[1]} should match number of objects {num_objects}"
+        )
         num_vertices = pos_aval.shape[0]
         num_triangles = tri_aval.shape[0]
         out_shp_dtype = mlir.ir.RankedTensorType.get(
@@ -587,9 +587,9 @@ def _build_rasterize_bwd_primitive(r: "Renderer"):
 
         num_images = poses_aval.shape[0]
         num_objects = ranges_aval.shape[0]
-        assert (
-            num_objects == poses_aval.shape[1]
-        ), f"Number of poses {poses_aval.shape[1]} should match number of objects {num_objects}"
+        assert num_objects == poses_aval.shape[1], (
+            f"Number of poses {poses_aval.shape[1]} should match number of objects {num_objects}"
+        )
         num_vertices = pos_aval.shape[0]
         num_triangles = tri_aval.shape[0]
         depth, height, width = rast_aval.shape[:3]

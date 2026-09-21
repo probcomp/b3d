@@ -1,6 +1,6 @@
 import jax
-from b3d.chisight.patch_tracking_2d.patch_tracker import PatchTracker2D
 
+from b3d.chisight.patch_tracking_2d.patch_tracker import PatchTracker2D
 from tests.common.solver import Solver
 
 ### Solver for VideoToTracksTask ###

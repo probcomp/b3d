@@ -2,8 +2,9 @@
 This file registers a default set of tasks and solvers for the video to keypoint tracks task class.
 """
 
-import b3d
 import jax.numpy as jnp
+
+import b3d
 
 from ...data_curation import get_loaders_for_all_curated_scenes
 from .keypoint_tracking_task import KeypointTrackingTask
@@ -81,7 +82,7 @@ def get_curated_single_patch_tracking_tasks():
 
     return [
         KeypointTrackingTask(
-            (lambda spec: (lambda: load_ftd_from_task_spec(spec)))(spec),
+            (lambda spec: lambda: load_ftd_from_task_spec(spec))(spec),
             scene_name=spec["file"],
             n_frames=spec["n_frames"],
         )

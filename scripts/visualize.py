@@ -1,7 +1,8 @@
-import b3d
 import fire
 import jax
 import jax.numpy as jnp
+
+import b3d
 from b3d import Pose
 
 

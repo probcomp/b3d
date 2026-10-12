@@ -1,12 +1,13 @@
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import numpy as np
 import nvdiffrast.torch as dr
 import torch
 import trimesh
+
+import b3d
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

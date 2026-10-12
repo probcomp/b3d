@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import pytest
+
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     FullPixelColorDistribution,
 )

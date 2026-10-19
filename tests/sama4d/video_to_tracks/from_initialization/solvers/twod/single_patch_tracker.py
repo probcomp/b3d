@@ -1,4 +1,3 @@
-import b3d
 import jax
 import jax.numpy as jnp
 import matplotlib.patches as mpatches
@@ -6,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.gridspec import GridSpec
 
+import b3d
 from tests.common.solver import Solver
 
 
@@ -57,9 +57,9 @@ class SinglePatchTracker2D(Solver):
         Will be saved in "assets/test_results/" + file_prefix + "tracking"
         where {...} will include the solver name.
         """
-        assert (
-            self.patch is not None and self.inferred_patches is not None
-        ), "Must have run solver.solve(ts, log_to_self=True) before exporting mp4."
+        assert self.patch is not None and self.inferred_patches is not None, (
+            "Must have run solver.solve(ts, log_to_self=True) before exporting mp4."
+        )
 
         video = task_specification["video"]
         patches_at_true_positions = self.get_patches_over_time(
@@ -166,7 +166,7 @@ def create_video_keypoint_mp4(video, pos_xy, inferred_pos_xy, output_filename, f
         ax.text(
             0.02,
             0.98,
-            f"Frame: {i+1}/{len(video)}",
+            f"Frame: {i + 1}/{len(video)}",
             transform=ax.transAxes,
             verticalalignment="top",
             color="white",
@@ -239,7 +239,7 @@ def create_video_keypoint_mp4_with_patches(
         ax_main.text(
             0.02,
             0.98,
-            f"Frame: {i+1}/{len(video)}",
+            f"Frame: {i + 1}/{len(video)}",
             transform=ax_main.transAxes,
             verticalalignment="top",
             color="white",

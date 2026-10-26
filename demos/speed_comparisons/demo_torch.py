@@ -2,7 +2,6 @@
 import os
 import time
 
-import b3d
 import b3d.nvdiffrast_original.torch as dr
 import b3d.torch
 import b3d.torch.renderutils
@@ -11,6 +10,8 @@ import rerun as rr
 import torch
 import trimesh
 from tqdm import tqdm
+
+import b3d
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device("cuda")

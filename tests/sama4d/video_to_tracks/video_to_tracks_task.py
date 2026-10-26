@@ -1,13 +1,13 @@
 import warnings
 from typing import Callable
 
-import b3d
 import jax.numpy as jnp
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 
+import b3d
 from tests.common.task import Task
 
 
@@ -111,13 +111,13 @@ class VideoToTracksTask(Task):
             solution["keypoint_visibility"],
         )
         # Ensure the solution has the correct shape
-        assert (
-            keypoint_tracks.shape[0] == self.video.shape[0]
-        ), "Number of frames in solution doesn't match video"
+        assert keypoint_tracks.shape[0] == self.video.shape[0], (
+            "Number of frames in solution doesn't match video"
+        )
         assert keypoint_tracks.shape[2] == 2, "Keypoint tracks should be 2D coordinates"
-        assert (
-            keypoint_visibility.shape == keypoint_tracks.shape[:2]
-        ), "Visibility mask shape mismatch"
+        assert keypoint_visibility.shape == keypoint_tracks.shape[:2], (
+            "Visibility mask shape mismatch"
+        )
 
         # Strip all keypoints which are never visible in any frame
         keypoint_tracks = keypoint_tracks[:, jnp.any(keypoint_visibility, axis=0)]

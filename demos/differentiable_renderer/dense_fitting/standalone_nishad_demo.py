@@ -3,11 +3,12 @@
 import functools
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
+
+import b3d
 from b3d import Pose
 
 rr.init("gradients")

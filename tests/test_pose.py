@@ -3,8 +3,9 @@ import unittest
 import jax
 import jax.numpy as jnp
 import numpy as np
-from b3d.pose import Pose, camera_from_position_and_target
 from jax.scipy.spatial.transform import Rotation as Rot
+
+from b3d.pose import Pose, camera_from_position_and_target
 
 
 def keysplit(key, *ns):

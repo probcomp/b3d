@@ -1,13 +1,14 @@
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
-from b3d import Pose
 from diff_gaussian_rasterization import rasterize_with_depth
 from tqdm import tqdm
+
+import b3d
+from b3d import Pose
 
 rr.init("demo")
 rr.connect("127.0.0.1:8812")

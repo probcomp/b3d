@@ -1,11 +1,12 @@
 import os
 import time
 
-import b3d
 import jax
 import jax.numpy as jnp
 import trimesh
 from b3d.renderer_original import RendererOriginal
+
+import b3d
 
 width = 200
 height = 100
@@ -64,7 +65,7 @@ for _ in range(num_timestep):
     sum_total += output.sum()
 end = time.time()
 print(sum_total)
-print(f"FPS: {num_timestep/(end-start)}")
+print(f"FPS: {num_timestep / (end - start)}")
 b3d.get_rgb_pil_image(output[99, ..., :3]).save("0.png")
 
 
@@ -90,4 +91,4 @@ for _ in range(num_timestep):
     sum_total += output.sum()
 end = time.time()
 print(sum_total)
-print(f"FPS: {num_timestep/(end-start)}")
+print(f"FPS: {num_timestep / (end - start)}")

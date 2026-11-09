@@ -1,12 +1,13 @@
 ### IMPORTS ###
 
 
-import b3d
 import jax
 import jax.numpy as jnp
-from b3d import Pose
 from genjax import ChoiceMapBuilder as C
 from genjax import Pytree
+
+import b3d
+from b3d import Pose
 
 b3d.reload(b3d.chisight.dynamic_object_model)
 

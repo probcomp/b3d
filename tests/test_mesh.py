@@ -1,8 +1,9 @@
 import unittest
 
-import b3d
 import jax
 import jax.numpy as jnp
+
+import b3d
 from b3d import Mesh, Pose
 
 

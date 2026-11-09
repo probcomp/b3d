@@ -1,9 +1,10 @@
 import os
 
-import b3d
 import jax
 import jax.numpy as jnp
 import trimesh
+
+import b3d
 
 
 def get_loaders_for_all_curated_scenes():

@@ -5,7 +5,6 @@ import rerun as rr
 from genjax import Pytree
 
 import b3d
-import b3d.chisight.dense.likelihoods.image_likelihood
 from b3d import Mesh, Pose
 from b3d.modeling_utils import uniform_pose
 

@@ -5,16 +5,17 @@ import fire
 def test_demo():
     import os
 
-    import b3d
-    import b3d.bayes3d as bayes3d
     import genjax
     import jax
     import jax.numpy as jnp
     import numpy as np
     import rerun as rr
-    from b3d import Mesh, Pose
     from genjax import Pytree
     from tqdm import tqdm
+
+    import b3d
+    import b3d.bayes3d as bayes3d
+    from b3d import Mesh, Pose
 
     rr.init("demo")
     rr.connect("127.0.0.1:8812")

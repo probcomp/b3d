@@ -1,12 +1,12 @@
-import b3d
-import b3d.chisight.dense.dense_only_patch_tracking.patch_tracking as tracking
 import jax.numpy as jnp
 import rerun as rr
+
+import b3d
+import b3d.chisight.dense.dense_only_patch_tracking.patch_tracking as tracking
 from b3d import Pose
 from b3d.chisight.dense.dense_only_patch_tracking.model import (
     rr_log_uniformpose_meshes_to_image_model_trace,
 )
-
 from tests.common.solver import Solver
 
 

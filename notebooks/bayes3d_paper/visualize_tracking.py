@@ -6,10 +6,11 @@ def make_visual(scene=None, object=None, debug=False):
     import importlib
     import os
 
-    import b3d
     import jax.numpy as jnp
-    from b3d import Mesh, Pose
     from tqdm import tqdm
+
+    import b3d
+    from b3d import Mesh, Pose
 
     importlib.reload(b3d.mesh)
     importlib.reload(b3d.io.data_loader)
@@ -57,7 +58,7 @@ def make_visual(scene=None, object=None, debug=False):
 
         id = all_data[0]["object_types"][object]
         mesh = Mesh.from_obj_file(
-            os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+            os.path.join(ycb_dir, f"models/obj_{f'{id + 1}'.rjust(6, '0')}.ply")
         ).scale(0.001)
 
         video_frames = []
@@ -72,7 +73,7 @@ def make_visual(scene=None, object=None, debug=False):
             filename = os.path.join(
                 foundation_pose_results_dir,
                 str(scene_id).rjust(6, "0"),
-                f"{all_data[0]["object_types"][object]+1}",
+                f"{all_data[0]['object_types'][object] + 1}",
                 "ob_in_cam",
                 str(image_id).rjust(6, "0") + ".txt",
             )

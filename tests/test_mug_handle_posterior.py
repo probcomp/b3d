@@ -1,14 +1,15 @@
 import os
 
-import b3d
-import b3d.bayes3d as bayes3d
 import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
 import trimesh
-from b3d import Pose
 from genjax import Pytree
+
+import b3d
+import b3d.bayes3d as bayes3d
+from b3d import Pose
 
 PORT = 8812
 rr.init("233")
@@ -161,11 +162,11 @@ class TestMugHandlePosterior:
                     rr.TextDocument(f"{delta_cps[samples[t]]} \n {scores[samples[t]]}"),
                 )
 
-            assert (
-                samples_deg_range >= sampled_degree_range_bounds[text_index][0]
-            ), f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
-            assert (
-                samples_deg_range <= sampled_degree_range_bounds[text_index][1]
-            ), f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
+            assert samples_deg_range >= sampled_degree_range_bounds[text_index][0], (
+                f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
+            )
+            assert samples_deg_range <= sampled_degree_range_bounds[text_index][1], (
+                f"{samples_deg_range}, {sampled_degree_range_bounds[text_index]}"
+            )
 
             bayes3d.rerun_visualize_trace_t(gt_trace, 0)

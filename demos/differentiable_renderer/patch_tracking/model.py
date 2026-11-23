@@ -1,12 +1,12 @@
-import b3d
-import b3d.chisight.dense.differentiable_renderer as rendering
 import genjax
 import jax
 import jax.numpy as jnp
 import rerun as rr
-from b3d.modeling_utils import uniform_pose
 
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
 import demos.differentiable_renderer.patch_tracking.demo_utils as utils
+from b3d.modeling_utils import uniform_pose
 
 
 def normalize(v):

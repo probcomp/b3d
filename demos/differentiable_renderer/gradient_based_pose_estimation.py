@@ -1,14 +1,15 @@
 import os
 from functools import partial
 
-import b3d
-import b3d.chisight.dense.differentiable_renderer as rendering
 import jax
 import jax.numpy as jnp
 import optax
 import rerun as rr
-from b3d import Mesh, Pose
 from tqdm import tqdm
+
+import b3d
+import b3d.chisight.dense.differentiable_renderer as rendering
+from b3d import Mesh, Pose
 
 rr.init("gradients")
 rr.connect("127.0.0.1:8812")
@@ -155,7 +156,7 @@ all_data = b3d.io.get_ycbv_test_images(ycb_dir, scene_id, image_ids)
 
 meshes = [
     Mesh.from_obj_file(
-        os.path.join(ycb_dir, f'models/obj_{f"{id + 1}".rjust(6, "0")}.ply')
+        os.path.join(ycb_dir, f"models/obj_{f'{id + 1}'.rjust(6, '0')}.ply")
     ).scale(0.001)
     for id in all_data[0]["object_types"]
 ]

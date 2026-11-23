@@ -3,6 +3,8 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import pytest
+from genjax.typing import FloatArray
+
 from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     COLOR_MAX_VAL,
     COLOR_MIN_VAL,
@@ -11,7 +13,6 @@ from b3d.chisight.gen3d.pixel_kernels.pixel_color_kernels import (
     TruncatedLaplacePixelColorDistribution,
     UniformPixelColorDistribution,
 )
-from genjax.typing import FloatArray
 
 
 @partial(jax.jit, static_argnums=(0,))

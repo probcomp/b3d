@@ -1,11 +1,11 @@
-import b3d
-import b3d.chisight.dense.differentiable_renderer as diffrend
-import b3d.chisight.patch_tracking as tracking
 import jax
 import jax.numpy as jnp
 import rerun as rr
-from b3d import Pose
 
+import b3d
+import b3d.chisight.dense.differentiable_renderer as diffrend
+import b3d.chisight.patch_tracking as tracking
+from b3d import Pose
 from tests.common.solver import Solver
 
 

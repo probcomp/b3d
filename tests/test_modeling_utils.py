@@ -1,6 +1,7 @@
 import genjax
 import jax
 import jax.numpy as jnp
+
 from b3d.modeling_utils import (
     PythonMixtureDistribution,
     truncated_color_laplace,

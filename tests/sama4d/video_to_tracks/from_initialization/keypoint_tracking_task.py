@@ -1,11 +1,11 @@
 from typing import Callable
 
-import b3d
 import jax.numpy as jnp
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
+import b3d
 from tests.common.task import Task
 
 
@@ -40,9 +40,11 @@ class KeypointTrackingTask(Task):
         # By default, ensure the feature_track_data has all keypoints visible at frame 0
         # and that the 2D keypoint positions are not too close to each other at frame 0.
         preprocessing_fn=(
-            lambda ftd: ftd.remove_points_invisible_at_frame0().sparsify_points_to_minimum_2D_distance_at_frame0(
-                # max of video Height // 80, 5
-                max(ftd.rgbd_images.shape[1] // 80, 5)
+            lambda ftd: (
+                ftd.remove_points_invisible_at_frame0().sparsify_points_to_minimum_2D_distance_at_frame0(
+                    # max of video Height // 80, 5
+                    max(ftd.rgbd_images.shape[1] // 80, 5)
+                )
             )
         ),
     ):

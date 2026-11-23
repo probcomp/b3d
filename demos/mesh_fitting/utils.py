@@ -1,7 +1,7 @@
-import b3d
 import jax
 import jax.numpy as jnp
 
+import b3d
 import demos.mesh_fitting.tessellation as t
 
 
